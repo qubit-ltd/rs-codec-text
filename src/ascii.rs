@@ -165,42 +165,92 @@ impl Ascii {
 
     const CASE_DIFFERENCE: i32 = ('a' as i32) - ('A' as i32);
 
-    /// Returns `true` if the byte is an ASCII byte.
+    /// Tests whether a byte is an ASCII byte.
+    ///
+    /// # Parameters
+    ///
+    /// - `ch`: The byte to test.
+    ///
+    /// # Returns
+    ///
+    /// Returns `true` if `ch` is in the ASCII range `0x00..=0x7F`.
     #[inline]
     #[must_use]
     pub const fn is_ascii_byte(ch: u8) -> bool {
         ch <= Self::MAX
     }
 
-    /// Returns `true` if the character is an ASCII character.
+    /// Tests whether a character is an ASCII character.
+    ///
+    /// # Parameters
+    ///
+    /// - `ch`: The character to test.
+    ///
+    /// # Returns
+    ///
+    /// Returns `true` if `ch` is in the ASCII range `U+0000..=U+007F`.
     #[inline]
     #[must_use]
     pub const fn is_ascii_char(ch: char) -> bool {
         (ch as u32) <= Self::MAX as u32
     }
 
-    /// Returns `true` if the value is an ASCII code point.
+    /// Tests whether an integer value is an ASCII code point.
+    ///
+    /// # Parameters
+    ///
+    /// - `ch`: The raw code point value to test.
+    ///
+    /// # Returns
+    ///
+    /// Returns `true` if `ch` is in the ASCII range `0x00..=0x7F`.
+    /// Negative values and values above `0x7F` return `false`.
     #[inline]
     #[must_use]
     pub const fn is_ascii_code_point(ch: i32) -> bool {
         ch >= 0 && ch <= Self::MAX as i32
     }
 
-    /// Returns `true` if the byte is Java-style ASCII whitespace.
+    /// Tests whether a byte is Java-style ASCII whitespace.
+    ///
+    /// # Parameters
+    ///
+    /// - `ch`: The byte to test.
+    ///
+    /// # Returns
+    ///
+    /// Returns `true` for tab, line feed, form feed, carriage return, or space.
     #[inline]
     #[must_use]
     pub const fn is_whitespace_byte(ch: u8) -> bool {
         ch == b'\t' || ch == b'\n' || ch == b'\x0c' || ch == b'\r' || ch == b' '
     }
 
-    /// Returns `true` if the character is Java-style ASCII whitespace.
+    /// Tests whether a character is Java-style ASCII whitespace.
+    ///
+    /// # Parameters
+    ///
+    /// - `ch`: The character to test.
+    ///
+    /// # Returns
+    ///
+    /// Returns `true` for tab, line feed, form feed, carriage return, or space.
     #[inline]
     #[must_use]
     pub const fn is_whitespace_char(ch: char) -> bool {
         ch == '\t' || ch == '\n' || ch == '\u{000c}' || ch == '\r' || ch == ' '
     }
 
-    /// Returns `true` if the code point is Java-style ASCII whitespace.
+    /// Tests whether a raw code point is Java-style ASCII whitespace.
+    ///
+    /// # Parameters
+    ///
+    /// - `ch`: The raw code point value to test.
+    ///
+    /// # Returns
+    ///
+    /// Returns `true` for tab, line feed, form feed, carriage return, or space.
+    /// Other values, including negative values, return `false`.
     #[inline]
     #[must_use]
     pub const fn is_whitespace_code_point(ch: i32) -> bool {
@@ -211,105 +261,225 @@ impl Ascii {
             || ch == ' ' as i32
     }
 
-    /// Returns `true` if the byte is an ASCII letter.
+    /// Tests whether a byte is an ASCII letter.
+    ///
+    /// # Parameters
+    ///
+    /// - `ch`: The byte to test.
+    ///
+    /// # Returns
+    ///
+    /// Returns `true` if `ch` is in `A..=Z` or `a..=z`.
     #[inline]
     #[must_use]
     pub const fn is_letter_byte(ch: u8) -> bool {
         Self::is_upper_case_letter_byte(ch) || Self::is_lower_case_letter_byte(ch)
     }
 
-    /// Returns `true` if the character is an ASCII letter.
+    /// Tests whether a character is an ASCII letter.
+    ///
+    /// # Parameters
+    ///
+    /// - `ch`: The character to test.
+    ///
+    /// # Returns
+    ///
+    /// Returns `true` if `ch` is in `A..=Z` or `a..=z`.
     #[inline]
     #[must_use]
     pub const fn is_letter_char(ch: char) -> bool {
         Self::is_upper_case_letter_char(ch) || Self::is_lower_case_letter_char(ch)
     }
 
-    /// Returns `true` if the code point is an ASCII letter.
+    /// Tests whether a raw code point is an ASCII letter.
+    ///
+    /// # Parameters
+    ///
+    /// - `ch`: The raw code point value to test.
+    ///
+    /// # Returns
+    ///
+    /// Returns `true` if `ch` is in `A..=Z` or `a..=z`.
     #[inline]
     #[must_use]
     pub const fn is_letter_code_point(ch: i32) -> bool {
         Self::is_upper_case_letter_code_point(ch) || Self::is_lower_case_letter_code_point(ch)
     }
 
-    /// Returns `true` if the byte is an uppercase ASCII letter.
+    /// Tests whether a byte is an uppercase ASCII letter.
+    ///
+    /// # Parameters
+    ///
+    /// - `ch`: The byte to test.
+    ///
+    /// # Returns
+    ///
+    /// Returns `true` if `ch` is in `A..=Z`.
     #[inline]
     #[must_use]
     pub const fn is_upper_case_letter_byte(ch: u8) -> bool {
         ch >= b'A' && ch <= b'Z'
     }
 
-    /// Returns `true` if the character is an uppercase ASCII letter.
+    /// Tests whether a character is an uppercase ASCII letter.
+    ///
+    /// # Parameters
+    ///
+    /// - `ch`: The character to test.
+    ///
+    /// # Returns
+    ///
+    /// Returns `true` if `ch` is in `A..=Z`.
     #[inline]
     #[must_use]
     pub const fn is_upper_case_letter_char(ch: char) -> bool {
         ch >= 'A' && ch <= 'Z'
     }
 
-    /// Returns `true` if the code point is an uppercase ASCII letter.
+    /// Tests whether a raw code point is an uppercase ASCII letter.
+    ///
+    /// # Parameters
+    ///
+    /// - `ch`: The raw code point value to test.
+    ///
+    /// # Returns
+    ///
+    /// Returns `true` if `ch` is in `A..=Z`.
     #[inline]
     #[must_use]
     pub const fn is_upper_case_letter_code_point(ch: i32) -> bool {
         ch >= 'A' as i32 && ch <= 'Z' as i32
     }
 
-    /// Returns `true` if the byte is a lowercase ASCII letter.
+    /// Tests whether a byte is a lowercase ASCII letter.
+    ///
+    /// # Parameters
+    ///
+    /// - `ch`: The byte to test.
+    ///
+    /// # Returns
+    ///
+    /// Returns `true` if `ch` is in `a..=z`.
     #[inline]
     #[must_use]
     pub const fn is_lower_case_letter_byte(ch: u8) -> bool {
         ch >= b'a' && ch <= b'z'
     }
 
-    /// Returns `true` if the character is a lowercase ASCII letter.
+    /// Tests whether a character is a lowercase ASCII letter.
+    ///
+    /// # Parameters
+    ///
+    /// - `ch`: The character to test.
+    ///
+    /// # Returns
+    ///
+    /// Returns `true` if `ch` is in `a..=z`.
     #[inline]
     #[must_use]
     pub const fn is_lower_case_letter_char(ch: char) -> bool {
         ch >= 'a' && ch <= 'z'
     }
 
-    /// Returns `true` if the code point is a lowercase ASCII letter.
+    /// Tests whether a raw code point is a lowercase ASCII letter.
+    ///
+    /// # Parameters
+    ///
+    /// - `ch`: The raw code point value to test.
+    ///
+    /// # Returns
+    ///
+    /// Returns `true` if `ch` is in `a..=z`.
     #[inline]
     #[must_use]
     pub const fn is_lower_case_letter_code_point(ch: i32) -> bool {
         ch >= 'a' as i32 && ch <= 'z' as i32
     }
 
-    /// Returns `true` if the byte is an ASCII decimal digit.
+    /// Tests whether a byte is an ASCII decimal digit.
+    ///
+    /// # Parameters
+    ///
+    /// - `ch`: The byte to test.
+    ///
+    /// # Returns
+    ///
+    /// Returns `true` if `ch` is in `0..=9`.
     #[inline]
     #[must_use]
     pub const fn is_digit_byte(ch: u8) -> bool {
         ch >= b'0' && ch <= b'9'
     }
 
-    /// Returns `true` if the character is an ASCII decimal digit.
+    /// Tests whether a character is an ASCII decimal digit.
+    ///
+    /// # Parameters
+    ///
+    /// - `ch`: The character to test.
+    ///
+    /// # Returns
+    ///
+    /// Returns `true` if `ch` is in `0..=9`.
     #[inline]
     #[must_use]
     pub const fn is_digit_char(ch: char) -> bool {
         ch >= '0' && ch <= '9'
     }
 
-    /// Returns `true` if the code point is an ASCII decimal digit.
+    /// Tests whether a raw code point is an ASCII decimal digit.
+    ///
+    /// # Parameters
+    ///
+    /// - `ch`: The raw code point value to test.
+    ///
+    /// # Returns
+    ///
+    /// Returns `true` if `ch` is in `0..=9`.
     #[inline]
     #[must_use]
     pub const fn is_digit_code_point(ch: i32) -> bool {
         ch >= '0' as i32 && ch <= '9' as i32
     }
 
-    /// Returns `true` if the byte is an ASCII hexadecimal digit.
+    /// Tests whether a byte is an ASCII hexadecimal digit.
+    ///
+    /// # Parameters
+    ///
+    /// - `ch`: The byte to test.
+    ///
+    /// # Returns
+    ///
+    /// Returns `true` if `ch` is in `0..=9`, `A..=F`, or `a..=f`.
     #[inline]
     #[must_use]
     pub const fn is_hex_digit_byte(ch: u8) -> bool {
         Self::is_digit_byte(ch) || (ch >= b'a' && ch <= b'f') || (ch >= b'A' && ch <= b'F')
     }
 
-    /// Returns `true` if the character is an ASCII hexadecimal digit.
+    /// Tests whether a character is an ASCII hexadecimal digit.
+    ///
+    /// # Parameters
+    ///
+    /// - `ch`: The character to test.
+    ///
+    /// # Returns
+    ///
+    /// Returns `true` if `ch` is in `0..=9`, `A..=F`, or `a..=f`.
     #[inline]
     #[must_use]
     pub const fn is_hex_digit_char(ch: char) -> bool {
         Self::is_digit_char(ch) || (ch >= 'a' && ch <= 'f') || (ch >= 'A' && ch <= 'F')
     }
 
-    /// Returns `true` if the code point is an ASCII hexadecimal digit.
+    /// Tests whether a raw code point is an ASCII hexadecimal digit.
+    ///
+    /// # Parameters
+    ///
+    /// - `ch`: The raw code point value to test.
+    ///
+    /// # Returns
+    ///
+    /// Returns `true` if `ch` is in `0..=9`, `A..=F`, or `a..=f`.
     #[inline]
     #[must_use]
     pub const fn is_hex_digit_code_point(ch: i32) -> bool {
@@ -318,91 +488,197 @@ impl Ascii {
             || (ch >= 'A' as i32 && ch <= 'F' as i32)
     }
 
-    /// Returns `true` if the byte is an ASCII octal digit.
+    /// Tests whether a byte is an ASCII octal digit.
+    ///
+    /// # Parameters
+    ///
+    /// - `ch`: The byte to test.
+    ///
+    /// # Returns
+    ///
+    /// Returns `true` if `ch` is in `0..=7`.
     #[inline]
     #[must_use]
     pub const fn is_octal_digit_byte(ch: u8) -> bool {
         ch >= b'0' && ch <= b'7'
     }
 
-    /// Returns `true` if the character is an ASCII octal digit.
+    /// Tests whether a character is an ASCII octal digit.
+    ///
+    /// # Parameters
+    ///
+    /// - `ch`: The character to test.
+    ///
+    /// # Returns
+    ///
+    /// Returns `true` if `ch` is in `0..=7`.
     #[inline]
     #[must_use]
     pub const fn is_octal_digit_char(ch: char) -> bool {
         ch >= '0' && ch <= '7'
     }
 
-    /// Returns `true` if the code point is an ASCII octal digit.
+    /// Tests whether a raw code point is an ASCII octal digit.
+    ///
+    /// # Parameters
+    ///
+    /// - `ch`: The raw code point value to test.
+    ///
+    /// # Returns
+    ///
+    /// Returns `true` if `ch` is in `0..=7`.
     #[inline]
     #[must_use]
     pub const fn is_octal_digit_code_point(ch: i32) -> bool {
         ch >= '0' as i32 && ch <= '7' as i32
     }
 
-    /// Returns `true` if the byte is an ASCII letter or digit.
+    /// Tests whether a byte is an ASCII letter or digit.
+    ///
+    /// # Parameters
+    ///
+    /// - `ch`: The byte to test.
+    ///
+    /// # Returns
+    ///
+    /// Returns `true` if `ch` is an ASCII letter or decimal digit.
     #[inline]
     #[must_use]
     pub const fn is_letter_or_digit_byte(ch: u8) -> bool {
         Self::is_letter_byte(ch) || Self::is_digit_byte(ch)
     }
 
-    /// Returns `true` if the character is an ASCII letter or digit.
+    /// Tests whether a character is an ASCII letter or digit.
+    ///
+    /// # Parameters
+    ///
+    /// - `ch`: The character to test.
+    ///
+    /// # Returns
+    ///
+    /// Returns `true` if `ch` is an ASCII letter or decimal digit.
     #[inline]
     #[must_use]
     pub const fn is_letter_or_digit_char(ch: char) -> bool {
         Self::is_letter_char(ch) || Self::is_digit_char(ch)
     }
 
-    /// Returns `true` if the code point is an ASCII letter or digit.
+    /// Tests whether a raw code point is an ASCII letter or digit.
+    ///
+    /// # Parameters
+    ///
+    /// - `ch`: The raw code point value to test.
+    ///
+    /// # Returns
+    ///
+    /// Returns `true` if `ch` is an ASCII letter or decimal digit.
     #[inline]
     #[must_use]
     pub const fn is_letter_or_digit_code_point(ch: i32) -> bool {
         Self::is_letter_code_point(ch) || Self::is_digit_code_point(ch)
     }
 
-    /// Returns `true` if the byte is a printable ASCII character.
+    /// Tests whether a byte is a printable ASCII character.
+    ///
+    /// # Parameters
+    ///
+    /// - `ch`: The byte to test.
+    ///
+    /// # Returns
+    ///
+    /// Returns `true` if `ch` is in the printable ASCII range `0x20..=0x7E`.
     #[inline]
     #[must_use]
     pub const fn is_printable_byte(ch: u8) -> bool {
         ch >= Self::MIN_PRINTABLE as u8 && ch <= Self::MAX_PRINTABLE as u8
     }
 
-    /// Returns `true` if the character is a printable ASCII character.
+    /// Tests whether a character is a printable ASCII character.
+    ///
+    /// # Parameters
+    ///
+    /// - `ch`: The character to test.
+    ///
+    /// # Returns
+    ///
+    /// Returns `true` if `ch` is in the printable ASCII range `U+0020..=U+007E`.
     #[inline]
     #[must_use]
     pub const fn is_printable_char(ch: char) -> bool {
         ch >= Self::MIN_PRINTABLE && ch <= Self::MAX_PRINTABLE
     }
 
-    /// Returns `true` if the code point is a printable ASCII character.
+    /// Tests whether a raw code point is a printable ASCII character.
+    ///
+    /// # Parameters
+    ///
+    /// - `ch`: The raw code point value to test.
+    ///
+    /// # Returns
+    ///
+    /// Returns `true` if `ch` is in the printable ASCII range `0x20..=0x7E`.
     #[inline]
     #[must_use]
     pub const fn is_printable_code_point(ch: i32) -> bool {
         ch >= Self::MIN_PRINTABLE as i32 && ch <= Self::MAX_PRINTABLE as i32
     }
 
-    /// Returns `true` if the byte is an ASCII control character.
+    /// Tests whether a byte is an ASCII control character.
+    ///
+    /// # Parameters
+    ///
+    /// - `ch`: The byte to test.
+    ///
+    /// # Returns
+    ///
+    /// Returns `true` for `0x00..=0x1F` or `0x7F`.
     #[inline]
     #[must_use]
     pub const fn is_control_byte(ch: u8) -> bool {
         ch < Self::MIN_PRINTABLE as u8 || ch == Self::DELETE as u8
     }
 
-    /// Returns `true` if the character is an ASCII control character.
+    /// Tests whether a character is an ASCII control character.
+    ///
+    /// # Parameters
+    ///
+    /// - `ch`: The character to test.
+    ///
+    /// # Returns
+    ///
+    /// Returns `true` for `U+0000..=U+001F` or `U+007F`.
     #[inline]
     #[must_use]
     pub const fn is_control_char(ch: char) -> bool {
         (ch < Self::MIN_PRINTABLE) || ch == Self::DELETE
     }
 
-    /// Returns `true` if the code point is an ASCII control character.
+    /// Tests whether a raw code point is an ASCII control character.
+    ///
+    /// # Parameters
+    ///
+    /// - `ch`: The raw code point value to test.
+    ///
+    /// # Returns
+    ///
+    /// Returns `true` for `0x00..=0x1F` or `0x7F`.
     #[inline]
     #[must_use]
     pub const fn is_control_code_point(ch: i32) -> bool {
         (ch >= 0 && ch < Self::MIN_PRINTABLE as i32) || ch == Self::DELETE as i32
     }
 
-    /// Compares two ASCII bytes ignoring ASCII case.
+    /// Compares two bytes while ignoring ASCII case.
+    ///
+    /// # Parameters
+    ///
+    /// - `ch1`: The first byte to compare.
+    /// - `ch2`: The second byte to compare.
+    ///
+    /// # Returns
+    ///
+    /// Returns `true` if the bytes are equal after converting ASCII uppercase
+    /// letters to lowercase. Non-ASCII bytes are compared unchanged.
     #[inline]
     #[must_use]
     pub const fn equals_ignore_case_byte(ch1: u8, ch2: u8) -> bool {
@@ -413,7 +689,18 @@ impl Ascii {
         }
     }
 
-    /// Compares two ASCII characters ignoring ASCII case.
+    /// Compares two characters while ignoring ASCII case.
+    ///
+    /// # Parameters
+    ///
+    /// - `ch1`: The first character to compare.
+    /// - `ch2`: The second character to compare.
+    ///
+    /// # Returns
+    ///
+    /// Returns `true` if the characters are equal after converting ASCII
+    /// uppercase letters to lowercase. Non-ASCII characters are compared
+    /// unchanged.
     #[inline]
     #[must_use]
     pub const fn equals_ignore_case_char(ch1: char, ch2: char) -> bool {
@@ -424,7 +711,17 @@ impl Ascii {
         }
     }
 
-    /// Compares two ASCII code points ignoring ASCII case.
+    /// Compares two raw code points while ignoring ASCII case.
+    ///
+    /// # Parameters
+    ///
+    /// - `ch1`: The first raw code point value to compare.
+    /// - `ch2`: The second raw code point value to compare.
+    ///
+    /// # Returns
+    ///
+    /// Returns `true` if the values are equal after converting ASCII uppercase
+    /// letters to lowercase. Values outside ASCII are compared unchanged.
     #[inline]
     #[must_use]
     pub const fn equals_ignore_case_code_point(ch1: i32, ch2: i32) -> bool {
@@ -435,7 +732,16 @@ impl Ascii {
         }
     }
 
-    /// Converts an ASCII byte to uppercase.
+    /// Converts a byte to uppercase using ASCII case rules.
+    ///
+    /// # Parameters
+    ///
+    /// - `ch`: The byte to convert.
+    ///
+    /// # Returns
+    ///
+    /// Returns the uppercase ASCII equivalent for `a..=z`; all other bytes are
+    /// returned unchanged.
     #[inline]
     #[must_use]
     pub const fn to_upper_case_byte(ch: u8) -> u8 {
@@ -446,7 +752,16 @@ impl Ascii {
         }
     }
 
-    /// Converts an ASCII character to uppercase.
+    /// Converts a character to uppercase using ASCII case rules.
+    ///
+    /// # Parameters
+    ///
+    /// - `ch`: The character to convert.
+    ///
+    /// # Returns
+    ///
+    /// Returns the uppercase ASCII equivalent for `a..=z`; all other characters
+    /// are returned unchanged.
     #[inline]
     #[must_use]
     pub const fn to_upper_case_char(ch: char) -> char {
@@ -457,7 +772,16 @@ impl Ascii {
         }
     }
 
-    /// Converts an ASCII code point to uppercase.
+    /// Converts a raw code point to uppercase using ASCII case rules.
+    ///
+    /// # Parameters
+    ///
+    /// - `ch`: The raw code point value to convert.
+    ///
+    /// # Returns
+    ///
+    /// Returns the uppercase ASCII equivalent for `a..=z`; all other values are
+    /// returned unchanged.
     #[inline]
     #[must_use]
     pub const fn to_upper_case_code_point(ch: i32) -> i32 {
@@ -468,7 +792,16 @@ impl Ascii {
         }
     }
 
-    /// Converts an ASCII byte to lowercase.
+    /// Converts a byte to lowercase using ASCII case rules.
+    ///
+    /// # Parameters
+    ///
+    /// - `ch`: The byte to convert.
+    ///
+    /// # Returns
+    ///
+    /// Returns the lowercase ASCII equivalent for `A..=Z`; all other bytes are
+    /// returned unchanged.
     #[inline]
     #[must_use]
     pub const fn to_lower_case_byte(ch: u8) -> u8 {
@@ -479,7 +812,16 @@ impl Ascii {
         }
     }
 
-    /// Converts an ASCII character to lowercase.
+    /// Converts a character to lowercase using ASCII case rules.
+    ///
+    /// # Parameters
+    ///
+    /// - `ch`: The character to convert.
+    ///
+    /// # Returns
+    ///
+    /// Returns the lowercase ASCII equivalent for `A..=Z`; all other characters
+    /// are returned unchanged.
     #[inline]
     #[must_use]
     pub const fn to_lower_case_char(ch: char) -> char {
@@ -490,7 +832,16 @@ impl Ascii {
         }
     }
 
-    /// Converts an ASCII code point to lowercase.
+    /// Converts a raw code point to lowercase using ASCII case rules.
+    ///
+    /// # Parameters
+    ///
+    /// - `ch`: The raw code point value to convert.
+    ///
+    /// # Returns
+    ///
+    /// Returns the lowercase ASCII equivalent for `A..=Z`; all other values are
+    /// returned unchanged.
     #[inline]
     #[must_use]
     pub const fn to_lower_case_code_point(ch: i32) -> i32 {
@@ -502,6 +853,14 @@ impl Ascii {
     }
 
     /// Converts an ASCII decimal digit byte into its numeric value.
+    ///
+    /// # Parameters
+    ///
+    /// - `ch`: The byte to convert.
+    ///
+    /// # Returns
+    ///
+    /// Returns `Some(0..=9)` for `0..=9`; returns `None` otherwise.
     #[inline]
     #[must_use]
     pub const fn to_digit_byte(ch: u8) -> Option<u8> {
@@ -513,6 +872,14 @@ impl Ascii {
     }
 
     /// Converts an ASCII decimal digit character into its numeric value.
+    ///
+    /// # Parameters
+    ///
+    /// - `ch`: The character to convert.
+    ///
+    /// # Returns
+    ///
+    /// Returns `Some(0..=9)` for `0..=9`; returns `None` otherwise.
     #[inline]
     #[must_use]
     pub const fn to_digit_char(ch: char) -> Option<u8> {
@@ -524,6 +891,14 @@ impl Ascii {
     }
 
     /// Converts an ASCII decimal digit code point into its numeric value.
+    ///
+    /// # Parameters
+    ///
+    /// - `ch`: The raw code point value to convert.
+    ///
+    /// # Returns
+    ///
+    /// Returns `Some(0..=9)` for `0..=9`; returns `None` otherwise.
     #[inline]
     #[must_use]
     pub const fn to_digit_code_point(ch: i32) -> Option<u8> {
@@ -535,6 +910,15 @@ impl Ascii {
     }
 
     /// Converts an ASCII hexadecimal digit byte into its numeric value.
+    ///
+    /// # Parameters
+    ///
+    /// - `ch`: The byte to convert.
+    ///
+    /// # Returns
+    ///
+    /// Returns `Some(0..=15)` for `0..=9`, `A..=F`, or `a..=f`; returns `None`
+    /// otherwise.
     #[inline]
     #[must_use]
     pub const fn to_hex_digit_byte(ch: u8) -> Option<u8> {
@@ -550,6 +934,15 @@ impl Ascii {
     }
 
     /// Converts an ASCII hexadecimal digit character into its numeric value.
+    ///
+    /// # Parameters
+    ///
+    /// - `ch`: The character to convert.
+    ///
+    /// # Returns
+    ///
+    /// Returns `Some(0..=15)` for `0..=9`, `A..=F`, or `a..=f`; returns `None`
+    /// otherwise.
     #[inline]
     #[must_use]
     pub const fn to_hex_digit_char(ch: char) -> Option<u8> {
@@ -565,6 +958,15 @@ impl Ascii {
     }
 
     /// Converts an ASCII hexadecimal digit code point into its numeric value.
+    ///
+    /// # Parameters
+    ///
+    /// - `ch`: The raw code point value to convert.
+    ///
+    /// # Returns
+    ///
+    /// Returns `Some(0..=15)` for `0..=9`, `A..=F`, or `a..=f`; returns `None`
+    /// otherwise.
     #[inline]
     #[must_use]
     pub const fn to_hex_digit_code_point(ch: i32) -> Option<u8> {
@@ -581,9 +983,25 @@ impl Ascii {
 
     /// Folds a Unicode character to its ASCII replacement.
     ///
+    /// # Parameters
+    ///
+    /// - `ch`: The character to fold.
+    /// - `result`: The caller-provided output buffer that receives the folded
+    ///   characters.
+    /// - `offset`: The starting index in `result` at which folded characters are
+    ///   written.
+    ///
+    /// # Returns
+    ///
     /// Returns the number of characters written to `result` starting at
-    /// `offset`. The caller must provide at least [`Self::MAX_FOLDING`]
-    /// writable slots after `offset`.
+    /// `offset`. ASCII characters and unmapped non-ASCII characters write one
+    /// character. Mapped characters write up to [`Self::MAX_FOLDING`] ASCII
+    /// characters.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `result` has fewer than [`Self::MAX_FOLDING`] writable slots
+    /// after `offset`.
     #[inline]
     pub fn fold(ch: char, result: &mut [char], offset: usize) -> usize {
         assert!(
@@ -609,6 +1027,15 @@ impl Ascii {
     }
 
     /// Folds a Unicode character into an owned string.
+    ///
+    /// # Parameters
+    ///
+    /// - `ch`: The character to fold.
+    ///
+    /// # Returns
+    ///
+    /// Returns the folded ASCII replacement as a `String`. If `ch` has no
+    /// folding mapping, the returned string contains `ch` unchanged.
     #[inline]
     #[must_use]
     pub fn fold_to_string(ch: char) -> String {

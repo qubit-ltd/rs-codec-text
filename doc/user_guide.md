@@ -19,12 +19,12 @@ ASCII folding and Unicode escape behavior.
 ## Error Handling
 
 Cursor and encoder APIs return `UnicodeResult<T>`. Errors carry a
-`UnicodeErrorKind` and the index where the problem was detected. The kind maps
-to the same core categories as the Java utilities:
+`UnicodeErrorKind` and the index where the problem was detected. The available
+kinds are:
 
 - `BufferOverflow`;
-- `MalformedUnicode`;
-- `IncompleteUnicode`.
+- `Malformed`;
+- `Incomplete`.
 
 ## ASCII Folding
 

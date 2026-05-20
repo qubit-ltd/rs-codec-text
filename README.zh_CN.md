@@ -108,7 +108,7 @@ assert_eq!("\\uD83D\\uDE00", Utf16::escape(0x1f600).unwrap());
 | --- | --- |
 | `ParsingPosition` | 可变游标，包含可选的错误索引和错误类型 |
 | `UnicodeError` | 包含 `UnicodeErrorKind` 和 byte/code-unit 索引的错误值 |
-| `UnicodeErrorKind` | `BufferOverflow`、`MalformedUnicode` 或 `IncompleteUnicode` |
+| `UnicodeErrorKind` | `BufferOverflow`、`Malformed` 或 `Incomplete` |
 | `UnicodeResult<T>` | `Result<T, UnicodeError>` 的便捷别名 |
 
 ## Prelude
@@ -125,9 +125,9 @@ use qubit_unicode::prelude::*;
 
 这些更高层语义应使用 `unicode-segmentation`、`unicode-normalization`、`unicode-width` 或 ICU4X 等专门 crate。
 
-## 运行时依赖
+## 依赖
 
-本 crate 运行时只依赖 Rust 标准库。
+本 crate 使用 `thiserror` 实现错误类型的 `Display` 和 `Error`。
 
 ## 测试与代码覆盖率
 

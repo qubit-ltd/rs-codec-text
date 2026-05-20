@@ -17,11 +17,11 @@ value、UTF-8 byte、UTF-16 code unit 和 ASCII-only 行为。
 ## 错误处理
 
 游标和编码 API 返回 `UnicodeResult<T>`。错误包含 `UnicodeErrorKind` 和检测到
-问题的索引。错误分类对应 Java 工具里的核心类别：
+问题的索引。错误分类包括：
 
 - `BufferOverflow`；
-- `MalformedUnicode`；
-- `IncompleteUnicode`。
+- `Malformed`；
+- `Incomplete`。
 
 ## ASCII Folding
 

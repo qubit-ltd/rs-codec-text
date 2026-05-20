@@ -109,7 +109,7 @@ Cursor APIs return `UnicodeResult<T>` and report where a problem was detected:
 | --- | --- |
 | `ParsingPosition` | Mutable cursor with optional error index and error kind |
 | `UnicodeError` | Error value containing `UnicodeErrorKind` and byte/code-unit index |
-| `UnicodeErrorKind` | `BufferOverflow`, `MalformedUnicode`, or `IncompleteUnicode` |
+| `UnicodeErrorKind` | `BufferOverflow`, `Malformed`, or `Incomplete` |
 | `UnicodeResult<T>` | Convenience alias for `Result<T, UnicodeError>` |
 
 ## Prelude
@@ -126,9 +126,9 @@ use qubit_unicode::prelude::*;
 
 Use specialized crates such as `unicode-segmentation`, `unicode-normalization`, `unicode-width`, or ICU4X for those higher-level semantics.
 
-## Runtime Dependencies
+## Dependencies
 
-This crate depends only on the Rust standard library at runtime.
+This crate uses `thiserror` for error `Display` and `Error` implementations.
 
 ## Testing & Code Coverage
 

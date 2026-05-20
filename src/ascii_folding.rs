@@ -17,6 +17,15 @@
 /// to show the original glyph and Unicode name; this Rust port keeps those
 /// annotations beside the escaped code points while preserving identical mapping
 /// behavior.
+///
+/// # Parameters
+///
+/// - `ch`: The non-ASCII character to look up.
+///
+/// # Returns
+///
+/// Returns `Some(replacement)` when `ch` has a known ASCII folding replacement.
+/// Returns `None` when `ch` has no mapping in the table.
 #[must_use]
 pub(crate) fn fold_replacement(ch: char) -> Option<&'static str> {
     match ch {
