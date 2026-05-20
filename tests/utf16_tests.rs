@@ -1,8 +1,4 @@
-use qubit_unicode::{
-    ParsingPosition,
-    UnicodeErrorKind,
-    Utf16,
-};
+use qubit_unicode::{ParsingPosition, UnicodeErrorKind, Utf16};
 
 #[test]
 fn test_utf16_classifies_code_units_and_surrogate_pairs() {
@@ -136,10 +132,21 @@ fn test_utf16_put_and_escape_encode_scalar_values() {
     assert_eq!(2, count);
     assert_eq!([0xd83d, 0xde00], buffer);
 
-    assert_eq!(Some("\\u0041".to_string()), Utf16::escape('A' as u32));
-    assert_eq!(Some("\\u4E2D".to_string()), Utf16::escape('中' as u32));
-    assert_eq!(Some("\\uD83D\\uDE00".to_string()), Utf16::escape(0x1f600));
-    assert_eq!(None, Utf16::escape(0x110000));
+    assert_eq!(Some("\\u0041".to_string()), Utf16::escape_java('A' as u32));
+    assert_eq!(Some("\\u4E2D".to_string()), Utf16::escape_java('中' as u32));
+    assert_eq!(
+        Some("\\uD83D\\uDE00".to_string()),
+        Utf16::escape_java(0x1f600)
+    );
+    assert_eq!(None, Utf16::escape_java(0x110000));
+
+    assert_eq!(Some("\\u{41}".to_string()), Utf16::escape_rust('A' as u32));
+    assert_eq!(
+        Some("\\u{4E2D}".to_string()),
+        Utf16::escape_rust('中' as u32)
+    );
+    assert_eq!(Some("\\u{1F600}".to_string()), Utf16::escape_rust(0x1f600));
+    assert_eq!(None, Utf16::escape_rust(0x110000));
 }
 
 #[test]
@@ -194,5 +201,6 @@ fn test_utf16_reports_malformed_incomplete_and_overflow() {
     let err = Utf16::get_next(&mut pos, &[0xd83d, 0x0041], 2).expect_err("bad pair");
     assert_eq!(UnicodeErrorKind::Malformed, err.kind());
 
-    assert_eq!(None, Utf16::escape(0xd800));
+    assert_eq!(None, Utf16::escape_java(0xd800));
+    assert_eq!(None, Utf16::escape_rust(0xd800));
 }

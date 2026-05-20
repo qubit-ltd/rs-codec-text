@@ -294,13 +294,32 @@ impl Unicode {
     /// `\uXXXXX` or longer uppercase hexadecimal escape text for supplementary
     /// values. Returns `None` if `code_point` is above `0x10FFFF`.
     #[must_use]
-    pub fn escape(code_point: u32) -> Option<String> {
+    pub fn escape_java(code_point: u32) -> Option<String> {
         if code_point > Self::UNICODE_MAX {
             None
         } else if code_point > 0xffff {
             Some(format!("\\u{code_point:X}"))
         } else {
             Some(format!("\\u{code_point:04X}"))
+        }
+    }
+
+    /// Escapes a code point as a Rust-style Unicode escape text.
+    ///
+    /// # Parameters
+    ///
+    /// - `code_point`: The code point to escape.
+    ///
+    /// # Returns
+    ///
+    /// Returns `Some(String)` containing `\u{...}` for valid Unicode scalar
+    /// values. Returns `None` if `code_point` is above `0x10FFFF`.
+    #[must_use]
+    pub fn escape_rust(code_point: u32) -> Option<String> {
+        if code_point > Self::UNICODE_MAX {
+            None
+        } else {
+            Some(format!("\\u{{{code_point:X}}}"))
         }
     }
 }

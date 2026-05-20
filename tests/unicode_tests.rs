@@ -40,10 +40,33 @@ fn test_unicode_handles_surrogate_pairs() {
 
 #[test]
 fn test_unicode_escapes_code_points_like_java_unicode_escape() {
-    assert_eq!(Some("\\u0041".to_string()), Unicode::escape('A' as u32));
-    assert_eq!(Some("\\u4E2D".to_string()), Unicode::escape('中' as u32));
-    assert_eq!(Some("\\u1F600".to_string()), Unicode::escape(0x1f600));
-    assert_eq!(None, Unicode::escape(0x110000));
+    assert_eq!(
+        Some("\\u0041".to_string()),
+        Unicode::escape_java('A' as u32)
+    );
+    assert_eq!(
+        Some("\\u4E2D".to_string()),
+        Unicode::escape_java('中' as u32)
+    );
+    assert_eq!(Some("\\u1F600".to_string()), Unicode::escape_java(0x1f600));
+    assert_eq!(None, Unicode::escape_java(0x110000));
+}
+
+#[test]
+fn test_unicode_escapes_code_points_like_rust_unicode_escape() {
+    assert_eq!(
+        Some("\\u{41}".to_string()),
+        Unicode::escape_rust('A' as u32)
+    );
+    assert_eq!(
+        Some("\\u{4E2D}".to_string()),
+        Unicode::escape_rust('中' as u32)
+    );
+    assert_eq!(
+        Some("\\u{1F600}".to_string()),
+        Unicode::escape_rust(0x1f600)
+    );
+    assert_eq!(None, Unicode::escape_rust(0x110000));
     assert_eq!(Some(0), Unicode::plane('A' as u32));
     assert_eq!(Some(1), Unicode::plane(0x1f600));
     assert_eq!(None, Unicode::plane(0x110000));

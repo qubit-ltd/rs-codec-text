@@ -7,13 +7,7 @@
  *    Licensed under the Apache License, Version 2.0.
  *
  ******************************************************************************/
-use crate::{
-    ParsingPosition,
-    Unicode,
-    UnicodeError,
-    UnicodeErrorKind,
-    UnicodeResult,
-};
+use crate::{ParsingPosition, Unicode, UnicodeError, UnicodeErrorKind, UnicodeResult};
 
 /// Namespace for low-level UTF-16 helpers.
 pub enum Utf16 {}
@@ -537,7 +531,7 @@ impl Utf16 {
     /// Returns `None` if `code_point` is a surrogate value or is above
     /// `0x10FFFF`.
     #[must_use]
-    pub fn escape(code_point: u32) -> Option<String> {
+    pub fn escape_java(code_point: u32) -> Option<String> {
         let count = Self::code_unit_count(code_point)?;
         if count == 1 {
             Some(format!("\\u{code_point:04X}"))
@@ -546,5 +540,22 @@ impl Utf16 {
             let low = Self::decompose_low(code_point)?;
             Some(format!("\\u{high:04X}\\u{low:04X}"))
         }
+    }
+
+    /// Escapes a scalar value as Rust-style `\u{...}` escape text.
+    ///
+    /// # Parameters
+    ///
+    /// - `code_point`: The Unicode scalar value to escape.
+    ///
+    /// # Returns
+    ///
+    /// Returns `Some(String)` containing `\u{...}` for valid Unicode scalar
+    /// values. Returns `None` if `code_point` is a surrogate value or is above
+    /// `0x10FFFF`.
+    #[must_use]
+    pub fn escape_rust(code_point: u32) -> Option<String> {
+        Self::code_unit_count(code_point)?;
+        Some(format!("\\u{{{code_point:X}}}"))
     }
 }
