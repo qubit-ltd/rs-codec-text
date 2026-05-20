@@ -384,40 +384,83 @@ impl Utf8 {
         if index == end_index {
             return Ok(None);
         }
-        let first = buffer[index];
-        if Self::is_single(first) {
+        let c0 = buffer[index];
+        if Self::is_single(c0) {
             pos.set_index(index + 1);
-            return Ok(Some(first as char));
+            return Ok(Some(c0 as char));
         }
-        let count = match Self::trailing_count(first) {
-            Some(count) => count + 1,
-            None => return Self::fail(pos, index, UnicodeErrorKind::Malformed),
-        };
-        let next_index = index + count;
-        if next_index > end_index {
-            return Self::fail(pos, end_index, UnicodeErrorKind::Incomplete);
+        if c0 < 0xc2 {
+            return Self::fail(pos, index, UnicodeErrorKind::Malformed);
         }
-        for (current, byte) in buffer.iter().enumerate().take(next_index).skip(index + 1) {
-            if !Self::is_trailing(*byte) {
-                return Self::fail(pos, current, UnicodeErrorKind::Malformed);
+        if c0 <= 0xdf {
+            if end_index - index < 2 {
+                return Self::fail(pos, end_index, UnicodeErrorKind::Incomplete);
             }
-        }
-        match std::str::from_utf8(&buffer[index..next_index]) {
-            Ok(text) => {
-                let ch = text.chars().next().expect("validated non-empty UTF-8");
-                pos.set_index(next_index);
-                Ok(Some(ch))
+            let p1 = index + 1;
+            let c1 = buffer[p1];
+            if !Self::is_trailing(c1) {
+                return Self::fail(pos, p1, UnicodeErrorKind::Malformed);
             }
-            Err(error) => {
-                let error_index = index + error.valid_up_to() + error.error_len().unwrap_or(0);
-                let kind = if error.error_len().is_none() {
-                    UnicodeErrorKind::Incomplete
-                } else {
-                    UnicodeErrorKind::Malformed
-                };
-                Self::fail(pos, error_index, kind)
-            }
+            let code_point = (((c0 & 0x1f) as u32) << 6) | ((c1 & 0x3f) as u32);
+            let ch = char::from_u32(code_point).expect("validated UTF-8 scalar value");
+            pos.set_index(index + 2);
+            return Ok(Some(ch));
         }
+        if c0 <= 0xef {
+            if end_index - index < 3 {
+                return Self::fail(pos, end_index, UnicodeErrorKind::Incomplete);
+            }
+            let p1 = index + 1;
+            let c1 = buffer[p1];
+            if !Self::is_trailing(c1)
+                || (c0 == 0xe0 && c1 < 0xa0)
+                || (c0 == 0xed && c1 > 0x9f)
+            {
+                return Self::fail(pos, p1, UnicodeErrorKind::Malformed);
+            }
+            let p2 = index + 2;
+            let c2 = buffer[p2];
+            if !Self::is_trailing(c2) {
+                return Self::fail(pos, p2, UnicodeErrorKind::Malformed);
+            }
+            let code_point = (((c0 & 0x0f) as u32) << 12)
+                | (((c1 & 0x3f) as u32) << 6)
+                | ((c2 & 0x3f) as u32);
+            let ch = char::from_u32(code_point).expect("validated UTF-8 scalar value");
+            pos.set_index(index + 3);
+            return Ok(Some(ch));
+        }
+        if c0 <= 0xf4 {
+            if end_index - index < 4 {
+                return Self::fail(pos, end_index, UnicodeErrorKind::Incomplete);
+            }
+            let p1 = index + 1;
+            let c1 = buffer[p1];
+            if !Self::is_trailing(c1)
+                || (c0 == 0xf0 && c1 < 0x90)
+                || (c0 == 0xf4 && c1 > 0x8f)
+            {
+                return Self::fail(pos, p1, UnicodeErrorKind::Malformed);
+            }
+            let p2 = index + 2;
+            let c2 = buffer[p2];
+            if !Self::is_trailing(c2) {
+                return Self::fail(pos, p2, UnicodeErrorKind::Malformed);
+            }
+            let p3 = index + 3;
+            let c3 = buffer[p3];
+            if !Self::is_trailing(c3) {
+                return Self::fail(pos, p3, UnicodeErrorKind::Malformed);
+            }
+            let code_point = (((c0 & 0x07) as u32) << 18)
+                | (((c1 & 0x3f) as u32) << 12)
+                | (((c2 & 0x3f) as u32) << 6)
+                | ((c3 & 0x3f) as u32);
+            let ch = char::from_u32(code_point).expect("validated UTF-8 scalar value");
+            pos.set_index(index + 4);
+            return Ok(Some(ch));
+        }
+        Self::fail(pos, index, UnicodeErrorKind::Malformed)
     }
 
     /// Reads the previous UTF-8 code point and moves the cursor to its start.
@@ -498,20 +541,33 @@ impl Utf8 {
         end_index: usize,
     ) -> UnicodeResult<usize> {
         assert!(end_index <= buffer.len() && index <= end_index);
-        let ch = match char::from_u32(code_point) {
-            Some(ch) => ch,
+        let count = match Self::code_unit_count(code_point) {
+            Some(count) => count,
             None => {
                 return Err(UnicodeError::new(UnicodeErrorKind::Malformed, index));
             }
         };
-        let count = ch.len_utf8();
-        if index + count > end_index {
+        if end_index - index < count {
             return Err(UnicodeError::new(
                 UnicodeErrorKind::BufferOverflow,
                 end_index,
             ));
         }
-        ch.encode_utf8(&mut buffer[index..index + count]);
+        if code_point <= Self::MAX_ONE_CODE_UNIT {
+            buffer[index] = code_point as u8;
+        } else if code_point <= Self::MAX_TWO_CODE_UNIT {
+            buffer[index] = ((code_point >> 6) as u8) | 0xc0;
+            buffer[index + 1] = ((code_point & 0x3f) as u8) | 0x80;
+        } else if code_point <= Self::MAX_THREE_CODE_UNIT {
+            buffer[index] = ((code_point >> 12) as u8) | 0xe0;
+            buffer[index + 1] = (((code_point >> 6) & 0x3f) as u8) | 0x80;
+            buffer[index + 2] = ((code_point & 0x3f) as u8) | 0x80;
+        } else {
+            buffer[index] = ((code_point >> 18) as u8) | 0xf0;
+            buffer[index + 1] = (((code_point >> 12) & 0x3f) as u8) | 0x80;
+            buffer[index + 2] = (((code_point >> 6) & 0x3f) as u8) | 0x80;
+            buffer[index + 3] = ((code_point & 0x3f) as u8) | 0x80;
+        }
         Ok(count)
     }
 
