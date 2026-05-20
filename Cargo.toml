@@ -1,0 +1,34 @@
+[package]
+name = "qubit-unicode"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.94"
+authors = ["Haixing Hu <starfish.hu@gmail.com>"]
+license = "Apache-2.0"
+repository = "https://github.com/qubit-ltd/rs-unicode"
+description = "Low-level Unicode, UTF-8, UTF-16, and ASCII utilities for Rust"
+homepage = "https://github.com/qubit-ltd/rs-unicode"
+documentation = "https://docs.rs/qubit-unicode"
+readme = "README.md"
+keywords = ["unicode", "utf8", "utf16", "ascii", "qubit"]
+categories = ["encoding", "text-processing"]
+include = [
+    "/Cargo.toml",
+    "/LICENSE",
+    "/README.md",
+    "/README.zh_CN.md",
+    "/doc/**/user_guide*.md",
+    "/examples/**",
+    "/resources/**",
+    "/src/**",
+    "/tests/**",
+]
+
+[lib]
+name = "qubit_unicode"
+doctest = true
+
+[dependencies]
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage)'] }
