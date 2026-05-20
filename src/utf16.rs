@@ -7,7 +7,13 @@
  *    Licensed under the Apache License, Version 2.0.
  *
  ******************************************************************************/
-use crate::{ParsingPosition, Unicode, UnicodeError, UnicodeErrorKind, UnicodeResult};
+use crate::{
+    ParsingPosition,
+    Unicode,
+    UnicodeError,
+    UnicodeErrorKind,
+    UnicodeResult,
+};
 
 /// Namespace for low-level UTF-16 helpers.
 pub enum Utf16 {}

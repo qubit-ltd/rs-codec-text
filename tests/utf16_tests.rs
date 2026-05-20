@@ -1,4 +1,8 @@
-use qubit_unicode::{ParsingPosition, UnicodeErrorKind, Utf16};
+use qubit_unicode::{
+    ParsingPosition,
+    UnicodeErrorKind,
+    Utf16,
+};
 
 #[test]
 fn test_utf16_classifies_code_units_and_surrogate_pairs() {
