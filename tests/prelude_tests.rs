@@ -17,7 +17,7 @@ fn test_prelude_reexports_common_types() {
     assert!(Ascii::is_ascii_char('A'));
     assert!(Unicode::is_valid_unicode('中' as i32));
     assert_eq!(Some(1), Utf16::code_unit_count('A' as u32));
-    assert_eq!(UnicodeErrorKind::MalformedUnicode, err.kind());
+    assert_eq!(UnicodeErrorKind::Malformed, err.kind());
 
     let direct_error: UnicodeError = err;
     let result: UnicodeResult<()> = Err(direct_error);

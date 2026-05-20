@@ -148,68 +148,68 @@ fn test_utf8_reports_malformed_incomplete_and_overflow() {
     let mut pos = ParsingPosition::new(0);
 
     let err = Utf8::get_next(&mut pos, &[0xc0, 0x80], 2).expect_err("overlong NUL");
-    assert_eq!(UnicodeErrorKind::MalformedUnicode, err.kind());
+    assert_eq!(UnicodeErrorKind::Malformed, err.kind());
     assert_eq!(Some(0), pos.error_index());
 
     pos.reset(0);
     let err = Utf8::get_next(&mut pos, &[0xe4, 0xb8], 2).expect_err("truncated CJK");
-    assert_eq!(UnicodeErrorKind::IncompleteUnicode, err.kind());
+    assert_eq!(UnicodeErrorKind::Incomplete, err.kind());
     assert_eq!(Some(2), pos.error_index());
 
     pos.reset(0);
     let err = Utf8::get_next(&mut pos, &[0xed, 0xa0, 0x80], 3).expect_err("surrogate");
-    assert_eq!(UnicodeErrorKind::MalformedUnicode, err.kind());
+    assert_eq!(UnicodeErrorKind::Malformed, err.kind());
 
     let mut tiny = [0; 2];
     let err = Utf8::put('中' as u32, 0, &mut tiny, 2).expect_err("not enough space");
     assert_eq!(UnicodeErrorKind::BufferOverflow, err.kind());
 
     let err = Utf8::put(0xd800, 0, &mut tiny, 2).expect_err("surrogate scalar");
-    assert_eq!(UnicodeErrorKind::MalformedUnicode, err.kind());
+    assert_eq!(UnicodeErrorKind::Malformed, err.kind());
 
     pos.reset(1);
     let err = Utf8::set_to_start(&mut pos, &[0x41, 0x80], 0).expect_err("bad leading");
-    assert_eq!(UnicodeErrorKind::MalformedUnicode, err.kind());
+    assert_eq!(UnicodeErrorKind::Malformed, err.kind());
 
     pos.reset(0);
     let err = Utf8::set_to_start(&mut pos, &[0x80], 0).expect_err("missing leading");
-    assert_eq!(UnicodeErrorKind::IncompleteUnicode, err.kind());
+    assert_eq!(UnicodeErrorKind::Incomplete, err.kind());
 
     pos.reset(4);
     let err = Utf8::set_to_start(&mut pos, &[0xf0, 0x80, 0x80, 0x80, 0x80], 0)
         .expect_err("too many trailing bytes");
-    assert_eq!(UnicodeErrorKind::MalformedUnicode, err.kind());
+    assert_eq!(UnicodeErrorKind::Malformed, err.kind());
 
     pos.reset(0);
     let err = Utf8::set_to_terminal(&mut pos, &[0xe4, 0xb8], 2).expect_err("missing trailing");
-    assert_eq!(UnicodeErrorKind::IncompleteUnicode, err.kind());
+    assert_eq!(UnicodeErrorKind::Incomplete, err.kind());
 
     pos.reset(0);
     let err = Utf8::set_to_terminal(&mut pos, &[0xe4, b'A', 0x80], 3).expect_err("bad trailing");
-    assert_eq!(UnicodeErrorKind::MalformedUnicode, err.kind());
+    assert_eq!(UnicodeErrorKind::Malformed, err.kind());
 
     pos.reset(1);
     let err = Utf8::backward(&mut pos, &[0xe4], 0).expect_err("leading before cursor");
-    assert_eq!(UnicodeErrorKind::MalformedUnicode, err.kind());
+    assert_eq!(UnicodeErrorKind::Malformed, err.kind());
 
     pos.reset(1);
     let err = Utf8::backward(&mut pos, &[0x80], 0).expect_err("trailing at start");
-    assert_eq!(UnicodeErrorKind::IncompleteUnicode, err.kind());
+    assert_eq!(UnicodeErrorKind::Incomplete, err.kind());
 
     pos.reset(2);
     let err = Utf8::backward(&mut pos, &[0x41, 0x80], 0).expect_err("bad leading before trailing");
-    assert_eq!(UnicodeErrorKind::MalformedUnicode, err.kind());
+    assert_eq!(UnicodeErrorKind::Malformed, err.kind());
 
     pos.reset(3);
     let err = Utf8::backward(&mut pos, &[0xf0, 0x80, 0x80], 0).expect_err("wrong byte count");
-    assert_eq!(UnicodeErrorKind::MalformedUnicode, err.kind());
+    assert_eq!(UnicodeErrorKind::Malformed, err.kind());
 
     pos.reset(0);
     let err = Utf8::get_next(&mut pos, &[0xe4, b'A', 0x80], 3).expect_err("bad next trailing");
-    assert_eq!(UnicodeErrorKind::MalformedUnicode, err.kind());
+    assert_eq!(UnicodeErrorKind::Malformed, err.kind());
 
     pos.reset(3);
     let err = Utf8::get_previous(&mut pos, &[0xed, 0xa0, 0x80], 0)
         .expect_err("surrogate while reading previous");
-    assert_eq!(UnicodeErrorKind::MalformedUnicode, err.kind());
+    assert_eq!(UnicodeErrorKind::Malformed, err.kind());
 }

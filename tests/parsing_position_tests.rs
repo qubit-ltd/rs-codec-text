@@ -31,9 +31,9 @@ fn test_parsing_position_records_and_clears_errors() {
     let mut pos = ParsingPosition::new(0);
 
     let error = Utf8::get_next(&mut pos, &[0x80], 1).expect_err("invalid leading byte");
-    assert_eq!(UnicodeErrorKind::MalformedUnicode, error.kind());
+    assert_eq!(UnicodeErrorKind::Malformed, error.kind());
     assert_eq!(Some(0), pos.error_index());
-    assert_eq!(Some(UnicodeErrorKind::MalformedUnicode), pos.error_kind());
+    assert_eq!(Some(UnicodeErrorKind::Malformed), pos.error_kind());
     assert!(pos.fail());
 
     pos.clear_error();

@@ -147,12 +147,12 @@ fn test_utf16_reports_malformed_incomplete_and_overflow() {
     let mut pos = ParsingPosition::new(0);
 
     let err = Utf16::get_next(&mut pos, &[0xde00], 1).expect_err("low surrogate first");
-    assert_eq!(UnicodeErrorKind::MalformedUnicode, err.kind());
+    assert_eq!(UnicodeErrorKind::Malformed, err.kind());
     assert_eq!(Some(0), pos.error_index());
 
     pos.reset(0);
     let err = Utf16::get_next(&mut pos, &[0xd83d], 1).expect_err("missing low surrogate");
-    assert_eq!(UnicodeErrorKind::IncompleteUnicode, err.kind());
+    assert_eq!(UnicodeErrorKind::Incomplete, err.kind());
     assert_eq!(Some(1), pos.error_index());
 
     let mut tiny = [0; 1];
@@ -160,39 +160,39 @@ fn test_utf16_reports_malformed_incomplete_and_overflow() {
     assert_eq!(UnicodeErrorKind::BufferOverflow, err.kind());
 
     let err = Utf16::put(0xd800, 0, &mut tiny, 1).expect_err("surrogate scalar");
-    assert_eq!(UnicodeErrorKind::MalformedUnicode, err.kind());
+    assert_eq!(UnicodeErrorKind::Malformed, err.kind());
 
     pos.reset(1);
     let err = Utf16::set_to_start(&mut pos, &[0x0041, 0xde00], 0).expect_err("bad high");
-    assert_eq!(UnicodeErrorKind::MalformedUnicode, err.kind());
+    assert_eq!(UnicodeErrorKind::Malformed, err.kind());
 
     pos.reset(0);
     let err = Utf16::set_to_start(&mut pos, &[0xde00], 0).expect_err("missing high");
-    assert_eq!(UnicodeErrorKind::IncompleteUnicode, err.kind());
+    assert_eq!(UnicodeErrorKind::Incomplete, err.kind());
 
     pos.reset(0);
     let err = Utf16::set_to_terminal(&mut pos, &[0xd83d], 1).expect_err("missing low");
-    assert_eq!(UnicodeErrorKind::IncompleteUnicode, err.kind());
+    assert_eq!(UnicodeErrorKind::Incomplete, err.kind());
 
     pos.reset(0);
     let err = Utf16::set_to_terminal(&mut pos, &[0xd83d, 0x0041], 2).expect_err("bad low");
-    assert_eq!(UnicodeErrorKind::MalformedUnicode, err.kind());
+    assert_eq!(UnicodeErrorKind::Malformed, err.kind());
 
     pos.reset(1);
     let err = Utf16::backward(&mut pos, &[0xd83d], 0).expect_err("high before cursor");
-    assert_eq!(UnicodeErrorKind::MalformedUnicode, err.kind());
+    assert_eq!(UnicodeErrorKind::Malformed, err.kind());
 
     pos.reset(1);
     let err = Utf16::backward(&mut pos, &[0xde00], 0).expect_err("low at start");
-    assert_eq!(UnicodeErrorKind::IncompleteUnicode, err.kind());
+    assert_eq!(UnicodeErrorKind::Incomplete, err.kind());
 
     pos.reset(2);
     let err = Utf16::backward(&mut pos, &[0x0041, 0xde00], 0).expect_err("bad leading");
-    assert_eq!(UnicodeErrorKind::MalformedUnicode, err.kind());
+    assert_eq!(UnicodeErrorKind::Malformed, err.kind());
 
     pos.reset(0);
     let err = Utf16::get_next(&mut pos, &[0xd83d, 0x0041], 2).expect_err("bad pair");
-    assert_eq!(UnicodeErrorKind::MalformedUnicode, err.kind());
+    assert_eq!(UnicodeErrorKind::Malformed, err.kind());
 
     assert_eq!(None, Utf16::escape(0xd800));
 }
