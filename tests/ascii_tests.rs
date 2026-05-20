@@ -13,28 +13,63 @@ fn test_ascii_classifies_ascii_code_points() {
 
 #[test]
 fn test_ascii_classifies_common_character_sets() {
-    assert!(Ascii::is_whitespace('\n' as i32));
-    assert!(Ascii::is_whitespace(' ' as i32));
-    assert!(!Ascii::is_whitespace('\u{00a0}' as i32));
+    assert!(Ascii::is_whitespace_byte(b'\n'));
+    assert!(Ascii::is_whitespace_char(' '));
+    assert!(Ascii::is_whitespace_code_point('\r' as i32));
+    assert!(!Ascii::is_whitespace_byte(0xa0));
+    assert!(!Ascii::is_whitespace_char('\u{00a0}'));
+    assert!(!Ascii::is_whitespace_code_point(-1));
 
-    assert!(Ascii::is_letter('Q' as i32));
-    assert!(Ascii::is_upper_case_letter('Q' as i32));
-    assert!(Ascii::is_lower_case_letter('q' as i32));
-    assert!(Ascii::is_digit('7' as i32));
-    assert!(Ascii::is_hex_digit('f' as i32));
-    assert!(Ascii::is_hex_digit('F' as i32));
-    assert!(Ascii::is_octal_digit('7' as i32));
-    assert!(!Ascii::is_octal_digit('8' as i32));
-    assert!(Ascii::is_letter_or_digit('9' as i32));
-    assert!(Ascii::is_printable('~' as i32));
-    assert!(Ascii::is_control(0x1f));
+    assert!(Ascii::is_letter_byte(b'Q'));
+    assert!(Ascii::is_letter_char('Q'));
+    assert!(Ascii::is_letter_code_point('Q' as i32));
+    assert!(!Ascii::is_letter_byte(0x80));
+    assert!(!Ascii::is_letter_char('中'));
+    assert!(!Ascii::is_letter_code_point(-1));
+
+    assert!(Ascii::is_upper_case_letter_byte(b'Q'));
+    assert!(Ascii::is_upper_case_letter_char('Q'));
+    assert!(Ascii::is_upper_case_letter_code_point('Q' as i32));
+    assert!(Ascii::is_lower_case_letter_byte(b'q'));
+    assert!(Ascii::is_lower_case_letter_char('q'));
+    assert!(Ascii::is_lower_case_letter_code_point('q' as i32));
+
+    assert!(Ascii::is_digit_byte(b'7'));
+    assert!(Ascii::is_digit_char('7'));
+    assert!(Ascii::is_digit_code_point('7' as i32));
+    assert!(Ascii::is_hex_digit_byte(b'f'));
+    assert!(Ascii::is_hex_digit_char('F'));
+    assert!(Ascii::is_hex_digit_code_point('9' as i32));
+    assert!(Ascii::is_hex_digit_code_point('f' as i32));
+    assert!(Ascii::is_hex_digit_code_point('F' as i32));
+    assert!(Ascii::is_octal_digit_byte(b'7'));
+    assert!(Ascii::is_octal_digit_char('7'));
+    assert!(Ascii::is_octal_digit_code_point('7' as i32));
+    assert!(!Ascii::is_octal_digit_byte(b'8'));
+    assert!(!Ascii::is_octal_digit_char('8'));
+    assert!(!Ascii::is_octal_digit_code_point('8' as i32));
+
+    assert!(Ascii::is_letter_or_digit_byte(b'9'));
+    assert!(Ascii::is_letter_or_digit_char('Q'));
+    assert!(Ascii::is_letter_or_digit_code_point('q' as i32));
+    assert!(Ascii::is_printable_byte(b'~'));
+    assert!(Ascii::is_printable_char('~'));
+    assert!(Ascii::is_printable_code_point('~' as i32));
+    assert!(Ascii::is_control_byte(0x1f));
+    assert!(Ascii::is_control_char('\u{001f}'));
+    assert!(Ascii::is_control_code_point(0x1f));
 }
 
 #[test]
 fn test_ascii_converts_case_and_digits() {
-    assert!(Ascii::equals_ignore_case('A' as i32, 'a' as i32));
-    assert!(Ascii::equals_ignore_case('A' as i32, 'A' as i32));
-    assert!(!Ascii::equals_ignore_case('A' as i32, 'B' as i32));
+    assert!(Ascii::equals_ignore_case_byte(b'A', b'a'));
+    assert!(Ascii::equals_ignore_case_byte(b'A', b'A'));
+    assert!(Ascii::equals_ignore_case_char('A', 'a'));
+    assert!(Ascii::equals_ignore_case_code_point('A' as i32, 'a' as i32));
+    assert!(Ascii::equals_ignore_case_code_point('A' as i32, 'A' as i32));
+    assert!(Ascii::equals_ignore_case_char('A', 'A'));
+    assert!(!Ascii::equals_ignore_case_byte(b'A', b'B'));
+    assert!(!Ascii::equals_ignore_case_code_point(-1, 'A' as i32));
 
     assert_eq!(b'Q', Ascii::to_upper_case_byte(b'q'));
     assert_eq!(b'Q', Ascii::to_upper_case_byte(b'Q'));
@@ -48,12 +83,24 @@ fn test_ascii_converts_case_and_digits() {
     assert_eq!('q', Ascii::to_lower_case_char('q'));
     assert_eq!('q' as i32, Ascii::to_lower_case_code_point('Q' as i32));
 
-    assert_eq!(Some(7), Ascii::to_digit('7' as i32));
-    assert_eq!(None, Ascii::to_digit('x' as i32));
-    assert_eq!(Some(9), Ascii::to_hex_digit('9' as i32));
-    assert_eq!(Some(15), Ascii::to_hex_digit('F' as i32));
-    assert_eq!(Some(15), Ascii::to_hex_digit('f' as i32));
-    assert_eq!(None, Ascii::to_hex_digit('x' as i32));
+    assert_eq!(Some(7), Ascii::to_digit_byte(b'7'));
+    assert_eq!(Some(7), Ascii::to_digit_char('7'));
+    assert_eq!(Some(7), Ascii::to_digit_code_point('7' as i32));
+    assert_eq!(None, Ascii::to_digit_byte(b'x'));
+    assert_eq!(None, Ascii::to_digit_char('x'));
+    assert_eq!(None, Ascii::to_digit_code_point(-1));
+    assert_eq!(Some(9), Ascii::to_hex_digit_byte(b'9'));
+    assert_eq!(Some(15), Ascii::to_hex_digit_byte(b'F'));
+    assert_eq!(Some(15), Ascii::to_hex_digit_byte(b'f'));
+    assert_eq!(Some(9), Ascii::to_hex_digit_char('9'));
+    assert_eq!(Some(15), Ascii::to_hex_digit_char('F'));
+    assert_eq!(Some(15), Ascii::to_hex_digit_char('f'));
+    assert_eq!(Some(9), Ascii::to_hex_digit_code_point('9' as i32));
+    assert_eq!(Some(15), Ascii::to_hex_digit_code_point('F' as i32));
+    assert_eq!(Some(15), Ascii::to_hex_digit_code_point('f' as i32));
+    assert_eq!(None, Ascii::to_hex_digit_byte(b'x'));
+    assert_eq!(None, Ascii::to_hex_digit_char('x'));
+    assert_eq!(None, Ascii::to_hex_digit_code_point(-1));
 }
 
 #[test]
