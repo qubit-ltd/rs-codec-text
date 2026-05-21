@@ -20,7 +20,7 @@ impl Ascii {
     pub const MAX_BYTE: u8 = Self::MAX_CHAR as u8;
 
     /// Maximum number of ASCII characters emitted by [`Self::fold`].
-    pub const MAX_FOLDING: usize = 4;
+    pub const MAX_FOLDING_COUNT: usize = 4;
 
     /// ASCII NUL.
     pub const NULL_CHAR: char = '\0';
@@ -1198,18 +1198,18 @@ impl Ascii {
     ///
     /// Returns the number of characters written to `result` starting at
     /// `offset`. ASCII characters and unmapped non-ASCII characters write one
-    /// character. Mapped characters write up to [`Self::MAX_FOLDING`] ASCII
+    /// character. Mapped characters write up to [`Self::MAX_FOLDING_COUNT`] ASCII
     /// characters.
     ///
     /// # Panics
     ///
-    /// Panics if `result` has fewer than [`Self::MAX_FOLDING`] writable slots
+    /// Panics if `result` has fewer than [`Self::MAX_FOLDING_COUNT`] writable slots
     /// after `offset`.
     #[inline]
     pub fn fold(ch: char, result: &mut [char], offset: usize) -> usize {
         assert!(
-            result.len().saturating_sub(offset) >= Self::MAX_FOLDING,
-            "ASCII folding output needs at least MAX_FOLDING slots"
+            result.len().saturating_sub(offset) >= Self::MAX_FOLDING_COUNT,
+            "ASCII folding output needs at least MAX_FOLDING_COUNT slots"
         );
         if ch.is_ascii() {
             result[offset] = ch;
@@ -1242,7 +1242,7 @@ impl Ascii {
     #[inline]
     #[must_use]
     pub fn fold_to_string(ch: char) -> String {
-        let mut buffer = ['\0'; Self::MAX_FOLDING];
+        let mut buffer = ['\0'; Self::MAX_FOLDING_COUNT];
         let count = Self::fold(ch, &mut buffer, 0);
         buffer[..count].iter().collect()
     }

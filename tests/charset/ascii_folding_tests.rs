@@ -1248,7 +1248,7 @@ fn test_ascii_fold_covers_all_java_fold_mappings() {
     ];
 
     for (input, expected) in cases {
-        let mut buffer = ['\0'; Ascii::MAX_FOLDING];
+        let mut buffer = ['\0'; Ascii::MAX_FOLDING_COUNT];
         let count = Ascii::fold(*input, &mut buffer, 0);
         let folded: String = buffer[..count].iter().collect();
         assert_eq!(*expected, folded, "folding U+{:04X}", *input as u32);
