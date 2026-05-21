@@ -7,21 +7,22 @@
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 [![Chinese Document](https://img.shields.io/badge/Document-Chinese-blue.svg)](README.zh_CN.md)
 
-Low-level Unicode, UTF-8, UTF-16, and ASCII utilities for Rust.
+Low-level Unicode constants, text classification helpers, and buffer-oriented UTF codec primitives for Rust.
 
 ## Overview
 
-Qubit Unicode provides small namespace enums for code-unit and code-point operations that are useful below normal Rust `str` APIs. It is designed for parsers, codecs, compatibility layers, and binary formats that need explicit control over bytes, UTF-16 code units, Unicode scalar values, or ASCII-only behavior.
+Qubit Unicode provides low-level building blocks for code that needs explicit control below Rust's ordinary `str`, `String`, and `char` APIs. It separates Unicode and encoding namespace helpers from concrete text encoders and decoders, so parser and I/O crates can reuse strict UTF-8, UTF-16, and UTF-32 logic without depending on `std::io`.
 
 Use this crate when you need:
 
 - ASCII classification, case conversion, digit conversion, and ASCII folding;
-- Unicode code point range checks, surrogate-pair helpers, plane calculation, and Java-style `\uXXXX` escaping;
-- strict UTF-8 byte classification, cursor movement, decoding, and encoding into caller-provided byte buffers;
-- UTF-16 code-unit classification, surrogate-pair cursor movement, decoding, encoding, and Java/JavaScript-style `\uXXXX` escaping;
-- explicit position and error reporting for malformed or incomplete Unicode sequences.
+- Unicode code point and scalar value checks, surrogate checks, plane calculation, and noncharacter/control classification;
+- UTF-8, UTF-16, and UTF-32 namespace helpers for byte or code-unit classification and length calculation;
+- buffer-level `TextEncoder<T>` and `TextDecoder<T>` implementations for UTF-8, UTF-16, and UTF-32;
+- byte-order and BOM handling for UTF-16 and UTF-32 byte streams;
+- reusable text coding error types for Unicode codecs and future non-Unicode encoding adapters.
 
-Prefer Rust's standard `str`, `String`, and `char` APIs for ordinary text handling. Use this crate when a parser or codec needs precise byte or UTF-16 code-unit control.
+Prefer Rust's standard text APIs for ordinary text handling. Use this crate when a parser, codec, binary format, or text I/O adapter needs strict buffer-level control.
 
 For detailed usage, examples, and API selection guidance, see the [User Guide](doc/user_guide.md).
 API reference documentation is available on [docs.rs](https://docs.rs/qubit-unicode).
@@ -37,32 +38,39 @@ qubit-unicode = "0.1"
 
 ```rust
 use qubit_unicode::{
-    Ascii,
-    ParsingPosition,
+    ByteOrder,
+    DecodeResult,
+    TextDecoder,
+    TextEncoder,
     Unicode,
+    UnicodeBom,
     Utf8,
+    Utf8Decoder,
+    Utf8Encoder,
     Utf16,
+    Utf16ByteEncoder,
 };
 
-assert!(Ascii::equals_ignore_case_char('Q', 'q'));
-assert_eq!(Some(10), Ascii::to_hex_digit_char('A'));
-assert_eq!("\\u1F600", Unicode::escape(0x1f600).unwrap());
+assert!(Unicode::is_scalar_value('中' as u32));
+assert_eq!(Some(3), Utf8::byte_len_from_leading_byte(0xE4));
+assert_eq!(2, Utf16::unit_len('😀'));
+assert_eq!(Some(UnicodeBom::Utf8), UnicodeBom::detect(&[0xEF, 0xBB, 0xBF]));
 
-let bytes = "A中".as_bytes();
-let mut pos = ParsingPosition::new(1);
+let decoder = Utf8Decoder;
+let decoded = decoder.decode_prefix("中".as_bytes())?;
+assert_eq!(DecodeResult::Complete(qubit_unicode::Decoded::new('中', 3)), decoded);
 
-let ch = Utf8::get_next(&mut pos, bytes, bytes.len())?;
-assert_eq!(Some('中'), ch);
-assert_eq!(4, pos.index());
+let encoder = Utf8Encoder;
+let mut utf8 = [0; Utf8::MAX_BYTES_PER_CHAR];
+let written = encoder.encode_char('😀', &mut utf8)?;
+assert_eq!("😀".as_bytes(), &utf8[..written]);
 
-let mut units = [0; Utf16::MAX_CODE_UNIT_COUNT];
-let capacity = units.len();
-let written = Utf16::put(0x1f600, 0, &mut units, capacity)?;
-assert_eq!(2, written);
-assert_eq!([0xd83d, 0xde00], units);
-assert_eq!("\\uD83D\\uDE00", Utf16::escape(0x1f600).unwrap());
+let utf16 = Utf16ByteEncoder::new(ByteOrder::LittleEndian);
+let mut bytes = [0; Utf16::MAX_BYTES_PER_CHAR];
+let written = utf16.encode_char('😀', &mut bytes)?;
+assert_eq!(&[0x3D, 0xD8, 0x00, 0xDE], &bytes[..written]);
 
-# Ok::<(), qubit_unicode::UnicodeError>(())
+# Ok::<(), Box<dyn std::error::Error>>(())
 ```
 
 ## Main Capabilities
@@ -72,19 +80,57 @@ assert_eq!("\\uD83D\\uDE00", Utf16::escape(0x1f600).unwrap());
 UTF-8 decoding follows the well-formed byte sequence rules in the
 [Unicode Standard, Table 3-7](https://www.unicode.org/versions/latest/core-spec/chapter-3/#G7404)
 and the equivalent [RFC 3629](https://datatracker.ietf.org/doc/html/rfc3629)
-syntax. In particular, malformed byte sequences include overlong encodings,
-UTF-8 encodings of surrogate code points, and sequences above `U+10FFFF`.
+syntax. Malformed byte sequences include overlong encodings, UTF-8 encodings of surrogate code points, invalid continuation bytes, and sequences above `U+10FFFF`.
 
 ### Namespace Enums
 
-`qubit-unicode` exposes stateless namespace enums instead of heap-allocated helper objects:
+`qubit-unicode` exposes stateless namespace enums for constants, classification, and sizing. Encoding and decoding live in dedicated codec types.
 
 | Namespace | Purpose |
 | --- | --- |
 | `Ascii` | ASCII constants, classification, case conversion, digit conversion, case-insensitive comparison, and ASCII folding |
-| `Unicode` | Unicode scalar range checks, BMP and supplementary checks, surrogate-pair composition/decomposition, plane calculation, and Java-style escaping |
-| `Utf8` | UTF-8 byte classification, code-unit counts, cursor movement, strict decoding, reverse decoding, and scalar encoding |
-| `Utf16` | UTF-16 code-unit classification, surrogate-pair handling, cursor movement, decoding, reverse decoding, scalar encoding, and UTF-16 escaping |
+| `Unicode` | Unicode code point range checks, scalar value checks, surrogate checks, plane calculation, noncharacter checks, control checks, and `u32` to `char` conversion |
+| `Utf8` | UTF-8 byte classification and byte length calculation |
+| `Utf16` | UTF-16 surrogate classification, surrogate-pair composition/decomposition, code-unit length calculation, and UTF-16 BOM detection |
+| `Utf32` | UTF-32 scalar unit validation, unit length calculation, and UTF-32 BOM detection |
+
+### Codec Traits
+
+Encoding and decoding are modeled by small traits over caller-provided buffers.
+
+| Trait | Purpose |
+| --- | --- |
+| `TextDecoder<T>` | Decodes encoded units from `&[T]` into Unicode `char` values |
+| `TextEncoder<T>` | Encodes Unicode `char` values into `&mut [T]` |
+| `TextCodec<T>` | Blanket trait for types implementing both encoder and decoder for the same storage unit type |
+
+`T` is the buffer storage unit, not always the Unicode code unit. UTF-8 uses `u8`, UTF-16 code-unit codecs use `u16`, byte-serialized UTF-16 uses `u8`, UTF-32 code-unit codecs use `u32`, and byte-serialized UTF-32 uses `u8`.
+
+### Built-in Codecs
+
+| Codec family | Storage unit | Types |
+| --- | --- | --- |
+| UTF-8 bytes | `u8` | `Utf8Encoder`, `Utf8Decoder`, `Utf8Codec` |
+| UTF-16 code units | `u16` | `Utf16U16Encoder`, `Utf16U16Decoder`, `Utf16U16Codec` |
+| UTF-16 bytes | `u8` | `Utf16ByteEncoder`, `Utf16ByteDecoder`, `Utf16ByteCodec` |
+| UTF-32 code units | `u32` | `Utf32U32Encoder`, `Utf32U32Decoder`, `Utf32U32Codec` |
+| UTF-32 bytes | `u8` | `Utf32ByteEncoder`, `Utf32ByteDecoder`, `Utf32ByteCodec` |
+
+Byte codecs carry a `ByteOrder` value. Use `UnicodeBom::detect`, `Utf16::detect_bom`, or `Utf32::detect_bom` when a byte stream may include a BOM.
+
+### Decode Result and Errors
+
+`TextDecoder::decode_prefix` distinguishes incomplete input from malformed input:
+
+| Type | Purpose |
+| --- | --- |
+| `DecodeResult::Complete(Decoded<char>)` | A complete scalar value and consumed unit count |
+| `DecodeResult::NeedMore(NeedMore)` | The prefix is valid so far but more units are required |
+| `TextDecodingError` | Encoding, decoding error kind, and input unit index |
+| `TextEncodingError` | Encoding, encoding error kind, and output/input index |
+| `TextCodingError` | Wrapper for APIs that intentionally combine encoding and decoding failures |
+
+`NeedMore` is not an error. A streaming text reader should read more input when possible, and convert `NeedMore` at EOF into an incomplete-sequence error or an appropriate `std::io::Error`.
 
 ### ASCII Helpers
 
@@ -94,35 +140,12 @@ UTF-8 encodings of surrogate code points, and sequences above `U+10FFFF`.
 | --- | --- |
 | Range checks | `is_ascii_byte`, `is_ascii_char`, `is_ascii_code_point` |
 | Classification | `is_whitespace_byte`, `is_letter_char`, `is_digit_code_point`, `is_hex_digit_char`, `is_printable_byte`, `is_control_code_point` |
-| Conversion | `to_upper_case_byte`, `to_lower_case_char`, `to_digit_char`, `to_hex_digit_code_point` |
+| Conversion | `byte_to_uppercase`, `char_to_lowercase`, `char_to_digit`, `code_point_to_hex_digit` |
 | Comparison and folding | `equals_ignore_case_char`, `equals_ignore_case_code_point`, `fold`, `fold_to_string` |
-
-### UTF-8 and UTF-16 Cursor APIs
-
-`Utf8` and `Utf16` operate on caller-provided slices and `ParsingPosition`.
-They are useful when a parser needs to decode inside a larger buffer without taking ownership of the buffer:
-
-| Method group | UTF-8 examples | UTF-16 examples |
-| --- | --- | --- |
-| Code-unit classification | `is_single`, `is_leading`, `is_trailing` | `is_single`, `is_leading`, `is_trailing`, `is_surrogate` |
-| Size calculation | `trailing_count`, `code_unit_count` | `trailing_count`, `code_unit_count` |
-| Cursor movement | `set_to_start`, `set_to_terminal`, `forward`, `backward` | `set_to_start`, `set_to_terminal`, `forward`, `backward` |
-| Decode and encode | `get_next`, `get_previous`, `put` | `get_next`, `get_previous`, `put`, `escape` |
-
-### Position and Error Types
-
-Cursor APIs return `UnicodeResult<T>` and report where a problem was detected:
-
-| Type | Purpose |
-| --- | --- |
-| `ParsingPosition` | Mutable cursor with optional error index and error kind |
-| `UnicodeError` | Error value containing `UnicodeErrorKind` and byte/code-unit index |
-| `UnicodeErrorKind` | `BufferOverflow`, `Malformed`, or `Incomplete` |
-| `UnicodeResult<T>` | Convenience alias for `Result<T, UnicodeError>` |
 
 ## Prelude
 
-`qubit_unicode::prelude` re-exports the small public API surface: namespace enums, cursor and error types, and `UnicodeResult`.
+`qubit_unicode::prelude` re-exports the core namespace enums, codec traits, built-in codec types, byte-order/BOM helpers, decode-result types, and text coding errors.
 
 ```rust
 use qubit_unicode::prelude::*;
@@ -130,9 +153,11 @@ use qubit_unicode::prelude::*;
 
 ## Crate Boundary
 
-`qubit-unicode` intentionally stays below full Unicode text processing. It does not implement grapheme-cluster segmentation, normalization, collation, locale-aware case mapping, transliteration, encoding detection, or display-width calculation.
+`qubit-unicode` intentionally stays below full Unicode text processing. It does not implement grapheme-cluster segmentation, normalization, collation, locale-aware case mapping, transliteration, automatic encoding detection, or display-width calculation.
 
-Use specialized crates such as `unicode-segmentation`, `unicode-normalization`, `unicode-width`, or ICU4X for those higher-level semantics.
+It also does not replace `encoding_rs` for legacy or web-compatible encodings such as GBK, Big5, Shift_JIS, or Windows code pages. Future adapters can reuse the text coding traits and error model while delegating non-Unicode encodings to specialized libraries.
+
+Use specialized crates such as `unicode-segmentation`, `unicode-normalization`, `unicode-width`, or ICU4X for higher-level Unicode semantics.
 
 ## Dependencies
 
@@ -140,7 +165,7 @@ This crate uses `thiserror` for error `Display` and `Error` implementations.
 
 ## Testing & Code Coverage
 
-This project maintains test coverage for ASCII classification and folding, Unicode code point helpers, UTF-8 cursor and encoding behavior, UTF-16 surrogate handling, position tracking, and error reporting.
+This project maintains test coverage for ASCII classification and folding, Unicode code point helpers, BOM and byte-order handling, UTF-8/UTF-16/UTF-32 namespace helpers, buffer-level codecs, and text coding errors.
 
 ### Running Tests
 
@@ -186,8 +211,9 @@ Contributions are welcome. Please feel free to submit a Pull Request.
 ### Development Guidelines
 
 - Follow the Rust API guidelines.
-- Prefer standard Rust text APIs unless low-level byte or UTF-16 code-unit control is required.
-- Keep this crate focused on Unicode scalar values, UTF-8 bytes, UTF-16 code units, and ASCII-only helpers.
+- Prefer standard Rust text APIs unless low-level buffer-oriented codec control is required.
+- Keep namespace enums focused on constants, classification, and sizing helpers.
+- Keep encoding and decoding behavior in concrete codec types implementing `TextEncoder<T>` and `TextDecoder<T>`.
 - Use specialized Unicode crates or ICU4X for normalization, segmentation, collation, display width, and locale-aware behavior.
 - Maintain comprehensive test coverage.
 - Document public APIs with examples when they clarify behavior.
