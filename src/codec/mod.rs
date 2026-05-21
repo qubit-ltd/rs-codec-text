@@ -7,6 +7,7 @@
  *    Licensed under the Apache License, Version 2.0.
  *
  ******************************************************************************/
+mod ascii_codec;
 mod charset_codec;
 mod charset_convert_error;
 mod charset_converter;
@@ -17,6 +18,7 @@ mod coder_progress;
 mod coder_status;
 mod decode_status;
 mod inner;
+mod latin1_codec;
 mod malformed_action;
 mod unmappable_action;
 mod utf16_byte_codec;
@@ -25,6 +27,7 @@ mod utf32_byte_codec;
 mod utf32_u32_codec;
 mod utf8_codec;
 
+pub use ascii_codec::AsciiCodec;
 pub use charset_codec::CharsetCodec;
 pub use charset_convert_error::CharsetConvertError;
 pub use charset_converter::CharsetConverter;
@@ -34,6 +37,7 @@ pub use coder::Coder;
 pub use coder_progress::CoderProgress;
 pub use coder_status::CoderStatus;
 pub use decode_status::DecodeStatus;
+pub use latin1_codec::Latin1Codec;
 pub use malformed_action::MalformedAction;
 pub use unmappable_action::UnmappableAction;
 pub use utf8_codec::Utf8Codec;

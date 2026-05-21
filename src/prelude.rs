@@ -11,6 +11,7 @@
 
 pub use crate::{
     Ascii,
+    AsciiCodec,
     ByteOrder,
     Charset,
     CharsetCodec,
@@ -28,6 +29,7 @@ pub use crate::{
     CoderProgress,
     CoderStatus,
     DecodeStatus,
+    Latin1Codec,
     MalformedAction,
     Unicode,
     UnicodeBom,

@@ -31,6 +31,7 @@ pub use charset::{
     Utf32,
 };
 pub use codec::{
+    AsciiCodec,
     CharsetCodec,
     CharsetConvertError,
     CharsetConverter,
@@ -40,6 +41,7 @@ pub use codec::{
     CoderProgress,
     CoderStatus,
     DecodeStatus,
+    Latin1Codec,
     MalformedAction,
     UnmappableAction,
 };

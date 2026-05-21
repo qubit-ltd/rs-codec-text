@@ -1,3 +1,4 @@
+mod ascii_codec_tests;
 mod charset_codec_tests;
 mod charset_convert_error_tests;
 mod charset_converter_tests;
@@ -7,6 +8,7 @@ mod coder_progress_tests;
 mod coder_status_tests;
 mod coder_tests;
 mod decode_status_tests;
+mod latin1_codec_tests;
 mod malformed_action_tests;
 mod unmappable_action_tests;
 mod utf16_byte_codec_tests;
