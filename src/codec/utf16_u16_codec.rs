@@ -10,11 +10,10 @@
 use super::inner::utf16;
 use crate::{
     Charset,
+    CharsetCodec,
+    CharsetDecodeResult,
+    CharsetEncodeResult,
     DecodeStatus,
-    TextDecodeResult,
-    TextDecoder,
-    TextEncodeResult,
-    TextEncoder,
     Utf16,
 };
 
@@ -28,9 +27,8 @@ use crate::{
 ///
 /// ```rust
 /// use qubit_text_codec::{
+///     CharsetCodec,
 ///     DecodeStatus,
-///     TextDecoder,
-///     TextEncoder,
 ///     Charset,
 ///     Utf16,
 ///     Utf16U16Codec,
@@ -41,13 +39,13 @@ use crate::{
 /// assert_eq!(Utf16::MAX_UNITS_PER_CHAR, codec.max_units_per_char());
 ///
 /// let mut output = [0_u16; Utf16::MAX_UNITS_PER_CHAR];
-/// let written = codec.encode_char('😀', &mut output, 0).expect("buffer fits");
+/// let written = codec.encode_one('😀', &mut output, 0).expect("buffer fits");
 /// assert_eq!(
 ///     DecodeStatus::Complete {
 ///         value: '😀',
 ///         consumed: written,
 ///     },
-///     codec.decode_prefix(&output[..written], 0).expect("valid UTF-16"),
+///     codec.decode_one(&output[..written], 0).expect("valid UTF-16"),
 /// );
 /// ```
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
@@ -60,6 +58,7 @@ impl Utf16U16Codec {
     ///
     /// Returns [`Charset::UTF_16`].
     #[must_use]
+    #[inline]
     pub const fn charset(self) -> Charset {
         Charset::UTF_16
     }
@@ -70,17 +69,19 @@ impl Utf16U16Codec {
     ///
     /// Returns [`Utf16::MAX_UNITS_PER_CHAR`].
     #[must_use]
+    #[inline]
     pub const fn max_units_per_char(self) -> usize {
         Utf16::MAX_UNITS_PER_CHAR
     }
 }
 
-impl TextDecoder<u16> for Utf16U16Codec {
+impl CharsetCodec<u16> for Utf16U16Codec {
     /// Returns UTF-16 charset descriptor.
     ///
     /// # Returns
     ///
     /// Returns [`Charset::UTF_16`].
+    #[inline]
     fn charset(&self) -> Charset {
         Charset::UTF_16
     }
@@ -90,6 +91,7 @@ impl TextDecoder<u16> for Utf16U16Codec {
     /// # Returns
     ///
     /// Returns [`Utf16::MAX_UNITS_PER_CHAR`].
+    #[inline]
     fn max_units_per_char(&self) -> usize {
         Utf16::MAX_UNITS_PER_CHAR
     }
@@ -109,30 +111,10 @@ impl TextDecoder<u16> for Utf16U16Codec {
     ///
     /// # Errors
     ///
-    /// * `TextDecodeError::malformed_sequence` for invalid surrogate combinations.
-    /// * `TextDecodeError::invalid_code_point` when resulting scalar is invalid.
-    fn decode_prefix(&self, input: &[u16], index: usize) -> TextDecodeResult<DecodeStatus> {
+    /// * `CharsetDecodeError::malformed_sequence` for invalid surrogate combinations.
+    /// * `CharsetDecodeError::invalid_code_point` when resulting scalar is invalid.
+    fn decode_one(&self, input: &[u16], index: usize) -> CharsetDecodeResult<DecodeStatus> {
         utf16::decode_units_prefix(input, index)
-    }
-}
-
-impl TextEncoder<u16> for Utf16U16Codec {
-    /// Returns UTF-16 charset descriptor.
-    ///
-    /// # Returns
-    ///
-    /// Returns [`Charset::UTF_16`].
-    fn charset(&self) -> Charset {
-        Charset::UTF_16
-    }
-
-    /// Returns the maximum number of UTF-16 code units for one character.
-    ///
-    /// # Returns
-    ///
-    /// Returns [`Utf16::MAX_UNITS_PER_CHAR`].
-    fn max_units_per_char(&self) -> usize {
-        Utf16::MAX_UNITS_PER_CHAR
     }
 
     /// Encodes one Unicode scalar value into UTF-16 code units at `index`.
@@ -150,8 +132,8 @@ impl TextEncoder<u16> for Utf16U16Codec {
     ///
     /// # Errors
     ///
-    /// * `TextEncodeError::buffer_too_small` if destination is insufficient.
-    fn encode_char(&self, ch: char, output: &mut [u16], index: usize) -> TextEncodeResult<usize> {
+    /// * `CharsetEncodeError::buffer_too_small` if destination is insufficient.
+    fn encode_one(&self, ch: char, output: &mut [u16], index: usize) -> CharsetEncodeResult<usize> {
         utf16::encode_units_char(ch, output, index)
     }
 }

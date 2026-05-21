@@ -32,7 +32,7 @@ impl Utf32 {
     /// # Returns
     ///
     /// Returns `true` if `unit` is a valid Unicode scalar value.
-    #[must_use]
+    #[inline]
     pub const fn is_valid_unit(unit: u32) -> bool {
         Unicode::is_scalar_value(unit)
     }
@@ -46,7 +46,7 @@ impl Utf32 {
     /// # Returns
     ///
     /// Always returns `1`.
-    #[must_use]
+    #[inline]
     pub const fn unit_len(_ch: char) -> usize {
         1
     }
@@ -60,7 +60,7 @@ impl Utf32 {
     /// # Returns
     ///
     /// Returns `Some(ByteOrder)` for UTF-32 BOM prefixes, or `None` otherwise.
-    #[must_use]
+    #[inline]
     pub fn detect_bom(bytes: &[u8]) -> Option<ByteOrder> {
         match UnicodeBom::detect(bytes) {
             Some(UnicodeBom::Utf32BigEndian) => Some(ByteOrder::BigEndian),

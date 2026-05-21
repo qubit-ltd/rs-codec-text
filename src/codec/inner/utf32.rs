@@ -10,11 +10,11 @@
 use crate::{
     ByteOrder,
     Charset,
+    CharsetDecodeError,
+    CharsetDecodeResult,
+    CharsetEncodeError,
+    CharsetEncodeResult,
     DecodeStatus,
-    TextDecodeError,
-    TextDecodeResult,
-    TextEncodeError,
-    TextEncodeResult,
     Unicode,
 };
 
@@ -35,11 +35,17 @@ use crate::{
 ///
 /// # Errors
 ///
-/// * `TextDecodeError::malformed_sequence` when `index` is out of bounds.
-/// * `TextDecodeError::invalid_code_point` when `input[index]` is not a valid scalar.
-pub(crate) fn decode_units_prefix(input: &[u32], index: usize) -> TextDecodeResult<DecodeStatus> {
+/// * `CharsetDecodeError::malformed_sequence` when `index` is out of bounds.
+/// * `CharsetDecodeError::invalid_code_point` when `input[index]` is not a valid scalar.
+pub(crate) fn decode_units_prefix(
+    input: &[u32],
+    index: usize,
+) -> CharsetDecodeResult<DecodeStatus> {
     if index > input.len() {
-        return Err(TextDecodeError::malformed_sequence(Charset::UTF_32, index));
+        return Err(CharsetDecodeError::malformed_sequence(
+            Charset::UTF_32,
+            index,
+        ));
     }
     if index == input.len() {
         return Ok(DecodeStatus::NeedMore {
@@ -52,7 +58,7 @@ pub(crate) fn decode_units_prefix(input: &[u32], index: usize) -> TextDecodeResu
             value: ch,
             consumed: 1,
         }),
-        None => Err(TextDecodeError::invalid_code_point(
+        None => Err(CharsetDecodeError::invalid_code_point(
             Charset::UTF_32,
             index,
             input[index],
@@ -74,14 +80,14 @@ pub(crate) fn decode_units_prefix(input: &[u32], index: usize) -> TextDecodeResu
 ///
 /// # Errors
 ///
-/// * `TextEncodeError::buffer_too_small` when no unit can be written at `index`.
+/// * `CharsetEncodeError::buffer_too_small` when no unit can be written at `index`.
 pub(crate) fn encode_units_char(
     ch: char,
     output: &mut [u32],
     index: usize,
-) -> TextEncodeResult<usize> {
+) -> CharsetEncodeResult<usize> {
     if index >= output.len() {
-        return Err(TextEncodeError::buffer_too_small(Charset::UTF_32, index));
+        return Err(CharsetEncodeError::buffer_too_small(Charset::UTF_32, index));
     }
     output[index] = ch as u32;
     Ok(1)
@@ -105,16 +111,16 @@ pub(crate) fn encode_units_char(
 ///
 /// # Errors
 ///
-/// * `TextDecodeError::malformed_sequence` when `index` is out of bounds.
-/// * `TextDecodeError::invalid_code_point` when the decoded unit is not a valid scalar.
+/// * `CharsetDecodeError::malformed_sequence` when `index` is out of bounds.
+/// * `CharsetDecodeError::invalid_code_point` when the decoded unit is not a valid scalar.
 pub(crate) fn decode_bytes_prefix(
     input: &[u8],
     index: usize,
     byte_order: ByteOrder,
-) -> TextDecodeResult<DecodeStatus> {
+) -> CharsetDecodeResult<DecodeStatus> {
     let charset = Charset::from_utf32_byte_order(byte_order);
     if index > input.len() {
-        return Err(TextDecodeError::malformed_sequence(charset, index));
+        return Err(CharsetDecodeError::malformed_sequence(charset, index));
     }
     if index + 4 > input.len() {
         return Ok(DecodeStatus::NeedMore {
@@ -128,7 +134,7 @@ pub(crate) fn decode_bytes_prefix(
             value: ch,
             consumed: 4,
         }),
-        None => Err(TextDecodeError::invalid_code_point(charset, index, unit)),
+        None => Err(CharsetDecodeError::invalid_code_point(charset, index, unit)),
     }
 }
 
@@ -147,19 +153,19 @@ pub(crate) fn decode_bytes_prefix(
 ///
 /// # Errors
 ///
-/// * `TextEncodeError::buffer_too_small` when output has fewer than four bytes from `index`.
+/// * `CharsetEncodeError::buffer_too_small` when output has fewer than four bytes from `index`.
 pub(crate) fn encode_bytes_char(
     ch: char,
     output: &mut [u8],
     byte_order: ByteOrder,
     index: usize,
-) -> TextEncodeResult<usize> {
+) -> CharsetEncodeResult<usize> {
     let charset = Charset::from_utf32_byte_order(byte_order);
     if index > output.len() {
-        return Err(TextEncodeError::buffer_too_small(charset, index));
+        return Err(CharsetEncodeError::buffer_too_small(charset, index));
     }
     if output.len() - index < 4 {
-        return Err(TextEncodeError::buffer_too_small(charset, output.len()));
+        return Err(CharsetEncodeError::buffer_too_small(charset, output.len()));
     }
     output[index..index + 4].copy_from_slice(&byte_order.u32_bytes(ch as u32));
     Ok(4)

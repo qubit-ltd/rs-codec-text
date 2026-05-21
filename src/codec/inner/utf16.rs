@@ -10,11 +10,11 @@
 use crate::{
     ByteOrder,
     Charset,
+    CharsetDecodeError,
+    CharsetDecodeResult,
+    CharsetEncodeError,
+    CharsetEncodeResult,
     DecodeStatus,
-    TextDecodeError,
-    TextDecodeResult,
-    TextEncodeError,
-    TextEncodeResult,
     Unicode,
     Utf16,
 };
@@ -39,15 +39,21 @@ use crate::{
 ///
 /// # Errors
 ///
-/// * `TextDecodeError::malformed_sequence` for invalid UTF-16 sequences (invalid high/low
+/// * `CharsetDecodeError::malformed_sequence` for invalid UTF-16 sequences (invalid high/low
 ///   surrogate pairing).
 /// # Panics
 ///
 /// This function does not panic for invalid UTF-16 input because malformed sequences are
-/// surfaced as `TextDecodeError`. It assumes `index <= input.len()`.
-pub(crate) fn decode_units_prefix(input: &[u16], index: usize) -> TextDecodeResult<DecodeStatus> {
+/// surfaced as `CharsetDecodeError`. It assumes `index <= input.len()`.
+pub(crate) fn decode_units_prefix(
+    input: &[u16],
+    index: usize,
+) -> CharsetDecodeResult<DecodeStatus> {
     if index > input.len() {
-        return Err(TextDecodeError::malformed_sequence(Charset::UTF_16, index));
+        return Err(CharsetDecodeError::malformed_sequence(
+            Charset::UTF_16,
+            index,
+        ));
     }
     if index == input.len() {
         return Ok(DecodeStatus::NeedMore {
@@ -69,13 +75,16 @@ pub(crate) fn decode_units_prefix(input: &[u16], index: usize) -> TextDecodeResu
                 value: ch,
                 consumed: 2,
             }),
-            None => Err(TextDecodeError::malformed_sequence(
+            None => Err(CharsetDecodeError::malformed_sequence(
                 Charset::UTF_16,
                 index + 1,
             )),
         }
     } else if Utf16::is_low_surrogate(first) {
-        Err(TextDecodeError::malformed_sequence(Charset::UTF_16, index))
+        Err(CharsetDecodeError::malformed_sequence(
+            Charset::UTF_16,
+            index,
+        ))
     } else {
         let ch = char::from_u32(first as u32).expect("non-surrogate UTF-16 unit is a scalar value");
         Ok(DecodeStatus::Complete {
@@ -102,19 +111,19 @@ pub(crate) fn decode_units_prefix(input: &[u16], index: usize) -> TextDecodeResu
 ///
 /// # Errors
 ///
-/// * `TextEncodeError::buffer_too_small` when insufficient room exists from `index`.
+/// * `CharsetEncodeError::buffer_too_small` when insufficient room exists from `index`.
 pub(crate) fn encode_units_char(
     ch: char,
     output: &mut [u16],
     index: usize,
-) -> TextEncodeResult<usize> {
+) -> CharsetEncodeResult<usize> {
     if index > output.len() {
-        return Err(TextEncodeError::buffer_too_small(Charset::UTF_16, index));
+        return Err(CharsetEncodeError::buffer_too_small(Charset::UTF_16, index));
     }
     let length = Utf16::unit_len(ch);
     let available = output.len() - index;
     if available < length {
-        return Err(TextEncodeError::buffer_too_small(
+        return Err(CharsetEncodeError::buffer_too_small(
             Charset::UTF_16,
             output.len(),
         ));
@@ -151,16 +160,16 @@ pub(crate) fn encode_units_char(
 ///
 /// # Errors
 ///
-/// * `TextDecodeError::malformed_sequence` for invalid UTF-16 byte sequences or
+/// * `CharsetDecodeError::malformed_sequence` for invalid UTF-16 byte sequences or
 ///   malformed surrogate usage.
 pub(crate) fn decode_bytes_prefix(
     input: &[u8],
     index: usize,
     byte_order: ByteOrder,
-) -> TextDecodeResult<DecodeStatus> {
+) -> CharsetDecodeResult<DecodeStatus> {
     let charset = Charset::from_utf16_byte_order(byte_order);
     if index > input.len() {
-        return Err(TextDecodeError::malformed_sequence(charset, index));
+        return Err(CharsetDecodeError::malformed_sequence(charset, index));
     }
     if index + 2 > input.len() {
         return Ok(DecodeStatus::NeedMore {
@@ -182,10 +191,10 @@ pub(crate) fn decode_bytes_prefix(
                 value: ch,
                 consumed: 4,
             }),
-            None => Err(TextDecodeError::malformed_sequence(charset, index + 2)),
+            None => Err(CharsetDecodeError::malformed_sequence(charset, index + 2)),
         }
     } else if Utf16::is_low_surrogate(first) {
-        Err(TextDecodeError::malformed_sequence(charset, index))
+        Err(CharsetDecodeError::malformed_sequence(charset, index))
     } else {
         let ch = char::from_u32(first as u32).expect("non-surrogate UTF-16 unit is a scalar value");
         Ok(DecodeStatus::Complete {
@@ -213,21 +222,21 @@ pub(crate) fn decode_bytes_prefix(
 ///
 /// # Errors
 ///
-/// * `TextEncodeError::buffer_too_small` when output bytes from `index` are insufficient.
+/// * `CharsetEncodeError::buffer_too_small` when output bytes from `index` are insufficient.
 pub(crate) fn encode_bytes_char(
     ch: char,
     output: &mut [u8],
     byte_order: ByteOrder,
     index: usize,
-) -> TextEncodeResult<usize> {
+) -> CharsetEncodeResult<usize> {
     let charset = Charset::from_utf16_byte_order(byte_order);
     if index > output.len() {
-        return Err(TextEncodeError::buffer_too_small(charset, index));
+        return Err(CharsetEncodeError::buffer_too_small(charset, index));
     }
     let required = Utf16::unit_len(ch) * 2;
     let available = output.len() - index;
     if available < required {
-        return Err(TextEncodeError::buffer_too_small(charset, output.len()));
+        return Err(CharsetEncodeError::buffer_too_small(charset, output.len()));
     }
     let mut units = [0_u16; Utf16::MAX_UNITS_PER_CHAR];
     let unit_count = encode_units_char(ch, &mut units, 0)?;

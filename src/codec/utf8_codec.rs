@@ -10,28 +10,21 @@
 use super::inner::utf8;
 use crate::{
     Charset,
+    CharsetCodec,
+    CharsetDecodeResult,
+    CharsetEncodeResult,
     DecodeStatus,
-    TextDecodeResult,
-    TextDecoder,
-    TextEncodeResult,
-    TextEncoder,
     Utf8,
 };
 
-/// Combined UTF-8 byte-buffer codec.
-///
-/// `Utf8Codec` implements both [`TextEncoder<u8>`] and [`TextDecoder<u8>`].
-/// It also exposes inherent metadata methods so callers can use
-/// `codec.charset()` without disambiguating between the encoder and decoder
-/// traits.
+/// UTF-8 byte-buffer charset codec.
 ///
 /// # Examples
 ///
 /// ```rust
 /// use qubit_text_codec::{
+///     CharsetCodec,
 ///     DecodeStatus,
-///     TextDecoder,
-///     TextEncoder,
 ///     Charset,
 ///     Utf8,
 ///     Utf8Codec,
@@ -42,13 +35,13 @@ use crate::{
 /// assert_eq!(Utf8::MAX_UNITS_PER_CHAR, codec.max_units_per_char());
 ///
 /// let mut output = [0_u8; Utf8::MAX_BYTES_PER_CHAR];
-/// let written = codec.encode_char('é', &mut output, 0).expect("buffer fits");
+/// let written = codec.encode_one('é', &mut output, 0).expect("buffer fits");
 /// assert_eq!(
 ///     DecodeStatus::Complete {
 ///         value: 'é',
 ///         consumed: written,
 ///     },
-///     codec.decode_prefix(&output[..written], 0).expect("valid UTF-8"),
+///     codec.decode_one(&output[..written], 0).expect("valid UTF-8"),
 /// );
 /// ```
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
@@ -61,6 +54,7 @@ impl Utf8Codec {
     ///
     /// Returns [`Charset::UTF_8`].
     #[must_use]
+    #[inline]
     pub const fn charset(self) -> Charset {
         Charset::UTF_8
     }
@@ -71,17 +65,19 @@ impl Utf8Codec {
     ///
     /// Returns [`Utf8::MAX_UNITS_PER_CHAR`].
     #[must_use]
+    #[inline]
     pub const fn max_units_per_char(self) -> usize {
         Utf8::MAX_UNITS_PER_CHAR
     }
 }
 
-impl TextDecoder<u8> for Utf8Codec {
+impl CharsetCodec<u8> for Utf8Codec {
     /// Returns UTF-8 charset descriptor.
     ///
     /// # Returns
     ///
     /// Returns [`Charset::UTF_8`].
+    #[inline]
     fn charset(&self) -> Charset {
         Charset::UTF_8
     }
@@ -91,6 +87,7 @@ impl TextDecoder<u8> for Utf8Codec {
     /// # Returns
     ///
     /// Returns [`Utf8::MAX_UNITS_PER_CHAR`].
+    #[inline]
     fn max_units_per_char(&self) -> usize {
         Utf8::MAX_UNITS_PER_CHAR
     }
@@ -109,30 +106,9 @@ impl TextDecoder<u8> for Utf8Codec {
     ///
     /// # Errors
     ///
-    /// * `TextDecodeError::malformed_sequence` for invalid UTF-8 byte sequence.
-    /// * `TextDecodeError::invalid_code_point` for non-scalar values.
-    fn decode_prefix(&self, input: &[u8], index: usize) -> TextDecodeResult<DecodeStatus> {
+    /// * `CharsetDecodeError::malformed_sequence` for invalid UTF-8 byte sequence.
+    fn decode_one(&self, input: &[u8], index: usize) -> CharsetDecodeResult<DecodeStatus> {
         utf8::decode_prefix(input, index)
-    }
-}
-
-impl TextEncoder<u8> for Utf8Codec {
-    /// Returns UTF-8 charset descriptor.
-    ///
-    /// # Returns
-    ///
-    /// Returns [`Charset::UTF_8`].
-    fn charset(&self) -> Charset {
-        Charset::UTF_8
-    }
-
-    /// Returns the maximum number of UTF-8 bytes for one character.
-    ///
-    /// # Returns
-    ///
-    /// Returns [`Utf8::MAX_UNITS_PER_CHAR`].
-    fn max_units_per_char(&self) -> usize {
-        Utf8::MAX_UNITS_PER_CHAR
     }
 
     /// Encodes one Unicode scalar value into UTF-8 bytes at `index`.
@@ -150,9 +126,9 @@ impl TextEncoder<u8> for Utf8Codec {
     ///
     /// # Errors
     ///
-    /// * `TextEncodeError::buffer_too_small` if output has insufficient bytes from
+    /// * `CharsetEncodeError::buffer_too_small` if output has insufficient bytes from
     ///   `index`.
-    fn encode_char(&self, ch: char, output: &mut [u8], index: usize) -> TextEncodeResult<usize> {
+    fn encode_one(&self, ch: char, output: &mut [u8], index: usize) -> CharsetEncodeResult<usize> {
         utf8::encode_char(ch, output, index)
     }
 }

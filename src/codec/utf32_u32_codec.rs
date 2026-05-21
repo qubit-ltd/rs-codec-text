@@ -10,11 +10,10 @@
 use super::inner::utf32;
 use crate::{
     Charset,
+    CharsetCodec,
+    CharsetDecodeResult,
+    CharsetEncodeResult,
     DecodeStatus,
-    TextDecodeResult,
-    TextDecoder,
-    TextEncodeResult,
-    TextEncoder,
     Utf32,
 };
 
@@ -28,9 +27,8 @@ use crate::{
 ///
 /// ```rust
 /// use qubit_text_codec::{
+///     CharsetCodec,
 ///     DecodeStatus,
-///     TextDecoder,
-///     TextEncoder,
 ///     Charset,
 ///     Utf32,
 ///     Utf32U32Codec,
@@ -41,13 +39,13 @@ use crate::{
 /// assert_eq!(Utf32::MAX_UNITS_PER_CHAR, codec.max_units_per_char());
 ///
 /// let mut output = [0_u32; Utf32::MAX_UNITS_PER_CHAR];
-/// let written = codec.encode_char('中', &mut output, 0).expect("buffer fits");
+/// let written = codec.encode_one('中', &mut output, 0).expect("buffer fits");
 /// assert_eq!(
 ///     DecodeStatus::Complete {
 ///         value: '中',
 ///         consumed: written,
 ///     },
-///     codec.decode_prefix(&output[..written], 0).expect("valid UTF-32"),
+///     codec.decode_one(&output[..written], 0).expect("valid UTF-32"),
 /// );
 /// ```
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
@@ -60,6 +58,7 @@ impl Utf32U32Codec {
     ///
     /// Returns [`Charset::UTF_32`].
     #[must_use]
+    #[inline]
     pub const fn charset(self) -> Charset {
         Charset::UTF_32
     }
@@ -70,17 +69,19 @@ impl Utf32U32Codec {
     ///
     /// Returns [`Utf32::MAX_UNITS_PER_CHAR`].
     #[must_use]
+    #[inline]
     pub const fn max_units_per_char(self) -> usize {
         Utf32::MAX_UNITS_PER_CHAR
     }
 }
 
-impl TextDecoder<u32> for Utf32U32Codec {
+impl CharsetCodec<u32> for Utf32U32Codec {
     /// Returns UTF-32 charset descriptor.
     ///
     /// # Returns
     ///
     /// Returns [`Charset::UTF_32`].
+    #[inline]
     fn charset(&self) -> Charset {
         Charset::UTF_32
     }
@@ -90,6 +91,7 @@ impl TextDecoder<u32> for Utf32U32Codec {
     /// # Returns
     ///
     /// Returns [`Utf32::MAX_UNITS_PER_CHAR`].
+    #[inline]
     fn max_units_per_char(&self) -> usize {
         Utf32::MAX_UNITS_PER_CHAR
     }
@@ -108,30 +110,10 @@ impl TextDecoder<u32> for Utf32U32Codec {
     ///
     /// # Errors
     ///
-    /// * `TextDecodeError::malformed_sequence` when index is out of bounds.
-    /// * `TextDecodeError::invalid_code_point` when unit is not a valid scalar.
-    fn decode_prefix(&self, input: &[u32], index: usize) -> TextDecodeResult<DecodeStatus> {
+    /// * `CharsetDecodeError::malformed_sequence` when index is out of bounds.
+    /// * `CharsetDecodeError::invalid_code_point` when unit is not a valid scalar.
+    fn decode_one(&self, input: &[u32], index: usize) -> CharsetDecodeResult<DecodeStatus> {
         utf32::decode_units_prefix(input, index)
-    }
-}
-
-impl TextEncoder<u32> for Utf32U32Codec {
-    /// Returns UTF-32 charset descriptor.
-    ///
-    /// # Returns
-    ///
-    /// Returns [`Charset::UTF_32`].
-    fn charset(&self) -> Charset {
-        Charset::UTF_32
-    }
-
-    /// Returns the fixed size (1 unit) for one UTF-32 scalar value.
-    ///
-    /// # Returns
-    ///
-    /// Returns [`Utf32::MAX_UNITS_PER_CHAR`].
-    fn max_units_per_char(&self) -> usize {
-        Utf32::MAX_UNITS_PER_CHAR
     }
 
     /// Encodes one Unicode scalar value into a `u32` unit at `index`.
@@ -149,8 +131,8 @@ impl TextEncoder<u32> for Utf32U32Codec {
     ///
     /// # Errors
     ///
-    /// * `TextEncodeError::buffer_too_small` if `output` has no room at `index`.
-    fn encode_char(&self, ch: char, output: &mut [u32], index: usize) -> TextEncodeResult<usize> {
+    /// * `CharsetEncodeError::buffer_too_small` if `output` has no room at `index`.
+    fn encode_one(&self, ch: char, output: &mut [u32], index: usize) -> CharsetEncodeResult<usize> {
         utf32::encode_units_char(ch, output, index)
     }
 }

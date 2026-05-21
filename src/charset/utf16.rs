@@ -32,7 +32,7 @@ impl Utf16 {
     /// # Returns
     ///
     /// Returns `true` if `unit` is in `0xD800..=0xDBFF`.
-    #[must_use]
+    #[inline]
     pub const fn is_high_surrogate(unit: u16) -> bool {
         (unit as u32) >= Unicode::HIGH_SURROGATE_MIN && (unit as u32) <= Unicode::HIGH_SURROGATE_MAX
     }
@@ -46,7 +46,7 @@ impl Utf16 {
     /// # Returns
     ///
     /// Returns `true` if `unit` is in `0xDC00..=0xDFFF`.
-    #[must_use]
+    #[inline]
     pub const fn is_low_surrogate(unit: u16) -> bool {
         (unit as u32) >= Unicode::LOW_SURROGATE_MIN && (unit as u32) <= Unicode::LOW_SURROGATE_MAX
     }
@@ -60,7 +60,7 @@ impl Utf16 {
     /// # Returns
     ///
     /// Returns `true` if `unit` is in `0xD800..=0xDFFF`.
-    #[must_use]
+    #[inline]
     pub const fn is_surrogate(unit: u16) -> bool {
         (unit as u32) >= Unicode::SURROGATE_MIN && (unit as u32) <= Unicode::SURROGATE_MAX
     }
@@ -74,7 +74,7 @@ impl Utf16 {
     /// # Returns
     ///
     /// Returns `true` for non-surrogate units.
-    #[must_use]
+    #[inline]
     pub const fn is_single_unit(unit: u16) -> bool {
         !Self::is_surrogate(unit)
     }
@@ -89,7 +89,7 @@ impl Utf16 {
     /// # Returns
     ///
     /// Returns `true` if `high` is a high surrogate and `low` is a low surrogate.
-    #[must_use]
+    #[inline]
     pub const fn is_surrogate_pair(high: u16, low: u16) -> bool {
         Self::is_high_surrogate(high) && Self::is_low_surrogate(low)
     }
@@ -103,7 +103,7 @@ impl Utf16 {
     /// # Returns
     ///
     /// Returns `1` for BMP scalar values and `2` for supplementary scalar values.
-    #[must_use]
+    #[inline]
     pub const fn unit_len(ch: char) -> usize {
         if (ch as u32) >= Unicode::SUPPLEMENTARY_MIN {
             2
@@ -121,7 +121,7 @@ impl Utf16 {
     /// # Returns
     ///
     /// Returns `Some(1)` or `Some(2)` for scalar values and `None` otherwise.
-    #[must_use]
+    #[inline]
     pub const fn unit_len_code_point(code_point: u32) -> Option<usize> {
         if !Unicode::is_scalar_value(code_point) {
             None
@@ -142,7 +142,7 @@ impl Utf16 {
     /// # Returns
     ///
     /// Returns `Some(code_point)` when the pair is valid, or `None` otherwise.
-    #[must_use]
+    #[inline]
     pub const fn compose_pair(high: u16, low: u16) -> Option<u32> {
         if Self::is_surrogate_pair(high, low) {
             let high_payload = (high as u32) - Unicode::HIGH_SURROGATE_MIN;
@@ -162,7 +162,7 @@ impl Utf16 {
     /// # Returns
     ///
     /// Returns `Some(high_surrogate)` for supplementary code points and `None` otherwise.
-    #[must_use]
+    #[inline]
     pub const fn high_surrogate(code_point: u32) -> Option<u16> {
         if Unicode::is_supplementary(code_point) {
             Some(
@@ -183,7 +183,7 @@ impl Utf16 {
     /// # Returns
     ///
     /// Returns `Some(low_surrogate)` for supplementary code points and `None` otherwise.
-    #[must_use]
+    #[inline]
     pub const fn low_surrogate(code_point: u32) -> Option<u16> {
         if Unicode::is_supplementary(code_point) {
             Some(
@@ -204,7 +204,7 @@ impl Utf16 {
     /// # Returns
     ///
     /// Returns `Some(ByteOrder)` for UTF-16 BOM prefixes, or `None` otherwise.
-    #[must_use]
+    #[inline]
     pub fn detect_bom(bytes: &[u8]) -> Option<ByteOrder> {
         match UnicodeBom::detect(bytes) {
             Some(UnicodeBom::Utf16BigEndian) => Some(ByteOrder::BigEndian),

@@ -11,11 +11,10 @@ use super::inner::utf16;
 use crate::{
     ByteOrder,
     Charset,
+    CharsetCodec,
+    CharsetDecodeResult,
+    CharsetEncodeResult,
     DecodeStatus,
-    TextDecodeResult,
-    TextDecoder,
-    TextEncodeResult,
-    TextEncoder,
     Utf16,
 };
 
@@ -30,9 +29,8 @@ use crate::{
 /// ```rust
 /// use qubit_text_codec::{
 ///     ByteOrder,
+///     CharsetCodec,
 ///     DecodeStatus,
-///     TextDecoder,
-///     TextEncoder,
 ///     Charset,
 ///     Utf16,
 ///     Utf16ByteCodec,
@@ -43,13 +41,13 @@ use crate::{
 /// assert_eq!(Utf16::MAX_BYTES_PER_CHAR, codec.max_units_per_char());
 ///
 /// let mut output = [0_u8; Utf16::MAX_BYTES_PER_CHAR];
-/// let written = codec.encode_char('😀', &mut output, 0).expect("buffer fits");
+/// let written = codec.encode_one('😀', &mut output, 0).expect("buffer fits");
 /// assert_eq!(
 ///     DecodeStatus::Complete {
 ///         value: '😀',
 ///         consumed: written,
 ///     },
-///     codec.decode_prefix(&output[..written], 0).expect("valid UTF-16LE"),
+///     codec.decode_one(&output[..written], 0).expect("valid UTF-16LE"),
 /// );
 /// ```
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -69,6 +67,7 @@ impl Utf16ByteCodec {
     ///
     /// Returns a UTF-16 byte codec.
     #[must_use]
+    #[inline]
     pub const fn new(byte_order: ByteOrder) -> Self {
         Self { byte_order }
     }
@@ -79,6 +78,7 @@ impl Utf16ByteCodec {
     ///
     /// Returns the byte order used by this codec.
     #[must_use]
+    #[inline]
     pub const fn byte_order(self) -> ByteOrder {
         self.byte_order
     }
@@ -90,6 +90,7 @@ impl Utf16ByteCodec {
     /// Returns [`Charset::UTF_16LE`] or [`Charset::UTF_16BE`] according to this
     /// codec's configured byte order.
     #[must_use]
+    #[inline]
     pub const fn charset(self) -> Charset {
         Charset::from_utf16_byte_order(self.byte_order)
     }
@@ -100,18 +101,20 @@ impl Utf16ByteCodec {
     ///
     /// Returns [`Utf16::MAX_BYTES_PER_CHAR`].
     #[must_use]
+    #[inline]
     pub const fn max_units_per_char(self) -> usize {
         Utf16::MAX_BYTES_PER_CHAR
     }
 }
 
-impl TextDecoder<u8> for Utf16ByteCodec {
+impl CharsetCodec<u8> for Utf16ByteCodec {
     /// Returns the fixed-endian UTF-16 charset for the configured byte order.
     ///
     /// # Returns
     ///
     /// Returns [`Charset::UTF_16BE`] when configured with
     /// `ByteOrder::BigEndian`, otherwise [`Charset::UTF_16LE`].
+    #[inline]
     fn charset(&self) -> Charset {
         Charset::from_utf16_byte_order(self.byte_order)
     }
@@ -121,6 +124,7 @@ impl TextDecoder<u8> for Utf16ByteCodec {
     /// # Returns
     ///
     /// Returns [`Utf16::MAX_BYTES_PER_CHAR`].
+    #[inline]
     fn max_units_per_char(&self) -> usize {
         Utf16::MAX_BYTES_PER_CHAR
     }
@@ -141,30 +145,9 @@ impl TextDecoder<u8> for Utf16ByteCodec {
     ///
     /// # Errors
     ///
-    /// * `TextDecodeError` when UTF-16 structure is malformed.
-    fn decode_prefix(&self, input: &[u8], index: usize) -> TextDecodeResult<DecodeStatus> {
+    /// * `CharsetDecodeError` when UTF-16 structure is malformed.
+    fn decode_one(&self, input: &[u8], index: usize) -> CharsetDecodeResult<DecodeStatus> {
         utf16::decode_bytes_prefix(input, index, self.byte_order)
-    }
-}
-
-impl TextEncoder<u8> for Utf16ByteCodec {
-    /// Returns the fixed-endian UTF-16 charset for the configured byte order.
-    ///
-    /// # Returns
-    ///
-    /// Returns [`Charset::UTF_16BE`] when configured with
-    /// `ByteOrder::BigEndian`, otherwise [`Charset::UTF_16LE`].
-    fn charset(&self) -> Charset {
-        Charset::from_utf16_byte_order(self.byte_order)
-    }
-
-    /// Returns the maximum number of UTF-16 bytes for a single encoded character.
-    ///
-    /// # Returns
-    ///
-    /// Returns [`Utf16::MAX_BYTES_PER_CHAR`].
-    fn max_units_per_char(&self) -> usize {
-        Utf16::MAX_BYTES_PER_CHAR
     }
 
     /// Encodes one Unicode scalar value into UTF-16 bytes at `index`.
@@ -182,8 +165,8 @@ impl TextEncoder<u8> for Utf16ByteCodec {
     ///
     /// # Errors
     ///
-    /// * `TextEncodeError::buffer_too_small` if output does not have enough space.
-    fn encode_char(&self, ch: char, output: &mut [u8], index: usize) -> TextEncodeResult<usize> {
+    /// * `CharsetEncodeError::buffer_too_small` if output does not have enough space.
+    fn encode_one(&self, ch: char, output: &mut [u8], index: usize) -> CharsetEncodeResult<usize> {
         utf16::encode_bytes_char(ch, output, self.byte_order, index)
     }
 }

@@ -9,11 +9,11 @@
  ***************************************************************************/
 use crate::{
     Charset,
+    CharsetDecodeError,
+    CharsetDecodeResult,
+    CharsetEncodeError,
+    CharsetEncodeResult,
     DecodeStatus,
-    TextDecodeError,
-    TextDecodeResult,
-    TextEncodeError,
-    TextEncodeResult,
     Unicode,
     Utf8,
 };
@@ -38,13 +38,14 @@ use crate::{
 ///
 /// # Errors
 ///
-/// * `TextDecodeError::malformed_sequence` when the first byte or continuation bytes
+/// * `CharsetDecodeError::malformed_sequence` when the first byte or continuation bytes
 ///   are invalid for UTF-8.
-/// * `TextDecodeError::invalid_code_point` when the decoded scalar value is not a valid
-///   Unicode scalar.
-pub(crate) fn decode_prefix(input: &[u8], index: usize) -> TextDecodeResult<DecodeStatus> {
+pub(crate) fn decode_prefix(input: &[u8], index: usize) -> CharsetDecodeResult<DecodeStatus> {
     if index > input.len() {
-        return Err(TextDecodeError::malformed_sequence(Charset::UTF_8, index));
+        return Err(CharsetDecodeError::malformed_sequence(
+            Charset::UTF_8,
+            index,
+        ));
     }
     if index == input.len() {
         return Ok(DecodeStatus::NeedMore {
@@ -56,7 +57,10 @@ pub(crate) fn decode_prefix(input: &[u8], index: usize) -> TextDecodeResult<Deco
     let length = match Utf8::byte_len_from_leading_byte(first) {
         Some(length) => length,
         None => {
-            return Err(TextDecodeError::malformed_sequence(Charset::UTF_8, index));
+            return Err(CharsetDecodeError::malformed_sequence(
+                Charset::UTF_8,
+                index,
+            ));
         }
     };
     if input.len() < index + length {
@@ -73,17 +77,11 @@ pub(crate) fn decode_prefix(input: &[u8], index: usize) -> TextDecodeResult<Deco
         4 => decode_four(input, index)?,
         _ => unreachable!("UTF-8 sequence length is limited to four bytes"),
     };
-    match Unicode::to_char(code_point) {
-        Some(ch) => Ok(DecodeStatus::Complete {
-            value: ch,
-            consumed: length,
-        }),
-        None => Err(TextDecodeError::invalid_code_point(
-            Charset::UTF_8,
-            index,
-            code_point,
-        )),
-    }
+    let ch = Unicode::to_char(code_point).expect("well-formed UTF-8 decodes to a Unicode scalar");
+    Ok(DecodeStatus::Complete {
+        value: ch,
+        consumed: length,
+    })
 }
 
 /// Encodes one Unicode scalar value into UTF-8 at `index` in `output`.
@@ -103,16 +101,16 @@ pub(crate) fn decode_prefix(input: &[u8], index: usize) -> TextDecodeResult<Deco
 ///
 /// # Errors
 ///
-/// * `TextEncodeError::buffer_too_small` if the destination does not have enough
+/// * `CharsetEncodeError::buffer_too_small` if the destination does not have enough
 ///   space starting from `index`.
-pub(crate) fn encode_char(ch: char, output: &mut [u8], index: usize) -> TextEncodeResult<usize> {
+pub(crate) fn encode_char(ch: char, output: &mut [u8], index: usize) -> CharsetEncodeResult<usize> {
     if index > output.len() {
-        return Err(TextEncodeError::buffer_too_small(Charset::UTF_8, index));
+        return Err(CharsetEncodeError::buffer_too_small(Charset::UTF_8, index));
     }
     let length = Utf8::byte_len(ch);
     let available = output.len() - index;
     if available < length {
-        return Err(TextEncodeError::buffer_too_small(
+        return Err(CharsetEncodeError::buffer_too_small(
             Charset::UTF_8,
             output.len(),
         ));
@@ -136,12 +134,12 @@ pub(crate) fn encode_char(ch: char, output: &mut [u8], index: usize) -> TextEnco
 ///
 /// # Errors
 ///
-/// * `TextDecodeError::malformed_sequence` when the second byte is not a valid
+/// * `CharsetDecodeError::malformed_sequence` when the second byte is not a valid
 ///   UTF-8 continuation byte.
-pub(crate) fn decode_two(input: &[u8], index: usize) -> TextDecodeResult<u32> {
+pub(crate) fn decode_two(input: &[u8], index: usize) -> CharsetDecodeResult<u32> {
     let second = input[index + 1];
     if !Utf8::is_continuation_byte(second) {
-        return Err(TextDecodeError::malformed_sequence(
+        return Err(CharsetDecodeError::malformed_sequence(
             Charset::UTF_8,
             index + 1,
         ));
@@ -163,15 +161,15 @@ pub(crate) fn decode_two(input: &[u8], index: usize) -> TextDecodeResult<u32> {
 ///
 /// `Ok(())` if currently available bytes are structurally valid, otherwise a
 /// decoding error describing the first malformed position.
-pub(crate) fn validate_partial(input: &[u8], index: usize) -> TextDecodeResult<()> {
+pub(crate) fn validate_partial(input: &[u8], index: usize) -> CharsetDecodeResult<()> {
     if input.len() >= index + 2 && !is_valid_second_byte(input[index], input[index + 1]) {
-        return Err(TextDecodeError::malformed_sequence(
+        return Err(CharsetDecodeError::malformed_sequence(
             Charset::UTF_8,
             index + 1,
         ));
     }
     if input.len() >= index + 3 && !Utf8::is_continuation_byte(input[index + 2]) {
-        return Err(TextDecodeError::malformed_sequence(
+        return Err(CharsetDecodeError::malformed_sequence(
             Charset::UTF_8,
             index + 2,
         ));
@@ -216,19 +214,19 @@ pub(crate) fn is_valid_second_byte(first: u8, second: u8) -> bool {
 ///
 /// # Errors
 ///
-/// * `TextDecodeError::malformed_sequence` when the second or third byte is invalid.
-pub(crate) fn decode_three(input: &[u8], index: usize) -> TextDecodeResult<u32> {
+/// * `CharsetDecodeError::malformed_sequence` when the second or third byte is invalid.
+pub(crate) fn decode_three(input: &[u8], index: usize) -> CharsetDecodeResult<u32> {
     let first = input[index];
     let second = input[index + 1];
     let third = input[index + 2];
     if !is_valid_second_byte(first, second) {
-        return Err(TextDecodeError::malformed_sequence(
+        return Err(CharsetDecodeError::malformed_sequence(
             Charset::UTF_8,
             index + 1,
         ));
     }
     if !Utf8::is_continuation_byte(third) {
-        return Err(TextDecodeError::malformed_sequence(
+        return Err(CharsetDecodeError::malformed_sequence(
             Charset::UTF_8,
             index + 2,
         ));
@@ -249,26 +247,26 @@ pub(crate) fn decode_three(input: &[u8], index: usize) -> TextDecodeResult<u32> 
 ///
 /// # Errors
 ///
-/// * `TextDecodeError::malformed_sequence` when any continuation byte is invalid.
-pub(crate) fn decode_four(input: &[u8], index: usize) -> TextDecodeResult<u32> {
+/// * `CharsetDecodeError::malformed_sequence` when any continuation byte is invalid.
+pub(crate) fn decode_four(input: &[u8], index: usize) -> CharsetDecodeResult<u32> {
     let first = input[index];
     let second = input[index + 1];
     let third = input[index + 2];
     let fourth = input[index + 3];
     if !is_valid_second_byte(first, second) {
-        return Err(TextDecodeError::malformed_sequence(
+        return Err(CharsetDecodeError::malformed_sequence(
             Charset::UTF_8,
             index + 1,
         ));
     }
     if !Utf8::is_continuation_byte(third) {
-        return Err(TextDecodeError::malformed_sequence(
+        return Err(CharsetDecodeError::malformed_sequence(
             Charset::UTF_8,
             index + 2,
         ));
     }
     if !Utf8::is_continuation_byte(fourth) {
-        return Err(TextDecodeError::malformed_sequence(
+        return Err(CharsetDecodeError::malformed_sequence(
             Charset::UTF_8,
             index + 3,
         ));
