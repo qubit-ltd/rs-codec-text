@@ -38,6 +38,14 @@ fn test_utf8_encoder_encodes_chars_and_reports_errors() {
     assert_eq!(TextEncodeErrorKind::BufferTooSmall, error.kind());
     assert_eq!(2, error.index());
 
+    let mut tiny = [0_u8; 1];
+    let out_of_range = tiny.len() + 1;
+    let error = encoder
+        .encode_char('A', &mut tiny, out_of_range)
+        .expect_err("index beyond output length should fail");
+    assert_eq!(TextEncodeErrorKind::BufferTooSmall, error.kind());
+    assert_eq!(out_of_range, error.index());
+
     let error = encoder
         .encode_code_point(0xd800, &mut buffer, 0)
         .expect_err("surrogate is not a scalar value");
