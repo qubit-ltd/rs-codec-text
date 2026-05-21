@@ -1,4 +1,4 @@
-use qubit_unicode::{
+use qubit_text_codec::{
     ByteOrder,
     Unicode,
     UnicodeBom,

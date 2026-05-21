@@ -1,4 +1,4 @@
-use qubit_unicode::Ascii;
+use qubit_text_codec::Ascii;
 
 #[test]
 fn test_ascii_fold_covers_all_java_fold_mappings() {

@@ -1,4 +1,4 @@
-use qubit_unicode::ByteOrder;
+use qubit_text_codec::ByteOrder;
 
 #[test]
 fn test_byte_order_reads_and_writes_integers() {

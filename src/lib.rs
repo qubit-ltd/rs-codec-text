@@ -7,7 +7,7 @@
  *    Licensed under the Apache License, Version 2.0.
  *
  ******************************************************************************/
-//! # Qubit Unicode
+//! # Qubit Text Codec
 //!
 //! Low-level Unicode constants, character classification helpers, and text codec
 //! primitives for UTF-8, UTF-16, UTF-32, and ASCII-oriented code.

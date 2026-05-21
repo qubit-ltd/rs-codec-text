@@ -1,4 +1,4 @@
-use qubit_unicode::prelude::{
+use qubit_text_codec::prelude::{
     Ascii,
     ByteOrder,
     DecodeStatus,

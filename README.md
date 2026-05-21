@@ -1,8 +1,8 @@
-# Qubit Unicode
+# Qubit Text Codec
 
-[![Rust CI](https://github.com/qubit-ltd/rs-unicode/actions/workflows/ci.yml/badge.svg)](https://github.com/qubit-ltd/rs-unicode/actions/workflows/ci.yml)
-[![Coverage](https://img.shields.io/endpoint?url=https://qubit-ltd.github.io/rs-unicode/coverage-badge.json)](https://qubit-ltd.github.io/rs-unicode/coverage/)
-[![Crates.io](https://img.shields.io/crates/v/qubit-unicode.svg?color=blue)](https://crates.io/crates/qubit-unicode)
+[![Rust CI](https://github.com/qubit-ltd/rs-text-codec/actions/workflows/ci.yml/badge.svg)](https://github.com/qubit-ltd/rs-text-codec/actions/workflows/ci.yml)
+[![Coverage](https://img.shields.io/endpoint?url=https://qubit-ltd.github.io/rs-text-codec/coverage-badge.json)](https://qubit-ltd.github.io/rs-text-codec/coverage/)
+[![Crates.io](https://img.shields.io/crates/v/qubit-text-codec.svg?color=blue)](https://crates.io/crates/qubit-text-codec)
 [![Rust](https://img.shields.io/badge/rust-1.94+-blue.svg?logo=rust)](https://www.rust-lang.org)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 [![Chinese Document](https://img.shields.io/badge/Document-Chinese-blue.svg)](README.zh_CN.md)
@@ -11,7 +11,7 @@ Low-level Unicode constants, text classification helpers, and buffer-oriented UT
 
 ## Overview
 
-Qubit Unicode provides low-level building blocks for code that needs explicit control below Rust's ordinary `str`, `String`, and `char` APIs. It separates Unicode and encoding namespace helpers from concrete text encoders and decoders, so parser and I/O crates can reuse strict UTF-8, UTF-16, and UTF-32 logic without depending on `std::io`.
+Qubit Text Codec provides low-level building blocks for code that needs explicit control below Rust's ordinary `str`, `String`, and `char` APIs. It separates Unicode and encoding namespace helpers from concrete text encoders and decoders, so parser and I/O crates can reuse strict UTF-8, UTF-16, and UTF-32 logic without depending on `std::io`.
 
 Use this crate when you need:
 
@@ -20,24 +20,24 @@ Use this crate when you need:
 - UTF-8, UTF-16, and UTF-32 namespace helpers for byte or code-unit classification and length calculation;
 - buffer-level `TextEncoder<T>` and `TextDecoder<T>` implementations for UTF-8, UTF-16, and UTF-32;
 - byte-order and BOM handling for UTF-16 and UTF-32 byte streams;
-- reusable text coding error types for Unicode codecs and future non-Unicode encoding adapters.
+- reusable text encoding and decoding error types for Unicode codecs and future non-Unicode encoding adapters.
 
 Prefer Rust's standard text APIs for ordinary text handling. Use this crate when a parser, codec, binary format, or text I/O adapter needs strict buffer-level control.
 
 For detailed usage, examples, and API selection guidance, see the [User Guide](doc/user_guide.md).
-API reference documentation is available on [docs.rs](https://docs.rs/qubit-unicode).
+API reference documentation is available on [docs.rs](https://docs.rs/qubit-text-codec).
 
 ## Installation
 
 ```toml
 [dependencies]
-qubit-unicode = "0.1"
+qubit-text-codec = "0.1"
 ```
 
 ## Quick Example
 
 ```rust
-use qubit_unicode::{
+use qubit_text_codec::{
     ByteOrder,
     DecodeStatus,
     TextDecoder,
@@ -90,7 +90,7 @@ syntax. Malformed byte sequences include overlong encodings, UTF-8 encodings of 
 
 ### Namespace Enums
 
-`qubit-unicode` exposes stateless namespace enums for constants, classification, and sizing. Encoding and decoding live in dedicated codec types.
+`qubit-text-codec` exposes stateless namespace enums for constants, classification, and sizing. Encoding and decoding live in dedicated codec types.
 
 | Namespace | Purpose |
 | --- | --- |
@@ -158,17 +158,17 @@ Byte codecs carry a `ByteOrder` value. Use `UnicodeBom::detect`, `Utf16::detect_
 
 ## Prelude
 
-`qubit_unicode::prelude` re-exports the core namespace enums, codec traits, built-in codec types, byte-order/BOM helpers, decode-status types, and text coding errors.
+`qubit_text_codec::prelude` re-exports the core namespace enums, codec traits, built-in codec types, byte-order/BOM helpers, decode-status types, and text encoding/decoding errors.
 
 ```rust
-use qubit_unicode::prelude::*;
+use qubit_text_codec::prelude::*;
 ```
 
 ## Crate Boundary
 
-`qubit-unicode` intentionally stays below full Unicode text processing. It does not implement grapheme-cluster segmentation, normalization, collation, locale-aware case mapping, transliteration, automatic encoding detection, or display-width calculation.
+`qubit-text-codec` intentionally stays below full Unicode text processing. It does not implement grapheme-cluster segmentation, normalization, collation, locale-aware case mapping, transliteration, automatic encoding detection, or display-width calculation.
 
-It also does not replace `encoding_rs` for legacy or web-compatible encodings such as GBK, Big5, Shift_JIS, or Windows code pages. Future adapters can reuse the text coding traits and error model while delegating non-Unicode encodings to specialized libraries.
+It also does not replace `encoding_rs` for legacy or web-compatible encodings such as GBK, Big5, Shift_JIS, or Windows code pages. Future adapters can reuse the text codec traits and error model while delegating non-Unicode encodings to specialized libraries.
 
 Use specialized crates such as `unicode-segmentation`, `unicode-normalization`, `unicode-width`, or ICU4X for higher-level Unicode semantics.
 
@@ -178,7 +178,7 @@ This crate uses `thiserror` for error `Display` and `Error` implementations.
 
 ## Testing & Code Coverage
 
-This project maintains test coverage for ASCII classification and folding, Unicode code point helpers, BOM and byte-order handling, UTF-8/UTF-16/UTF-32 namespace helpers, buffer-level codecs, and text coding errors.
+This project maintains test coverage for ASCII classification and folding, Unicode code point helpers, BOM and byte-order handling, UTF-8/UTF-16/UTF-32 namespace helpers, buffer-level codecs, and text encoding/decoding errors.
 
 ### Running Tests
 
@@ -243,4 +243,4 @@ Contributions are welcome. Please feel free to submit a Pull Request.
 
 ---
 
-Repository: [https://github.com/qubit-ltd/rs-unicode](https://github.com/qubit-ltd/rs-unicode)
+Repository: [https://github.com/qubit-ltd/rs-text-codec](https://github.com/qubit-ltd/rs-text-codec)

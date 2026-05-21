@@ -1,4 +1,4 @@
-use qubit_unicode::DecodeStatus;
+use qubit_text_codec::DecodeStatus;
 
 #[test]
 fn test_decode_status_variants_expose_payloads() {

@@ -6,7 +6,7 @@ use std::{
     },
 };
 
-use qubit_unicode::TextEncoding;
+use qubit_text_codec::TextEncoding;
 
 #[test]
 fn test_text_encoding_exposes_identity_metadata() {

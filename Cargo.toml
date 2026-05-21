@@ -1,16 +1,16 @@
 [package]
-name = "qubit-unicode"
+name = "qubit-text-codec"
 version = "0.1.0"
 edition = "2024"
 rust-version = "1.94"
 authors = ["Haixing Hu <starfish.hu@gmail.com>"]
 license = "Apache-2.0"
-repository = "https://github.com/qubit-ltd/rs-unicode"
-description = "Low-level Unicode, UTF-8, UTF-16, and ASCII utilities for Rust"
-homepage = "https://github.com/qubit-ltd/rs-unicode"
-documentation = "https://docs.rs/qubit-unicode"
+repository = "https://github.com/qubit-ltd/rs-text-codec"
+description = "Buffer-oriented text encoding and decoding utilities for Rust"
+homepage = "https://github.com/qubit-ltd/rs-text-codec"
+documentation = "https://docs.rs/qubit-text-codec"
 readme = "README.md"
-keywords = ["unicode", "utf8", "utf16", "ascii", "qubit"]
+keywords = ["text", "encoding", "codec", "unicode", "utf8"]
 categories = ["encoding", "text-processing"]
 include = [
     "/Cargo.toml",
@@ -25,7 +25,7 @@ include = [
 ]
 
 [lib]
-name = "qubit_unicode"
+name = "qubit_text_codec"
 doctest = true
 
 [[test]]

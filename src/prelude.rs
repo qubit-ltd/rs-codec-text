@@ -7,7 +7,7 @@
  *    Licensed under the Apache License, Version 2.0.
  *
  ******************************************************************************/
-//! Common imports for Qubit Unicode callers.
+//! Common imports for Qubit Text Codec callers.
 
 pub use crate::{
     Ascii,

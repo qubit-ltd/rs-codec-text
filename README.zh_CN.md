@@ -1,8 +1,8 @@
-# Qubit Unicode
+# Qubit Text Codec
 
-[![Rust CI](https://github.com/qubit-ltd/rs-unicode/actions/workflows/ci.yml/badge.svg)](https://github.com/qubit-ltd/rs-unicode/actions/workflows/ci.yml)
-[![Coverage](https://img.shields.io/endpoint?url=https://qubit-ltd.github.io/rs-unicode/coverage-badge.json)](https://qubit-ltd.github.io/rs-unicode/coverage/)
-[![Crates.io](https://img.shields.io/crates/v/qubit-unicode.svg?color=blue)](https://crates.io/crates/qubit-unicode)
+[![Rust CI](https://github.com/qubit-ltd/rs-text-codec/actions/workflows/ci.yml/badge.svg)](https://github.com/qubit-ltd/rs-text-codec/actions/workflows/ci.yml)
+[![Coverage](https://img.shields.io/endpoint?url=https://qubit-ltd.github.io/rs-text-codec/coverage-badge.json)](https://qubit-ltd.github.io/rs-text-codec/coverage/)
+[![Crates.io](https://img.shields.io/crates/v/qubit-text-codec.svg?color=blue)](https://crates.io/crates/qubit-text-codec)
 [![Rust](https://img.shields.io/badge/rust-1.94+-blue.svg?logo=rust)](https://www.rust-lang.org)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 [![English Document](https://img.shields.io/badge/Document-English-blue.svg)](README.md)
@@ -11,7 +11,7 @@
 
 ## 概述
 
-Qubit Unicode 提供一组底层构件，用于普通 Rust `str`、`String` 和 `char` API 之下需要显式控制的场景。它把 Unicode / encoding namespace helper 与具体 text encoder / decoder 分开，让 parser 和 I/O crate 可以复用严格的 UTF-8、UTF-16、UTF-32 逻辑，同时不依赖 `std::io`。
+Qubit Text Codec 提供一组底层构件，用于普通 Rust `str`、`String` 和 `char` API 之下需要显式控制的场景。它把 Unicode / encoding namespace helper 与具体 text encoder / decoder 分开，让 parser 和 I/O crate 可以复用严格的 UTF-8、UTF-16、UTF-32 逻辑，同时不依赖 `std::io`。
 
 适合使用本 crate 的场景包括：
 
@@ -20,23 +20,23 @@ Qubit Unicode 提供一组底层构件，用于普通 Rust `str`、`String` 和 
 - 需要 UTF-8、UTF-16、UTF-32 namespace helper 来做 byte / code-unit 分类和长度计算；
 - 需要面向 buffer 的 `TextEncoder<T>` 和 `TextDecoder<T>`，用于 UTF-8、UTF-16、UTF-32；
 - 需要处理 UTF-16 / UTF-32 byte stream 的 byte order 和 BOM；
-- 需要可复用的 text coding error 类型，供 Unicode codec 和未来非 Unicode encoding adapter 使用。
+- 需要可复用的 text encoding / decoding error 类型，供 Unicode codec 和未来非 Unicode encoding adapter 使用。
 
 普通文本处理应优先使用 Rust 标准库文本 API。当 parser、codec、二进制格式或 text I/O adapter 需要严格的 buffer-level 控制时，再使用本 crate。
 
-详细用法、示例和 API 选择建议请参见[中文用户手册](doc/user_guide.zh_CN.md)。API 参考文档可在 [docs.rs](https://docs.rs/qubit-unicode) 查看。
+详细用法、示例和 API 选择建议请参见[中文用户手册](doc/user_guide.zh_CN.md)。API 参考文档可在 [docs.rs](https://docs.rs/qubit-text-codec) 查看。
 
 ## 安装
 
 ```toml
 [dependencies]
-qubit-unicode = "0.1"
+qubit-text-codec = "0.1"
 ```
 
 ## 快速示例
 
 ```rust
-use qubit_unicode::{
+use qubit_text_codec::{
     ByteOrder,
     DecodeStatus,
     TextDecoder,
@@ -86,7 +86,7 @@ UTF-8 解码遵循 [Unicode Standard, Table 3-7](https://www.unicode.org/version
 
 ### Namespace Enum
 
-`qubit-unicode` 暴露无状态 namespace enum，用于常量、分类和长度计算。编码和解码行为放在专门的 codec 类型中。
+`qubit-text-codec` 暴露无状态 namespace enum，用于常量、分类和长度计算。编码和解码行为放在专门的 codec 类型中。
 
 | Namespace | 用途 |
 | --- | --- |
@@ -153,17 +153,17 @@ Byte codec 持有一个 `ByteOrder` 值。如果 byte stream 可能包含 BOM，
 
 ## Prelude
 
-`qubit_unicode::prelude` 重导出核心 namespace enum、codec trait、内置 codec 类型、byte-order/BOM helper、decode-status 类型和 text coding error。
+`qubit_text_codec::prelude` 重导出核心 namespace enum、codec trait、内置 codec 类型、byte-order/BOM helper、decode-status 类型和 text encoding / decoding error。
 
 ```rust
-use qubit_unicode::prelude::*;
+use qubit_text_codec::prelude::*;
 ```
 
 ## Crate 边界
 
-`qubit-unicode` 有意保持在完整 Unicode 文本处理能力之下，不实现 grapheme cluster segmentation、normalization、collation、locale-aware case mapping、transliteration、自动 encoding detection 或 display-width calculation。
+`qubit-text-codec` 有意保持在完整 Unicode 文本处理能力之下，不实现 grapheme cluster segmentation、normalization、collation、locale-aware case mapping、transliteration、自动 encoding detection 或 display-width calculation。
 
-它也不替代 `encoding_rs` 来处理 GBK、Big5、Shift_JIS 或 Windows code page 等 legacy / web-compatible encoding。未来 adapter 可以复用 text coding trait 和错误模型，同时把非 Unicode encoding 委托给专门库。
+它也不替代 `encoding_rs` 来处理 GBK、Big5、Shift_JIS 或 Windows code page 等 legacy / web-compatible encoding。未来 adapter 可以复用 text codec trait 和错误模型，同时把非 Unicode encoding 委托给专门库。
 
 这些更高层 Unicode 语义应使用 `unicode-segmentation`、`unicode-normalization`、`unicode-width` 或 ICU4X 等专门 crate。
 
@@ -173,7 +173,7 @@ use qubit_unicode::prelude::*;
 
 ## 测试与代码覆盖率
 
-本项目为 ASCII 分类与 folding、Unicode code point helper、BOM 和 byte-order 处理、UTF-8/UTF-16/UTF-32 namespace helper、buffer-level codec 和 text coding error 保持测试覆盖。
+本项目为 ASCII 分类与 folding、Unicode code point helper、BOM 和 byte-order 处理、UTF-8/UTF-16/UTF-32 namespace helper、buffer-level codec 和 text encoding / decoding error 保持测试覆盖。
 
 ### 运行测试
 
@@ -236,4 +236,4 @@ Copyright (c) 2026. Haixing Hu.
 
 ---
 
-仓库地址：[https://github.com/qubit-ltd/rs-unicode](https://github.com/qubit-ltd/rs-unicode)
+仓库地址：[https://github.com/qubit-ltd/rs-text-codec](https://github.com/qubit-ltd/rs-text-codec)

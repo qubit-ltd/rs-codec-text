@@ -1,4 +1,4 @@
-use qubit_unicode::TextDecodingErrorKind;
+use qubit_text_codec::TextDecodingErrorKind;
 
 #[test]
 fn test_text_decoding_error_kind_displays_messages() {
