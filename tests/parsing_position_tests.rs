@@ -1,43 +1,36 @@
 use qubit_unicode::{
-    ParsingPosition,
-    UnicodeErrorKind,
-    Utf8,
+    ByteOrder,
+    UnicodeBom,
 };
 
 #[test]
-fn test_parsing_position_moves_and_resets() {
-    let mut pos = ParsingPosition::new(3);
-
-    pos.increase();
-    assert_eq!(4, pos.index());
-    pos.increase_by(2);
-    assert_eq!(6, pos.index());
-    pos.decrease();
-    assert_eq!(5, pos.index());
-    pos.decrease_by(3);
-    assert_eq!(2, pos.index());
-
-    pos.reset(9);
-    assert_eq!(9, pos.index());
-    assert!(pos.success());
-
-    let default_pos = ParsingPosition::default();
-    assert_eq!(0, default_pos.index());
-    assert!(default_pos.success());
+fn test_byte_order_reads_and_writes_integers() {
+    assert_eq!(0x1234, ByteOrder::BigEndian.read_u16(&[0x12, 0x34]));
+    assert_eq!(0x1234, ByteOrder::LittleEndian.read_u16(&[0x34, 0x12]));
+    assert_eq!(
+        0x0001f600,
+        ByteOrder::BigEndian.read_u32(&[0x00, 0x01, 0xf6, 0x00])
+    );
+    assert_eq!(
+        0x0001f600,
+        ByteOrder::LittleEndian.read_u32(&[0x00, 0xf6, 0x01, 0x00])
+    );
+    assert_eq!([0x12, 0x34], ByteOrder::BigEndian.u16_bytes(0x1234));
+    assert_eq!([0x34, 0x12], ByteOrder::LittleEndian.u16_bytes(0x1234));
 }
 
 #[test]
-fn test_parsing_position_records_and_clears_errors() {
-    let mut pos = ParsingPosition::new(0);
-
-    let error = Utf8::get_next(&mut pos, &[0x80], 1).expect_err("invalid leading byte");
-    assert_eq!(UnicodeErrorKind::Malformed, error.kind());
-    assert_eq!(Some(0), pos.error_index());
-    assert_eq!(Some(UnicodeErrorKind::Malformed), pos.error_kind());
-    assert!(pos.fail());
-
-    pos.clear_error();
-    assert_eq!(None, pos.error_index());
-    assert_eq!(None, pos.error_kind());
-    assert!(pos.success());
+fn test_unicode_bom_exposes_bytes_lengths_and_orders() {
+    assert_eq!(&[0xef, 0xbb, 0xbf], UnicodeBom::Utf8.bytes());
+    assert_eq!(3, UnicodeBom::Utf8.byte_len());
+    assert_eq!(&[0xfe, 0xff], UnicodeBom::Utf16BigEndian.bytes());
+    assert_eq!(2, UnicodeBom::Utf16BigEndian.byte_len());
+    assert_eq!(
+        Some(ByteOrder::BigEndian),
+        UnicodeBom::Utf16BigEndian.byte_order()
+    );
+    assert_eq!(
+        Some(ByteOrder::LittleEndian),
+        UnicodeBom::Utf32LittleEndian.byte_order()
+    );
 }

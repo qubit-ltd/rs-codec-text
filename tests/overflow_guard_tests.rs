@@ -1,45 +1,63 @@
-use std::fs;
-use std::path::Path;
+use qubit_unicode::{
+    ByteOrder,
+    TextEncoder,
+    TextEncodingErrorKind,
+    Utf8Encoder,
+    Utf16ByteEncoder,
+    Utf16U16Encoder,
+    Utf32ByteEncoder,
+    Utf32U32Encoder,
+};
 
-/// Reads a crate source file for implementation-level regression checks.
-fn read_source_file(file_name: &str) -> String {
-    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("src")
-        .join(file_name);
-    fs::read_to_string(&path).expect("source file should be readable")
-}
+#[test]
+fn test_utf8_encoder_rejects_small_output_buffer() {
+    let encoder = Utf8Encoder;
+    let mut output = [0_u8; 2];
 
-/// Removes whitespace so formatting changes do not break source-pattern checks.
-fn compact_source(source: &str) -> String {
-    source.chars().filter(|ch| !ch.is_whitespace()).collect()
+    let error = encoder
+        .encode_char('中', &mut output)
+        .expect_err("UTF-8 encoder must reject a too-small output buffer");
+
+    assert_eq!(TextEncodingErrorKind::BufferTooSmall, error.kind());
+    assert_eq!(2, error.index());
 }
 
 #[test]
-fn test_utf8_put_capacity_guard_cannot_overflow() {
-    let source = compact_source(&read_source_file("utf8.rs"));
+fn test_utf16_encoders_reject_small_output_buffers() {
+    let unit_encoder = Utf16U16Encoder;
+    let byte_encoder = Utf16ByteEncoder::new(ByteOrder::LittleEndian);
+    let mut unit_output = [0_u16; 1];
+    let mut byte_output = [0_u8; 2];
 
-    assert!(
-        source.contains("ifend_index-index<count{")
-            || source.contains("index.checked_add(count)"),
-        "Utf8::put should use a non-overflowing capacity guard"
-    );
-    assert!(
-        !source.contains("ifindex+count>end_index{"),
-        "Utf8::put must not use an overflowing index + count capacity guard"
-    );
+    let unit_error = unit_encoder
+        .encode_char('😀', &mut unit_output)
+        .expect_err("UTF-16 unit encoder must reject a too-small output buffer");
+    let byte_error = byte_encoder
+        .encode_char('😀', &mut byte_output)
+        .expect_err("UTF-16 byte encoder must reject a too-small output buffer");
+
+    assert_eq!(TextEncodingErrorKind::BufferTooSmall, unit_error.kind());
+    assert_eq!(1, unit_error.index());
+    assert_eq!(TextEncodingErrorKind::BufferTooSmall, byte_error.kind());
+    assert_eq!(2, byte_error.index());
 }
 
 #[test]
-fn test_utf16_put_capacity_guard_cannot_overflow() {
-    let source = compact_source(&read_source_file("utf16.rs"));
+fn test_utf32_encoders_reject_small_output_buffers() {
+    let unit_encoder = Utf32U32Encoder;
+    let byte_encoder = Utf32ByteEncoder::new(ByteOrder::BigEndian);
+    let mut unit_output = [];
+    let mut byte_output = [0_u8; 3];
 
-    assert!(
-        source.contains("ifend_index-index<count{")
-            || source.contains("index.checked_add(count)"),
-        "Utf16::put should use a non-overflowing capacity guard"
-    );
-    assert!(
-        !source.contains("ifindex+count>end_index{"),
-        "Utf16::put must not use an overflowing index + count capacity guard"
-    );
+    let unit_error = unit_encoder
+        .encode_char('A', &mut unit_output)
+        .expect_err("UTF-32 unit encoder must reject an empty output buffer");
+    let byte_error = byte_encoder
+        .encode_char('A', &mut byte_output)
+        .expect_err("UTF-32 byte encoder must reject a too-small output buffer");
+
+    assert_eq!(TextEncodingErrorKind::BufferTooSmall, unit_error.kind());
+    assert_eq!(0, unit_error.index());
+    assert_eq!(TextEncodingErrorKind::BufferTooSmall, byte_error.kind());
+    assert_eq!(3, byte_error.index());
 }
