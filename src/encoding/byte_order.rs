@@ -41,7 +41,7 @@ impl ByteOrder {
     /// # Panics
     ///
     /// Panics if `bytes` has fewer than two bytes.
-    #[must_use]
+    #[inline]
     pub fn read_u16(self, bytes: &[u8]) -> u16 {
         match self {
             Self::BigEndian => u16::from_be_bytes([bytes[0], bytes[1]]),
@@ -62,7 +62,7 @@ impl ByteOrder {
     /// # Panics
     ///
     /// Panics if `bytes` has fewer than four bytes.
-    #[must_use]
+    #[inline]
     pub fn read_u32(self, bytes: &[u8]) -> u32 {
         match self {
             Self::BigEndian => u32::from_be_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]),
@@ -79,7 +79,7 @@ impl ByteOrder {
     /// # Returns
     ///
     /// Returns two bytes in this byte order.
-    #[must_use]
+    #[inline]
     pub const fn u16_bytes(self, value: u16) -> [u8; 2] {
         match self {
             Self::BigEndian => value.to_be_bytes(),
@@ -96,7 +96,7 @@ impl ByteOrder {
     /// # Returns
     ///
     /// Returns four bytes in this byte order.
-    #[must_use]
+    #[inline]
     pub const fn u32_bytes(self, value: u32) -> [u8; 4] {
         match self {
             Self::BigEndian => value.to_be_bytes(),

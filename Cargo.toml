@@ -29,20 +29,12 @@ name = "qubit_text_codec"
 doctest = true
 
 [[test]]
-name = "codec-codecs"
-path = "tests/codec/codecs/mod.rs"
-
-[[test]]
 name = "error"
 path = "tests/error/mod.rs"
 
 [[test]]
-name = "text-decoder"
-path = "tests/codec/text_decoder/mod.rs"
-
-[[test]]
-name = "text-encoder"
-path = "tests/codec/text_encoder/mod.rs"
+name = "codec"
+path = "tests/codec/mod.rs"
 
 [[test]]
 name = "charset"

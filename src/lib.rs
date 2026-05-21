@@ -31,27 +31,24 @@ pub use charset::{
     Utf32,
 };
 pub use codec::{
+    CharsetCodec,
+    CharsetConvertError,
+    CharsetConverter,
+    CharsetDecoder,
+    CharsetEncoder,
+    Coder,
+    CoderProgress,
+    CoderStatus,
     DecodeStatus,
-    TextCodec,
-    TextDecoder,
-    TextEncoder,
+    MalformedAction,
+    UnmappableAction,
 };
 pub use codec::{
     Utf8Codec,
-    Utf8Decoder,
-    Utf8Encoder,
     Utf16ByteCodec,
-    Utf16ByteDecoder,
-    Utf16ByteEncoder,
     Utf16U16Codec,
-    Utf16U16Decoder,
-    Utf16U16Encoder,
     Utf32ByteCodec,
-    Utf32ByteDecoder,
-    Utf32ByteEncoder,
     Utf32U32Codec,
-    Utf32U32Decoder,
-    Utf32U32Encoder,
 };
 pub use encoding::{
     ByteOrder,
@@ -59,10 +56,10 @@ pub use encoding::{
     UnicodeBom,
 };
 pub use error::{
-    TextDecodeError,
-    TextDecodeErrorKind,
-    TextDecodeResult,
-    TextEncodeError,
-    TextEncodeErrorKind,
-    TextEncodeResult,
+    CharsetDecodeError,
+    CharsetDecodeErrorKind,
+    CharsetDecodeResult,
+    CharsetEncodeError,
+    CharsetEncodeErrorKind,
+    CharsetEncodeResult,
 };
