@@ -13,7 +13,7 @@
 
 Qubit Text Codec 是一个低层编解码核心，服务于那些需要在 Rust 普通 `str`、`String` 和 `char` API 之下做显式控制的代码。当前内置编解码器聚焦 Unicode 传输格式：UTF-8、UTF-16 和 UTF-32；在需要区分码元与字节表示的地方，同时提供码元版和面向字节的版本。
 
-本库也提供编解码适配器需要共用的小型基础能力：编码身份元数据、编码器/解码器接口、解码状态、字节序和 BOM 辅助工具，以及具体的编码/解码错误类型。ASCII 和 Unicode 命名空间辅助工具保留在这里，是因为 UTF 编解码器和文本解析器经常需要在缓冲区边界附近直接做这些检查。
+本库也提供编解码适配器需要共用的小型基础能力：charset 身份元数据、编码器/解码器接口、解码状态、字节序和 BOM 辅助工具，以及具体的编码/解码错误类型。ASCII 和 Unicode 命名空间辅助工具保留在这里，是因为 UTF 编解码器和文本解析器经常需要在缓冲区边界附近直接做这些检查。
 
 适合使用本库的场景包括：
 
@@ -110,11 +110,14 @@ UTF-8 解码遵循 [Unicode Standard 表 3-7](https://www.unicode.org/versions/l
 
 `T` 表示缓冲区的存储单元，不总是 Unicode 码元。UTF-8 使用 `u8`，UTF-16 的码元版使用 `u16`，按字节序列化的 UTF-16 使用 `u8`，UTF-32 的码元版使用 `u32`，按字节序列化的 UTF-32 使用 `u8`。
 
-`TextEncoding` 是轻量的编码身份描述对象，包含稳定 `id`、展示用
-`name` 和可接受的 `aliases`。内置描述对象包括 `TextEncoding::ASCII`、
-`TextEncoding::UTF_8`、`TextEncoding::UTF_16` 和 `TextEncoding::UTF_32`。
+`Charset` 是轻量的 charset 身份描述对象，包含稳定 `id`、展示用
+`name` 和可接受的 `aliases`。内置描述对象包括 `Charset::ASCII`、
+`Charset::UTF_8`、`Charset::UTF_16`、`Charset::UTF_16LE`、
+`Charset::UTF_16BE`、`Charset::UTF_32`、`Charset::UTF_32LE` 和
+`Charset::UTF_32BE`。泛化的 `UTF_16` 和 `UTF_32` 表示 Unicode 码元形式
+或 BOM-aware 字节流标签；`LE` / `BE` 变体表示固定字节序的字节流 charset。
 外部编解码库可以定义自己的静态描述对象，例如
-`TextEncoding::new("gbk", "GBK", &["cp936"])`。相等性和哈希只基于 `id`，
+`Charset::new("gbk", "GBK", &["cp936"])`。相等性和哈希只基于 `id`，
 `matches_label` 会用 ASCII 忽略大小写比较来匹配 id、展示名和别名。
 
 ### 内置编解码器
@@ -137,8 +140,8 @@ UTF-8 解码遵循 [Unicode Standard 表 3-7](https://www.unicode.org/versions/l
 | --- | --- |
 | `DecodeStatus::Complete { value, consumed }` | 已解码出完整标量值和消耗的单元数 |
 | `DecodeStatus::NeedMore { required, available }` | 当前前缀目前合法，但还需要更多单元 |
-| `TextDecodingError` | 包含编码、解码错误种类、输入单元下标和可选原始值 |
-| `TextEncodingError` | 包含编码、编码错误种类、输出/输入下标和可选原始值 |
+| `TextDecodeError` | 包含 charset、解码错误种类、输入单元下标和可选原始值 |
+| `TextEncodeError` | 包含 charset、编码错误种类、输出/输入下标和可选原始值 |
 
 `DecodeStatus::NeedMore` 不是错误。流式文本读取器应在可能时继续读取更多输入，并在输入结束时把它转成不完整序列错误或合适的 `std::io::Error`。
 
@@ -157,7 +160,7 @@ UTF-8 解码遵循 [Unicode Standard 表 3-7](https://www.unicode.org/versions/l
 
 ## 预导入模块
 
-`qubit_text_codec::prelude` 重导出核心命名空间枚举、编解码接口、内置编解码器类型、字节序/BOM 辅助工具、解码状态类型和文本编码/解码错误类型。
+`qubit_text_codec::prelude` 重导出核心命名空间枚举、编解码接口、内置编解码器类型、charset 描述对象、字节序/BOM 辅助工具、解码状态类型和文本编码动作/解码动作错误类型。
 
 ```rust
 use qubit_text_codec::prelude::*;
@@ -177,7 +180,7 @@ use qubit_text_codec::prelude::*;
 
 ## 测试与代码覆盖率
 
-本项目为 ASCII 分类与折叠、Unicode 码点辅助工具、BOM 和字节序处理、UTF-8/UTF-16/UTF-32 命名空间辅助工具、缓冲区级 UTF 编解码器和文本编码/解码错误类型保持测试覆盖。
+本项目为 ASCII 分类与折叠、Unicode 码点辅助工具、BOM 和字节序处理、charset 描述对象、UTF-8/UTF-16/UTF-32 命名空间辅助工具、缓冲区级 UTF 编解码器和文本编码动作/解码动作错误类型保持测试覆盖。
 
 ### 运行测试
 

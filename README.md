@@ -13,7 +13,7 @@ Buffer-oriented UTF codec primitives and Unicode/ASCII support utilities for Rus
 
 Qubit Text Codec is a low-level codec core for Rust code that needs explicit control below ordinary `str`, `String`, and `char` APIs. Its current built-in codecs focus on Unicode transfer formats: UTF-8, UTF-16, and UTF-32, with both code-unit and byte-oriented variants where that distinction matters.
 
-The crate also provides the small shared surface that codec adapters need: encoding identity metadata, encoder/decoder traits, decode status values, byte order and BOM helpers, and concrete encoding/decoding error types. ASCII and Unicode namespace helpers are included because UTF codecs and text parsers often need these checks close to the buffer boundary.
+The crate also provides the small shared surface that codec adapters need: charset identity metadata, encoder/decoder traits, decode status values, byte order and BOM helpers, and concrete encoding/decoding error types. ASCII and Unicode namespace helpers are included because UTF codecs and text parsers often need these checks close to the buffer boundary.
 
 Use this crate when you need:
 
@@ -113,13 +113,17 @@ Encoding and decoding are modeled by small traits over caller-provided buffers.
 
 `T` is the buffer storage unit, not always the Unicode code unit. UTF-8 uses `u8`, UTF-16 code-unit codecs use `u16`, byte-serialized UTF-16 uses `u8`, UTF-32 code-unit codecs use `u32`, and byte-serialized UTF-32 uses `u8`.
 
-`TextEncoding` is a lightweight encoding identity descriptor with a stable `id`,
+`Charset` is a lightweight charset identity descriptor with a stable `id`,
 display `name`, and accepted `aliases`. Built-in descriptors are available as
-`TextEncoding::ASCII`, `TextEncoding::UTF_8`, `TextEncoding::UTF_16`, and
-`TextEncoding::UTF_32`. External codec crates can define their own static
-descriptors, for example `TextEncoding::new("gbk", "GBK", &["cp936"])`.
-Equality and hashing use only the `id`, while `matches_label` accepts the id,
-display name, or aliases with ASCII case-insensitive comparison.
+`Charset::ASCII`, `Charset::UTF_8`, `Charset::UTF_16`,
+`Charset::UTF_16LE`, `Charset::UTF_16BE`, `Charset::UTF_32`,
+`Charset::UTF_32LE`, and `Charset::UTF_32BE`. Generic `UTF_16` and `UTF_32`
+represent the Unicode code-unit form or a BOM-aware stream label, while the
+`LE` and `BE` variants identify fixed-byte-order byte streams. External codec
+crates can define their own static descriptors, for example
+`Charset::new("gbk", "GBK", &["cp936"])`. Equality and hashing use only the
+`id`, while `matches_label` accepts the id, display name, or aliases with ASCII
+case-insensitive comparison.
 
 ### Built-in Codecs
 
@@ -141,8 +145,8 @@ Byte codecs carry a `ByteOrder` value. Use `UnicodeBom::detect`, `Utf16::detect_
 | --- | --- |
 | `DecodeStatus::Complete { value, consumed }` | A complete scalar value and consumed unit count |
 | `DecodeStatus::NeedMore { required, available }` | The prefix is valid so far but more units are required |
-| `TextDecodingError` | Encoding, decoding error kind, input unit index, and optional raw value |
-| `TextEncodingError` | Encoding, encoding error kind, output/input index, and optional raw value |
+| `TextDecodeError` | Charset, decoding error kind, input unit index, and optional raw value |
+| `TextEncodeError` | Charset, encoding error kind, output/input index, and optional raw value |
 
 `DecodeStatus::NeedMore` is not an error. A streaming text reader should read more input when possible, and convert it at EOF into an incomplete-sequence error or an appropriate `std::io::Error`.
 
@@ -161,7 +165,7 @@ Errors tied to a raw value, such as an invalid UTF-32 unit or invalid raw code p
 
 ## Prelude
 
-`qubit_text_codec::prelude` re-exports the core namespace enums, codec traits, built-in codec types, byte-order/BOM helpers, decode-status types, and text encoding/decoding errors.
+`qubit_text_codec::prelude` re-exports the core namespace enums, codec traits, built-in codec types, charset descriptors, byte-order/BOM helpers, decode-status types, and text encode/decode errors.
 
 ```rust
 use qubit_text_codec::prelude::*;
@@ -181,7 +185,7 @@ This crate uses `thiserror` for error `Display` and `Error` implementations.
 
 ## Testing & Code Coverage
 
-This project maintains test coverage for ASCII classification and folding, Unicode code point helpers, BOM and byte-order handling, UTF-8/UTF-16/UTF-32 namespace helpers, buffer-level UTF codecs, and text encoding/decoding errors.
+This project maintains test coverage for ASCII classification and folding, Unicode code point helpers, BOM and byte-order handling, charset descriptors, UTF-8/UTF-16/UTF-32 namespace helpers, buffer-level UTF codecs, and text encode/decode errors.
 
 ### Running Tests
 
