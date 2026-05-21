@@ -13,8 +13,11 @@ use crate::charset::ascii_folding;
 pub enum Ascii {}
 
 impl Ascii {
-    /// Maximum valid ASCII code point.
-    pub const MAX: u8 = 0x7f;
+    /// Maximum valid ASCII character.
+    pub const MAX_CHAR: char = '\u{007f}';
+
+    /// Maximum valid ASCII byte.
+    pub const MAX_BYTE: u8 = Self::MAX_CHAR as u8;
 
     /// Maximum number of ASCII characters emitted by [`Self::fold`].
     pub const MAX_FOLDING: usize = 4;
@@ -377,7 +380,7 @@ impl Ascii {
     #[inline]
     #[must_use]
     pub const fn is_ascii_byte(ch: u8) -> bool {
-        ch <= Self::MAX
+        ch <= Self::MAX_BYTE
     }
 
     /// Tests whether a character is an ASCII character.
@@ -392,7 +395,7 @@ impl Ascii {
     #[inline]
     #[must_use]
     pub const fn is_ascii_char(ch: char) -> bool {
-        (ch as u32) <= Self::MAX as u32
+        ch <= Self::MAX_CHAR
     }
 
     /// Tests whether an integer value is an ASCII code point.
@@ -408,7 +411,7 @@ impl Ascii {
     #[inline]
     #[must_use]
     pub const fn is_ascii_code_point(ch: u32) -> bool {
-        ch <= Self::MAX as u32
+        ch <= Self::MAX_CHAR as u32
     }
 
     /// Tests whether a byte is Java-style ASCII whitespace.
