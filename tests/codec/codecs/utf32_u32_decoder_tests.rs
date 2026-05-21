@@ -56,3 +56,34 @@ fn test_utf32_u32_decoder_reports_need_more_and_invalid_units() {
         assert_eq!(Some(unit), error.value());
     }
 }
+
+#[test]
+fn test_utf32_u32_decoder_matches_char_from_u32_boundaries() {
+    let decoder = Utf32U32Decoder;
+
+    for unit in [0x0000, 0x0041, 0xd7ff, 0xe000, 0x10ffff] {
+        let expected = char::from_u32(unit).expect("standard library accepts valid scalar");
+
+        assert_eq!(
+            DecodeStatus::Complete {
+                value: expected,
+                consumed: 1,
+            },
+            decoder
+                .decode_prefix(&[unit], 0)
+                .expect("decoder accepts valid UTF-32 unit"),
+        );
+    }
+
+    for unit in [0xd800, 0xdfff, 0x110000] {
+        assert!(
+            char::from_u32(unit).is_none(),
+            "standard library rejects invalid scalar"
+        );
+        let error = decoder
+            .decode_prefix(&[unit], 0)
+            .expect_err("decoder rejects invalid UTF-32 unit");
+        assert_eq!(TextDecodeErrorKind::InvalidCodePoint, error.kind());
+        assert_eq!(Some(unit), error.value());
+    }
+}

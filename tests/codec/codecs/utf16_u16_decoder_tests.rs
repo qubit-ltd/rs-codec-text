@@ -62,3 +62,52 @@ fn test_utf16_u16_decoder_reports_need_more_and_malformed_pairs() {
     assert_eq!(TextDecodeErrorKind::MalformedSequence, error.kind());
     assert_eq!(1, error.index());
 }
+
+#[test]
+fn test_utf16_u16_decoder_matches_std_decode_utf16_boundaries() {
+    let decoder = Utf16U16Decoder;
+
+    for units in [
+        &[0x0041][..],
+        &[0x4e2d],
+        &[0xd7ff],
+        &[0xe000],
+        &[0xd800, 0xdc00],
+        &[0xd83d, 0xde00],
+        &[0xdbff, 0xdfff],
+    ] {
+        let expected = char::decode_utf16(units.iter().copied())
+            .next()
+            .expect("sample contains one scalar")
+            .expect("standard library accepts valid UTF-16");
+
+        assert_eq!(
+            DecodeStatus::Complete {
+                value: expected,
+                consumed: expected.len_utf16(),
+            },
+            decoder
+                .decode_prefix(units, 0)
+                .expect("decoder accepts valid UTF-16"),
+        );
+    }
+
+    for (units, index) in [
+        (&[0xde00][..], 0),
+        (&[0xd83d, 0x0041][..], 1),
+        (&[0xd83d, 0xd83d][..], 1),
+    ] {
+        assert!(
+            char::decode_utf16(units.iter().copied())
+                .next()
+                .expect("sample contains one result")
+                .is_err(),
+            "standard library rejects malformed UTF-16"
+        );
+        let error = decoder
+            .decode_prefix(units, 0)
+            .expect_err("decoder rejects malformed UTF-16");
+        assert_eq!(TextDecodeErrorKind::MalformedSequence, error.kind());
+        assert_eq!(index, error.index());
+    }
+}
