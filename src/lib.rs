@@ -55,14 +55,14 @@ pub use codec::{
 };
 pub use encoding::{
     ByteOrder,
-    TextEncoding,
+    Charset,
     UnicodeBom,
 };
 pub use error::{
-    TextDecodingError,
-    TextDecodingErrorKind,
-    TextDecodingResult,
-    TextEncodingError,
-    TextEncodingErrorKind,
-    TextEncodingResult,
+    TextDecodeError,
+    TextDecodeErrorKind,
+    TextDecodeResult,
+    TextEncodeError,
+    TextEncodeErrorKind,
+    TextEncodeResult,
 };

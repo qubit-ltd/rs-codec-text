@@ -1,17 +1,17 @@
 use qubit_text_codec::{
+    Charset,
     DecodeStatus,
+    TextDecodeErrorKind,
     TextDecoder,
-    TextDecodingErrorKind,
-    TextEncoding,
     Utf32,
     Utf32U32Decoder,
 };
 
 #[test]
-fn test_utf32_u32_decoder_exposes_encoding_and_unit_width() {
+fn test_utf32_u32_decoder_exposes_charset_and_unit_width() {
     let decoder = Utf32U32Decoder;
 
-    assert_eq!(TextEncoding::UTF_32, decoder.encoding());
+    assert_eq!(Charset::UTF_32, decoder.charset());
     assert_eq!(Utf32::MAX_UNITS_PER_CHAR, decoder.max_units_per_char());
 }
 
@@ -49,7 +49,7 @@ fn test_utf32_u32_decoder_reports_need_more_and_invalid_units() {
         let error = decoder
             .decode_prefix(&[unit])
             .expect_err("invalid UTF-32 unit");
-        assert_eq!(TextDecodingErrorKind::InvalidCodePoint, error.kind());
+        assert_eq!(TextDecodeErrorKind::InvalidCodePoint, error.kind());
         assert_eq!(0, error.index());
         assert_eq!(Some(unit), error.value());
     }

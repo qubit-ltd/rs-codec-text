@@ -1,16 +1,16 @@
 use qubit_text_codec::{
+    Charset,
+    TextEncodeErrorKind,
     TextEncoder,
-    TextEncoding,
-    TextEncodingErrorKind,
     Utf32,
     Utf32U32Encoder,
 };
 
 #[test]
-fn test_utf32_u32_encoder_exposes_encoding_and_unit_width() {
+fn test_utf32_u32_encoder_exposes_charset_and_unit_width() {
     let encoder = Utf32U32Encoder;
 
-    assert_eq!(TextEncoding::UTF_32, encoder.encoding());
+    assert_eq!(Charset::UTF_32, encoder.charset());
     assert_eq!(Utf32::MAX_UNITS_PER_CHAR, encoder.max_units_per_char());
 }
 
@@ -29,6 +29,6 @@ fn test_utf32_u32_encoder_encodes_units_and_reports_small_buffers() {
     let error = encoder
         .encode_char('A', &mut empty)
         .expect_err("empty UTF-32 output must fail");
-    assert_eq!(TextEncodingErrorKind::BufferTooSmall, error.kind());
+    assert_eq!(TextEncodeErrorKind::BufferTooSmall, error.kind());
     assert_eq!(0, error.index());
 }

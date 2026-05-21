@@ -8,12 +8,12 @@
  *
  ******************************************************************************/
 use crate::{
+    Charset,
     DecodeStatus,
+    TextDecodeResult,
     TextDecoder,
-    TextDecodingResult,
+    TextEncodeResult,
     TextEncoder,
-    TextEncoding,
-    TextEncodingResult,
     Utf32,
 };
 
@@ -32,13 +32,13 @@ use super::helpers;
 ///     DecodeStatus,
 ///     TextDecoder,
 ///     TextEncoder,
-///     TextEncoding,
+///     Charset,
 ///     Utf32,
 ///     Utf32U32Codec,
 /// };
 ///
 /// let codec = Utf32U32Codec;
-/// assert_eq!(TextEncoding::UTF_32, codec.encoding());
+/// assert_eq!(Charset::UTF_32, codec.charset());
 /// assert_eq!(Utf32::MAX_UNITS_PER_CHAR, codec.max_units_per_char());
 ///
 /// let mut output = [0_u32; Utf32::MAX_UNITS_PER_CHAR];
@@ -59,10 +59,10 @@ impl Utf32U32Codec {
     ///
     /// # Returns
     ///
-    /// Returns [`TextEncoding::UTF_32`].
+    /// Returns [`Charset::UTF_32`].
     #[must_use]
-    pub const fn encoding(self) -> TextEncoding {
-        TextEncoding::UTF_32
+    pub const fn charset(self) -> Charset {
+        Charset::UTF_32
     }
 
     /// Returns the maximum number of UTF-32 code units needed for one character.
@@ -77,29 +77,29 @@ impl Utf32U32Codec {
 }
 
 impl TextDecoder<u32> for Utf32U32Codec {
-    fn encoding(&self) -> TextEncoding {
-        TextEncoding::UTF_32
+    fn charset(&self) -> Charset {
+        Charset::UTF_32
     }
 
     fn max_units_per_char(&self) -> usize {
         Utf32::MAX_UNITS_PER_CHAR
     }
 
-    fn decode_prefix(&self, input: &[u32]) -> TextDecodingResult<DecodeStatus<char>> {
+    fn decode_prefix(&self, input: &[u32]) -> TextDecodeResult<DecodeStatus<char>> {
         helpers::decode_utf32_units_prefix(input)
     }
 }
 
 impl TextEncoder<u32> for Utf32U32Codec {
-    fn encoding(&self) -> TextEncoding {
-        TextEncoding::UTF_32
+    fn charset(&self) -> Charset {
+        Charset::UTF_32
     }
 
     fn max_units_per_char(&self) -> usize {
         Utf32::MAX_UNITS_PER_CHAR
     }
 
-    fn encode_char(&self, ch: char, output: &mut [u32]) -> TextEncodingResult<usize> {
+    fn encode_char(&self, ch: char, output: &mut [u32]) -> TextEncodeResult<usize> {
         helpers::encode_utf32_units_char(ch, output)
     }
 }

@@ -1,17 +1,17 @@
 use qubit_text_codec::{
+    Charset,
     DecodeStatus,
+    TextDecodeErrorKind,
     TextDecoder,
-    TextDecodingErrorKind,
-    TextEncoding,
     Utf16,
     Utf16U16Decoder,
 };
 
 #[test]
-fn test_utf16_u16_decoder_exposes_encoding_and_unit_width() {
+fn test_utf16_u16_decoder_exposes_charset_and_unit_width() {
     let decoder = Utf16U16Decoder;
 
-    assert_eq!(TextEncoding::UTF_16, decoder.encoding());
+    assert_eq!(Charset::UTF_16, decoder.charset());
     assert_eq!(Utf16::MAX_UNITS_PER_CHAR, decoder.max_units_per_char());
 }
 
@@ -53,12 +53,12 @@ fn test_utf16_u16_decoder_reports_need_more_and_malformed_pairs() {
     let error = decoder
         .decode_prefix(&[0xde00])
         .expect_err("low surrogate cannot start a scalar");
-    assert_eq!(TextDecodingErrorKind::MalformedSequence, error.kind());
+    assert_eq!(TextDecodeErrorKind::MalformedSequence, error.kind());
     assert_eq!(0, error.index());
 
     let error = decoder
         .decode_prefix(&[0xd83d, 0x0041])
         .expect_err("bad surrogate pair must fail");
-    assert_eq!(TextDecodingErrorKind::MalformedSequence, error.kind());
+    assert_eq!(TextDecodeErrorKind::MalformedSequence, error.kind());
     assert_eq!(1, error.index());
 }

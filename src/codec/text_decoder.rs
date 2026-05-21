@@ -10,9 +10,9 @@
 pub use crate::codec::decode_status::DecodeStatus;
 
 use crate::{
-    TextDecodingError,
-    TextDecodingResult,
-    TextEncoding,
+    Charset,
+    TextDecodeError,
+    TextDecodeResult,
 };
 
 /// Decodes encoded buffer units into Unicode scalar values.
@@ -40,13 +40,13 @@ use crate::{
 /// );
 /// ```
 pub trait TextDecoder<T> {
-    /// Returns the encoding handled by this decoder.
+    /// Returns the charset handled by this decoder.
     ///
     /// # Returns
     ///
-    /// Returns the decoder's text encoding.
+    /// Returns the decoder's charset.
     #[must_use]
-    fn encoding(&self) -> TextEncoding;
+    fn charset(&self) -> Charset;
 
     /// Returns the maximum number of input units needed for one Unicode scalar value.
     ///
@@ -69,9 +69,9 @@ pub trait TextDecoder<T> {
     ///
     /// # Errors
     ///
-    /// Returns [`TextDecodingError`] when the prefix is malformed or decodes to an
+    /// Returns [`TextDecodeError`] when the prefix is malformed or decodes to an
     /// invalid Unicode scalar value.
-    fn decode_prefix(&self, input: &[T]) -> TextDecodingResult<DecodeStatus<char>>;
+    fn decode_prefix(&self, input: &[T]) -> TextDecodeResult<DecodeStatus<char>>;
 
     /// Decodes the next character from `input`, advancing `index` on success.
     ///
@@ -89,12 +89,9 @@ pub trait TextDecoder<T> {
     ///
     /// Returns a decoding error when `index` is out of bounds, the next sequence is
     /// malformed, or the closed input ends in the middle of a character.
-    fn decode_next(&self, input: &[T], index: &mut usize) -> TextDecodingResult<Option<char>> {
+    fn decode_next(&self, input: &[T], index: &mut usize) -> TextDecodeResult<Option<char>> {
         if *index > input.len() {
-            return Err(TextDecodingError::malformed_sequence(
-                self.encoding(),
-                *index,
-            ));
+            return Err(TextDecodeError::malformed_sequence(self.charset(), *index));
         }
         if *index == input.len() {
             return Ok(None);
@@ -107,9 +104,10 @@ pub trait TextDecoder<T> {
                 *index += consumed;
                 Ok(Some(value))
             }
-            DecodeStatus::NeedMore { available, .. } => Err(
-                TextDecodingError::incomplete_sequence(self.encoding(), *index + available),
-            ),
+            DecodeStatus::NeedMore { available, .. } => Err(TextDecodeError::incomplete_sequence(
+                self.charset(),
+                *index + available,
+            )),
         }
     }
 }

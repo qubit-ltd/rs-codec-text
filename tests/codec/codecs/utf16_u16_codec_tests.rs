@@ -1,8 +1,8 @@
 use qubit_text_codec::{
+    Charset,
     DecodeStatus,
     TextDecoder,
     TextEncoder,
-    TextEncoding,
     Utf16,
     Utf16U16Codec,
 };
@@ -11,10 +11,10 @@ use qubit_text_codec::{
 fn test_utf16_u16_codec_exposes_encoder_and_decoder_contracts() {
     let codec = Utf16U16Codec;
 
-    assert_eq!(TextEncoding::UTF_16, codec.encoding());
+    assert_eq!(Charset::UTF_16, codec.charset());
     assert_eq!(Utf16::MAX_UNITS_PER_CHAR, codec.max_units_per_char());
-    assert_eq!(TextEncoding::UTF_16, TextEncoder::<u16>::encoding(&codec));
-    assert_eq!(TextEncoding::UTF_16, TextDecoder::<u16>::encoding(&codec));
+    assert_eq!(Charset::UTF_16, TextEncoder::<u16>::charset(&codec));
+    assert_eq!(Charset::UTF_16, TextDecoder::<u16>::charset(&codec));
     assert_eq!(
         Utf16::MAX_UNITS_PER_CHAR,
         TextEncoder::<u16>::max_units_per_char(&codec)

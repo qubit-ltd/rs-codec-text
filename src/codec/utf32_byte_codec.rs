@@ -9,12 +9,12 @@
  ******************************************************************************/
 use crate::{
     ByteOrder,
+    Charset,
     DecodeStatus,
+    TextDecodeResult,
     TextDecoder,
-    TextDecodingResult,
+    TextEncodeResult,
     TextEncoder,
-    TextEncoding,
-    TextEncodingResult,
     Utf32,
 };
 
@@ -34,13 +34,13 @@ use super::helpers;
 ///     DecodeStatus,
 ///     TextDecoder,
 ///     TextEncoder,
-///     TextEncoding,
+///     Charset,
 ///     Utf32,
 ///     Utf32ByteCodec,
 /// };
 ///
 /// let codec = Utf32ByteCodec::new(ByteOrder::BigEndian);
-/// assert_eq!(TextEncoding::UTF_32, codec.encoding());
+/// assert_eq!(Charset::UTF_32BE, codec.charset());
 /// assert_eq!(Utf32::MAX_BYTES_PER_CHAR, codec.max_units_per_char());
 ///
 /// let mut output = [0_u8; Utf32::MAX_BYTES_PER_CHAR];
@@ -83,14 +83,15 @@ impl Utf32ByteCodec {
         self.byte_order
     }
 
-    /// Returns the UTF-32 encoding descriptor.
+    /// Returns the fixed-endian UTF-32 charset descriptor.
     ///
     /// # Returns
     ///
-    /// Returns [`TextEncoding::UTF_32`].
+    /// Returns [`Charset::UTF_32LE`] or [`Charset::UTF_32BE`] according to this
+    /// codec's configured byte order.
     #[must_use]
-    pub const fn encoding(self) -> TextEncoding {
-        TextEncoding::UTF_32
+    pub const fn charset(self) -> Charset {
+        Charset::from_utf32_byte_order(self.byte_order)
     }
 
     /// Returns the maximum number of serialized UTF-32 bytes for one character.
@@ -105,29 +106,29 @@ impl Utf32ByteCodec {
 }
 
 impl TextDecoder<u8> for Utf32ByteCodec {
-    fn encoding(&self) -> TextEncoding {
-        TextEncoding::UTF_32
+    fn charset(&self) -> Charset {
+        Charset::from_utf32_byte_order(self.byte_order)
     }
 
     fn max_units_per_char(&self) -> usize {
         Utf32::MAX_BYTES_PER_CHAR
     }
 
-    fn decode_prefix(&self, input: &[u8]) -> TextDecodingResult<DecodeStatus<char>> {
+    fn decode_prefix(&self, input: &[u8]) -> TextDecodeResult<DecodeStatus<char>> {
         helpers::decode_utf32_bytes_prefix(input, self.byte_order)
     }
 }
 
 impl TextEncoder<u8> for Utf32ByteCodec {
-    fn encoding(&self) -> TextEncoding {
-        TextEncoding::UTF_32
+    fn charset(&self) -> Charset {
+        Charset::from_utf32_byte_order(self.byte_order)
     }
 
     fn max_units_per_char(&self) -> usize {
         Utf32::MAX_BYTES_PER_CHAR
     }
 
-    fn encode_char(&self, ch: char, output: &mut [u8]) -> TextEncodingResult<usize> {
+    fn encode_char(&self, ch: char, output: &mut [u8]) -> TextEncodeResult<usize> {
         helpers::encode_utf32_bytes_char(ch, output, self.byte_order)
     }
 }

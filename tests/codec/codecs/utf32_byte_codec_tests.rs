@@ -1,9 +1,9 @@
 use qubit_text_codec::{
     ByteOrder,
+    Charset,
     DecodeStatus,
     TextDecoder,
     TextEncoder,
-    TextEncoding,
     Utf32,
     Utf32ByteCodec,
 };
@@ -13,10 +13,10 @@ fn test_utf32_byte_codec_exposes_encoder_and_decoder_contracts() {
     let codec = Utf32ByteCodec::new(ByteOrder::BigEndian);
 
     assert_eq!(ByteOrder::BigEndian, codec.byte_order());
-    assert_eq!(TextEncoding::UTF_32, codec.encoding());
+    assert_eq!(Charset::UTF_32BE, codec.charset());
     assert_eq!(Utf32::MAX_BYTES_PER_CHAR, codec.max_units_per_char());
-    assert_eq!(TextEncoding::UTF_32, TextEncoder::<u8>::encoding(&codec));
-    assert_eq!(TextEncoding::UTF_32, TextDecoder::<u8>::encoding(&codec));
+    assert_eq!(Charset::UTF_32BE, TextEncoder::<u8>::charset(&codec));
+    assert_eq!(Charset::UTF_32BE, TextDecoder::<u8>::charset(&codec));
     assert_eq!(
         Utf32::MAX_BYTES_PER_CHAR,
         TextEncoder::<u8>::max_units_per_char(&codec)

@@ -8,9 +8,9 @@
  *
  ******************************************************************************/
 use crate::{
+    Charset,
+    TextEncodeResult,
     TextEncoder,
-    TextEncoding,
-    TextEncodingResult,
     Utf16,
 };
 
@@ -38,15 +38,15 @@ use super::helpers;
 pub struct Utf16U16Encoder;
 
 impl TextEncoder<u16> for Utf16U16Encoder {
-    fn encoding(&self) -> TextEncoding {
-        TextEncoding::UTF_16
+    fn charset(&self) -> Charset {
+        Charset::UTF_16
     }
 
     fn max_units_per_char(&self) -> usize {
         Utf16::MAX_UNITS_PER_CHAR
     }
 
-    fn encode_char(&self, ch: char, output: &mut [u16]) -> TextEncodingResult<usize> {
+    fn encode_char(&self, ch: char, output: &mut [u16]) -> TextEncodeResult<usize> {
         helpers::encode_utf16_units_char(ch, output)
     }
 }

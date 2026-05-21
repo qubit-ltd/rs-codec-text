@@ -11,7 +11,7 @@ use thiserror::Error;
 
 /// Classifies failures detected while encoding Unicode text into encoded units.
 #[derive(Clone, Copy, Debug, Eq, Error, PartialEq)]
-pub enum TextEncodingErrorKind {
+pub enum TextEncodeErrorKind {
     /// The supplied code point is not a valid Unicode scalar value.
     #[error("The code point is not a valid Unicode scalar value.")]
     InvalidCodePoint,

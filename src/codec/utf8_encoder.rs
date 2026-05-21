@@ -8,9 +8,9 @@
  *
  ******************************************************************************/
 use crate::{
+    Charset,
+    TextEncodeResult,
     TextEncoder,
-    TextEncoding,
-    TextEncodingResult,
     Utf8,
 };
 
@@ -37,15 +37,15 @@ use super::helpers;
 pub struct Utf8Encoder;
 
 impl TextEncoder<u8> for Utf8Encoder {
-    fn encoding(&self) -> TextEncoding {
-        TextEncoding::UTF_8
+    fn charset(&self) -> Charset {
+        Charset::UTF_8
     }
 
     fn max_units_per_char(&self) -> usize {
         Utf8::MAX_UNITS_PER_CHAR
     }
 
-    fn encode_char(&self, ch: char, output: &mut [u8]) -> TextEncodingResult<usize> {
+    fn encode_char(&self, ch: char, output: &mut [u8]) -> TextEncodeResult<usize> {
         helpers::encode_utf8_char(ch, output)
     }
 }

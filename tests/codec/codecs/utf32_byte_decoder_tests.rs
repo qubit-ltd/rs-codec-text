@@ -1,19 +1,19 @@
 use qubit_text_codec::{
     ByteOrder,
+    Charset,
     DecodeStatus,
+    TextDecodeErrorKind,
     TextDecoder,
-    TextDecodingErrorKind,
-    TextEncoding,
     Utf32,
     Utf32ByteDecoder,
 };
 
 #[test]
-fn test_utf32_byte_decoder_exposes_encoding_order_and_unit_width() {
+fn test_utf32_byte_decoder_exposes_charset_order_and_unit_width() {
     let decoder = Utf32ByteDecoder::new(ByteOrder::BigEndian);
 
     assert_eq!(ByteOrder::BigEndian, decoder.byte_order());
-    assert_eq!(TextEncoding::UTF_32, decoder.encoding());
+    assert_eq!(Charset::UTF_32BE, decoder.charset());
     assert_eq!(Utf32::MAX_BYTES_PER_CHAR, decoder.max_units_per_char());
 }
 
@@ -47,7 +47,7 @@ fn test_utf32_byte_decoder_reports_need_more_and_invalid_bytes() {
         let error = decoder
             .decode_prefix(&bytes)
             .expect_err("invalid UTF-32 bytes");
-        assert_eq!(TextDecodingErrorKind::InvalidCodePoint, error.kind());
+        assert_eq!(TextDecodeErrorKind::InvalidCodePoint, error.kind());
         assert_eq!(Some(ByteOrder::BigEndian.read_u32(&bytes)), error.value());
     }
 }

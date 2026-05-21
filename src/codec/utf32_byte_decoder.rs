@@ -9,10 +9,10 @@
  ******************************************************************************/
 use crate::{
     ByteOrder,
+    Charset,
     DecodeStatus,
+    TextDecodeResult,
     TextDecoder,
-    TextDecodingResult,
-    TextEncoding,
     Utf32,
 };
 
@@ -79,15 +79,15 @@ impl Utf32ByteDecoder {
 }
 
 impl TextDecoder<u8> for Utf32ByteDecoder {
-    fn encoding(&self) -> TextEncoding {
-        TextEncoding::UTF_32
+    fn charset(&self) -> Charset {
+        Charset::from_utf32_byte_order(self.byte_order)
     }
 
     fn max_units_per_char(&self) -> usize {
         Utf32::MAX_BYTES_PER_CHAR
     }
 
-    fn decode_prefix(&self, input: &[u8]) -> TextDecodingResult<DecodeStatus<char>> {
+    fn decode_prefix(&self, input: &[u8]) -> TextDecodeResult<DecodeStatus<char>> {
         helpers::decode_utf32_bytes_prefix(input, self.byte_order)
     }
 }

@@ -8,9 +8,9 @@
  *
  ******************************************************************************/
 use crate::{
-    TextEncoding,
-    TextEncodingError,
-    TextEncodingResult,
+    Charset,
+    TextEncodeError,
+    TextEncodeResult,
     Unicode,
 };
 
@@ -35,13 +35,13 @@ use crate::{
 /// assert_eq!(b"A", &output[..written]);
 /// ```
 pub trait TextEncoder<T> {
-    /// Returns the encoding handled by this encoder.
+    /// Returns the charset handled by this encoder.
     ///
     /// # Returns
     ///
-    /// Returns the encoder's text encoding.
+    /// Returns the encoder's charset.
     #[must_use]
-    fn encoding(&self) -> TextEncoding;
+    fn charset(&self) -> Charset;
 
     /// Returns the maximum number of output units needed for one Unicode scalar value.
     ///
@@ -64,9 +64,9 @@ pub trait TextEncoder<T> {
     ///
     /// # Errors
     ///
-    /// Returns [`crate::TextEncodingErrorKind::BufferTooSmall`] when `output`
+    /// Returns [`crate::TextEncodeErrorKind::BufferTooSmall`] when `output`
     /// cannot hold the encoded character.
-    fn encode_char(&self, ch: char, output: &mut [T]) -> TextEncodingResult<usize>;
+    fn encode_char(&self, ch: char, output: &mut [T]) -> TextEncodeResult<usize>;
 
     /// Encodes one raw Unicode code point into `output`.
     ///
@@ -81,14 +81,14 @@ pub trait TextEncoder<T> {
     ///
     /// # Errors
     ///
-    /// Returns [`crate::TextEncodingErrorKind::InvalidCodePoint`] when
+    /// Returns [`crate::TextEncodeErrorKind::InvalidCodePoint`] when
     /// `code_point` is not a Unicode scalar value. Returns any error reported by
     /// [`Self::encode_char`] for valid scalar values.
-    fn encode_code_point(&self, code_point: u32, output: &mut [T]) -> TextEncodingResult<usize> {
+    fn encode_code_point(&self, code_point: u32, output: &mut [T]) -> TextEncodeResult<usize> {
         match Unicode::to_char(code_point) {
             Some(ch) => self.encode_char(ch, output),
-            None => Err(TextEncodingError::invalid_code_point(
-                self.encoding(),
+            None => Err(TextEncodeError::invalid_code_point(
+                self.charset(),
                 0,
                 code_point,
             )),

@@ -7,18 +7,18 @@
  *    Licensed under the Apache License, Version 2.0.
  *
  ******************************************************************************/
-mod text_decoding_error;
-mod text_decoding_error_kind;
-mod text_encoding_error;
-mod text_encoding_error_kind;
+mod text_decode_error;
+mod text_decode_error_kind;
+mod text_encode_error;
+mod text_encode_error_kind;
 
-pub use text_decoding_error::{
-    TextDecodingError,
-    TextDecodingResult,
+pub use text_decode_error::{
+    TextDecodeError,
+    TextDecodeResult,
 };
-pub use text_decoding_error_kind::TextDecodingErrorKind;
-pub use text_encoding_error::{
-    TextEncodingError,
-    TextEncodingResult,
+pub use text_decode_error_kind::TextDecodeErrorKind;
+pub use text_encode_error::{
+    TextEncodeError,
+    TextEncodeResult,
 };
-pub use text_encoding_error_kind::TextEncodingErrorKind;
+pub use text_encode_error_kind::TextEncodeErrorKind;

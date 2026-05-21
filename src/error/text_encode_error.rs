@@ -11,32 +11,32 @@ use core::fmt;
 use std::error::Error;
 
 use crate::{
-    TextEncoding,
-    TextEncodingErrorKind,
+    Charset,
+    TextEncodeErrorKind,
 };
 
 /// Error reported by a text encoder.
 ///
-/// The error always carries the target encoding, error kind, and output or
+/// The error always carries the target charset, error kind, and output or
 /// input index associated with the failure. Errors tied to a raw code point or
 /// character value expose that value through [`Self::value`].
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub struct TextEncodingError {
-    encoding: TextEncoding,
-    kind: TextEncodingErrorKind,
+pub struct TextEncodeError {
+    charset: Charset,
+    kind: TextEncodeErrorKind,
     index: usize,
     value: Option<u32>,
 }
 
 /// Result type returned by text encoders.
-pub type TextEncodingResult<T> = Result<T, TextEncodingError>;
+pub type TextEncodeResult<T> = Result<T, TextEncodeError>;
 
-impl TextEncodingError {
+impl TextEncodeError {
     /// Creates an encoding error.
     ///
     /// # Parameters
     ///
-    /// - `encoding`: The target encoding.
+    /// - `charset`: The target charset.
     /// - `kind`: The failure category.
     /// - `index`: The output unit index or input code point index associated with the failure.
     ///
@@ -44,9 +44,9 @@ impl TextEncodingError {
     ///
     /// Returns an encoding error carrying the supplied context.
     #[must_use]
-    pub const fn new(encoding: TextEncoding, kind: TextEncodingErrorKind, index: usize) -> Self {
+    pub const fn new(charset: Charset, kind: TextEncodeErrorKind, index: usize) -> Self {
         Self {
-            encoding,
+            charset,
             kind,
             index,
             value: None,
@@ -57,7 +57,7 @@ impl TextEncodingError {
     ///
     /// # Parameters
     ///
-    /// - `encoding`: The target encoding.
+    /// - `charset`: The target charset.
     /// - `kind`: The failure category.
     /// - `index`: The output unit index or input code point index associated with the failure.
     /// - `value`: The raw code point or character value associated with the failure.
@@ -67,13 +67,13 @@ impl TextEncodingError {
     /// Returns an encoding error carrying the supplied context and value.
     #[must_use]
     pub const fn with_value(
-        encoding: TextEncoding,
-        kind: TextEncodingErrorKind,
+        charset: Charset,
+        kind: TextEncodeErrorKind,
         index: usize,
         value: u32,
     ) -> Self {
         Self {
-            encoding,
+            charset,
             kind,
             index,
             value: Some(value),
@@ -84,39 +84,34 @@ impl TextEncodingError {
     ///
     /// # Parameters
     ///
-    /// - `encoding`: The target encoding.
+    /// - `charset`: The target charset.
     /// - `index`: The input code point index associated with the failure.
     /// - `value`: The invalid raw code point value.
     ///
     /// # Returns
     ///
-    /// Returns an encoding error with [`TextEncodingErrorKind::InvalidCodePoint`].
+    /// Returns an encoding error with [`TextEncodeErrorKind::InvalidCodePoint`].
     #[must_use]
-    pub const fn invalid_code_point(encoding: TextEncoding, index: usize, value: u32) -> Self {
-        Self::with_value(
-            encoding,
-            TextEncodingErrorKind::InvalidCodePoint,
-            index,
-            value,
-        )
+    pub const fn invalid_code_point(charset: Charset, index: usize, value: u32) -> Self {
+        Self::with_value(charset, TextEncodeErrorKind::InvalidCodePoint, index, value)
     }
 
     /// Creates an unmappable-character encoding error.
     ///
     /// # Parameters
     ///
-    /// - `encoding`: The target encoding.
+    /// - `charset`: The target charset.
     /// - `index`: The input character index associated with the failure.
     /// - `value`: The unmappable raw character value.
     ///
     /// # Returns
     ///
-    /// Returns an encoding error with [`TextEncodingErrorKind::UnmappableCharacter`].
+    /// Returns an encoding error with [`TextEncodeErrorKind::UnmappableCharacter`].
     #[must_use]
-    pub const fn unmappable_character(encoding: TextEncoding, index: usize, value: u32) -> Self {
+    pub const fn unmappable_character(charset: Charset, index: usize, value: u32) -> Self {
         Self::with_value(
-            encoding,
-            TextEncodingErrorKind::UnmappableCharacter,
+            charset,
+            TextEncodeErrorKind::UnmappableCharacter,
             index,
             value,
         )
@@ -126,34 +121,34 @@ impl TextEncodingError {
     ///
     /// # Parameters
     ///
-    /// - `encoding`: The target encoding.
+    /// - `charset`: The target charset.
     /// - `index`: The output unit index or available output length associated with the failure.
     ///
     /// # Returns
     ///
-    /// Returns an encoding error with [`TextEncodingErrorKind::BufferTooSmall`].
+    /// Returns an encoding error with [`TextEncodeErrorKind::BufferTooSmall`].
     #[must_use]
-    pub const fn buffer_too_small(encoding: TextEncoding, index: usize) -> Self {
-        Self::new(encoding, TextEncodingErrorKind::BufferTooSmall, index)
+    pub const fn buffer_too_small(charset: Charset, index: usize) -> Self {
+        Self::new(charset, TextEncodeErrorKind::BufferTooSmall, index)
     }
 
-    /// Returns the target encoding.
+    /// Returns the target charset.
     ///
     /// # Returns
     ///
-    /// Returns the stored [`TextEncoding`].
+    /// Returns the stored [`Charset`].
     #[must_use]
-    pub const fn encoding(self) -> TextEncoding {
-        self.encoding
+    pub const fn charset(self) -> Charset {
+        self.charset
     }
 
     /// Returns the encoding error kind.
     ///
     /// # Returns
     ///
-    /// Returns the stored [`TextEncodingErrorKind`].
+    /// Returns the stored [`TextEncodeErrorKind`].
     #[must_use]
-    pub const fn kind(self) -> TextEncodingErrorKind {
+    pub const fn kind(self) -> TextEncodeErrorKind {
         self.kind
     }
 
@@ -190,7 +185,7 @@ impl TextEncodingError {
     #[must_use]
     pub const fn offset_by(self, base: usize) -> Self {
         Self {
-            encoding: self.encoding,
+            charset: self.charset,
             kind: self.kind,
             index: self.index + base,
             value: self.value,
@@ -198,7 +193,7 @@ impl TextEncodingError {
     }
 }
 
-impl fmt::Display for TextEncodingError {
+impl fmt::Display for TextEncodeError {
     /// Formats this encoding error.
     ///
     /// # Parameters
@@ -213,16 +208,16 @@ impl fmt::Display for TextEncodingError {
             write!(
                 formatter,
                 "{} encoding error at index {} for value 0x{:x}: {}",
-                self.encoding, self.index, value, self.kind,
+                self.charset, self.index, value, self.kind,
             )
         } else {
             write!(
                 formatter,
                 "{} encoding error at index {}: {}",
-                self.encoding, self.index, self.kind,
+                self.charset, self.index, self.kind,
             )
         }
     }
 }
 
-impl Error for TextEncodingError {}
+impl Error for TextEncodeError {}

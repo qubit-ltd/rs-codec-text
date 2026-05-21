@@ -1,8 +1,8 @@
 use qubit_text_codec::{
+    Charset,
     DecodeStatus,
     TextDecoder,
     TextEncoder,
-    TextEncoding,
     Utf8,
     Utf8Codec,
 };
@@ -11,10 +11,10 @@ use qubit_text_codec::{
 fn test_utf8_codec_exposes_encoder_and_decoder_contracts() {
     let codec = Utf8Codec;
 
-    assert_eq!(TextEncoding::UTF_8, codec.encoding());
+    assert_eq!(Charset::UTF_8, codec.charset());
     assert_eq!(Utf8::MAX_UNITS_PER_CHAR, codec.max_units_per_char());
-    assert_eq!(TextEncoding::UTF_8, TextEncoder::<u8>::encoding(&codec));
-    assert_eq!(TextEncoding::UTF_8, TextDecoder::<u8>::encoding(&codec));
+    assert_eq!(Charset::UTF_8, TextEncoder::<u8>::charset(&codec));
+    assert_eq!(Charset::UTF_8, TextDecoder::<u8>::charset(&codec));
     assert_eq!(
         Utf8::MAX_UNITS_PER_CHAR,
         TextEncoder::<u8>::max_units_per_char(&codec)

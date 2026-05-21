@@ -9,9 +9,9 @@
  ******************************************************************************/
 use crate::{
     ByteOrder,
+    Charset,
+    TextEncodeResult,
     TextEncoder,
-    TextEncoding,
-    TextEncodingResult,
     Utf32,
 };
 
@@ -72,15 +72,15 @@ impl Utf32ByteEncoder {
 }
 
 impl TextEncoder<u8> for Utf32ByteEncoder {
-    fn encoding(&self) -> TextEncoding {
-        TextEncoding::UTF_32
+    fn charset(&self) -> Charset {
+        Charset::from_utf32_byte_order(self.byte_order)
     }
 
     fn max_units_per_char(&self) -> usize {
         Utf32::MAX_BYTES_PER_CHAR
     }
 
-    fn encode_char(&self, ch: char, output: &mut [u8]) -> TextEncodingResult<usize> {
+    fn encode_char(&self, ch: char, output: &mut [u8]) -> TextEncodeResult<usize> {
         helpers::encode_utf32_bytes_char(ch, output, self.byte_order)
     }
 }

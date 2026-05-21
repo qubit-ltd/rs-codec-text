@@ -8,10 +8,10 @@
  *
  ******************************************************************************/
 use crate::{
+    Charset,
     DecodeStatus,
+    TextDecodeResult,
     TextDecoder,
-    TextDecodingResult,
-    TextEncoding,
     Utf8,
 };
 
@@ -21,7 +21,7 @@ use super::helpers;
 ///
 /// The decoder reads one Unicode scalar value from the beginning of a byte
 /// slice. Incomplete but still-valid prefixes return [`DecodeStatus::NeedMore`];
-/// malformed prefixes return [`crate::TextDecodingError`].
+/// malformed prefixes return [`crate::TextDecodeError`].
 ///
 /// # Examples
 ///
@@ -47,15 +47,15 @@ use super::helpers;
 pub struct Utf8Decoder;
 
 impl TextDecoder<u8> for Utf8Decoder {
-    fn encoding(&self) -> TextEncoding {
-        TextEncoding::UTF_8
+    fn charset(&self) -> Charset {
+        Charset::UTF_8
     }
 
     fn max_units_per_char(&self) -> usize {
         Utf8::MAX_UNITS_PER_CHAR
     }
 
-    fn decode_prefix(&self, input: &[u8]) -> TextDecodingResult<DecodeStatus<char>> {
+    fn decode_prefix(&self, input: &[u8]) -> TextDecodeResult<DecodeStatus<char>> {
         helpers::decode_utf8_prefix(input)
     }
 }

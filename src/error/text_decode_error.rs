@@ -11,32 +11,32 @@ use core::fmt;
 use std::error::Error;
 
 use crate::{
-    TextDecodingErrorKind,
-    TextEncoding,
+    Charset,
+    TextDecodeErrorKind,
 };
 
 /// Error reported by a text decoder.
 ///
-/// The error always carries the encoding, error kind, and input unit index at
+/// The error always carries the charset, error kind, and input unit index at
 /// which the failure was detected. Errors that decode a raw numeric value, such
 /// as invalid UTF-32 units, also carry that value through [`Self::value`].
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub struct TextDecodingError {
-    encoding: TextEncoding,
-    kind: TextDecodingErrorKind,
+pub struct TextDecodeError {
+    charset: Charset,
+    kind: TextDecodeErrorKind,
     index: usize,
     value: Option<u32>,
 }
 
 /// Result type returned by text decoders.
-pub type TextDecodingResult<T> = Result<T, TextDecodingError>;
+pub type TextDecodeResult<T> = Result<T, TextDecodeError>;
 
-impl TextDecodingError {
+impl TextDecodeError {
     /// Creates a decoding error.
     ///
     /// # Parameters
     ///
-    /// - `encoding`: The encoding being decoded.
+    /// - `charset`: The charset being decoded.
     /// - `kind`: The failure category.
     /// - `index`: The input unit index where the failure was detected.
     ///
@@ -44,9 +44,9 @@ impl TextDecodingError {
     ///
     /// Returns a decoding error carrying the supplied context.
     #[must_use]
-    pub const fn new(encoding: TextEncoding, kind: TextDecodingErrorKind, index: usize) -> Self {
+    pub const fn new(charset: Charset, kind: TextDecodeErrorKind, index: usize) -> Self {
         Self {
-            encoding,
+            charset,
             kind,
             index,
             value: None,
@@ -57,7 +57,7 @@ impl TextDecodingError {
     ///
     /// # Parameters
     ///
-    /// - `encoding`: The encoding being decoded.
+    /// - `charset`: The charset being decoded.
     /// - `kind`: The failure category.
     /// - `index`: The input unit index where the failure was detected.
     /// - `value`: The raw value associated with the failure.
@@ -67,13 +67,13 @@ impl TextDecodingError {
     /// Returns a decoding error carrying the supplied context and value.
     #[must_use]
     pub const fn with_value(
-        encoding: TextEncoding,
-        kind: TextDecodingErrorKind,
+        charset: Charset,
+        kind: TextDecodeErrorKind,
         index: usize,
         value: u32,
     ) -> Self {
         Self {
-            encoding,
+            charset,
             kind,
             index,
             value: Some(value),
@@ -84,70 +84,65 @@ impl TextDecodingError {
     ///
     /// # Parameters
     ///
-    /// - `encoding`: The encoding being decoded.
+    /// - `charset`: The charset being decoded.
     /// - `index`: The input unit index where the malformed sequence was detected.
     ///
     /// # Returns
     ///
-    /// Returns a decoding error with [`TextDecodingErrorKind::MalformedSequence`].
+    /// Returns a decoding error with [`TextDecodeErrorKind::MalformedSequence`].
     #[must_use]
-    pub const fn malformed_sequence(encoding: TextEncoding, index: usize) -> Self {
-        Self::new(encoding, TextDecodingErrorKind::MalformedSequence, index)
+    pub const fn malformed_sequence(charset: Charset, index: usize) -> Self {
+        Self::new(charset, TextDecodeErrorKind::MalformedSequence, index)
     }
 
     /// Creates an incomplete-sequence decoding error.
     ///
     /// # Parameters
     ///
-    /// - `encoding`: The encoding being decoded.
+    /// - `charset`: The charset being decoded.
     /// - `index`: The input unit index where more input was required.
     ///
     /// # Returns
     ///
-    /// Returns a decoding error with [`TextDecodingErrorKind::IncompleteSequence`].
+    /// Returns a decoding error with [`TextDecodeErrorKind::IncompleteSequence`].
     #[must_use]
-    pub const fn incomplete_sequence(encoding: TextEncoding, index: usize) -> Self {
-        Self::new(encoding, TextDecodingErrorKind::IncompleteSequence, index)
+    pub const fn incomplete_sequence(charset: Charset, index: usize) -> Self {
+        Self::new(charset, TextDecodeErrorKind::IncompleteSequence, index)
     }
 
     /// Creates an invalid-code-point decoding error.
     ///
     /// # Parameters
     ///
-    /// - `encoding`: The encoding being decoded.
+    /// - `charset`: The charset being decoded.
     /// - `index`: The input unit index associated with the invalid code point.
     /// - `value`: The invalid raw code point value.
     ///
     /// # Returns
     ///
-    /// Returns a decoding error with [`TextDecodingErrorKind::InvalidCodePoint`].
+    /// Returns a decoding error with [`TextDecodeErrorKind::InvalidCodePoint`].
     #[must_use]
-    pub const fn invalid_code_point(encoding: TextEncoding, index: usize, value: u32) -> Self {
-        Self::with_value(
-            encoding,
-            TextDecodingErrorKind::InvalidCodePoint,
-            index,
-            value,
-        )
+    pub const fn invalid_code_point(charset: Charset, index: usize, value: u32) -> Self {
+        Self::with_value(charset, TextDecodeErrorKind::InvalidCodePoint, index, value)
     }
 
-    /// Returns the encoding being decoded.
+    /// Returns the charset being decoded.
     ///
     /// # Returns
     ///
-    /// Returns the stored [`TextEncoding`].
+    /// Returns the stored [`Charset`].
     #[must_use]
-    pub const fn encoding(self) -> TextEncoding {
-        self.encoding
+    pub const fn charset(self) -> Charset {
+        self.charset
     }
 
     /// Returns the decoding error kind.
     ///
     /// # Returns
     ///
-    /// Returns the stored [`TextDecodingErrorKind`].
+    /// Returns the stored [`TextDecodeErrorKind`].
     #[must_use]
-    pub const fn kind(self) -> TextDecodingErrorKind {
+    pub const fn kind(self) -> TextDecodeErrorKind {
         self.kind
     }
 
@@ -184,7 +179,7 @@ impl TextDecodingError {
     #[must_use]
     pub const fn offset_by(self, base: usize) -> Self {
         Self {
-            encoding: self.encoding,
+            charset: self.charset,
             kind: self.kind,
             index: self.index + base,
             value: self.value,
@@ -192,7 +187,7 @@ impl TextDecodingError {
     }
 }
 
-impl fmt::Display for TextDecodingError {
+impl fmt::Display for TextDecodeError {
     /// Formats this decoding error.
     ///
     /// # Parameters
@@ -207,16 +202,16 @@ impl fmt::Display for TextDecodingError {
             write!(
                 formatter,
                 "{} decoding error at index {} for value 0x{:x}: {}",
-                self.encoding, self.index, value, self.kind,
+                self.charset, self.index, value, self.kind,
             )
         } else {
             write!(
                 formatter,
                 "{} decoding error at index {}: {}",
-                self.encoding, self.index, self.kind,
+                self.charset, self.index, self.kind,
             )
         }
     }
 }
 
-impl Error for TextDecodingError {}
+impl Error for TextDecodeError {}

@@ -8,9 +8,9 @@
  *
  ******************************************************************************/
 mod byte_order;
-mod text_encoding;
+mod charset;
 mod unicode_bom;
 
 pub use byte_order::ByteOrder;
-pub use text_encoding::TextEncoding;
+pub use charset::Charset;
 pub use unicode_bom::UnicodeBom;

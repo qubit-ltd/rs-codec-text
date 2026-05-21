@@ -1,8 +1,8 @@
 use qubit_text_codec::{
+    Charset,
     DecodeStatus,
     TextDecoder,
     TextEncoder,
-    TextEncoding,
     Utf32,
     Utf32U32Codec,
 };
@@ -11,10 +11,10 @@ use qubit_text_codec::{
 fn test_utf32_u32_codec_exposes_encoder_and_decoder_contracts() {
     let codec = Utf32U32Codec;
 
-    assert_eq!(TextEncoding::UTF_32, codec.encoding());
+    assert_eq!(Charset::UTF_32, codec.charset());
     assert_eq!(Utf32::MAX_UNITS_PER_CHAR, codec.max_units_per_char());
-    assert_eq!(TextEncoding::UTF_32, TextEncoder::<u32>::encoding(&codec));
-    assert_eq!(TextEncoding::UTF_32, TextDecoder::<u32>::encoding(&codec));
+    assert_eq!(Charset::UTF_32, TextEncoder::<u32>::charset(&codec));
+    assert_eq!(Charset::UTF_32, TextDecoder::<u32>::charset(&codec));
     assert_eq!(
         Utf32::MAX_UNITS_PER_CHAR,
         TextEncoder::<u32>::max_units_per_char(&codec)

@@ -1,16 +1,16 @@
 use qubit_text_codec::{
+    Charset,
+    TextEncodeErrorKind,
     TextEncoder,
-    TextEncoding,
-    TextEncodingErrorKind,
     Utf16,
     Utf16U16Encoder,
 };
 
 #[test]
-fn test_utf16_u16_encoder_exposes_encoding_and_unit_width() {
+fn test_utf16_u16_encoder_exposes_charset_and_unit_width() {
     let encoder = Utf16U16Encoder;
 
-    assert_eq!(TextEncoding::UTF_16, encoder.encoding());
+    assert_eq!(Charset::UTF_16, encoder.charset());
     assert_eq!(Utf16::MAX_UNITS_PER_CHAR, encoder.max_units_per_char());
 }
 
@@ -29,6 +29,6 @@ fn test_utf16_u16_encoder_encodes_units() {
     let error = encoder
         .encode_char('😀', &mut small)
         .expect_err("UTF-16 unit encoder must reject a too-small output buffer");
-    assert_eq!(TextEncodingErrorKind::BufferTooSmall, error.kind());
+    assert_eq!(TextEncodeErrorKind::BufferTooSmall, error.kind());
     assert_eq!(1, error.index());
 }

@@ -8,12 +8,12 @@
  *
  ******************************************************************************/
 use crate::{
+    Charset,
     DecodeStatus,
+    TextDecodeResult,
     TextDecoder,
-    TextDecodingResult,
+    TextEncodeResult,
     TextEncoder,
-    TextEncoding,
-    TextEncodingResult,
     Utf16,
 };
 
@@ -32,13 +32,13 @@ use super::helpers;
 ///     DecodeStatus,
 ///     TextDecoder,
 ///     TextEncoder,
-///     TextEncoding,
+///     Charset,
 ///     Utf16,
 ///     Utf16U16Codec,
 /// };
 ///
 /// let codec = Utf16U16Codec;
-/// assert_eq!(TextEncoding::UTF_16, codec.encoding());
+/// assert_eq!(Charset::UTF_16, codec.charset());
 /// assert_eq!(Utf16::MAX_UNITS_PER_CHAR, codec.max_units_per_char());
 ///
 /// let mut output = [0_u16; Utf16::MAX_UNITS_PER_CHAR];
@@ -59,10 +59,10 @@ impl Utf16U16Codec {
     ///
     /// # Returns
     ///
-    /// Returns [`TextEncoding::UTF_16`].
+    /// Returns [`Charset::UTF_16`].
     #[must_use]
-    pub const fn encoding(self) -> TextEncoding {
-        TextEncoding::UTF_16
+    pub const fn charset(self) -> Charset {
+        Charset::UTF_16
     }
 
     /// Returns the maximum number of UTF-16 code units needed for one character.
@@ -77,29 +77,29 @@ impl Utf16U16Codec {
 }
 
 impl TextDecoder<u16> for Utf16U16Codec {
-    fn encoding(&self) -> TextEncoding {
-        TextEncoding::UTF_16
+    fn charset(&self) -> Charset {
+        Charset::UTF_16
     }
 
     fn max_units_per_char(&self) -> usize {
         Utf16::MAX_UNITS_PER_CHAR
     }
 
-    fn decode_prefix(&self, input: &[u16]) -> TextDecodingResult<DecodeStatus<char>> {
+    fn decode_prefix(&self, input: &[u16]) -> TextDecodeResult<DecodeStatus<char>> {
         helpers::decode_utf16_units_prefix(input)
     }
 }
 
 impl TextEncoder<u16> for Utf16U16Codec {
-    fn encoding(&self) -> TextEncoding {
-        TextEncoding::UTF_16
+    fn charset(&self) -> Charset {
+        Charset::UTF_16
     }
 
     fn max_units_per_char(&self) -> usize {
         Utf16::MAX_UNITS_PER_CHAR
     }
 
-    fn encode_char(&self, ch: char, output: &mut [u16]) -> TextEncodingResult<usize> {
+    fn encode_char(&self, ch: char, output: &mut [u16]) -> TextEncodeResult<usize> {
         helpers::encode_utf16_units_char(ch, output)
     }
 }

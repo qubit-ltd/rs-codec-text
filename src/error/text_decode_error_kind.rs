@@ -11,7 +11,7 @@ use thiserror::Error;
 
 /// Classifies failures detected while decoding encoded units into Unicode text.
 #[derive(Clone, Copy, Debug, Eq, Error, PartialEq)]
-pub enum TextDecodingErrorKind {
+pub enum TextDecodeErrorKind {
     /// The input units do not form a well-formed encoded sequence.
     #[error("The encoded text sequence is malformed.")]
     MalformedSequence,

@@ -8,10 +8,10 @@
  *
  ******************************************************************************/
 use crate::{
+    Charset,
     DecodeStatus,
+    TextDecodeResult,
     TextDecoder,
-    TextDecodingResult,
-    TextEncoding,
     Utf32,
 };
 
@@ -43,15 +43,15 @@ use super::helpers;
 pub struct Utf32U32Decoder;
 
 impl TextDecoder<u32> for Utf32U32Decoder {
-    fn encoding(&self) -> TextEncoding {
-        TextEncoding::UTF_32
+    fn charset(&self) -> Charset {
+        Charset::UTF_32
     }
 
     fn max_units_per_char(&self) -> usize {
         Utf32::MAX_UNITS_PER_CHAR
     }
 
-    fn decode_prefix(&self, input: &[u32]) -> TextDecodingResult<DecodeStatus<char>> {
+    fn decode_prefix(&self, input: &[u32]) -> TextDecodeResult<DecodeStatus<char>> {
         helpers::decode_utf32_units_prefix(input)
     }
 }

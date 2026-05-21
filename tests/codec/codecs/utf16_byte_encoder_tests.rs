@@ -1,18 +1,18 @@
 use qubit_text_codec::{
     ByteOrder,
+    Charset,
+    TextEncodeErrorKind,
     TextEncoder,
-    TextEncoding,
-    TextEncodingErrorKind,
     Utf16,
     Utf16ByteEncoder,
 };
 
 #[test]
-fn test_utf16_byte_encoder_exposes_encoding_order_and_unit_width() {
+fn test_utf16_byte_encoder_exposes_charset_order_and_unit_width() {
     let encoder = Utf16ByteEncoder::new(ByteOrder::LittleEndian);
 
     assert_eq!(ByteOrder::LittleEndian, encoder.byte_order());
-    assert_eq!(TextEncoding::UTF_16, encoder.encoding());
+    assert_eq!(Charset::UTF_16LE, encoder.charset());
     assert_eq!(Utf16::MAX_BYTES_PER_CHAR, encoder.max_units_per_char());
 }
 
@@ -32,6 +32,6 @@ fn test_utf16_byte_encoder_encodes_bytes_and_reports_small_buffers() {
     let error = encoder
         .encode_char('😀', &mut small)
         .expect_err("small byte buffer must fail");
-    assert_eq!(TextEncodingErrorKind::BufferTooSmall, error.kind());
+    assert_eq!(TextEncodeErrorKind::BufferTooSmall, error.kind());
     assert_eq!(2, error.index());
 }

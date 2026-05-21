@@ -9,7 +9,7 @@
  ******************************************************************************/
 use crate::{
     ByteOrder,
-    TextEncoding,
+    Charset,
 };
 
 /// Unicode byte order marks supported by this crate.
@@ -23,7 +23,7 @@ use crate::{
 /// ```rust
 /// use qubit_text_codec::{
 ///     ByteOrder,
-///     TextEncoding,
+///     Charset,
 ///     UnicodeBom,
 /// };
 ///
@@ -31,7 +31,7 @@ use crate::{
 /// assert_eq!(Some(UnicodeBom::Utf32LittleEndian), bom);
 ///
 /// let bom = bom.expect("UTF-32LE BOM");
-/// assert_eq!(TextEncoding::UTF_32, bom.encoding());
+/// assert_eq!(Charset::UTF_32LE, bom.charset());
 /// assert_eq!(Some(ByteOrder::LittleEndian), bom.byte_order());
 /// assert_eq!(4, bom.byte_len());
 /// ```
@@ -114,17 +114,20 @@ impl UnicodeBom {
         }
     }
 
-    /// Returns the Unicode encoding indicated by this BOM.
+    /// Returns the charset indicated by this BOM.
     ///
     /// # Returns
     ///
-    /// Returns the corresponding [`TextEncoding`].
+    /// Returns the corresponding [`Charset`], including fixed byte order for
+    /// UTF-16 and UTF-32 BOMs.
     #[must_use]
-    pub const fn encoding(self) -> TextEncoding {
+    pub const fn charset(self) -> Charset {
         match self {
-            Self::Utf8 => TextEncoding::UTF_8,
-            Self::Utf16BigEndian | Self::Utf16LittleEndian => TextEncoding::UTF_16,
-            Self::Utf32BigEndian | Self::Utf32LittleEndian => TextEncoding::UTF_32,
+            Self::Utf8 => Charset::UTF_8,
+            Self::Utf16BigEndian => Charset::UTF_16BE,
+            Self::Utf16LittleEndian => Charset::UTF_16LE,
+            Self::Utf32BigEndian => Charset::UTF_32BE,
+            Self::Utf32LittleEndian => Charset::UTF_32LE,
         }
     }
 

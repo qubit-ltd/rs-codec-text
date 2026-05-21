@@ -1,17 +1,17 @@
 use qubit_text_codec::{
+    Charset,
     DecodeStatus,
+    TextDecodeErrorKind,
     TextDecoder,
-    TextDecodingErrorKind,
-    TextEncoding,
     Utf8,
     Utf8Decoder,
 };
 
 #[test]
-fn test_utf8_decoder_exposes_encoding_and_unit_width() {
+fn test_utf8_decoder_exposes_charset_and_unit_width() {
     let decoder = Utf8Decoder;
 
-    assert_eq!(TextEncoding::UTF_8, decoder.encoding());
+    assert_eq!(Charset::UTF_8, decoder.charset());
     assert_eq!(Utf8::MAX_UNITS_PER_CHAR, decoder.max_units_per_char());
 }
 
@@ -64,14 +64,14 @@ fn test_utf8_decoder_reports_need_more_and_malformed_sequences() {
     let error = decoder
         .decode_prefix(&[0xe4, b'A', 0x80])
         .expect_err("bad continuation must fail");
-    assert_eq!(TextDecodingErrorKind::MalformedSequence, error.kind());
+    assert_eq!(TextDecodeErrorKind::MalformedSequence, error.kind());
     assert_eq!(1, error.index());
 
     let mut index = 0;
     let error = decoder
         .decode_next(&[0xf0, 0x9f], &mut index)
         .expect_err("closed incomplete input must fail");
-    assert_eq!(TextDecodingErrorKind::IncompleteSequence, error.kind());
+    assert_eq!(TextDecodeErrorKind::IncompleteSequence, error.kind());
     assert_eq!(2, error.index());
 }
 
@@ -90,7 +90,7 @@ fn test_utf8_decoder_rejects_malformed_partial_prefixes() {
         let error = decoder
             .decode_prefix(bytes)
             .expect_err("malformed partial UTF-8 prefix must fail");
-        assert_eq!(TextDecodingErrorKind::MalformedSequence, error.kind());
+        assert_eq!(TextDecodeErrorKind::MalformedSequence, error.kind());
         assert_eq!(index, error.index());
     }
 
@@ -98,7 +98,7 @@ fn test_utf8_decoder_rejects_malformed_partial_prefixes() {
     let error = decoder
         .decode_next(&[0xe4, b' '], &mut index)
         .expect_err("closed malformed input must not be reported incomplete");
-    assert_eq!(TextDecodingErrorKind::MalformedSequence, error.kind());
+    assert_eq!(TextDecodeErrorKind::MalformedSequence, error.kind());
     assert_eq!(1, error.index());
     assert_eq!(0, index);
 }
@@ -137,7 +137,7 @@ fn test_utf8_decoder_covers_well_formed_and_malformed_boundaries() {
         let error = decoder
             .decode_prefix(bytes)
             .expect_err("malformed UTF-8 must fail");
-        assert_eq!(TextDecodingErrorKind::MalformedSequence, error.kind());
+        assert_eq!(TextDecodeErrorKind::MalformedSequence, error.kind());
         assert_eq!(index, error.index());
     }
 }

@@ -15,31 +15,33 @@ use core::{
     },
 };
 
-/// Identifies the text encoding associated with a codec or error.
+use crate::ByteOrder;
+
+/// Identifies the charset associated with a codec or error.
 ///
-/// A text encoding is represented by a stable normalized identifier, a display
+/// A charset is represented by a stable normalized identifier, a display
 /// name, and accepted aliases. Equality and hashing use only the identifier, so
 /// display names and alias lists can evolve without changing identity.
 ///
 /// # Examples
 ///
 /// ```rust
-/// use qubit_text_codec::TextEncoding;
+/// use qubit_text_codec::Charset;
 ///
-/// const GBK: TextEncoding = TextEncoding::new("gbk", "GBK", &["cp936"]);
+/// const GBK: Charset = Charset::new("gbk", "GBK", &["cp936"]);
 ///
 /// assert!(GBK.matches_label("CP936"));
-/// assert_eq!(GBK, TextEncoding::new("gbk", "Chinese GBK", &[]));
+/// assert_eq!(GBK, Charset::new("gbk", "Chinese GBK", &[]));
 /// assert_eq!("GBK", GBK.to_string());
 /// ```
 #[derive(Clone, Copy, Debug)]
-pub struct TextEncoding {
+pub struct Charset {
     id: &'static str,
     name: &'static str,
     aliases: &'static [&'static str],
 }
 
-impl TextEncoding {
+impl Charset {
     /// US-ASCII text.
     pub const ASCII: Self = Self::new("ascii", "ASCII", &["us-ascii"]);
 
@@ -49,20 +51,48 @@ impl TextEncoding {
     /// UTF-16 text.
     pub const UTF_16: Self = Self::new("utf-16", "UTF-16", &["utf16"]);
 
+    /// UTF-16 text serialized in little-endian byte order.
+    pub const UTF_16LE: Self = Self::new(
+        "utf-16le",
+        "UTF-16LE",
+        &["utf16le", "utf16_le", "utf_16_le"],
+    );
+
+    /// UTF-16 text serialized in big-endian byte order.
+    pub const UTF_16BE: Self = Self::new(
+        "utf-16be",
+        "UTF-16BE",
+        &["utf16be", "utf16_be", "utf_16_be"],
+    );
+
     /// UTF-32 text.
     pub const UTF_32: Self = Self::new("utf-32", "UTF-32", &["utf32"]);
 
-    /// Creates a text encoding descriptor.
+    /// UTF-32 text serialized in little-endian byte order.
+    pub const UTF_32LE: Self = Self::new(
+        "utf-32le",
+        "UTF-32LE",
+        &["utf32le", "utf32_le", "utf_32_le"],
+    );
+
+    /// UTF-32 text serialized in big-endian byte order.
+    pub const UTF_32BE: Self = Self::new(
+        "utf-32be",
+        "UTF-32BE",
+        &["utf32be", "utf32_be", "utf_32_be"],
+    );
+
+    /// Creates a charset descriptor.
     ///
     /// # Parameters
     ///
     /// - `id`: Stable normalized identifier used for equality and hashing.
     /// - `name`: Human-readable display name.
-    /// - `aliases`: Additional labels accepted for this encoding.
+    /// - `aliases`: Additional labels accepted for this charset.
     ///
     /// # Returns
     ///
-    /// Returns an encoding descriptor carrying the supplied metadata.
+    /// Returns a charset descriptor carrying the supplied metadata.
     #[must_use]
     pub const fn new(
         id: &'static str,
@@ -72,7 +102,7 @@ impl TextEncoding {
         Self { id, name, aliases }
     }
 
-    /// Returns the stable normalized encoding identifier.
+    /// Returns the stable normalized charset identifier.
     ///
     /// # Returns
     ///
@@ -82,7 +112,7 @@ impl TextEncoding {
         self.id
     }
 
-    /// Returns a human-readable encoding label.
+    /// Returns a human-readable charset label.
     ///
     /// # Returns
     ///
@@ -92,7 +122,7 @@ impl TextEncoding {
         self.name
     }
 
-    /// Returns accepted aliases for this encoding.
+    /// Returns accepted aliases for this charset.
     ///
     /// # Returns
     ///
@@ -102,7 +132,60 @@ impl TextEncoding {
         self.aliases
     }
 
-    /// Tests whether a label names this encoding.
+    /// Returns the UTF-16 charset with a fixed byte order.
+    ///
+    /// # Parameters
+    ///
+    /// - `byte_order`: The byte order used by the byte stream.
+    ///
+    /// # Returns
+    ///
+    /// Returns [`Self::UTF_16LE`] for little-endian byte order and
+    /// [`Self::UTF_16BE`] for big-endian byte order.
+    #[must_use]
+    pub const fn from_utf16_byte_order(byte_order: ByteOrder) -> Self {
+        match byte_order {
+            ByteOrder::LittleEndian => Self::UTF_16LE,
+            ByteOrder::BigEndian => Self::UTF_16BE,
+        }
+    }
+
+    /// Returns the UTF-32 charset with a fixed byte order.
+    ///
+    /// # Parameters
+    ///
+    /// - `byte_order`: The byte order used by the byte stream.
+    ///
+    /// # Returns
+    ///
+    /// Returns [`Self::UTF_32LE`] for little-endian byte order and
+    /// [`Self::UTF_32BE`] for big-endian byte order.
+    #[must_use]
+    pub const fn from_utf32_byte_order(byte_order: ByteOrder) -> Self {
+        match byte_order {
+            ByteOrder::LittleEndian => Self::UTF_32LE,
+            ByteOrder::BigEndian => Self::UTF_32BE,
+        }
+    }
+
+    /// Returns the fixed byte order represented by this charset.
+    ///
+    /// # Returns
+    ///
+    /// Returns `Some(ByteOrder)` for fixed-endian UTF-16 and UTF-32 charsets.
+    /// Returns `None` for UTF-8 and generic UTF-16/UTF-32 charsets.
+    #[must_use]
+    pub fn byte_order(self) -> Option<ByteOrder> {
+        if self == Self::UTF_16LE || self == Self::UTF_32LE {
+            Some(ByteOrder::LittleEndian)
+        } else if self == Self::UTF_16BE || self == Self::UTF_32BE {
+            Some(ByteOrder::BigEndian)
+        } else {
+            None
+        }
+    }
+
+    /// Tests whether a label names this charset.
     ///
     /// # Parameters
     ///
@@ -124,8 +207,8 @@ impl TextEncoding {
     }
 }
 
-impl PartialEq for TextEncoding {
-    /// Compares text encodings by stable identifier.
+impl PartialEq for Charset {
+    /// Compares charsets by stable identifier.
     ///
     /// # Parameters
     ///
@@ -139,9 +222,9 @@ impl PartialEq for TextEncoding {
     }
 }
 
-impl Eq for TextEncoding {}
+impl Eq for Charset {}
 
-impl Hash for TextEncoding {
+impl Hash for Charset {
     /// Hashes the stable encoding identifier.
     ///
     /// # Parameters
@@ -155,8 +238,8 @@ impl Hash for TextEncoding {
     }
 }
 
-impl fmt::Display for TextEncoding {
-    /// Formats this encoding label.
+impl fmt::Display for Charset {
+    /// Formats this charset label.
     ///
     /// # Parameters
     ///

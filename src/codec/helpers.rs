@@ -9,19 +9,19 @@
  ******************************************************************************/
 use crate::{
     ByteOrder,
+    Charset,
     DecodeStatus,
-    TextDecodingError,
-    TextDecodingResult,
-    TextEncoding,
-    TextEncodingError,
-    TextEncodingResult,
+    TextDecodeError,
+    TextDecodeResult,
+    TextEncodeError,
+    TextEncodeResult,
     Unicode,
     Utf8,
     Utf16,
 };
 
 /// Decodes the first UTF-8 character from a byte prefix.
-pub(super) fn decode_utf8_prefix(input: &[u8]) -> TextDecodingResult<DecodeStatus<char>> {
+pub(super) fn decode_utf8_prefix(input: &[u8]) -> TextDecodeResult<DecodeStatus<char>> {
     if input.is_empty() {
         return Ok(DecodeStatus::NeedMore {
             required: 1,
@@ -32,10 +32,7 @@ pub(super) fn decode_utf8_prefix(input: &[u8]) -> TextDecodingResult<DecodeStatu
     let length = match Utf8::byte_len_from_leading_byte(first) {
         Some(length) => length,
         None => {
-            return Err(TextDecodingError::malformed_sequence(
-                TextEncoding::UTF_8,
-                0,
-            ));
+            return Err(TextDecodeError::malformed_sequence(Charset::UTF_8, 0));
         }
     };
     if input.len() < length {
@@ -57,8 +54,8 @@ pub(super) fn decode_utf8_prefix(input: &[u8]) -> TextDecodingResult<DecodeStatu
             value: ch,
             consumed: length,
         }),
-        None => Err(TextDecodingError::invalid_code_point(
-            TextEncoding::UTF_8,
+        None => Err(TextDecodeError::invalid_code_point(
+            Charset::UTF_8,
             0,
             code_point,
         )),
@@ -66,11 +63,11 @@ pub(super) fn decode_utf8_prefix(input: &[u8]) -> TextDecodingResult<DecodeStatu
 }
 
 /// Encodes one character into UTF-8 bytes.
-pub(super) fn encode_utf8_char(ch: char, output: &mut [u8]) -> TextEncodingResult<usize> {
+pub(super) fn encode_utf8_char(ch: char, output: &mut [u8]) -> TextEncodeResult<usize> {
     let length = Utf8::byte_len(ch);
     if output.len() < length {
-        return Err(TextEncodingError::buffer_too_small(
-            TextEncoding::UTF_8,
+        return Err(TextEncodeError::buffer_too_small(
+            Charset::UTF_8,
             output.len(),
         ));
     }
@@ -81,7 +78,7 @@ pub(super) fn encode_utf8_char(ch: char, output: &mut [u8]) -> TextEncodingResul
 }
 
 /// Decodes the first UTF-16 character from a `u16` prefix.
-pub(super) fn decode_utf16_units_prefix(input: &[u16]) -> TextDecodingResult<DecodeStatus<char>> {
+pub(super) fn decode_utf16_units_prefix(input: &[u16]) -> TextDecodeResult<DecodeStatus<char>> {
     if input.is_empty() {
         return Ok(DecodeStatus::NeedMore {
             required: 1,
@@ -102,16 +99,10 @@ pub(super) fn decode_utf16_units_prefix(input: &[u16]) -> TextDecodingResult<Dec
                 value: ch,
                 consumed: 2,
             }),
-            None => Err(TextDecodingError::malformed_sequence(
-                TextEncoding::UTF_16,
-                1,
-            )),
+            None => Err(TextDecodeError::malformed_sequence(Charset::UTF_16, 1)),
         }
     } else if Utf16::is_low_surrogate(first) {
-        Err(TextDecodingError::malformed_sequence(
-            TextEncoding::UTF_16,
-            0,
-        ))
+        Err(TextDecodeError::malformed_sequence(Charset::UTF_16, 0))
     } else {
         let ch = char::from_u32(first as u32).expect("non-surrogate UTF-16 unit is a scalar value");
         Ok(DecodeStatus::Complete {
@@ -122,11 +113,11 @@ pub(super) fn decode_utf16_units_prefix(input: &[u16]) -> TextDecodingResult<Dec
 }
 
 /// Encodes one character into UTF-16 `u16` units.
-pub(super) fn encode_utf16_units_char(ch: char, output: &mut [u16]) -> TextEncodingResult<usize> {
+pub(super) fn encode_utf16_units_char(ch: char, output: &mut [u16]) -> TextEncodeResult<usize> {
     let length = Utf16::unit_len(ch);
     if output.len() < length {
-        return Err(TextEncodingError::buffer_too_small(
-            TextEncoding::UTF_16,
+        return Err(TextEncodeError::buffer_too_small(
+            Charset::UTF_16,
             output.len(),
         ));
     }
@@ -146,7 +137,8 @@ pub(super) fn encode_utf16_units_char(ch: char, output: &mut [u16]) -> TextEncod
 pub(super) fn decode_utf16_bytes_prefix(
     input: &[u8],
     byte_order: ByteOrder,
-) -> TextDecodingResult<DecodeStatus<char>> {
+) -> TextDecodeResult<DecodeStatus<char>> {
+    let charset = Charset::from_utf16_byte_order(byte_order);
     if input.len() < 2 {
         return Ok(DecodeStatus::NeedMore {
             required: 2,
@@ -167,16 +159,10 @@ pub(super) fn decode_utf16_bytes_prefix(
                 value: ch,
                 consumed: 4,
             }),
-            None => Err(TextDecodingError::malformed_sequence(
-                TextEncoding::UTF_16,
-                2,
-            )),
+            None => Err(TextDecodeError::malformed_sequence(charset, 2)),
         }
     } else if Utf16::is_low_surrogate(first) {
-        Err(TextDecodingError::malformed_sequence(
-            TextEncoding::UTF_16,
-            0,
-        ))
+        Err(TextDecodeError::malformed_sequence(charset, 0))
     } else {
         let ch = char::from_u32(first as u32).expect("non-surrogate UTF-16 unit is a scalar value");
         Ok(DecodeStatus::Complete {
@@ -191,13 +177,11 @@ pub(super) fn encode_utf16_bytes_char(
     ch: char,
     output: &mut [u8],
     byte_order: ByteOrder,
-) -> TextEncodingResult<usize> {
+) -> TextEncodeResult<usize> {
+    let charset = Charset::from_utf16_byte_order(byte_order);
     let required = Utf16::unit_len(ch) * 2;
     if output.len() < required {
-        return Err(TextEncodingError::buffer_too_small(
-            TextEncoding::UTF_16,
-            output.len(),
-        ));
+        return Err(TextEncodeError::buffer_too_small(charset, output.len()));
     }
     let mut units = [0_u16; Utf16::MAX_UNITS_PER_CHAR];
     let unit_count = encode_utf16_units_char(ch, &mut units)?;
@@ -210,7 +194,7 @@ pub(super) fn encode_utf16_bytes_char(
 }
 
 /// Decodes the first UTF-32 character from a `u32` prefix.
-pub(super) fn decode_utf32_units_prefix(input: &[u32]) -> TextDecodingResult<DecodeStatus<char>> {
+pub(super) fn decode_utf32_units_prefix(input: &[u32]) -> TextDecodeResult<DecodeStatus<char>> {
     if input.is_empty() {
         return Ok(DecodeStatus::NeedMore {
             required: 1,
@@ -222,8 +206,8 @@ pub(super) fn decode_utf32_units_prefix(input: &[u32]) -> TextDecodingResult<Dec
             value: ch,
             consumed: 1,
         }),
-        None => Err(TextDecodingError::invalid_code_point(
-            TextEncoding::UTF_32,
+        None => Err(TextDecodeError::invalid_code_point(
+            Charset::UTF_32,
             0,
             input[0],
         )),
@@ -231,9 +215,9 @@ pub(super) fn decode_utf32_units_prefix(input: &[u32]) -> TextDecodingResult<Dec
 }
 
 /// Encodes one character into a UTF-32 `u32` unit.
-pub(super) fn encode_utf32_units_char(ch: char, output: &mut [u32]) -> TextEncodingResult<usize> {
+pub(super) fn encode_utf32_units_char(ch: char, output: &mut [u32]) -> TextEncodeResult<usize> {
     if output.is_empty() {
-        return Err(TextEncodingError::buffer_too_small(TextEncoding::UTF_32, 0));
+        return Err(TextEncodeError::buffer_too_small(Charset::UTF_32, 0));
     }
     output[0] = ch as u32;
     Ok(1)
@@ -243,7 +227,8 @@ pub(super) fn encode_utf32_units_char(ch: char, output: &mut [u32]) -> TextEncod
 pub(super) fn decode_utf32_bytes_prefix(
     input: &[u8],
     byte_order: ByteOrder,
-) -> TextDecodingResult<DecodeStatus<char>> {
+) -> TextDecodeResult<DecodeStatus<char>> {
+    let charset = Charset::from_utf32_byte_order(byte_order);
     if input.len() < 4 {
         return Ok(DecodeStatus::NeedMore {
             required: 4,
@@ -256,11 +241,7 @@ pub(super) fn decode_utf32_bytes_prefix(
             value: ch,
             consumed: 4,
         }),
-        None => Err(TextDecodingError::invalid_code_point(
-            TextEncoding::UTF_32,
-            0,
-            unit,
-        )),
+        None => Err(TextDecodeError::invalid_code_point(charset, 0, unit)),
     }
 }
 
@@ -269,42 +250,31 @@ pub(super) fn encode_utf32_bytes_char(
     ch: char,
     output: &mut [u8],
     byte_order: ByteOrder,
-) -> TextEncodingResult<usize> {
+) -> TextEncodeResult<usize> {
+    let charset = Charset::from_utf32_byte_order(byte_order);
     if output.len() < 4 {
-        return Err(TextEncodingError::buffer_too_small(
-            TextEncoding::UTF_32,
-            output.len(),
-        ));
+        return Err(TextEncodeError::buffer_too_small(charset, output.len()));
     }
     output[..4].copy_from_slice(&byte_order.u32_bytes(ch as u32));
     Ok(4)
 }
 
 /// Decodes a two-byte UTF-8 sequence.
-fn decode_utf8_two(input: &[u8]) -> TextDecodingResult<u32> {
+fn decode_utf8_two(input: &[u8]) -> TextDecodeResult<u32> {
     let second = input[1];
     if !Utf8::is_continuation_byte(second) {
-        return Err(TextDecodingError::malformed_sequence(
-            TextEncoding::UTF_8,
-            1,
-        ));
+        return Err(TextDecodeError::malformed_sequence(Charset::UTF_8, 1));
     }
     Ok((((input[0] & 0x1f) as u32) << 6) | ((second & 0x3f) as u32))
 }
 
 /// Validates the bytes already present in an incomplete UTF-8 sequence.
-fn validate_utf8_partial(input: &[u8]) -> TextDecodingResult<()> {
+fn validate_utf8_partial(input: &[u8]) -> TextDecodeResult<()> {
     if input.len() >= 2 && !is_valid_utf8_second_byte(input[0], input[1]) {
-        return Err(TextDecodingError::malformed_sequence(
-            TextEncoding::UTF_8,
-            1,
-        ));
+        return Err(TextDecodeError::malformed_sequence(Charset::UTF_8, 1));
     }
     if input.len() >= 3 && !Utf8::is_continuation_byte(input[2]) {
-        return Err(TextDecodingError::malformed_sequence(
-            TextEncoding::UTF_8,
-            2,
-        ));
+        return Err(TextDecodeError::malformed_sequence(Charset::UTF_8, 2));
     }
     Ok(())
 }
@@ -324,48 +294,33 @@ fn is_valid_utf8_second_byte(first: u8, second: u8) -> bool {
 }
 
 /// Decodes a three-byte UTF-8 sequence.
-fn decode_utf8_three(input: &[u8]) -> TextDecodingResult<u32> {
+fn decode_utf8_three(input: &[u8]) -> TextDecodeResult<u32> {
     let first = input[0];
     let second = input[1];
     let third = input[2];
     if !is_valid_utf8_second_byte(first, second) {
-        return Err(TextDecodingError::malformed_sequence(
-            TextEncoding::UTF_8,
-            1,
-        ));
+        return Err(TextDecodeError::malformed_sequence(Charset::UTF_8, 1));
     }
     if !Utf8::is_continuation_byte(third) {
-        return Err(TextDecodingError::malformed_sequence(
-            TextEncoding::UTF_8,
-            2,
-        ));
+        return Err(TextDecodeError::malformed_sequence(Charset::UTF_8, 2));
     }
     Ok((((first & 0x0f) as u32) << 12) | (((second & 0x3f) as u32) << 6) | ((third & 0x3f) as u32))
 }
 
 /// Decodes a four-byte UTF-8 sequence.
-fn decode_utf8_four(input: &[u8]) -> TextDecodingResult<u32> {
+fn decode_utf8_four(input: &[u8]) -> TextDecodeResult<u32> {
     let first = input[0];
     let second = input[1];
     let third = input[2];
     let fourth = input[3];
     if !is_valid_utf8_second_byte(first, second) {
-        return Err(TextDecodingError::malformed_sequence(
-            TextEncoding::UTF_8,
-            1,
-        ));
+        return Err(TextDecodeError::malformed_sequence(Charset::UTF_8, 1));
     }
     if !Utf8::is_continuation_byte(third) {
-        return Err(TextDecodingError::malformed_sequence(
-            TextEncoding::UTF_8,
-            2,
-        ));
+        return Err(TextDecodeError::malformed_sequence(Charset::UTF_8, 2));
     }
     if !Utf8::is_continuation_byte(fourth) {
-        return Err(TextDecodingError::malformed_sequence(
-            TextEncoding::UTF_8,
-            3,
-        ));
+        return Err(TextDecodeError::malformed_sequence(Charset::UTF_8, 3));
     }
     Ok((((first & 0x07) as u32) << 18)
         | (((second & 0x3f) as u32) << 12)
