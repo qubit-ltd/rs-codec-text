@@ -7,11 +7,13 @@
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 [![Chinese Document](https://img.shields.io/badge/Document-Chinese-blue.svg)](README.zh_CN.md)
 
-Low-level Unicode constants, text classification helpers, and buffer-oriented UTF codec primitives for Rust.
+Buffer-oriented UTF codec primitives and Unicode/ASCII support utilities for Rust.
 
 ## Overview
 
-Qubit Text Codec provides low-level building blocks for code that needs explicit control below Rust's ordinary `str`, `String`, and `char` APIs. It separates Unicode and encoding namespace helpers from concrete text encoders and decoders, so parser and I/O crates can reuse strict UTF-8, UTF-16, and UTF-32 logic without depending on `std::io`.
+Qubit Text Codec is a low-level codec core for Rust code that needs explicit control below ordinary `str`, `String`, and `char` APIs. Its current built-in codecs focus on Unicode transfer formats: UTF-8, UTF-16, and UTF-32, with both code-unit and byte-oriented variants where that distinction matters.
+
+The crate also provides the small shared surface that codec adapters need: encoding identity metadata, encoder/decoder traits, decode status values, byte order and BOM helpers, and concrete encoding/decoding error types. ASCII and Unicode namespace helpers are included because UTF codecs and text parsers often need these checks close to the buffer boundary.
 
 Use this crate when you need:
 
@@ -20,11 +22,10 @@ Use this crate when you need:
 - UTF-8, UTF-16, and UTF-32 namespace helpers for byte or code-unit classification and length calculation;
 - buffer-level `TextEncoder<T>` and `TextDecoder<T>` implementations for UTF-8, UTF-16, and UTF-32;
 - byte-order and BOM handling for UTF-16 and UTF-32 byte streams;
-- reusable text encoding and decoding error types for Unicode codecs and future non-Unicode encoding adapters.
+- a small trait and error vocabulary that future non-Unicode encoding adapters can reuse without making this crate a text I/O framework.
 
-Prefer Rust's standard text APIs for ordinary text handling. Use this crate when a parser, codec, binary format, or text I/O adapter needs strict buffer-level control.
+Prefer Rust's standard text APIs for ordinary text handling. Use this crate when a parser, binary format, or text I/O adapter needs strict buffer-level UTF codec behavior and precise error positions.
 
-For detailed usage, examples, and API selection guidance, see the [User Guide](doc/user_guide.md).
 API reference documentation is available on [docs.rs](https://docs.rs/qubit-text-codec).
 
 ## Installation
@@ -90,7 +91,7 @@ syntax. Malformed byte sequences include overlong encodings, UTF-8 encodings of 
 
 ### Namespace Enums
 
-`qubit-text-codec` exposes stateless namespace enums for constants, classification, and sizing. Encoding and decoding live in dedicated codec types.
+`qubit-text-codec` exposes stateless namespace enums for constants, classification, conversion, and sizing. Encoding and decoding behavior lives in dedicated codec types.
 
 | Namespace | Purpose |
 | --- | --- |
@@ -115,8 +116,8 @@ Encoding and decoding are modeled by small traits over caller-provided buffers.
 `TextEncoding` is a lightweight encoding identity descriptor with a stable `id`,
 display `name`, and accepted `aliases`. Built-in descriptors are available as
 `TextEncoding::ASCII`, `TextEncoding::UTF_8`, `TextEncoding::UTF_16`, and
-`TextEncoding::UTF_32`; adapters for external encodings can define their own
-static descriptors, for example `TextEncoding::new("gbk", "GBK", &["cp936"])`.
+`TextEncoding::UTF_32`. External codec crates can define their own static
+descriptors, for example `TextEncoding::new("gbk", "GBK", &["cp936"])`.
 Equality and hashing use only the `id`, while `matches_label` accepts the id,
 display name, or aliases with ASCII case-insensitive comparison.
 
@@ -166,9 +167,9 @@ use qubit_text_codec::prelude::*;
 
 ## Crate Boundary
 
-`qubit-text-codec` intentionally stays below full Unicode text processing. It does not implement grapheme-cluster segmentation, normalization, collation, locale-aware case mapping, transliteration, automatic encoding detection, or display-width calculation.
+`qubit-text-codec` is not a general text processing library. It intentionally stays below grapheme-cluster segmentation, normalization, collation, locale-aware case mapping, transliteration, automatic encoding detection, display-width calculation, and `std::io` reader/writer adapters.
 
-It also does not replace `encoding_rs` for legacy or web-compatible encodings such as GBK, Big5, Shift_JIS, or Windows code pages. Future adapters can reuse the text codec traits and error model while delegating non-Unicode encodings to specialized libraries.
+Its built-in codecs currently cover UTF-8, UTF-16, and UTF-32. It does not replace `encoding_rs` for legacy or web-compatible encodings such as GBK, Big5, Shift_JIS, or Windows code pages. Future crates can add those encodings on top of the shared traits and error model, or delegate their tables and compatibility rules to specialized libraries.
 
 Use specialized crates such as `unicode-segmentation`, `unicode-normalization`, `unicode-width`, or ICU4X for higher-level Unicode semantics.
 
@@ -178,7 +179,7 @@ This crate uses `thiserror` for error `Display` and `Error` implementations.
 
 ## Testing & Code Coverage
 
-This project maintains test coverage for ASCII classification and folding, Unicode code point helpers, BOM and byte-order handling, UTF-8/UTF-16/UTF-32 namespace helpers, buffer-level codecs, and text encoding/decoding errors.
+This project maintains test coverage for ASCII classification and folding, Unicode code point helpers, BOM and byte-order handling, UTF-8/UTF-16/UTF-32 namespace helpers, buffer-level UTF codecs, and text encoding/decoding errors.
 
 ### Running Tests
 
