@@ -17,6 +17,8 @@ fn test_charset_exposes_identity_metadata() {
 
     assert_eq!("ascii", Charset::ASCII.id());
     assert_eq!("ASCII", Charset::ASCII.name());
+    assert_eq!("iso-8859-1", Charset::ISO_8859_1.id());
+    assert_eq!("ISO-8859-1", Charset::ISO_8859_1.name());
     assert_eq!("UTF-8", Charset::UTF_8.to_string());
     assert_eq!("UTF-16", Charset::UTF_16.name());
     assert_eq!("utf-16le", Charset::UTF_16LE.id());
@@ -49,6 +51,9 @@ fn test_charset_matches_labels() {
     assert!(Charset::UTF_8.matches_label("UTF-8"));
     assert!(Charset::UTF_16LE.matches_label("utf16_le"));
     assert!(Charset::UTF_16BE.matches_label("UTF-16BE"));
+    assert!(Charset::ISO_8859_1.matches_label("latin1"));
+    assert!(Charset::ISO_8859_1.matches_label("ISO_8859-1"));
+    assert!(Charset::ISO_8859_1.matches_label("csisolatin1"));
     assert!(Charset::UTF_32LE.matches_label("utf32le"));
     assert!(Charset::UTF_32BE.matches_label("UTF_32_BE"));
     assert!(GBK.matches_label("CP936"));

@@ -11,7 +11,7 @@
 
 ## 概述
 
-Qubit Text Codec 是一个低层编解码核心，服务于那些需要在 Rust 普通 `str`、`String` 和 `char` API 之下做显式控制的代码。当前内置编解码器聚焦 Unicode 传输格式：UTF-8、UTF-16 和 UTF-32；在需要区分码元与字节表示的地方，同时提供码元版和面向字节的版本。
+Qubit Text Codec 是一个低层编解码核心，服务于那些需要在 Rust 普通 `str`、`String` 和 `char` API 之下做显式控制的代码。当前内置编解码器聚焦 Unicode 传输格式：ASCII、ISO-8859-1（Latin-1）、UTF-8、UTF-16 和 UTF-32；在需要区分码元与字节表示的地方，同时提供码元版和面向字节的版本。
 
 本库也提供编解码适配器需要共用的小型基础能力：charset 身份元数据、通用 `Coder` 接口、低层 `CharsetCodec<T>`、带策略的 `CharsetEncoder` / `CharsetDecoder` / `CharsetConverter`、解码状态、字节序和 BOM 辅助工具，以及具体的编码/解码错误类型。ASCII 和 Unicode 命名空间辅助工具保留在这里，是因为 UTF 编解码器和文本解析器经常需要在缓冲区边界附近直接做这些检查。
 
@@ -20,7 +20,7 @@ Qubit Text Codec 是一个低层编解码核心，服务于那些需要在 Rust 
 - 需要 ASCII 分类、大小写转换、数字转换和 ASCII 折叠；
 - 需要 Unicode 码点与标量值检查、代理项检查、平面计算、非字符/控制字符分类；
 - 需要 UTF-8、UTF-16、UTF-32 命名空间辅助工具来做字节/码元分类和长度计算；
-- 需要面向缓冲区的 `CharsetCodec<T>`，用于 UTF-8、UTF-16、UTF-32；
+- 需要面向缓冲区的 `CharsetCodec<T>`，用于 ASCII、ISO-8859-1、UTF-8、UTF-16、UTF-32；
 - 需要带 malformed / unmappable 处理策略的 charset encoder、decoder 和 converter；
 - 需要处理 UTF-16 / UTF-32 字节流的字节序和 BOM；
 - 需要一组小型接口和错误类型体系，供未来非 Unicode 编码适配器复用，但不把本库扩成文本 I/O 框架。
@@ -125,8 +125,7 @@ UTF-8 解码遵循 [Unicode Standard 表 3-7](https://www.unicode.org/versions/l
 所有转换接口都接收完整输入/输出 slice 以及绝对起始下标。返回的 progress 计数相对于这些起始下标，而错误对象里的 index 直接指向传入缓冲区中的绝对位置。
 
 `Charset` 是轻量的 charset 身份描述对象，包含稳定 `id`、展示用
-`name` 和可接受的 `aliases`。内置描述对象包括 `Charset::ASCII`、
-`Charset::UTF_8`、`Charset::UTF_16`、`Charset::UTF_16LE`、
+`name` 和可接受的 `aliases`。内置描述对象包括 `Charset::ASCII`、`Charset::ISO_8859_1`、`Charset::UTF_8`、`Charset::UTF_16`、`Charset::UTF_16LE`、
 `Charset::UTF_16BE`、`Charset::UTF_32`、`Charset::UTF_32LE` 和
 `Charset::UTF_32BE`。泛化的 `UTF_16` 和 `UTF_32` 表示 Unicode 码元形式
 或 BOM-aware 字节流标签；`LE` / `BE` 变体表示固定字节序的字节流 charset。
@@ -138,6 +137,8 @@ UTF-8 解码遵循 [Unicode Standard 表 3-7](https://www.unicode.org/versions/l
 
 | 编解码器族 | 存储单元 | 低层 codec |
 | --- | --- | --- |
+| ASCII 字节 | `u8` | `AsciiCodec` |
+| ISO-8859-1 字节 | `u8` | `Latin1Codec` |
 | UTF-8 字节 | `u8` | `Utf8Codec` |
 | UTF-16 码元 | `u16` | `Utf16U16Codec` |
 | UTF-16 字节 | `u8` | `Utf16ByteCodec` |
@@ -184,7 +185,7 @@ use qubit_text_codec::prelude::*;
 
 `qubit-text-codec` 不是通用文本处理库。它有意保持在字素簇切分、规范化、排序、按区域设置处理大小写映射、转写、自动编码识别、显示宽度计算以及 `std::io` 读写适配器之下。
 
-当前内置编解码器覆盖 UTF-8、UTF-16 和 UTF-32。它不替代 `encoding_rs` 来处理 GBK、Big5、Shift_JIS 或 Windows 代码页等历史编码 / Web 兼容编码。未来的库可以基于这里的接口和错误模型补充这些编码，也可以把表驱动规则和兼容性细节委托给专门库。
+当前内置编解码器覆盖 ASCII、ISO-8859-1、UTF-8、UTF-16 和 UTF-32。它不替代 `encoding_rs` 来处理 GBK、Big5、Shift_JIS 或 Windows 代码页等历史编码 / Web 兼容编码。未来的库可以基于这里的接口和错误模型补充这些编码，也可以把表驱动规则和兼容性细节委托给专门库。
 
 这些更高层 Unicode 语义应使用 `unicode-segmentation`、`unicode-normalization`、`unicode-width` 或 ICU4X 等专门库。
 
@@ -194,7 +195,7 @@ use qubit_text_codec::prelude::*;
 
 ## 测试与代码覆盖率
 
-本项目为 ASCII 分类与折叠、Unicode 码点辅助工具、BOM 和字节序处理、charset 描述对象、UTF-8/UTF-16/UTF-32 命名空间辅助工具、缓冲区级 UTF 编解码器和文本编码动作/解码动作错误类型保持测试覆盖。
+本项目为 ASCII 分类与折叠、Unicode 码点辅助工具、BOM 和字节序处理、charset 描述对象、ASCII/Latin-1/UTF-8/UTF-16/UTF-32 命名空间辅助工具、缓冲区级编解码器和文本编码动作/解码动作错误类型保持测试覆盖。
 
 ### 运行测试
 

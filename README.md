@@ -20,7 +20,7 @@ Use this crate when you need:
 - ASCII classification, case conversion, digit conversion, and ASCII folding;
 - Unicode code point and scalar value checks, surrogate checks, plane calculation, and noncharacter/control classification;
 - UTF-8, UTF-16, and UTF-32 namespace helpers for byte or code-unit classification and length calculation;
-- buffer-level `CharsetCodec<T>` implementations for UTF-8, UTF-16, and UTF-32;
+- buffer-level `CharsetCodec<T>` implementations for ASCII, ISO-8859-1 (Latin-1), UTF-8, UTF-16, and UTF-32;
 - policy-aware charset encoders, decoders, and converters with malformed/unmappable replacement, ignore, and report actions;
 - byte-order and BOM handling for UTF-16 and UTF-32 byte streams;
 - a small trait and error vocabulary that future non-Unicode encoding adapters can reuse without making this crate a text I/O framework.
@@ -131,7 +131,7 @@ carry absolute indices in the supplied buffers.
 
 `Charset` is a lightweight charset identity descriptor with a stable `id`,
 display `name`, and accepted `aliases`. Built-in descriptors are available as
-`Charset::ASCII`, `Charset::UTF_8`, `Charset::UTF_16`,
+`Charset::ASCII`, `Charset::ISO_8859_1`, `Charset::UTF_8`, `Charset::UTF_16`,
 `Charset::UTF_16LE`, `Charset::UTF_16BE`, `Charset::UTF_32`,
 `Charset::UTF_32LE`, and `Charset::UTF_32BE`. Generic `UTF_16` and `UTF_32`
 represent the Unicode code-unit form or a BOM-aware stream label, while the
@@ -145,6 +145,8 @@ case-insensitive comparison.
 
 | Codec family | Storage unit | Low-level codec |
 | --- | --- | --- |
+| ASCII bytes | `u8` | `AsciiCodec` |
+| ISO-8859-1 bytes | `u8` | `Latin1Codec` |
 | UTF-8 bytes | `u8` | `Utf8Codec` |
 | UTF-16 code units | `u16` | `Utf16U16Codec` |
 | UTF-16 bytes | `u8` | `Utf16ByteCodec` |
@@ -191,7 +193,7 @@ use qubit_text_codec::prelude::*;
 
 `qubit-text-codec` is not a general text processing library. It intentionally stays below grapheme-cluster segmentation, normalization, collation, locale-aware case mapping, transliteration, automatic encoding detection, display-width calculation, and `std::io` reader/writer adapters.
 
-Its built-in codecs currently cover UTF-8, UTF-16, and UTF-32. It does not replace `encoding_rs` for legacy or web-compatible encodings such as GBK, Big5, Shift_JIS, or Windows code pages. Future crates can add those encodings on top of the shared traits and error model, or delegate their tables and compatibility rules to specialized libraries.
+Its built-in codecs currently cover ASCII, ISO-8859-1 (Latin-1), UTF-8, UTF-16, and UTF-32. It does not replace `encoding_rs` for legacy or web-compatible encodings such as GBK, Big5, Shift_JIS, or Windows code pages. Future crates can add those encodings on top of the shared traits and error model, or delegate their tables and compatibility rules to specialized libraries.
 
 Use specialized crates such as `unicode-segmentation`, `unicode-normalization`, `unicode-width`, or ICU4X for higher-level Unicode semantics.
 
@@ -201,7 +203,7 @@ This crate uses `thiserror` for error `Display` and `Error` implementations.
 
 ## Testing & Code Coverage
 
-This project maintains test coverage for ASCII classification and folding, Unicode code point helpers, BOM and byte-order handling, charset descriptors, UTF-8/UTF-16/UTF-32 namespace helpers, buffer-level UTF codecs, and charset encode/decode errors.
+This project maintains test coverage for ASCII classification and folding, Unicode code point helpers, BOM and byte-order handling, charset descriptors, ASCII/Latin-1/UTF-8/UTF-16/UTF-32 namespace helpers, buffer-level codecs, and charset encode/decode errors.
 
 ### Running Tests
 

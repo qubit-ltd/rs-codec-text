@@ -48,6 +48,19 @@ impl Charset {
     /// US-ASCII text.
     pub const ASCII: Self = Self::new("ascii", "ASCII", &["us-ascii"]);
 
+    /// ISO-8859-1 / Latin-1 text.
+    pub const ISO_8859_1: Self = Self::new(
+        "iso-8859-1",
+        "ISO-8859-1",
+        &[
+            "latin1",
+            "latin-1",
+            "iso8859-1",
+            "csisolatin1",
+            "iso_8859-1",
+        ],
+    );
+
     /// UTF-8 text.
     pub const UTF_8: Self = Self::new("utf-8", "UTF-8", &["utf8"]);
 
