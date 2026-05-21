@@ -569,4 +569,35 @@ impl Utf8 {
         }
         Ok(count)
     }
+
+    /// Encodes a Rust character into a UTF-8 output buffer.
+    ///
+    /// # Parameters
+    ///
+    /// - `ch`: The Unicode scalar value to encode.
+    /// - `index`: The starting index in `buffer` at which bytes are written.
+    /// - `buffer`: The caller-provided output buffer.
+    /// - `end_index`: The upper bound, exclusive, for writing.
+    ///
+    /// # Returns
+    ///
+    /// Returns `Ok(count)` with the number of UTF-8 bytes written.
+    ///
+    /// # Errors
+    ///
+    /// Returns `UnicodeErrorKind::BufferOverflow` if the encoded bytes would
+    /// extend past `end_index`.
+    ///
+    /// # Panics
+    ///
+    /// Panics under the same conditions as [`Self::put`].
+    #[inline]
+    pub fn put_char(
+        ch: char,
+        index: usize,
+        buffer: &mut [u8],
+        end_index: usize,
+    ) -> UnicodeResult<usize> {
+        Self::put(ch as u32, index, buffer, end_index)
+    }
 }

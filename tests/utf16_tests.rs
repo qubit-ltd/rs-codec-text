@@ -6,8 +6,14 @@ use qubit_unicode::{
 
 #[test]
 fn test_utf16_classifies_code_units_and_surrogate_pairs() {
+    assert!(Utf16::is_single(0x0000));
     assert!(Utf16::is_single('A' as u16));
+    assert!(Utf16::is_single(0xd7ff));
+    assert!(!Utf16::is_single(0xd800));
     assert!(!Utf16::is_single(0xd83d));
+    assert!(!Utf16::is_single(0xdfff));
+    assert!(Utf16::is_single(0xe000));
+    assert!(Utf16::is_single(0xffff));
     assert!(Utf16::is_leading(0xd83d));
     assert!(Utf16::is_trailing(0xde00));
     assert!(Utf16::is_surrogate(0xd83d));
@@ -17,9 +23,18 @@ fn test_utf16_classifies_code_units_and_surrogate_pairs() {
     assert_eq!(Some(0xde00), Utf16::decompose_low(0x1f600));
     assert_eq!(1, Utf16::trailing_count(0xd83d));
     assert_eq!(0, Utf16::trailing_count('A' as u16));
+    assert_eq!(Some(1), Utf16::code_unit_count(0x0000));
     assert_eq!(Some(1), Utf16::code_unit_count('A' as u32));
-    assert_eq!(Some(2), Utf16::code_unit_count(0x1f600));
+    assert_eq!(Some(1), Utf16::code_unit_count(0xd7ff));
     assert_eq!(None, Utf16::code_unit_count(0xd800));
+    assert_eq!(None, Utf16::code_unit_count(0xdfff));
+    assert_eq!(Some(1), Utf16::code_unit_count(0xe000));
+    assert_eq!(Some(1), Utf16::code_unit_count(0xffff));
+    assert_eq!(Some(2), Utf16::code_unit_count(0x10000));
+    assert_eq!(Some(2), Utf16::code_unit_count(0x1f600));
+    assert_eq!(Some(2), Utf16::code_unit_count(0x10ffff));
+    assert_eq!(None, Utf16::code_unit_count(0xd800));
+    assert_eq!(None, Utf16::code_unit_count(0x110000));
 }
 
 #[test]
@@ -136,6 +151,22 @@ fn test_utf16_put_and_escape_encode_scalar_values() {
     assert_eq!(2, count);
     assert_eq!([0xd83d, 0xde00], buffer);
 
+    let mut indexed_buffer = [0xaaaa, 0, 0, 0xbbbb];
+    let count =
+        Utf16::put(0x1f600, 1, &mut indexed_buffer, 3).expect("encode at non-zero index");
+    assert_eq!(2, count);
+    assert_eq!([0xaaaa, 0xd83d, 0xde00, 0xbbbb], indexed_buffer);
+
+    let mut char_buffer = [0; Utf16::MAX_CODE_UNIT_COUNT];
+    let char_end_index = char_buffer.len();
+    let count = Utf16::put_char('中', 0, &mut char_buffer, char_end_index).expect("encode char");
+    assert_eq!(1, count);
+    assert_eq!(0x4e2d, char_buffer[0]);
+
+    let count = Utf16::put_char('😀', 0, &mut char_buffer, char_end_index).expect("encode emoji");
+    assert_eq!(2, count);
+    assert_eq!([0xd83d, 0xde00], char_buffer);
+
     assert_eq!(Some("\\u0041".to_string()), Utf16::escape_java('A' as u32));
     assert_eq!(Some("\\u4E2D".to_string()), Utf16::escape_java('中' as u32));
     assert_eq!(
@@ -169,9 +200,15 @@ fn test_utf16_reports_malformed_incomplete_and_overflow() {
     let mut tiny = [0; 1];
     let err = Utf16::put(0x1f600, 0, &mut tiny, 1).expect_err("not enough space");
     assert_eq!(UnicodeErrorKind::BufferOverflow, err.kind());
+    assert_eq!(1, err.index());
 
     let err = Utf16::put(0xd800, 0, &mut tiny, 1).expect_err("surrogate scalar");
     assert_eq!(UnicodeErrorKind::Malformed, err.kind());
+    assert_eq!(0, err.index());
+
+    let err = Utf16::put_char('😀', 0, &mut tiny, 1).expect_err("char not enough space");
+    assert_eq!(UnicodeErrorKind::BufferOverflow, err.kind());
+    assert_eq!(1, err.index());
 
     pos.reset(1);
     let err = Utf16::set_to_start(&mut pos, &[0x0041, 0xde00], 0).expect_err("bad high");
@@ -194,8 +231,18 @@ fn test_utf16_reports_malformed_incomplete_and_overflow() {
     assert_eq!(UnicodeErrorKind::Malformed, err.kind());
 
     pos.reset(1);
+    let err = Utf16::get_previous(&mut pos, &[0xd83d], 0).expect_err("previous high surrogate");
+    assert_eq!(UnicodeErrorKind::Malformed, err.kind());
+    assert_eq!(Some(0), pos.error_index());
+
+    pos.reset(1);
     let err = Utf16::backward(&mut pos, &[0xde00], 0).expect_err("low at start");
     assert_eq!(UnicodeErrorKind::Incomplete, err.kind());
+
+    pos.reset(1);
+    let err = Utf16::get_previous(&mut pos, &[0xde00], 0).expect_err("previous low at start");
+    assert_eq!(UnicodeErrorKind::Incomplete, err.kind());
+    assert_eq!(Some(0), pos.error_index());
 
     pos.reset(2);
     let err = Utf16::backward(&mut pos, &[0x0041, 0xde00], 0).expect_err("bad leading");

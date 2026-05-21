@@ -189,6 +189,18 @@ fn test_utf8_put_encodes_scalar_values() {
     let count = Utf8::put(0x1f600, 0, &mut buffer, end_index).expect("encode emoji");
     assert_eq!(4, count);
     assert_eq!("😀".as_bytes(), &buffer[..count]);
+
+    let count = Utf8::put_char('A', 0, &mut buffer, end_index).expect("encode ASCII char");
+    assert_eq!(1, count);
+    assert_eq!(b"A", &buffer[..count]);
+
+    let count = Utf8::put_char('中', 0, &mut buffer, end_index).expect("encode CJK char");
+    assert_eq!(3, count);
+    assert_eq!("中".as_bytes(), &buffer[..count]);
+
+    let count = Utf8::put_char('😀', 0, &mut buffer, end_index).expect("encode emoji char");
+    assert_eq!(4, count);
+    assert_eq!("😀".as_bytes(), &buffer[..count]);
 }
 
 #[test]
@@ -280,6 +292,9 @@ fn test_utf8_reports_malformed_incomplete_and_overflow() {
 
     let mut tiny = [0; 2];
     let err = Utf8::put('中' as u32, 0, &mut tiny, 2).expect_err("not enough space");
+    assert_eq!(UnicodeErrorKind::BufferOverflow, err.kind());
+
+    let err = Utf8::put_char('中', 0, &mut tiny, 2).expect_err("char not enough space");
     assert_eq!(UnicodeErrorKind::BufferOverflow, err.kind());
 
     let err = Utf8::put(0xd800, 0, &mut tiny, 2).expect_err("surrogate scalar");

@@ -16,6 +16,10 @@ use crate::{
 };
 
 /// Namespace for low-level UTF-16 helpers.
+///
+/// Decoding rejects isolated high and low surrogates. Cursor operations only
+/// inspect code units inside caller-provided `start_index` and `end_index`
+/// bounds, and report incomplete surrogate pairs at those bounds.
 pub enum Utf16 {}
 
 impl Utf16 {
@@ -507,7 +511,7 @@ impl Utf16 {
                 return Err(UnicodeError::new(UnicodeErrorKind::Malformed, index));
             }
         };
-        if index + count > end_index {
+        if end_index - index < count {
             return Err(UnicodeError::new(
                 UnicodeErrorKind::BufferOverflow,
                 end_index,
@@ -522,6 +526,38 @@ impl Utf16 {
                 Self::decompose_low(code_point).expect("supplementary code point has low");
         }
         Ok(count)
+    }
+
+    /// Encodes a Rust character into a UTF-16 output buffer.
+    ///
+    /// # Parameters
+    ///
+    /// - `ch`: The Unicode scalar value to encode.
+    /// - `index`: The starting index in `buffer` at which code units are
+    ///   written.
+    /// - `buffer`: The caller-provided output buffer.
+    /// - `end_index`: The upper bound, exclusive, for writing.
+    ///
+    /// # Returns
+    ///
+    /// Returns `Ok(count)` with the number of UTF-16 code units written.
+    ///
+    /// # Errors
+    ///
+    /// Returns `UnicodeErrorKind::BufferOverflow` if the encoded code units
+    /// would extend past `end_index`.
+    ///
+    /// # Panics
+    ///
+    /// Panics under the same conditions as [`Self::put`].
+    #[inline]
+    pub fn put_char(
+        ch: char,
+        index: usize,
+        buffer: &mut [u16],
+        end_index: usize,
+    ) -> UnicodeResult<usize> {
+        Self::put(ch as u32, index, buffer, end_index)
     }
 
     /// Escapes a scalar value as Java/JavaScript UTF-16 `\uXXXX` escape text.
