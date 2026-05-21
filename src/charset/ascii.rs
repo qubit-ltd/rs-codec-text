@@ -173,12 +173,18 @@ impl Ascii {
         'z', '{', '|', '}', '~',
     ];
 
+    /// All printable ASCII characters as bytes.
+    pub const PRINTABLE_BYTES: [u8; 95] = *b" !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~";
+
     /// All ASCII letter characters.
     pub const LETTER_CHARS: [char; 52] = [
         'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R',
         'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j',
         'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
     ];
+
+    /// All ASCII letter characters as bytes.
+    pub const LETTER_BYTES: [u8; 52] = *b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
 
     /// All ASCII letter and digit characters.
     pub const LETTER_DIGIT_CHARS: [char; 62] = [
@@ -187,6 +193,9 @@ impl Ascii {
         'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r',
         's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
     ];
+
+    /// All ASCII letter and digit characters as bytes.
+    pub const LETTER_DIGIT_BYTES: [u8; 62] = *b"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
 
     /// ASCII digit characters.
     pub const DIGIT_CHARS: [char; 10] = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];

@@ -8,6 +8,7 @@
  *
  ******************************************************************************/
 use crate::{
+    Ascii,
     Charset,
     CharsetCodec,
     CharsetDecodeError,
@@ -138,7 +139,7 @@ impl CharsetCodec<u8> for AsciiCodec {
         }
 
         let value = ch as u32;
-        if value > 0x7f {
+        if value > Ascii::MAX as u32 {
             return Err(CharsetEncodeError::unmappable_character(
                 Charset::ASCII,
                 index,
