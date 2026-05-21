@@ -77,28 +77,81 @@ impl Utf8Codec {
 }
 
 impl TextDecoder<u8> for Utf8Codec {
+    /// Returns UTF-8 charset descriptor.
+    ///
+    /// # Returns
+    ///
+    /// Returns [`Charset::UTF_8`].
     fn charset(&self) -> Charset {
         Charset::UTF_8
     }
 
+    /// Returns the maximum number of UTF-8 bytes for one character.
+    ///
+    /// # Returns
+    ///
+    /// Returns [`Utf8::MAX_UNITS_PER_CHAR`].
     fn max_units_per_char(&self) -> usize {
         Utf8::MAX_UNITS_PER_CHAR
     }
 
+    /// Decodes one UTF-8 character from a byte prefix.
+    ///
+    /// # Arguments
+    ///
+    /// * `input` - UTF-8 byte slice.
+    /// * `index` - Start offset for decoding; must satisfy `index <= input.len()`.
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(DecodeStatus::NeedMore { required, available })` for partial input.
+    /// * `Ok(DecodeStatus::Complete { value, consumed })` for a decoded scalar value.
+    ///
+    /// # Errors
+    ///
+    /// * `TextDecodeError::malformed_sequence` for invalid UTF-8 byte sequence.
+    /// * `TextDecodeError::invalid_code_point` for non-scalar values.
     fn decode_prefix(&self, input: &[u8], index: usize) -> TextDecodeResult<DecodeStatus> {
         utf8::decode_prefix(input, index)
     }
 }
 
 impl TextEncoder<u8> for Utf8Codec {
+    /// Returns UTF-8 charset descriptor.
+    ///
+    /// # Returns
+    ///
+    /// Returns [`Charset::UTF_8`].
     fn charset(&self) -> Charset {
         Charset::UTF_8
     }
 
+    /// Returns the maximum number of UTF-8 bytes for one character.
+    ///
+    /// # Returns
+    ///
+    /// Returns [`Utf8::MAX_UNITS_PER_CHAR`].
     fn max_units_per_char(&self) -> usize {
         Utf8::MAX_UNITS_PER_CHAR
     }
 
+    /// Encodes one Unicode scalar value into UTF-8 bytes at `index`.
+    ///
+    /// # Arguments
+    ///
+    /// * `ch` - The Unicode scalar value to encode.
+    /// * `output` - Destination byte buffer.
+    /// * `index` - Start offset where bytes are written; must satisfy
+    ///   `index <= output.len()`.
+    ///
+    /// # Returns
+    ///
+    /// `Ok(usize)` with encoded bytes (`1..=4`).
+    ///
+    /// # Errors
+    ///
+    /// * `TextEncodeError::buffer_too_small` if output has insufficient bytes from
+    ///   `index`.
     fn encode_char(&self, ch: char, output: &mut [u8], index: usize) -> TextEncodeResult<usize> {
         utf8::encode_char(ch, output, index)
     }

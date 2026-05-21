@@ -106,28 +106,83 @@ impl Utf16ByteCodec {
 }
 
 impl TextDecoder<u8> for Utf16ByteCodec {
+    /// Returns the fixed-endian UTF-16 charset for the configured byte order.
+    ///
+    /// # Returns
+    ///
+    /// Returns [`Charset::UTF_16BE`] when configured with
+    /// `ByteOrder::BigEndian`, otherwise [`Charset::UTF_16LE`].
     fn charset(&self) -> Charset {
         Charset::from_utf16_byte_order(self.byte_order)
     }
 
+    /// Returns the maximum number of UTF-16 bytes for a single encoded character.
+    ///
+    /// # Returns
+    ///
+    /// Returns [`Utf16::MAX_BYTES_PER_CHAR`].
     fn max_units_per_char(&self) -> usize {
         Utf16::MAX_BYTES_PER_CHAR
     }
 
+    /// Decodes one UTF-16 scalar value from a byte-prefixed UTF-16 stream.
+    ///
+    /// # Arguments
+    ///
+    /// * `input` - Byte-prefixed UTF-16 buffer.
+    /// * `index` - Start offset for parsing; must satisfy `index <= input.len()`.
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(DecodeStatus::NeedMore { required, available })` when the current slice
+    ///   has only a partial unit/pair.
+    /// * `Ok(DecodeStatus::Complete { value, consumed })` when one Unicode scalar value
+    ///   is decoded.
+    ///
+    /// # Errors
+    ///
+    /// * `TextDecodeError` when UTF-16 structure is malformed.
     fn decode_prefix(&self, input: &[u8], index: usize) -> TextDecodeResult<DecodeStatus> {
         utf16::decode_bytes_prefix(input, index, self.byte_order)
     }
 }
 
 impl TextEncoder<u8> for Utf16ByteCodec {
+    /// Returns the fixed-endian UTF-16 charset for the configured byte order.
+    ///
+    /// # Returns
+    ///
+    /// Returns [`Charset::UTF_16BE`] when configured with
+    /// `ByteOrder::BigEndian`, otherwise [`Charset::UTF_16LE`].
     fn charset(&self) -> Charset {
         Charset::from_utf16_byte_order(self.byte_order)
     }
 
+    /// Returns the maximum number of UTF-16 bytes for a single encoded character.
+    ///
+    /// # Returns
+    ///
+    /// Returns [`Utf16::MAX_BYTES_PER_CHAR`].
     fn max_units_per_char(&self) -> usize {
         Utf16::MAX_BYTES_PER_CHAR
     }
 
+    /// Encodes one Unicode scalar value into UTF-16 bytes at `index`.
+    ///
+    /// # Arguments
+    ///
+    /// * `ch` - The Unicode scalar value to encode.
+    /// * `output` - Destination byte buffer.
+    /// * `index` - Start offset where bytes are written; must satisfy
+    ///   `index <= output.len()`.
+    ///
+    /// # Returns
+    ///
+    /// `Ok(usize)` with the number of written bytes (`2` for BMP and `4` for supplementary).
+    ///
+    /// # Errors
+    ///
+    /// * `TextEncodeError::buffer_too_small` if output does not have enough space.
     fn encode_char(&self, ch: char, output: &mut [u8], index: usize) -> TextEncodeResult<usize> {
         utf16::encode_bytes_char(ch, output, self.byte_order, index)
     }

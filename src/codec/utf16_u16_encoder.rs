@@ -37,14 +37,40 @@ use crate::{
 pub struct Utf16U16Encoder;
 
 impl TextEncoder<u16> for Utf16U16Encoder {
+    /// Returns UTF-16 charset descriptor.
+    ///
+    /// # Returns
+    ///
+    /// Returns [`Charset::UTF_16`].
     fn charset(&self) -> Charset {
         Charset::UTF_16
     }
 
+    /// Returns the maximum number of UTF-16 code units for one character.
+    ///
+    /// # Returns
+    ///
+    /// Returns [`Utf16::MAX_UNITS_PER_CHAR`].
     fn max_units_per_char(&self) -> usize {
         Utf16::MAX_UNITS_PER_CHAR
     }
 
+    /// Encodes one Unicode scalar value into UTF-16 code units at `index`.
+    ///
+    /// # Arguments
+    ///
+    /// * `ch` - The Unicode scalar value to encode.
+    /// * `output` - Destination `u16` buffer.
+    /// * `index` - Start offset where units are written; must satisfy
+    ///   `index <= output.len()`.
+    ///
+    /// # Returns
+    ///
+    /// `Ok(usize)` with the number of written UTF-16 units (`1` or `2`).
+    ///
+    /// # Errors
+    ///
+    /// * `TextEncodeError::buffer_too_small` when output capacity is insufficient.
     fn encode_char(&self, ch: char, output: &mut [u16], index: usize) -> TextEncodeResult<usize> {
         utf16::encode_units_char(ch, output, index)
     }

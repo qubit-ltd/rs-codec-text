@@ -106,28 +106,83 @@ impl Utf32ByteCodec {
 }
 
 impl TextDecoder<u8> for Utf32ByteCodec {
+    /// Returns the fixed-endian UTF-32 charset for the configured byte order.
+    ///
+    /// # Returns
+    ///
+    /// Returns [`Charset::UTF_32BE`] when configured with
+    /// `ByteOrder::BigEndian`, otherwise [`Charset::UTF_32LE`].
     fn charset(&self) -> Charset {
         Charset::from_utf32_byte_order(self.byte_order)
     }
 
+    /// Returns the fixed size (4 bytes) for one serialized UTF-32 scalar value.
+    ///
+    /// # Returns
+    ///
+    /// Returns [`Utf32::MAX_BYTES_PER_CHAR`].
     fn max_units_per_char(&self) -> usize {
         Utf32::MAX_BYTES_PER_CHAR
     }
 
+    /// Decodes one UTF-32 scalar value from a byte-prefixed UTF-32 stream.
+    ///
+    /// # Arguments
+    ///
+    /// * `input` - Byte-prefixed UTF-32 buffer.
+    /// * `index` - Start offset for parsing; must satisfy `index <= input.len()`.
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(DecodeStatus::NeedMore { required, available })` when fewer than
+    ///   four bytes remain.
+    /// * `Ok(DecodeStatus::Complete { value, consumed })` when one character is decoded.
+    ///
+    /// # Errors
+    ///
+    /// * `TextDecodeError::malformed_sequence` when byte index is invalid.
+    /// * `TextDecodeError::invalid_code_point` when bytes decode to an invalid scalar.
     fn decode_prefix(&self, input: &[u8], index: usize) -> TextDecodeResult<DecodeStatus> {
         utf32::decode_bytes_prefix(input, index, self.byte_order)
     }
 }
 
 impl TextEncoder<u8> for Utf32ByteCodec {
+    /// Returns the fixed-endian UTF-32 charset for the configured byte order.
+    ///
+    /// # Returns
+    ///
+    /// Returns [`Charset::UTF_32BE`] when configured with
+    /// `ByteOrder::BigEndian`, otherwise [`Charset::UTF_32LE`].
     fn charset(&self) -> Charset {
         Charset::from_utf32_byte_order(self.byte_order)
     }
 
+    /// Returns the fixed size (4 bytes) for one serialized UTF-32 scalar value.
+    ///
+    /// # Returns
+    ///
+    /// Returns [`Utf32::MAX_BYTES_PER_CHAR`].
     fn max_units_per_char(&self) -> usize {
         Utf32::MAX_BYTES_PER_CHAR
     }
 
+    /// Encodes one Unicode scalar value into UTF-32 bytes at `index`.
+    ///
+    /// # Arguments
+    ///
+    /// * `ch` - The Unicode scalar value to encode.
+    /// * `output` - Destination byte buffer.
+    /// * `index` - Start offset where 4 bytes are written; must satisfy
+    ///   `index <= output.len()`.
+    ///
+    /// # Returns
+    ///
+    /// Always returns `Ok(4)` on success.
+    ///
+    /// # Errors
+    ///
+    /// * `TextEncodeError::buffer_too_small` if fewer than 4 bytes remain in `output`.
     fn encode_char(&self, ch: char, output: &mut [u8], index: usize) -> TextEncodeResult<usize> {
         utf32::encode_bytes_char(ch, output, self.byte_order, index)
     }

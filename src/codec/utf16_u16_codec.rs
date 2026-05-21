@@ -76,28 +76,81 @@ impl Utf16U16Codec {
 }
 
 impl TextDecoder<u16> for Utf16U16Codec {
+    /// Returns UTF-16 charset descriptor.
+    ///
+    /// # Returns
+    ///
+    /// Returns [`Charset::UTF_16`].
     fn charset(&self) -> Charset {
         Charset::UTF_16
     }
 
+    /// Returns the maximum number of UTF-16 code units for one character.
+    ///
+    /// # Returns
+    ///
+    /// Returns [`Utf16::MAX_UNITS_PER_CHAR`].
     fn max_units_per_char(&self) -> usize {
         Utf16::MAX_UNITS_PER_CHAR
     }
 
+    /// Decodes one UTF-16 scalar value from a `u16` prefix.
+    ///
+    /// # Arguments
+    ///
+    /// * `input` - UTF-16 code-unit slice.
+    /// * `index` - Start offset for parsing; must satisfy `index <= input.len()`.
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(DecodeStatus::NeedMore { required, available })` when only a partial unit/pair
+    ///   is present.
+    /// * `Ok(DecodeStatus::Complete { value, consumed })` when one character is decoded.
+    ///
+    /// # Errors
+    ///
+    /// * `TextDecodeError::malformed_sequence` for invalid surrogate combinations.
+    /// * `TextDecodeError::invalid_code_point` when resulting scalar is invalid.
     fn decode_prefix(&self, input: &[u16], index: usize) -> TextDecodeResult<DecodeStatus> {
         utf16::decode_units_prefix(input, index)
     }
 }
 
 impl TextEncoder<u16> for Utf16U16Codec {
+    /// Returns UTF-16 charset descriptor.
+    ///
+    /// # Returns
+    ///
+    /// Returns [`Charset::UTF_16`].
     fn charset(&self) -> Charset {
         Charset::UTF_16
     }
 
+    /// Returns the maximum number of UTF-16 code units for one character.
+    ///
+    /// # Returns
+    ///
+    /// Returns [`Utf16::MAX_UNITS_PER_CHAR`].
     fn max_units_per_char(&self) -> usize {
         Utf16::MAX_UNITS_PER_CHAR
     }
 
+    /// Encodes one Unicode scalar value into UTF-16 code units at `index`.
+    ///
+    /// # Arguments
+    ///
+    /// * `ch` - The Unicode scalar value to encode.
+    /// * `output` - Destination `u16` buffer.
+    /// * `index` - Start offset where units are written; must satisfy
+    ///   `index <= output.len()`.
+    ///
+    /// # Returns
+    ///
+    /// `Ok(usize)` with the number of written UTF-16 units (`1` or `2`).
+    ///
+    /// # Errors
+    ///
+    /// * `TextEncodeError::buffer_too_small` if destination is insufficient.
     fn encode_char(&self, ch: char, output: &mut [u16], index: usize) -> TextEncodeResult<usize> {
         utf16::encode_units_char(ch, output, index)
     }
