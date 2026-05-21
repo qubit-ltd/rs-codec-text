@@ -111,7 +111,7 @@ fn test_ascii_converts_case_and_digits() {
 
 #[test]
 fn test_ascii_fold_matches_java_ascii_fold_examples() {
-    let mut buffer = ['\0'; Ascii::MAX_FOLDING];
+    let mut buffer = ['\0'; Ascii::MAX_FOLDING_COUNT];
 
     let count = Ascii::fold('Æ', &mut buffer, 0);
     assert_eq!(2, count);
