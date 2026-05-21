@@ -7,6 +7,7 @@
  *    Licensed under the Apache License, Version 2.0.
  *
  ******************************************************************************/
+use super::inner::utf16;
 use crate::{
     ByteOrder,
     Charset,
@@ -14,8 +15,6 @@ use crate::{
     TextEncoder,
     Utf16,
 };
-
-use super::helpers;
 
 /// Encoder for byte-serialized UTF-16 buffers.
 ///
@@ -82,6 +81,6 @@ impl TextEncoder<u8> for Utf16ByteEncoder {
     }
 
     fn encode_char(&self, ch: char, output: &mut [u8], index: usize) -> TextEncodeResult<usize> {
-        helpers::encode_utf16_bytes_char(ch, output, self.byte_order, index)
+        utf16::encode_bytes_char(ch, output, self.byte_order, index)
     }
 }

@@ -8,7 +8,7 @@
  *
  ******************************************************************************/
 mod decode_status;
-mod helpers;
+mod inner;
 mod text_codec;
 mod text_decoder;
 mod text_encoder;

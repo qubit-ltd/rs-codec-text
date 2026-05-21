@@ -7,14 +7,13 @@
  *    Licensed under the Apache License, Version 2.0.
  *
  ******************************************************************************/
+use super::inner::utf32;
 use crate::{
     Charset,
     TextEncodeResult,
     TextEncoder,
     Utf32,
 };
-
-use super::helpers;
 
 /// Encoder for UTF-32 `u32` code-unit buffers.
 ///
@@ -47,6 +46,6 @@ impl TextEncoder<u32> for Utf32U32Encoder {
     }
 
     fn encode_char(&self, ch: char, output: &mut [u32], index: usize) -> TextEncodeResult<usize> {
-        helpers::encode_utf32_units_char(ch, output, index)
+        utf32::encode_units_char(ch, output, index)
     }
 }

@@ -7,6 +7,7 @@
  *    Licensed under the Apache License, Version 2.0.
  *
  ******************************************************************************/
+use super::inner::utf32;
 use crate::{
     ByteOrder,
     Charset,
@@ -17,8 +18,6 @@ use crate::{
     TextEncoder,
     Utf32,
 };
-
-use super::helpers;
 
 /// Combined byte-serialized UTF-32 codec.
 ///
@@ -116,7 +115,7 @@ impl TextDecoder<u8> for Utf32ByteCodec {
     }
 
     fn decode_prefix(&self, input: &[u8], index: usize) -> TextDecodeResult<DecodeStatus> {
-        helpers::decode_utf32_bytes_prefix(input, index, self.byte_order)
+        utf32::decode_bytes_prefix(input, index, self.byte_order)
     }
 }
 
@@ -130,6 +129,6 @@ impl TextEncoder<u8> for Utf32ByteCodec {
     }
 
     fn encode_char(&self, ch: char, output: &mut [u8], index: usize) -> TextEncodeResult<usize> {
-        helpers::encode_utf32_bytes_char(ch, output, self.byte_order, index)
+        utf32::encode_bytes_char(ch, output, self.byte_order, index)
     }
 }

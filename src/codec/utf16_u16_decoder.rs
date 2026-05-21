@@ -7,6 +7,7 @@
  *    Licensed under the Apache License, Version 2.0.
  *
  ******************************************************************************/
+use super::inner::utf16;
 use crate::{
     Charset,
     DecodeStatus,
@@ -14,8 +15,6 @@ use crate::{
     TextDecoder,
     Utf16,
 };
-
-use super::helpers;
 
 /// Decoder for UTF-16 `u16` code-unit buffers.
 ///
@@ -52,6 +51,6 @@ impl TextDecoder<u16> for Utf16U16Decoder {
     }
 
     fn decode_prefix(&self, input: &[u16], index: usize) -> TextDecodeResult<DecodeStatus> {
-        helpers::decode_utf16_units_prefix(input, index)
+        utf16::decode_units_prefix(input, index)
     }
 }

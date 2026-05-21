@@ -7,14 +7,13 @@
  *    Licensed under the Apache License, Version 2.0.
  *
  ******************************************************************************/
+use super::inner::utf16;
 use crate::{
     Charset,
     TextEncodeResult,
     TextEncoder,
     Utf16,
 };
-
-use super::helpers;
 
 /// Encoder for UTF-16 `u16` code-unit buffers.
 ///
@@ -47,6 +46,6 @@ impl TextEncoder<u16> for Utf16U16Encoder {
     }
 
     fn encode_char(&self, ch: char, output: &mut [u16], index: usize) -> TextEncodeResult<usize> {
-        helpers::encode_utf16_units_char(ch, output, index)
+        utf16::encode_units_char(ch, output, index)
     }
 }

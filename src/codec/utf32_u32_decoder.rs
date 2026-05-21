@@ -7,6 +7,7 @@
  *    Licensed under the Apache License, Version 2.0.
  *
  ******************************************************************************/
+use super::inner::utf32;
 use crate::{
     Charset,
     DecodeStatus,
@@ -14,8 +15,6 @@ use crate::{
     TextDecoder,
     Utf32,
 };
-
-use super::helpers;
 
 /// Decoder for UTF-32 `u32` code-unit buffers.
 ///
@@ -54,6 +53,6 @@ impl TextDecoder<u32> for Utf32U32Decoder {
     }
 
     fn decode_prefix(&self, input: &[u32], index: usize) -> TextDecodeResult<DecodeStatus> {
-        helpers::decode_utf32_units_prefix(input, index)
+        utf32::decode_units_prefix(input, index)
     }
 }

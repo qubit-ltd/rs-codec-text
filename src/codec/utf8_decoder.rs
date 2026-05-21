@@ -7,6 +7,7 @@
  *    Licensed under the Apache License, Version 2.0.
  *
  ******************************************************************************/
+use super::inner::utf8;
 use crate::{
     Charset,
     DecodeStatus,
@@ -14,8 +15,6 @@ use crate::{
     TextDecoder,
     Utf8,
 };
-
-use super::helpers;
 
 /// Decoder for UTF-8 byte buffers.
 ///
@@ -56,6 +55,6 @@ impl TextDecoder<u8> for Utf8Decoder {
     }
 
     fn decode_prefix(&self, input: &[u8], index: usize) -> TextDecodeResult<DecodeStatus> {
-        helpers::decode_utf8_prefix(input, index)
+        utf8::decode_prefix(input, index)
     }
 }

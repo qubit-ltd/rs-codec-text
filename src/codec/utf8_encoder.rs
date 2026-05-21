@@ -7,14 +7,13 @@
  *    Licensed under the Apache License, Version 2.0.
  *
  ******************************************************************************/
+use super::inner::utf8;
 use crate::{
     Charset,
     TextEncodeResult,
     TextEncoder,
     Utf8,
 };
-
-use super::helpers;
 
 /// Encoder for UTF-8 byte buffers.
 ///
@@ -46,6 +45,6 @@ impl TextEncoder<u8> for Utf8Encoder {
     }
 
     fn encode_char(&self, ch: char, output: &mut [u8], index: usize) -> TextEncodeResult<usize> {
-        helpers::encode_utf8_char(ch, output, index)
+        utf8::encode_char(ch, output, index)
     }
 }
