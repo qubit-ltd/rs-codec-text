@@ -8,6 +8,16 @@
  *
  ******************************************************************************/
 /// Byte order used when serializing multi-byte Unicode code units.
+///
+/// # Examples
+///
+/// ```rust
+/// use qubit_text_codec::ByteOrder;
+///
+/// let bytes = ByteOrder::LittleEndian.u16_bytes(0x0041);
+/// assert_eq!([0x41, 0x00], bytes);
+/// assert_eq!(0x0041, ByteOrder::LittleEndian.read_u16(&bytes));
+/// ```
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum ByteOrder {
     /// Most significant byte first.

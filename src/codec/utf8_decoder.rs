@@ -18,6 +18,31 @@ use crate::{
 use super::helpers;
 
 /// Decoder for UTF-8 byte buffers.
+///
+/// The decoder reads one Unicode scalar value from the beginning of a byte
+/// slice. Incomplete but still-valid prefixes return [`DecodeStatus::NeedMore`];
+/// malformed prefixes return [`crate::TextDecodingError`].
+///
+/// # Examples
+///
+/// ```rust
+/// use qubit_text_codec::{
+///     DecodeStatus,
+///     TextDecoder,
+///     Utf8Decoder,
+/// };
+///
+/// let decoder = Utf8Decoder;
+/// let decoded = decoder.decode_prefix("中".as_bytes()).expect("valid UTF-8");
+///
+/// assert_eq!(
+///     DecodeStatus::Complete {
+///         value: '中',
+///         consumed: 3,
+///     },
+///     decoded,
+/// );
+/// ```
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
 pub struct Utf8Decoder;
 

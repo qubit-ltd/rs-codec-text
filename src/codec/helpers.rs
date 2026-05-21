@@ -39,6 +39,7 @@ pub(super) fn decode_utf8_prefix(input: &[u8]) -> TextDecodingResult<DecodeStatu
         }
     };
     if input.len() < length {
+        validate_utf8_partial(input)?;
         return Ok(DecodeStatus::NeedMore {
             required: length,
             available: input.len(),
@@ -59,6 +60,7 @@ pub(super) fn decode_utf8_prefix(input: &[u8]) -> TextDecodingResult<DecodeStatu
         None => Err(TextDecodingError::invalid_code_point(
             TextEncoding::UTF_8,
             0,
+            code_point,
         )),
     }
 }
@@ -223,6 +225,7 @@ pub(super) fn decode_utf32_units_prefix(input: &[u32]) -> TextDecodingResult<Dec
         None => Err(TextDecodingError::invalid_code_point(
             TextEncoding::UTF_32,
             0,
+            input[0],
         )),
     }
 }
@@ -256,6 +259,7 @@ pub(super) fn decode_utf32_bytes_prefix(
         None => Err(TextDecodingError::invalid_code_point(
             TextEncoding::UTF_32,
             0,
+            unit,
         )),
     }
 }
@@ -288,18 +292,43 @@ fn decode_utf8_two(input: &[u8]) -> TextDecodingResult<u32> {
     Ok((((input[0] & 0x1f) as u32) << 6) | ((second & 0x3f) as u32))
 }
 
+/// Validates the bytes already present in an incomplete UTF-8 sequence.
+fn validate_utf8_partial(input: &[u8]) -> TextDecodingResult<()> {
+    if input.len() >= 2 && !is_valid_utf8_second_byte(input[0], input[1]) {
+        return Err(TextDecodingError::malformed_sequence(
+            TextEncoding::UTF_8,
+            1,
+        ));
+    }
+    if input.len() >= 3 && !Utf8::is_continuation_byte(input[2]) {
+        return Err(TextDecodingError::malformed_sequence(
+            TextEncoding::UTF_8,
+            2,
+        ));
+    }
+    Ok(())
+}
+
+/// Tests whether the second byte is valid for the supplied UTF-8 leading byte.
+fn is_valid_utf8_second_byte(first: u8, second: u8) -> bool {
+    match first {
+        0xc2..=0xdf => Utf8::is_continuation_byte(second),
+        0xe0 => (0xa0..=0xbf).contains(&second),
+        0xed => (0x80..=0x9f).contains(&second),
+        0xe1..=0xec | 0xee..=0xef => Utf8::is_continuation_byte(second),
+        0xf0 => (0x90..=0xbf).contains(&second),
+        0xf1..=0xf3 => Utf8::is_continuation_byte(second),
+        0xf4 => (0x80..=0x8f).contains(&second),
+        _ => false,
+    }
+}
+
 /// Decodes a three-byte UTF-8 sequence.
 fn decode_utf8_three(input: &[u8]) -> TextDecodingResult<u32> {
     let first = input[0];
     let second = input[1];
     let third = input[2];
-    let valid_second = match first {
-        0xe0 => (0xa0..=0xbf).contains(&second),
-        0xed => (0x80..=0x9f).contains(&second),
-        0xe1..=0xec | 0xee..=0xef => Utf8::is_continuation_byte(second),
-        _ => false,
-    };
-    if !valid_second {
+    if !is_valid_utf8_second_byte(first, second) {
         return Err(TextDecodingError::malformed_sequence(
             TextEncoding::UTF_8,
             1,
@@ -320,13 +349,7 @@ fn decode_utf8_four(input: &[u8]) -> TextDecodingResult<u32> {
     let second = input[1];
     let third = input[2];
     let fourth = input[3];
-    let valid_second = match first {
-        0xf0 => (0x90..=0xbf).contains(&second),
-        0xf1..=0xf3 => Utf8::is_continuation_byte(second),
-        0xf4 => (0x80..=0x8f).contains(&second),
-        _ => false,
-    };
-    if !valid_second {
+    if !is_valid_utf8_second_byte(first, second) {
         return Err(TextDecodingError::malformed_sequence(
             TextEncoding::UTF_8,
             1,

@@ -13,6 +13,28 @@ use crate::{
 };
 
 /// Unicode byte order marks supported by this crate.
+///
+/// `detect` recognizes BOMs only from the bytes supplied to the call. Streaming
+/// callers should buffer up to four bytes, or read until EOF, before deciding
+/// that no longer BOM can be present.
+///
+/// # Examples
+///
+/// ```rust
+/// use qubit_text_codec::{
+///     ByteOrder,
+///     TextEncoding,
+///     UnicodeBom,
+/// };
+///
+/// let bom = UnicodeBom::detect(&[0xff, 0xfe, 0x00, 0x00]);
+/// assert_eq!(Some(UnicodeBom::Utf32LittleEndian), bom);
+///
+/// let bom = bom.expect("UTF-32LE BOM");
+/// assert_eq!(TextEncoding::UTF_32, bom.encoding());
+/// assert_eq!(Some(ByteOrder::LittleEndian), bom.byte_order());
+/// assert_eq!(4, bom.byte_len());
+/// ```
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum UnicodeBom {
     /// UTF-8 byte order mark.
@@ -41,6 +63,10 @@ impl UnicodeBom {
     /// # Returns
     ///
     /// Returns the detected BOM, or `None` if no supported BOM prefix is present.
+    ///
+    /// UTF-32 BOMs are checked before UTF-16 BOMs so that overlapping prefixes
+    /// such as `FF FE 00 00` are classified as UTF-32 little-endian when all
+    /// four bytes are available.
     #[must_use]
     pub fn detect(bytes: &[u8]) -> Option<Self> {
         if bytes.starts_with(&[0x00, 0x00, 0xfe, 0xff]) {

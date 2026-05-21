@@ -17,6 +17,23 @@ use crate::{
 use super::helpers;
 
 /// Encoder for UTF-16 `u16` code-unit buffers.
+///
+/// # Examples
+///
+/// ```rust
+/// use qubit_text_codec::{
+///     TextEncoder,
+///     Utf16,
+///     Utf16U16Encoder,
+/// };
+///
+/// let encoder = Utf16U16Encoder;
+/// let mut output = [0_u16; Utf16::MAX_UNITS_PER_CHAR];
+/// let written = encoder.encode_char('😀', &mut output).expect("buffer fits");
+///
+/// assert_eq!(2, written);
+/// assert_eq!([0xd83d, 0xde00], output);
+/// ```
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
 pub struct Utf16U16Encoder;
 

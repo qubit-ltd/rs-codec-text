@@ -20,6 +20,18 @@ use core::{
 /// A text encoding is represented by a stable normalized identifier, a display
 /// name, and accepted aliases. Equality and hashing use only the identifier, so
 /// display names and alias lists can evolve without changing identity.
+///
+/// # Examples
+///
+/// ```rust
+/// use qubit_text_codec::TextEncoding;
+///
+/// const GBK: TextEncoding = TextEncoding::new("gbk", "GBK", &["cp936"]);
+///
+/// assert!(GBK.matches_label("CP936"));
+/// assert_eq!(GBK, TextEncoding::new("gbk", "Chinese GBK", &[]));
+/// assert_eq!("GBK", GBK.to_string());
+/// ```
 #[derive(Clone, Copy, Debug)]
 pub struct TextEncoding {
     id: &'static str,

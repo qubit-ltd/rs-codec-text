@@ -18,6 +18,22 @@ use crate::{
 ///
 /// `T` is the storage unit used by the output buffer. For example, UTF-8 and
 /// byte-serialized UTF-16 use `u8`, while UTF-16 code-unit encoding uses `u16`.
+///
+/// # Examples
+///
+/// ```rust
+/// use qubit_text_codec::{
+///     TextEncoder,
+///     Utf8Encoder,
+/// };
+///
+/// let encoder = Utf8Encoder;
+/// let mut output = [0_u8; 4];
+/// let written = encoder.encode_char('A', &mut output).expect("buffer fits");
+///
+/// assert_eq!(1, written);
+/// assert_eq!(b"A", &output[..written]);
+/// ```
 pub trait TextEncoder<T> {
     /// Returns the encoding handled by this encoder.
     ///
@@ -71,7 +87,11 @@ pub trait TextEncoder<T> {
     fn encode_code_point(&self, code_point: u32, output: &mut [T]) -> TextEncodingResult<usize> {
         match Unicode::to_char(code_point) {
             Some(ch) => self.encode_char(ch, output),
-            None => Err(TextEncodingError::invalid_code_point(self.encoding(), 0)),
+            None => Err(TextEncodingError::invalid_code_point(
+                self.encoding(),
+                0,
+                code_point,
+            )),
         }
     }
 }

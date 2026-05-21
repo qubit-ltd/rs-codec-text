@@ -51,5 +51,6 @@ fn test_utf32_u32_decoder_reports_need_more_and_invalid_units() {
             .expect_err("invalid UTF-32 unit");
         assert_eq!(TextDecodingErrorKind::InvalidCodePoint, error.kind());
         assert_eq!(0, error.index());
+        assert_eq!(Some(unit), error.value());
     }
 }

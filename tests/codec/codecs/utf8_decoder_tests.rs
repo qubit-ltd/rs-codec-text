@@ -76,6 +76,34 @@ fn test_utf8_decoder_reports_need_more_and_malformed_sequences() {
 }
 
 #[test]
+fn test_utf8_decoder_rejects_malformed_partial_prefixes() {
+    let decoder = Utf8Decoder;
+
+    for (bytes, index) in [
+        (&[0xe4, b' '][..], 1),
+        (&[0xe0, 0x9f][..], 1),
+        (&[0xed, 0xa0][..], 1),
+        (&[0xf0, b' '][..], 1),
+        (&[0xf0, 0x90, b' '][..], 2),
+        (&[0xf4, 0x90][..], 1),
+    ] {
+        let error = decoder
+            .decode_prefix(bytes)
+            .expect_err("malformed partial UTF-8 prefix must fail");
+        assert_eq!(TextDecodingErrorKind::MalformedSequence, error.kind());
+        assert_eq!(index, error.index());
+    }
+
+    let mut index = 0;
+    let error = decoder
+        .decode_next(&[0xe4, b' '], &mut index)
+        .expect_err("closed malformed input must not be reported incomplete");
+    assert_eq!(TextDecodingErrorKind::MalformedSequence, error.kind());
+    assert_eq!(1, error.index());
+    assert_eq!(0, index);
+}
+
+#[test]
 fn test_utf8_decoder_covers_well_formed_and_malformed_boundaries() {
     let decoder = Utf8Decoder;
 

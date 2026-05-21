@@ -17,6 +17,22 @@ use crate::{
 use super::helpers;
 
 /// Encoder for UTF-8 byte buffers.
+///
+/// # Examples
+///
+/// ```rust
+/// use qubit_text_codec::{
+///     TextEncoder,
+///     Utf8,
+///     Utf8Encoder,
+/// };
+///
+/// let encoder = Utf8Encoder;
+/// let mut output = [0_u8; Utf8::MAX_BYTES_PER_CHAR];
+/// let written = encoder.encode_char('😀', &mut output).expect("buffer fits");
+///
+/// assert_eq!("😀".as_bytes(), &output[..written]);
+/// ```
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
 pub struct Utf8Encoder;
 

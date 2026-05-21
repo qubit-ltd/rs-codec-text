@@ -20,6 +20,25 @@ use crate::{
 /// `T` is the storage unit used by the caller-provided buffer. For example,
 /// UTF-8 and byte-serialized UTF-16 use `u8`, while UTF-16 code-unit decoding
 /// uses `u16`.
+///
+/// # Examples
+///
+/// ```rust
+/// use qubit_text_codec::{
+///     DecodeStatus,
+///     TextDecoder,
+///     Utf8Decoder,
+/// };
+///
+/// let decoder = Utf8Decoder;
+/// assert_eq!(
+///     DecodeStatus::Complete {
+///         value: 'A',
+///         consumed: 1,
+///     },
+///     decoder.decode_prefix(b"A").expect("valid UTF-8"),
+/// );
+/// ```
 pub trait TextDecoder<T> {
     /// Returns the encoding handled by this decoder.
     ///

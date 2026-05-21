@@ -20,8 +20,61 @@ use crate::{
 use super::helpers;
 
 /// Combined UTF-16 `u16` code-unit codec.
+///
+/// `Utf16U16Codec` works with UTF-16 code units rather than serialized bytes.
+/// Use [`crate::Utf16ByteCodec`] when the input or output is a byte stream with an
+/// explicit byte order.
+///
+/// # Examples
+///
+/// ```rust
+/// use qubit_text_codec::{
+///     DecodeStatus,
+///     TextDecoder,
+///     TextEncoder,
+///     TextEncoding,
+///     Utf16,
+///     Utf16U16Codec,
+/// };
+///
+/// let codec = Utf16U16Codec;
+/// assert_eq!(TextEncoding::UTF_16, codec.encoding());
+/// assert_eq!(Utf16::MAX_UNITS_PER_CHAR, codec.max_units_per_char());
+///
+/// let mut output = [0_u16; Utf16::MAX_UNITS_PER_CHAR];
+/// let written = codec.encode_char('😀', &mut output).expect("buffer fits");
+/// assert_eq!(
+///     DecodeStatus::Complete {
+///         value: '😀',
+///         consumed: written,
+///     },
+///     codec.decode_prefix(&output[..written]).expect("valid UTF-16"),
+/// );
+/// ```
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
 pub struct Utf16U16Codec;
+
+impl Utf16U16Codec {
+    /// Returns the UTF-16 encoding descriptor.
+    ///
+    /// # Returns
+    ///
+    /// Returns [`TextEncoding::UTF_16`].
+    #[must_use]
+    pub const fn encoding(self) -> TextEncoding {
+        TextEncoding::UTF_16
+    }
+
+    /// Returns the maximum number of UTF-16 code units needed for one character.
+    ///
+    /// # Returns
+    ///
+    /// Returns [`Utf16::MAX_UNITS_PER_CHAR`].
+    #[must_use]
+    pub const fn max_units_per_char(self) -> usize {
+        Utf16::MAX_UNITS_PER_CHAR
+    }
+}
 
 impl TextDecoder<u16> for Utf16U16Codec {
     fn encoding(&self) -> TextEncoding {

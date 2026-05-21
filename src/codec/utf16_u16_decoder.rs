@@ -18,6 +18,27 @@ use crate::{
 use super::helpers;
 
 /// Decoder for UTF-16 `u16` code-unit buffers.
+///
+/// # Examples
+///
+/// ```rust
+/// use qubit_text_codec::{
+///     DecodeStatus,
+///     TextDecoder,
+///     Utf16U16Decoder,
+/// };
+///
+/// let decoder = Utf16U16Decoder;
+/// let decoded = decoder.decode_prefix(&[0xd83d, 0xde00]).expect("valid pair");
+///
+/// assert_eq!(
+///     DecodeStatus::Complete {
+///         value: '😀',
+///         consumed: 2,
+///     },
+///     decoded,
+/// );
+/// ```
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
 pub struct Utf16U16Decoder;
 

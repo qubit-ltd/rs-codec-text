@@ -48,5 +48,6 @@ fn test_utf32_byte_decoder_reports_need_more_and_invalid_bytes() {
             .decode_prefix(&bytes)
             .expect_err("invalid UTF-32 bytes");
         assert_eq!(TextDecodingErrorKind::InvalidCodePoint, error.kind());
+        assert_eq!(Some(ByteOrder::BigEndian.read_u32(&bytes)), error.value());
     }
 }

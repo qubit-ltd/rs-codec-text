@@ -17,6 +17,23 @@ use crate::{
 use super::helpers;
 
 /// Encoder for UTF-32 `u32` code-unit buffers.
+///
+/// # Examples
+///
+/// ```rust
+/// use qubit_text_codec::{
+///     TextEncoder,
+///     Utf32,
+///     Utf32U32Encoder,
+/// };
+///
+/// let encoder = Utf32U32Encoder;
+/// let mut output = [0_u32; Utf32::MAX_UNITS_PER_CHAR];
+/// let written = encoder.encode_char('中', &mut output).expect("buffer fits");
+///
+/// assert_eq!(1, written);
+/// assert_eq!('中' as u32, output[0]);
+/// ```
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
 pub struct Utf32U32Encoder;
 

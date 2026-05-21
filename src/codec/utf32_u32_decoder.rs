@@ -18,6 +18,27 @@ use crate::{
 use super::helpers;
 
 /// Decoder for UTF-32 `u32` code-unit buffers.
+///
+/// # Examples
+///
+/// ```rust
+/// use qubit_text_codec::{
+///     DecodeStatus,
+///     TextDecoder,
+///     Utf32U32Decoder,
+/// };
+///
+/// let decoder = Utf32U32Decoder;
+/// let decoded = decoder.decode_prefix(&['中' as u32]).expect("valid UTF-32");
+///
+/// assert_eq!(
+///     DecodeStatus::Complete {
+///         value: '中',
+///         consumed: 1,
+///     },
+///     decoded,
+/// );
+/// ```
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
 pub struct Utf32U32Decoder;
 

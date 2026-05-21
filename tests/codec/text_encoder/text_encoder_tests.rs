@@ -11,4 +11,5 @@ fn test_text_encoder_default_encode_code_point_rejects_invalid_code_point() {
         .expect_err("invalid code point must fail");
 
     assert_eq!(TextEncodingErrorKind::InvalidCodePoint, error.kind());
+    assert_eq!(Some(0x110000), error.value());
 }

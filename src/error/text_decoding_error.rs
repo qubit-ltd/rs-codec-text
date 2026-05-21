@@ -16,11 +16,16 @@ use crate::{
 };
 
 /// Error reported by a text decoder.
+///
+/// The error always carries the encoding, error kind, and input unit index at
+/// which the failure was detected. Errors that decode a raw numeric value, such
+/// as invalid UTF-32 units, also carry that value through [`Self::value`].
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct TextDecodingError {
     encoding: TextEncoding,
     kind: TextDecodingErrorKind,
     index: usize,
+    value: Option<u32>,
 }
 
 /// Result type returned by text decoders.
@@ -44,6 +49,34 @@ impl TextDecodingError {
             encoding,
             kind,
             index,
+            value: None,
+        }
+    }
+
+    /// Creates a decoding error with an associated raw value.
+    ///
+    /// # Parameters
+    ///
+    /// - `encoding`: The encoding being decoded.
+    /// - `kind`: The failure category.
+    /// - `index`: The input unit index where the failure was detected.
+    /// - `value`: The raw value associated with the failure.
+    ///
+    /// # Returns
+    ///
+    /// Returns a decoding error carrying the supplied context and value.
+    #[must_use]
+    pub const fn with_value(
+        encoding: TextEncoding,
+        kind: TextDecodingErrorKind,
+        index: usize,
+        value: u32,
+    ) -> Self {
+        Self {
+            encoding,
+            kind,
+            index,
+            value: Some(value),
         }
     }
 
@@ -83,13 +116,19 @@ impl TextDecodingError {
     ///
     /// - `encoding`: The encoding being decoded.
     /// - `index`: The input unit index associated with the invalid code point.
+    /// - `value`: The invalid raw code point value.
     ///
     /// # Returns
     ///
     /// Returns a decoding error with [`TextDecodingErrorKind::InvalidCodePoint`].
     #[must_use]
-    pub const fn invalid_code_point(encoding: TextEncoding, index: usize) -> Self {
-        Self::new(encoding, TextDecodingErrorKind::InvalidCodePoint, index)
+    pub const fn invalid_code_point(encoding: TextEncoding, index: usize, value: u32) -> Self {
+        Self::with_value(
+            encoding,
+            TextDecodingErrorKind::InvalidCodePoint,
+            index,
+            value,
+        )
     }
 
     /// Returns the encoding being decoded.
@@ -122,6 +161,17 @@ impl TextDecodingError {
         self.index
     }
 
+    /// Returns the raw value associated with this error.
+    ///
+    /// # Returns
+    ///
+    /// Returns `Some(value)` when the decoder captured a raw value that caused
+    /// the error, or `None` when the error is only tied to an input unit index.
+    #[must_use]
+    pub const fn value(self) -> Option<u32> {
+        self.value
+    }
+
     /// Offsets this error by a base unit index.
     ///
     /// # Parameters
@@ -137,6 +187,7 @@ impl TextDecodingError {
             encoding: self.encoding,
             kind: self.kind,
             index: self.index + base,
+            value: self.value,
         }
     }
 }
@@ -152,11 +203,19 @@ impl fmt::Display for TextDecodingError {
     ///
     /// Returns any formatting error reported by `formatter`.
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            formatter,
-            "{} decoding error at index {}: {}",
-            self.encoding, self.index, self.kind,
-        )
+        if let Some(value) = self.value {
+            write!(
+                formatter,
+                "{} decoding error at index {} for value 0x{:x}: {}",
+                self.encoding, self.index, value, self.kind,
+            )
+        } else {
+            write!(
+                formatter,
+                "{} decoding error at index {}: {}",
+                self.encoding, self.index, self.kind,
+            )
+        }
     }
 }
 

@@ -18,6 +18,28 @@ use crate::{
 use super::helpers;
 
 /// Encoder for byte-serialized UTF-32 buffers.
+///
+/// The encoder serializes UTF-32 units using the configured byte order. It does
+/// not write a BOM automatically; callers that need one should prepend the bytes
+/// from [`crate::UnicodeBom`].
+///
+/// # Examples
+///
+/// ```rust
+/// use qubit_text_codec::{
+///     ByteOrder,
+///     TextEncoder,
+///     Utf32,
+///     Utf32ByteEncoder,
+/// };
+///
+/// let encoder = Utf32ByteEncoder::new(ByteOrder::BigEndian);
+/// let mut output = [0_u8; Utf32::MAX_BYTES_PER_CHAR];
+/// let written = encoder.encode_char('😀', &mut output).expect("buffer fits");
+///
+/// assert_eq!(4, written);
+/// assert_eq!([0x00, 0x01, 0xf6, 0x00], output);
+/// ```
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub struct Utf32ByteEncoder {
     byte_order: ByteOrder,

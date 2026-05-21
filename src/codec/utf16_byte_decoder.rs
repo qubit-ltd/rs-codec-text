@@ -19,6 +19,34 @@ use crate::{
 use super::helpers;
 
 /// Decoder for byte-serialized UTF-16 buffers.
+///
+/// The decoder uses the configured byte order for every UTF-16 code unit. It
+/// does not detect or skip a BOM; callers that accept BOM-prefixed input should
+/// call [`crate::UnicodeBom::detect`] first and then advance by the BOM length.
+///
+/// # Examples
+///
+/// ```rust
+/// use qubit_text_codec::{
+///     ByteOrder,
+///     DecodeStatus,
+///     TextDecoder,
+///     Utf16ByteDecoder,
+/// };
+///
+/// let decoder = Utf16ByteDecoder::new(ByteOrder::LittleEndian);
+/// let decoded = decoder
+///     .decode_prefix(&[0x3d, 0xd8, 0x00, 0xde])
+///     .expect("valid UTF-16LE");
+///
+/// assert_eq!(
+///     DecodeStatus::Complete {
+///         value: '😀',
+///         consumed: 4,
+///     },
+///     decoded,
+/// );
+/// ```
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub struct Utf16ByteDecoder {
     byte_order: ByteOrder,
