@@ -21,6 +21,7 @@ mod charset;
 mod codec;
 mod encoding;
 mod error;
+mod io;
 
 pub mod prelude;
 pub use charset::{
@@ -37,9 +38,6 @@ pub use codec::{
     CharsetConverter,
     CharsetDecoder,
     CharsetEncoder,
-    Coder,
-    CoderProgress,
-    CoderStatus,
     DecodeStatus,
     Latin1Codec,
     MalformedAction,
@@ -53,7 +51,6 @@ pub use codec::{
     Utf32U32Codec,
 };
 pub use encoding::{
-    ByteOrder,
     Charset,
     UnicodeBom,
 };
@@ -64,4 +61,10 @@ pub use error::{
     CharsetEncodeError,
     CharsetEncodeErrorKind,
     CharsetEncodeResult,
+};
+pub use io::{
+    ByteOrder,
+    Coder,
+    CoderProgress,
+    CoderStatus,
 };

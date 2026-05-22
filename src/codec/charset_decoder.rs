@@ -12,12 +12,12 @@ use core::marker::PhantomData;
 use crate::{
     CharsetDecodeError,
     CharsetDecodeErrorKind,
+    Coder,
+    CoderProgress,
 };
 
 use super::{
     charset_codec::CharsetCodec,
-    coder::Coder,
-    coder_progress::CoderProgress,
     decode_status::DecodeStatus,
     malformed_action::MalformedAction,
 };

@@ -12,9 +12,11 @@ use super::{
     charset_convert_error::CharsetConvertError,
     charset_decoder::CharsetDecoder,
     charset_encoder::CharsetEncoder,
-    coder::Coder,
-    coder_progress::CoderProgress,
-    coder_status::CoderStatus,
+};
+use crate::{
+    Coder,
+    CoderProgress,
+    CoderStatus,
 };
 
 /// Converts units encoded with one charset into units encoded with another charset.

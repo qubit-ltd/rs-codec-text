@@ -44,6 +44,10 @@ path = "tests/charset/mod.rs"
 name = "encoding"
 path = "tests/encoding/mod.rs"
 
+[[test]]
+name = "io"
+path = "tests/io/mod.rs"
+
 [dependencies]
 thiserror = "2.0"
 

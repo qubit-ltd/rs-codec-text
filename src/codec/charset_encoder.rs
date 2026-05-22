@@ -13,12 +13,12 @@ use crate::{
     CharsetEncodeError,
     CharsetEncodeErrorKind,
     CharsetEncodeResult,
+    Coder,
+    CoderProgress,
 };
 
 use super::{
     charset_codec::CharsetCodec,
-    coder::Coder,
-    coder_progress::CoderProgress,
     unmappable_action::UnmappableAction,
 };
 

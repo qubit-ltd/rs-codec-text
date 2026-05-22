@@ -342,7 +342,8 @@ impl Ascii {
     ];
 
     /// All ASCII letter and digit characters as bytes.
-    pub const LETTER_DIGIT_BYTES: [u8; 62] = *b"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+    pub const LETTER_DIGIT_BYTES: [u8; 62] =
+        *b"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
 
     /// ASCII digit characters.
     pub const DIGIT_CHARS: [char; 10] = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
