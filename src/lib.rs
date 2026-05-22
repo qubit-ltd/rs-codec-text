@@ -21,7 +21,6 @@ mod charset;
 mod codec;
 mod encoding;
 mod error;
-mod io;
 
 pub mod prelude;
 pub use charset::{
@@ -62,14 +61,9 @@ pub use error::{
     CharsetEncodeErrorKind,
     CharsetEncodeResult,
 };
-pub use io::{
-    BinaryCodec,
+pub use qubit_io::{
     ByteOrder,
     Coder,
     CoderProgress,
     CoderStatus,
-    Leb128Codec,
-    Leb128DecodeError,
-    Leb128DecodeErrorKind,
-    ZigZagCodec,
 };

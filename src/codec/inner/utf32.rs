@@ -7,9 +7,12 @@
  *    Licensed under the Apache License, Version 2.0.
  *
  ***************************************************************************/
-use crate::{
+use qubit_io::{
     BinaryCodec,
     ByteOrder,
+};
+
+use crate::{
     Charset,
     CharsetDecodeError,
     CharsetDecodeErrorKind,

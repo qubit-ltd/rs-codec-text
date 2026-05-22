@@ -13,7 +13,7 @@
 
 Qubit Text Codec 是一个低层编解码核心，服务于那些需要在 Rust 普通 `str`、`String` 和 `char` API 之下做显式控制的代码。当前内置编解码器聚焦 Unicode 传输格式：ASCII、ISO-8859-1（Latin-1）、UTF-8、UTF-16 和 UTF-32；在需要区分码元与字节表示的地方，同时提供码元版和面向字节的版本。
 
-本库也提供编解码适配器需要共用的小型基础能力：charset 身份元数据、通用 `Coder` 接口、低层 `CharsetCodec`（其关联类型 `Unit` 表示存储单元）、带策略的 `CharsetEncoder` / `CharsetDecoder` / `CharsetConverter`、解码状态、字节序和 BOM 辅助工具，以及具体的编码/解码错误类型。ASCII 和 Unicode 命名空间辅助工具保留在这里，是因为 UTF 编解码器和文本解析器经常需要在缓冲区边界附近直接做这些检查。
+本库也提供编解码适配器需要共用的小型基础能力：charset 身份元数据、从 `qubit-io` 重导出的通用 `Coder` 接口和进度类型、低层 `CharsetCodec`（其关联类型 `Unit` 表示存储单元）、带策略的 `CharsetEncoder` / `CharsetDecoder` / `CharsetConverter`、解码状态、字节序和 BOM 辅助工具，以及具体的编码/解码错误类型。ASCII 和 Unicode 命名空间辅助工具保留在这里，是因为 UTF 编解码器和文本解析器经常需要在缓冲区边界附近直接做这些检查。
 
 适合使用本库的场景包括：
 
@@ -34,6 +34,7 @@ API 参考文档可在 [docs.rs](https://docs.rs/qubit-text-codec) 查看。
 ```toml
 [dependencies]
 qubit-text-codec = "0.1"
+qubit-io = "0.2"
 ```
 
 ## 快速示例

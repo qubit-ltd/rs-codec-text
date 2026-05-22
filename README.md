@@ -13,7 +13,7 @@ Buffer-oriented UTF codec primitives and Unicode/ASCII support utilities for Rus
 
 Qubit Text Codec is a low-level codec core for Rust code that needs explicit control below ordinary `str`, `String`, and `char` APIs. Its current built-in codecs focus on Unicode transfer formats: UTF-8, UTF-16, and UTF-32, with both code-unit and byte-oriented variants where that distinction matters.
 
-The crate also provides the small shared surface that codec adapters need: charset identity metadata, a generic `Coder` trait, low-level `CharsetCodec` implementations (`Unit` identifies the storage unit), policy-aware `CharsetEncoder` / `CharsetDecoder` / `CharsetConverter` wrappers, decode status values, byte order and BOM helpers, and concrete encoding/decoding error types. ASCII and Unicode namespace helpers are included because UTF codecs and text parsers often need these checks close to the buffer boundary.
+The crate also provides the small shared surface that codec adapters need: charset identity metadata, the `Coder` trait and progress types re-exported from `qubit-io`, low-level `CharsetCodec` implementations (`Unit` identifies the storage unit), policy-aware `CharsetEncoder` / `CharsetDecoder` / `CharsetConverter` wrappers, decode status values, byte order and BOM helpers, and concrete encoding/decoding error types. ASCII and Unicode namespace helpers are included because UTF codecs and text parsers often need these checks close to the buffer boundary.
 
 Use this crate when you need:
 
@@ -34,6 +34,7 @@ API reference documentation is available on [docs.rs](https://docs.rs/qubit-text
 ```toml
 [dependencies]
 qubit-text-codec = "0.1"
+qubit-io = "0.2"
 ```
 
 ## Quick Example
