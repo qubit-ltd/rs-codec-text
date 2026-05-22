@@ -13,6 +13,10 @@ use crate::{
 };
 
 const MAX_LEB128_BYTES: usize = 19;
+const MAX_U16_LEB128_BYTES: usize = 3;
+const MAX_U32_LEB128_BYTES: usize = 5;
+const MAX_U64_LEB128_BYTES: usize = 10;
+const MAX_U128_LEB128_BYTES: usize = 19;
 
 /// Buffer-level codec for unsigned and signed LEB128 integers.
 ///
@@ -66,9 +70,103 @@ impl Leb128Codec {
         self.strict = strict;
     }
 
-    /// Reads an unsigned LEB128 `u16` at `index`.
+    /// Reads a `u16` value from a three-byte maximum-width array.
+    ///
+    /// # Returns
+    ///
+    /// Returns the decoded value and the number of bytes consumed.
     #[inline]
-    pub fn read_uleb_u16_at(
+    pub fn read_u16_from_array(self, input: [u8; 3]) -> Result<(u16, usize), Leb128DecodeError> {
+        // SAFETY: The array has the full maximum-width u16 LEB128 range.
+        unsafe { self.read_u16_at_unchecked(&input, 0) }
+    }
+
+    /// Reads a `u32` value from a five-byte maximum-width array.
+    ///
+    /// # Returns
+    ///
+    /// Returns the decoded value and the number of bytes consumed.
+    #[inline]
+    pub fn read_u32_from_array(self, input: [u8; 5]) -> Result<(u32, usize), Leb128DecodeError> {
+        // SAFETY: The array has the full maximum-width u32 LEB128 range.
+        unsafe { self.read_u32_at_unchecked(&input, 0) }
+    }
+
+    /// Reads a `u64` value from a ten-byte maximum-width array.
+    ///
+    /// # Returns
+    ///
+    /// Returns the decoded value and the number of bytes consumed.
+    #[inline]
+    pub fn read_u64_from_array(self, input: [u8; 10]) -> Result<(u64, usize), Leb128DecodeError> {
+        // SAFETY: The array has the full maximum-width u64 LEB128 range.
+        unsafe { self.read_u64_at_unchecked(&input, 0) }
+    }
+
+    /// Reads a `u128` value from a nineteen-byte maximum-width array.
+    ///
+    /// # Returns
+    ///
+    /// Returns the decoded value and the number of bytes consumed.
+    #[inline]
+    pub fn read_u128_from_array(self, input: [u8; 19]) -> Result<(u128, usize), Leb128DecodeError> {
+        // SAFETY: The array has the full maximum-width u128 LEB128 range.
+        unsafe { self.read_u128_at_unchecked(&input, 0) }
+    }
+
+    /// Reads an `i16` value from a three-byte maximum-width array.
+    ///
+    /// # Returns
+    ///
+    /// Returns the decoded value and the number of bytes consumed.
+    #[inline]
+    pub fn read_i16_from_array(self, input: [u8; 3]) -> Result<(i16, usize), Leb128DecodeError> {
+        // SAFETY: The array has the full maximum-width i16 LEB128 range.
+        unsafe { self.read_i16_at_unchecked(&input, 0) }
+    }
+
+    /// Reads an `i32` value from a five-byte maximum-width array.
+    ///
+    /// # Returns
+    ///
+    /// Returns the decoded value and the number of bytes consumed.
+    #[inline]
+    pub fn read_i32_from_array(self, input: [u8; 5]) -> Result<(i32, usize), Leb128DecodeError> {
+        // SAFETY: The array has the full maximum-width i32 LEB128 range.
+        unsafe { self.read_i32_at_unchecked(&input, 0) }
+    }
+
+    /// Reads an `i64` value from a ten-byte maximum-width array.
+    ///
+    /// # Returns
+    ///
+    /// Returns the decoded value and the number of bytes consumed.
+    #[inline]
+    pub fn read_i64_from_array(self, input: [u8; 10]) -> Result<(i64, usize), Leb128DecodeError> {
+        // SAFETY: The array has the full maximum-width i64 LEB128 range.
+        unsafe { self.read_i64_at_unchecked(&input, 0) }
+    }
+
+    /// Reads an `i128` value from a nineteen-byte maximum-width array.
+    ///
+    /// # Returns
+    ///
+    /// Returns the decoded value and the number of bytes consumed.
+    #[inline]
+    pub fn read_i128_from_array(self, input: [u8; 19]) -> Result<(i128, usize), Leb128DecodeError> {
+        // SAFETY: The array has the full maximum-width i128 LEB128 range.
+        unsafe { self.read_i128_at_unchecked(&input, 0) }
+    }
+
+    /// Reads a `u16` value at `index`.
+    ///
+    /// # Returns
+    ///
+    /// Returns `Ok(Some((value, consumed)))` for a complete value, `Ok(None)`
+    /// when the slice ends before the value is complete, and `Err` for malformed
+    /// or non-canonical input.
+    #[inline]
+    pub fn read_u16_at(
         self,
         input: &[u8],
         index: usize,
@@ -77,9 +175,9 @@ impl Leb128Codec {
             .map(|decoded| decoded.map(|(value, consumed)| (value as u16, consumed)))
     }
 
-    /// Reads an unsigned LEB128 `u32` at `index`.
+    /// Reads a `u32` value at `index`.
     #[inline]
-    pub fn read_uleb_u32_at(
+    pub fn read_u32_at(
         self,
         input: &[u8],
         index: usize,
@@ -88,9 +186,9 @@ impl Leb128Codec {
             .map(|decoded| decoded.map(|(value, consumed)| (value as u32, consumed)))
     }
 
-    /// Reads an unsigned LEB128 `u64` at `index`.
+    /// Reads a `u64` value at `index`.
     #[inline]
-    pub fn read_uleb_u64_at(
+    pub fn read_u64_at(
         self,
         input: &[u8],
         index: usize,
@@ -99,9 +197,9 @@ impl Leb128Codec {
             .map(|decoded| decoded.map(|(value, consumed)| (value as u64, consumed)))
     }
 
-    /// Reads an unsigned LEB128 `u128` at `index`.
+    /// Reads a `u128` value at `index`.
     #[inline]
-    pub fn read_uleb_u128_at(
+    pub fn read_u128_at(
         self,
         input: &[u8],
         index: usize,
@@ -109,9 +207,9 @@ impl Leb128Codec {
         self.read_uleb_at(input, index, u128::BITS)
     }
 
-    /// Reads a signed LEB128 `i16` at `index`.
+    /// Reads an `i16` value at `index`.
     #[inline]
-    pub fn read_sleb_i16_at(
+    pub fn read_i16_at(
         self,
         input: &[u8],
         index: usize,
@@ -120,9 +218,9 @@ impl Leb128Codec {
             .map(|decoded| decoded.map(|(value, consumed)| (value as i16, consumed)))
     }
 
-    /// Reads a signed LEB128 `i32` at `index`.
+    /// Reads an `i32` value at `index`.
     #[inline]
-    pub fn read_sleb_i32_at(
+    pub fn read_i32_at(
         self,
         input: &[u8],
         index: usize,
@@ -131,9 +229,9 @@ impl Leb128Codec {
             .map(|decoded| decoded.map(|(value, consumed)| (value as i32, consumed)))
     }
 
-    /// Reads a signed LEB128 `i64` at `index`.
+    /// Reads an `i64` value at `index`.
     #[inline]
-    pub fn read_sleb_i64_at(
+    pub fn read_i64_at(
         self,
         input: &[u8],
         index: usize,
@@ -142,9 +240,9 @@ impl Leb128Codec {
             .map(|decoded| decoded.map(|(value, consumed)| (value as i64, consumed)))
     }
 
-    /// Reads a signed LEB128 `i128` at `index`.
+    /// Reads an `i128` value at `index`.
     #[inline]
-    pub fn read_sleb_i128_at(
+    pub fn read_i128_at(
         self,
         input: &[u8],
         index: usize,
@@ -152,52 +250,414 @@ impl Leb128Codec {
         self.read_sleb_at(input, index, i128::BITS)
     }
 
-    /// Writes an unsigned LEB128 `u16` at `index`.
+    /// Reads a `u16` value at `index` without checking slice bounds.
+    ///
+    /// # Safety
+    ///
+    /// The caller must guarantee that `index..index + 3` is in bounds for
+    /// `input`.
     #[inline]
-    pub fn write_uleb_u16_at(self, output: &mut [u8], index: usize, value: u16) -> Option<usize> {
-        self.write_uleb_at(output, index, value as u128)
+    pub unsafe fn read_u16_at_unchecked(
+        self,
+        input: &[u8],
+        index: usize,
+    ) -> Result<(u16, usize), Leb128DecodeError> {
+        // SAFETY: The caller guarantees the full u16 range is in bounds.
+        unsafe { self.read_uleb_at_unchecked(input, index, u16::BITS) }
+            .map(|(value, consumed)| (value as u16, consumed))
     }
 
-    /// Writes an unsigned LEB128 `u32` at `index`.
+    /// Reads a `u32` value at `index` without checking slice bounds.
+    ///
+    /// # Safety
+    ///
+    /// The caller must guarantee that `index..index + 5` is in bounds for
+    /// `input`.
     #[inline]
-    pub fn write_uleb_u32_at(self, output: &mut [u8], index: usize, value: u32) -> Option<usize> {
-        self.write_uleb_at(output, index, value as u128)
+    pub unsafe fn read_u32_at_unchecked(
+        self,
+        input: &[u8],
+        index: usize,
+    ) -> Result<(u32, usize), Leb128DecodeError> {
+        // SAFETY: The caller guarantees the full u32 range is in bounds.
+        unsafe { self.read_uleb_at_unchecked(input, index, u32::BITS) }
+            .map(|(value, consumed)| (value as u32, consumed))
     }
 
-    /// Writes an unsigned LEB128 `u64` at `index`.
+    /// Reads a `u64` value at `index` without checking slice bounds.
+    ///
+    /// # Safety
+    ///
+    /// The caller must guarantee that `index..index + 10` is in bounds for
+    /// `input`.
     #[inline]
-    pub fn write_uleb_u64_at(self, output: &mut [u8], index: usize, value: u64) -> Option<usize> {
-        self.write_uleb_at(output, index, value as u128)
+    pub unsafe fn read_u64_at_unchecked(
+        self,
+        input: &[u8],
+        index: usize,
+    ) -> Result<(u64, usize), Leb128DecodeError> {
+        // SAFETY: The caller guarantees the full u64 range is in bounds.
+        unsafe { self.read_uleb_at_unchecked(input, index, u64::BITS) }
+            .map(|(value, consumed)| (value as u64, consumed))
     }
 
-    /// Writes an unsigned LEB128 `u128` at `index`.
+    /// Reads a `u128` value at `index` without checking slice bounds.
+    ///
+    /// # Safety
+    ///
+    /// The caller must guarantee that `index..index + 19` is in bounds for
+    /// `input`.
     #[inline]
-    pub fn write_uleb_u128_at(self, output: &mut [u8], index: usize, value: u128) -> Option<usize> {
-        self.write_uleb_at(output, index, value)
+    pub unsafe fn read_u128_at_unchecked(
+        self,
+        input: &[u8],
+        index: usize,
+    ) -> Result<(u128, usize), Leb128DecodeError> {
+        // SAFETY: The caller guarantees the full u128 range is in bounds.
+        unsafe { self.read_uleb_at_unchecked(input, index, u128::BITS) }
     }
 
-    /// Writes a signed LEB128 `i16` at `index`.
+    /// Reads an `i16` value at `index` without checking slice bounds.
+    ///
+    /// # Safety
+    ///
+    /// The caller must guarantee that `index..index + 3` is in bounds for
+    /// `input`.
     #[inline]
-    pub fn write_sleb_i16_at(self, output: &mut [u8], index: usize, value: i16) -> Option<usize> {
-        self.write_sleb_at(output, index, value as i128)
+    pub unsafe fn read_i16_at_unchecked(
+        self,
+        input: &[u8],
+        index: usize,
+    ) -> Result<(i16, usize), Leb128DecodeError> {
+        // SAFETY: The caller guarantees the full i16 range is in bounds.
+        unsafe { self.read_sleb_at_unchecked(input, index, i16::BITS) }
+            .map(|(value, consumed)| (value as i16, consumed))
     }
 
-    /// Writes a signed LEB128 `i32` at `index`.
+    /// Reads an `i32` value at `index` without checking slice bounds.
+    ///
+    /// # Safety
+    ///
+    /// The caller must guarantee that `index..index + 5` is in bounds for
+    /// `input`.
     #[inline]
-    pub fn write_sleb_i32_at(self, output: &mut [u8], index: usize, value: i32) -> Option<usize> {
-        self.write_sleb_at(output, index, value as i128)
+    pub unsafe fn read_i32_at_unchecked(
+        self,
+        input: &[u8],
+        index: usize,
+    ) -> Result<(i32, usize), Leb128DecodeError> {
+        // SAFETY: The caller guarantees the full i32 range is in bounds.
+        unsafe { self.read_sleb_at_unchecked(input, index, i32::BITS) }
+            .map(|(value, consumed)| (value as i32, consumed))
     }
 
-    /// Writes a signed LEB128 `i64` at `index`.
+    /// Reads an `i64` value at `index` without checking slice bounds.
+    ///
+    /// # Safety
+    ///
+    /// The caller must guarantee that `index..index + 10` is in bounds for
+    /// `input`.
     #[inline]
-    pub fn write_sleb_i64_at(self, output: &mut [u8], index: usize, value: i64) -> Option<usize> {
-        self.write_sleb_at(output, index, value as i128)
+    pub unsafe fn read_i64_at_unchecked(
+        self,
+        input: &[u8],
+        index: usize,
+    ) -> Result<(i64, usize), Leb128DecodeError> {
+        // SAFETY: The caller guarantees the full i64 range is in bounds.
+        unsafe { self.read_sleb_at_unchecked(input, index, i64::BITS) }
+            .map(|(value, consumed)| (value as i64, consumed))
     }
 
-    /// Writes a signed LEB128 `i128` at `index`.
+    /// Reads an `i128` value at `index` without checking slice bounds.
+    ///
+    /// # Safety
+    ///
+    /// The caller must guarantee that `index..index + 19` is in bounds for
+    /// `input`.
     #[inline]
-    pub fn write_sleb_i128_at(self, output: &mut [u8], index: usize, value: i128) -> Option<usize> {
-        self.write_sleb_at(output, index, value)
+    pub unsafe fn read_i128_at_unchecked(
+        self,
+        input: &[u8],
+        index: usize,
+    ) -> Result<(i128, usize), Leb128DecodeError> {
+        // SAFETY: The caller guarantees the full i128 range is in bounds.
+        unsafe { self.read_sleb_at_unchecked(input, index, i128::BITS) }
+    }
+
+    /// Encodes a `u16` value into a three-byte maximum-width array.
+    ///
+    /// # Returns
+    ///
+    /// Returns the array and the number of initialized bytes.
+    #[must_use]
+    #[inline]
+    pub fn u16_bytes(self, value: u16) -> ([u8; 3], usize) {
+        let mut output = [0_u8; MAX_U16_LEB128_BYTES];
+        let count = encode_uleb(value as u128, &mut output);
+        (output, count)
+    }
+
+    /// Encodes a `u32` value into a five-byte maximum-width array.
+    #[must_use]
+    #[inline]
+    pub fn u32_bytes(self, value: u32) -> ([u8; 5], usize) {
+        let mut output = [0_u8; MAX_U32_LEB128_BYTES];
+        let count = encode_uleb(value as u128, &mut output);
+        (output, count)
+    }
+
+    /// Encodes a `u64` value into a ten-byte maximum-width array.
+    #[must_use]
+    #[inline]
+    pub fn u64_bytes(self, value: u64) -> ([u8; 10], usize) {
+        let mut output = [0_u8; MAX_U64_LEB128_BYTES];
+        let count = encode_uleb(value as u128, &mut output);
+        (output, count)
+    }
+
+    /// Encodes a `u128` value into a nineteen-byte maximum-width array.
+    #[must_use]
+    #[inline]
+    pub fn u128_bytes(self, value: u128) -> ([u8; 19], usize) {
+        let mut output = [0_u8; MAX_U128_LEB128_BYTES];
+        let count = encode_uleb(value, &mut output);
+        (output, count)
+    }
+
+    /// Encodes an `i16` value into a three-byte maximum-width array.
+    #[must_use]
+    #[inline]
+    pub fn i16_bytes(self, value: i16) -> ([u8; 3], usize) {
+        let mut output = [0_u8; MAX_U16_LEB128_BYTES];
+        let count = encode_sleb(value as i128, &mut output);
+        (output, count)
+    }
+
+    /// Encodes an `i32` value into a five-byte maximum-width array.
+    #[must_use]
+    #[inline]
+    pub fn i32_bytes(self, value: i32) -> ([u8; 5], usize) {
+        let mut output = [0_u8; MAX_U32_LEB128_BYTES];
+        let count = encode_sleb(value as i128, &mut output);
+        (output, count)
+    }
+
+    /// Encodes an `i64` value into a ten-byte maximum-width array.
+    #[must_use]
+    #[inline]
+    pub fn i64_bytes(self, value: i64) -> ([u8; 10], usize) {
+        let mut output = [0_u8; MAX_U64_LEB128_BYTES];
+        let count = encode_sleb(value as i128, &mut output);
+        (output, count)
+    }
+
+    /// Encodes an `i128` value into a nineteen-byte maximum-width array.
+    #[must_use]
+    #[inline]
+    pub fn i128_bytes(self, value: i128) -> ([u8; 19], usize) {
+        let mut output = [0_u8; MAX_U128_LEB128_BYTES];
+        let count = encode_sleb(value, &mut output);
+        (output, count)
+    }
+
+    /// Writes a `u16` value at `index`.
+    #[inline]
+    pub fn write_u16_at(self, output: &mut [u8], index: usize, value: u16) -> Option<usize> {
+        let (encoded, count) = self.u16_bytes(value);
+        write_encoded_at(output, index, &encoded[..count])
+    }
+
+    /// Writes a `u32` value at `index`.
+    #[inline]
+    pub fn write_u32_at(self, output: &mut [u8], index: usize, value: u32) -> Option<usize> {
+        let (encoded, count) = self.u32_bytes(value);
+        write_encoded_at(output, index, &encoded[..count])
+    }
+
+    /// Writes a `u64` value at `index`.
+    #[inline]
+    pub fn write_u64_at(self, output: &mut [u8], index: usize, value: u64) -> Option<usize> {
+        let (encoded, count) = self.u64_bytes(value);
+        write_encoded_at(output, index, &encoded[..count])
+    }
+
+    /// Writes a `u128` value at `index`.
+    #[inline]
+    pub fn write_u128_at(self, output: &mut [u8], index: usize, value: u128) -> Option<usize> {
+        let (encoded, count) = self.u128_bytes(value);
+        write_encoded_at(output, index, &encoded[..count])
+    }
+
+    /// Writes an `i16` value at `index`.
+    #[inline]
+    pub fn write_i16_at(self, output: &mut [u8], index: usize, value: i16) -> Option<usize> {
+        let (encoded, count) = self.i16_bytes(value);
+        write_encoded_at(output, index, &encoded[..count])
+    }
+
+    /// Writes an `i32` value at `index`.
+    #[inline]
+    pub fn write_i32_at(self, output: &mut [u8], index: usize, value: i32) -> Option<usize> {
+        let (encoded, count) = self.i32_bytes(value);
+        write_encoded_at(output, index, &encoded[..count])
+    }
+
+    /// Writes an `i64` value at `index`.
+    #[inline]
+    pub fn write_i64_at(self, output: &mut [u8], index: usize, value: i64) -> Option<usize> {
+        let (encoded, count) = self.i64_bytes(value);
+        write_encoded_at(output, index, &encoded[..count])
+    }
+
+    /// Writes an `i128` value at `index`.
+    #[inline]
+    pub fn write_i128_at(self, output: &mut [u8], index: usize, value: i128) -> Option<usize> {
+        let (encoded, count) = self.i128_bytes(value);
+        write_encoded_at(output, index, &encoded[..count])
+    }
+
+    /// Writes a `u16` value at `index` without checking destination bounds.
+    ///
+    /// # Safety
+    ///
+    /// The caller must guarantee that `index..index + 3` is in bounds for
+    /// `output`.
+    #[inline]
+    pub unsafe fn write_u16_at_unchecked(
+        self,
+        output: &mut [u8],
+        index: usize,
+        value: u16,
+    ) -> usize {
+        let (encoded, count) = self.u16_bytes(value);
+        // SAFETY: The caller guarantees the full u16 destination range is valid.
+        unsafe { write_encoded_at_unchecked(output, index, &encoded[..count]) }
+    }
+
+    /// Writes a `u32` value at `index` without checking destination bounds.
+    ///
+    /// # Safety
+    ///
+    /// The caller must guarantee that `index..index + 5` is in bounds for
+    /// `output`.
+    #[inline]
+    pub unsafe fn write_u32_at_unchecked(
+        self,
+        output: &mut [u8],
+        index: usize,
+        value: u32,
+    ) -> usize {
+        let (encoded, count) = self.u32_bytes(value);
+        // SAFETY: The caller guarantees the full u32 destination range is valid.
+        unsafe { write_encoded_at_unchecked(output, index, &encoded[..count]) }
+    }
+
+    /// Writes a `u64` value at `index` without checking destination bounds.
+    ///
+    /// # Safety
+    ///
+    /// The caller must guarantee that `index..index + 10` is in bounds for
+    /// `output`.
+    #[inline]
+    pub unsafe fn write_u64_at_unchecked(
+        self,
+        output: &mut [u8],
+        index: usize,
+        value: u64,
+    ) -> usize {
+        let (encoded, count) = self.u64_bytes(value);
+        // SAFETY: The caller guarantees the full u64 destination range is valid.
+        unsafe { write_encoded_at_unchecked(output, index, &encoded[..count]) }
+    }
+
+    /// Writes a `u128` value at `index` without checking destination bounds.
+    ///
+    /// # Safety
+    ///
+    /// The caller must guarantee that `index..index + 19` is in bounds for
+    /// `output`.
+    #[inline]
+    pub unsafe fn write_u128_at_unchecked(
+        self,
+        output: &mut [u8],
+        index: usize,
+        value: u128,
+    ) -> usize {
+        let (encoded, count) = self.u128_bytes(value);
+        // SAFETY: The caller guarantees the full u128 destination range is valid.
+        unsafe { write_encoded_at_unchecked(output, index, &encoded[..count]) }
+    }
+
+    /// Writes an `i16` value at `index` without checking destination bounds.
+    ///
+    /// # Safety
+    ///
+    /// The caller must guarantee that `index..index + 3` is in bounds for
+    /// `output`.
+    #[inline]
+    pub unsafe fn write_i16_at_unchecked(
+        self,
+        output: &mut [u8],
+        index: usize,
+        value: i16,
+    ) -> usize {
+        let (encoded, count) = self.i16_bytes(value);
+        // SAFETY: The caller guarantees the full i16 destination range is valid.
+        unsafe { write_encoded_at_unchecked(output, index, &encoded[..count]) }
+    }
+
+    /// Writes an `i32` value at `index` without checking destination bounds.
+    ///
+    /// # Safety
+    ///
+    /// The caller must guarantee that `index..index + 5` is in bounds for
+    /// `output`.
+    #[inline]
+    pub unsafe fn write_i32_at_unchecked(
+        self,
+        output: &mut [u8],
+        index: usize,
+        value: i32,
+    ) -> usize {
+        let (encoded, count) = self.i32_bytes(value);
+        // SAFETY: The caller guarantees the full i32 destination range is valid.
+        unsafe { write_encoded_at_unchecked(output, index, &encoded[..count]) }
+    }
+
+    /// Writes an `i64` value at `index` without checking destination bounds.
+    ///
+    /// # Safety
+    ///
+    /// The caller must guarantee that `index..index + 10` is in bounds for
+    /// `output`.
+    #[inline]
+    pub unsafe fn write_i64_at_unchecked(
+        self,
+        output: &mut [u8],
+        index: usize,
+        value: i64,
+    ) -> usize {
+        let (encoded, count) = self.i64_bytes(value);
+        // SAFETY: The caller guarantees the full i64 destination range is valid.
+        unsafe { write_encoded_at_unchecked(output, index, &encoded[..count]) }
+    }
+
+    /// Writes an `i128` value at `index` without checking destination bounds.
+    ///
+    /// # Safety
+    ///
+    /// The caller must guarantee that `index..index + 19` is in bounds for
+    /// `output`.
+    #[inline]
+    pub unsafe fn write_i128_at_unchecked(
+        self,
+        output: &mut [u8],
+        index: usize,
+        value: i128,
+    ) -> usize {
+        let (encoded, count) = self.i128_bytes(value);
+        // SAFETY: The caller guarantees the full i128 destination range is valid.
+        unsafe { write_encoded_at_unchecked(output, index, &encoded[..count]) }
     }
 
     /// Reads an unsigned LEB128 value with `bits` target width.
@@ -250,26 +710,48 @@ impl Leb128Codec {
         Ok(Some((value, consumed)))
     }
 
-    /// Writes an unsigned LEB128 value at `index`.
-    fn write_uleb_at(self, output: &mut [u8], index: usize, value: u128) -> Option<usize> {
-        let mut encoded = [0_u8; MAX_LEB128_BYTES];
-        let count = encode_uleb(value, &mut encoded);
-        if output.len().saturating_sub(index) < count {
-            return None;
+    /// Reads an unsigned LEB128 value with `bits` target width without bounds checks.
+    unsafe fn read_uleb_at_unchecked(
+        self,
+        input: &[u8],
+        index: usize,
+        bits: u32,
+    ) -> Result<(u128, usize), Leb128DecodeError> {
+        // SAFETY: The caller guarantees the full maximum-width range is in bounds.
+        let (value, consumed) = unsafe { read_uleb_raw_unchecked(input, index, bits)? };
+        if self.strict {
+            // SAFETY: `consumed` is within the caller-validated maximum-width range.
+            let bytes = unsafe { bytes_at_unchecked(input, index, consumed) };
+            if !is_canonical_uleb(value, bytes) {
+                return Err(Leb128DecodeError::new(
+                    Leb128DecodeErrorKind::NonCanonical,
+                    index,
+                ));
+            }
         }
-        output[index..index + count].copy_from_slice(&encoded[..count]);
-        Some(count)
+        Ok((value, consumed))
     }
 
-    /// Writes a signed LEB128 value at `index`.
-    fn write_sleb_at(self, output: &mut [u8], index: usize, value: i128) -> Option<usize> {
-        let mut encoded = [0_u8; MAX_LEB128_BYTES];
-        let count = encode_sleb(value, &mut encoded);
-        if output.len().saturating_sub(index) < count {
-            return None;
+    /// Reads a signed LEB128 value with `bits` target width without bounds checks.
+    unsafe fn read_sleb_at_unchecked(
+        self,
+        input: &[u8],
+        index: usize,
+        bits: u32,
+    ) -> Result<(i128, usize), Leb128DecodeError> {
+        // SAFETY: The caller guarantees the full maximum-width range is in bounds.
+        let (value, consumed) = unsafe { read_sleb_raw_unchecked(input, index, bits)? };
+        if self.strict {
+            // SAFETY: `consumed` is within the caller-validated maximum-width range.
+            let bytes = unsafe { bytes_at_unchecked(input, index, consumed) };
+            if !is_canonical_sleb(value, bytes) {
+                return Err(Leb128DecodeError::new(
+                    Leb128DecodeErrorKind::NonCanonical,
+                    index,
+                ));
+            }
         }
-        output[index..index + count].copy_from_slice(&encoded[..count]);
-        Some(count)
+        Ok((value, consumed))
     }
 }
 
@@ -351,6 +833,75 @@ fn read_sleb_raw(
     ))
 }
 
+/// Reads an unsigned LEB128 value without bounds or canonical validation.
+unsafe fn read_uleb_raw_unchecked(
+    input: &[u8],
+    index: usize,
+    bits: u32,
+) -> Result<(u128, usize), Leb128DecodeError> {
+    let max_bytes = bits.div_ceil(7) as usize;
+    let final_payload_bits = bits - ((max_bytes as u32 - 1) * 7);
+    let max_last_payload = ((1u16 << final_payload_bits) - 1) as u8;
+    let mut value = 0u128;
+
+    for offset in 0..max_bytes {
+        let byte_index = index + offset;
+        // SAFETY: The caller guarantees the maximum-width range is in bounds.
+        let byte = unsafe { *input.get_unchecked(byte_index) };
+        let payload = byte & 0x7f;
+        if offset == max_bytes - 1 && payload > max_last_payload {
+            return Err(Leb128DecodeError::new(
+                Leb128DecodeErrorKind::Malformed,
+                byte_index,
+            ));
+        }
+        value |= (payload as u128) << (offset * 7);
+        if byte & 0x80 == 0 {
+            return Ok((value, offset + 1));
+        }
+    }
+    Err(Leb128DecodeError::new(
+        Leb128DecodeErrorKind::Malformed,
+        index + max_bytes.saturating_sub(1),
+    ))
+}
+
+/// Reads a signed LEB128 value without bounds or canonical validation.
+unsafe fn read_sleb_raw_unchecked(
+    input: &[u8],
+    index: usize,
+    bits: u32,
+) -> Result<(i128, usize), Leb128DecodeError> {
+    let max_bytes = bits.div_ceil(7) as usize;
+    let mut value = 0i128;
+    let mut shift = 0u32;
+
+    for offset in 0..max_bytes {
+        let byte_index = index + offset;
+        // SAFETY: The caller guarantees the maximum-width range is in bounds.
+        let byte = unsafe { *input.get_unchecked(byte_index) };
+        let payload = byte & 0x7f;
+        if is_too_wide_signed_final_payload(payload, offset as u32, bits) {
+            return Err(Leb128DecodeError::new(
+                Leb128DecodeErrorKind::Malformed,
+                byte_index,
+            ));
+        }
+        value |= (payload as i128) << shift;
+        shift += 7;
+        if byte & 0x80 == 0 {
+            if shift < i128::BITS && byte & 0x40 != 0 {
+                value |= (!0i128) << shift;
+            }
+            return Ok((value, offset + 1));
+        }
+    }
+    Err(Leb128DecodeError::new(
+        Leb128DecodeErrorKind::Malformed,
+        index + max_bytes.saturating_sub(1),
+    ))
+}
+
 /// Checks whether a final signed payload byte exceeds the target width.
 fn is_too_wide_signed_final_payload(payload: u8, offset: u32, bits: u32) -> bool {
     let max_bytes = bits.div_ceil(7);
@@ -383,8 +934,32 @@ fn is_canonical_sleb(value: i128, bytes: &[u8]) -> bool {
     &expected[..count] == bytes
 }
 
+/// Returns `length` bytes at `index` without checking slice bounds.
+unsafe fn bytes_at_unchecked(input: &[u8], index: usize, length: usize) -> &[u8] {
+    // SAFETY: The caller guarantees `index..index + length` is in bounds.
+    unsafe { core::slice::from_raw_parts(input.as_ptr().add(index), length) }
+}
+
+/// Writes encoded bytes at `index`.
+fn write_encoded_at(output: &mut [u8], index: usize, encoded: &[u8]) -> Option<usize> {
+    if output.len().saturating_sub(index) < encoded.len() {
+        return None;
+    }
+    output[index..index + encoded.len()].copy_from_slice(encoded);
+    Some(encoded.len())
+}
+
+/// Writes encoded bytes at `index` without checking destination bounds.
+unsafe fn write_encoded_at_unchecked(output: &mut [u8], index: usize, encoded: &[u8]) -> usize {
+    // SAFETY: The caller guarantees the destination range is in bounds.
+    let ptr = unsafe { output.as_mut_ptr().add(index) };
+    // SAFETY: `encoded` and `output` do not overlap and the destination is valid.
+    unsafe { ptr.copy_from_nonoverlapping(encoded.as_ptr(), encoded.len()) };
+    encoded.len()
+}
+
 /// Encodes an unsigned LEB128 value into `output`.
-fn encode_uleb(mut value: u128, output: &mut [u8; MAX_LEB128_BYTES]) -> usize {
+fn encode_uleb(mut value: u128, output: &mut [u8]) -> usize {
     let mut index = 0;
     while value > 0x7f {
         output[index] = ((value as u8) & 0x7f) | 0x80;
@@ -396,7 +971,7 @@ fn encode_uleb(mut value: u128, output: &mut [u8; MAX_LEB128_BYTES]) -> usize {
 }
 
 /// Encodes a signed LEB128 value into `output`.
-fn encode_sleb(value: i128, output: &mut [u8; MAX_LEB128_BYTES]) -> usize {
+fn encode_sleb(value: i128, output: &mut [u8]) -> usize {
     let mut remaining = value;
     let mut index = 0;
     loop {

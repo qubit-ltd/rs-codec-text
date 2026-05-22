@@ -109,3 +109,131 @@ fn test_zig_zag_reports_incomplete_output_and_strict_read_errors() {
         .expect_err("non-canonical ZigZag payload should fail");
     assert_eq!(Leb128DecodeErrorKind::NonCanonical, error.kind());
 }
+
+#[test]
+fn test_read_from_array_decodes_max_width_arrays() {
+    let codec = ZigZagCodec::new();
+
+    let (value, consumed) = codec
+        .read_i16_from_array([0xd7, 0x04, 0x00])
+        .expect("i16 array should decode");
+    assert_eq!(-300, value);
+    assert_eq!(2, consumed);
+
+    let (bytes, expected_count) = codec.i32_bytes(-0x1f600);
+    let (value, consumed) = codec
+        .read_i32_from_array(bytes)
+        .expect("i32 array should decode");
+    assert_eq!(-0x1f600, value);
+    assert_eq!(expected_count, consumed);
+
+    let (bytes, expected_count) = codec.i64_bytes(i64::MIN);
+    let (value, consumed) = codec
+        .read_i64_from_array(bytes)
+        .expect("i64 array should decode");
+    assert_eq!(i64::MIN, value);
+    assert_eq!(expected_count, consumed);
+
+    let (bytes, expected_count) = codec.i128_bytes(i128::MIN);
+    let (value, consumed) = codec
+        .read_i128_from_array(bytes)
+        .expect("i128 array should decode");
+    assert_eq!(i128::MIN, value);
+    assert_eq!(expected_count, consumed);
+}
+
+#[test]
+fn test_to_bytes_returns_max_width_array_and_used_length() {
+    let codec = ZigZagCodec::new();
+
+    let (bytes, count) = codec.i16_bytes(-300);
+    assert_eq!([0xd7, 0x04, 0x00], bytes);
+    assert_eq!(2, count);
+
+    let (_, count) = codec.i32_bytes(-0x1f600);
+    assert!(count <= 5);
+    let (_, count) = codec.i64_bytes(i64::MIN);
+    assert!(count <= 10);
+    let (_, count) = codec.i128_bytes(i128::MIN);
+    assert!(count <= 19);
+}
+
+#[test]
+fn test_unchecked_access_uses_caller_validated_ranges() {
+    let codec = ZigZagCodec::new();
+    let input = [0x00, 0xd7, 0x04, 0x00];
+    let mut output = [0_u8; 4];
+
+    let (value, consumed) = unsafe {
+        // SAFETY: The input has the full three-byte i16 ZigZag range at index 1.
+        codec
+            .read_i16_at_unchecked(&input, 1)
+            .expect("unchecked i16 should decode")
+    };
+    assert_eq!(-300, value);
+    assert_eq!(2, consumed);
+
+    let consumed = unsafe {
+        // SAFETY: The output has the full three-byte i16 ZigZag range at index 1.
+        codec.write_i16_at_unchecked(&mut output, 1, -300)
+    };
+    assert_eq!(2, consumed);
+    assert_eq!([0x00, 0xd7, 0x04, 0x00], output);
+
+    let (bytes, expected_count) = codec.i32_bytes(-0x1f600);
+    let mut input = vec![0_u8; bytes.len() + 1];
+    input[1..1 + expected_count].copy_from_slice(&bytes[..expected_count]);
+    let (value, consumed) = unsafe {
+        // SAFETY: The input has the full five-byte i32 ZigZag range at index 1.
+        codec
+            .read_i32_at_unchecked(&input, 1)
+            .expect("unchecked i32 should decode")
+    };
+    assert_eq!(-0x1f600, value);
+    assert_eq!(expected_count, consumed);
+    let mut output = vec![0_u8; bytes.len() + 1];
+    let consumed = unsafe {
+        // SAFETY: The output has the full five-byte i32 ZigZag range at index 1.
+        codec.write_i32_at_unchecked(&mut output, 1, -0x1f600)
+    };
+    assert_eq!(expected_count, consumed);
+    assert_eq!(&bytes[..expected_count], &output[1..1 + consumed]);
+
+    let (bytes, expected_count) = codec.i64_bytes(i64::MIN);
+    let mut input = vec![0_u8; bytes.len() + 1];
+    input[1..1 + expected_count].copy_from_slice(&bytes[..expected_count]);
+    let (value, consumed) = unsafe {
+        // SAFETY: The input has the full ten-byte i64 ZigZag range at index 1.
+        codec
+            .read_i64_at_unchecked(&input, 1)
+            .expect("unchecked i64 should decode")
+    };
+    assert_eq!(i64::MIN, value);
+    assert_eq!(expected_count, consumed);
+    let mut output = vec![0_u8; bytes.len() + 1];
+    let consumed = unsafe {
+        // SAFETY: The output has the full ten-byte i64 ZigZag range at index 1.
+        codec.write_i64_at_unchecked(&mut output, 1, i64::MIN)
+    };
+    assert_eq!(expected_count, consumed);
+    assert_eq!(&bytes[..expected_count], &output[1..1 + consumed]);
+
+    let (bytes, expected_count) = codec.i128_bytes(i128::MIN);
+    let mut input = vec![0_u8; bytes.len() + 1];
+    input[1..1 + expected_count].copy_from_slice(&bytes[..expected_count]);
+    let (value, consumed) = unsafe {
+        // SAFETY: The input has the full nineteen-byte i128 ZigZag range at index 1.
+        codec
+            .read_i128_at_unchecked(&input, 1)
+            .expect("unchecked i128 should decode")
+    };
+    assert_eq!(i128::MIN, value);
+    assert_eq!(expected_count, consumed);
+    let mut output = vec![0_u8; bytes.len() + 1];
+    let consumed = unsafe {
+        // SAFETY: The output has the full nineteen-byte i128 ZigZag range at index 1.
+        codec.write_i128_at_unchecked(&mut output, 1, i128::MIN)
+    };
+    assert_eq!(expected_count, consumed);
+    assert_eq!(&bytes[..expected_count], &output[1..1 + consumed]);
+}

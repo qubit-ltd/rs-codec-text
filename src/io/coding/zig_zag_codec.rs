@@ -111,6 +111,42 @@ impl ZigZagCodec {
         ((value >> 1) as i128) ^ (-((value & 1) as i128))
     }
 
+    /// Reads an `i16` value from a three-byte maximum-width array.
+    ///
+    /// # Returns
+    ///
+    /// Returns the decoded value and the number of bytes consumed.
+    #[inline]
+    pub fn read_i16_from_array(self, input: [u8; 3]) -> Result<(i16, usize), Leb128DecodeError> {
+        self.leb128
+            .read_u16_from_array(input)
+            .map(|(value, consumed)| (Self::decode_u16(value), consumed))
+    }
+
+    /// Reads an `i32` value from a five-byte maximum-width array.
+    #[inline]
+    pub fn read_i32_from_array(self, input: [u8; 5]) -> Result<(i32, usize), Leb128DecodeError> {
+        self.leb128
+            .read_u32_from_array(input)
+            .map(|(value, consumed)| (Self::decode_u32(value), consumed))
+    }
+
+    /// Reads an `i64` value from a ten-byte maximum-width array.
+    #[inline]
+    pub fn read_i64_from_array(self, input: [u8; 10]) -> Result<(i64, usize), Leb128DecodeError> {
+        self.leb128
+            .read_u64_from_array(input)
+            .map(|(value, consumed)| (Self::decode_u64(value), consumed))
+    }
+
+    /// Reads an `i128` value from a nineteen-byte maximum-width array.
+    #[inline]
+    pub fn read_i128_from_array(self, input: [u8; 19]) -> Result<(i128, usize), Leb128DecodeError> {
+        self.leb128
+            .read_u128_from_array(input)
+            .map(|(value, consumed)| (Self::decode_u128(value), consumed))
+    }
+
     /// Reads a ZigZag encoded `i16` at `index`.
     #[inline]
     pub fn read_i16_at(
@@ -119,7 +155,7 @@ impl ZigZagCodec {
         index: usize,
     ) -> Result<Option<(i16, usize)>, Leb128DecodeError> {
         self.leb128
-            .read_uleb_u16_at(input, index)
+            .read_u16_at(input, index)
             .map(|decoded| decoded.map(|(value, consumed)| (Self::decode_u16(value), consumed)))
     }
 
@@ -131,7 +167,7 @@ impl ZigZagCodec {
         index: usize,
     ) -> Result<Option<(i32, usize)>, Leb128DecodeError> {
         self.leb128
-            .read_uleb_u32_at(input, index)
+            .read_u32_at(input, index)
             .map(|decoded| decoded.map(|(value, consumed)| (Self::decode_u32(value), consumed)))
     }
 
@@ -143,7 +179,7 @@ impl ZigZagCodec {
         index: usize,
     ) -> Result<Option<(i64, usize)>, Leb128DecodeError> {
         self.leb128
-            .read_uleb_u64_at(input, index)
+            .read_u64_at(input, index)
             .map(|decoded| decoded.map(|(value, consumed)| (Self::decode_u64(value), consumed)))
     }
 
@@ -155,36 +191,212 @@ impl ZigZagCodec {
         index: usize,
     ) -> Result<Option<(i128, usize)>, Leb128DecodeError> {
         self.leb128
-            .read_uleb_u128_at(input, index)
+            .read_u128_at(input, index)
             .map(|decoded| decoded.map(|(value, consumed)| (Self::decode_u128(value), consumed)))
+    }
+
+    /// Reads an `i16` value at `index` without checking slice bounds.
+    ///
+    /// # Safety
+    ///
+    /// The caller must guarantee that `index..index + 3` is in bounds for
+    /// `input`.
+    #[inline]
+    pub unsafe fn read_i16_at_unchecked(
+        self,
+        input: &[u8],
+        index: usize,
+    ) -> Result<(i16, usize), Leb128DecodeError> {
+        // SAFETY: The caller guarantees the full i16 ZigZag range is in bounds.
+        unsafe { self.leb128.read_u16_at_unchecked(input, index) }
+            .map(|(value, consumed)| (Self::decode_u16(value), consumed))
+    }
+
+    /// Reads an `i32` value at `index` without checking slice bounds.
+    ///
+    /// # Safety
+    ///
+    /// The caller must guarantee that `index..index + 5` is in bounds for
+    /// `input`.
+    #[inline]
+    pub unsafe fn read_i32_at_unchecked(
+        self,
+        input: &[u8],
+        index: usize,
+    ) -> Result<(i32, usize), Leb128DecodeError> {
+        // SAFETY: The caller guarantees the full i32 ZigZag range is in bounds.
+        unsafe { self.leb128.read_u32_at_unchecked(input, index) }
+            .map(|(value, consumed)| (Self::decode_u32(value), consumed))
+    }
+
+    /// Reads an `i64` value at `index` without checking slice bounds.
+    ///
+    /// # Safety
+    ///
+    /// The caller must guarantee that `index..index + 10` is in bounds for
+    /// `input`.
+    #[inline]
+    pub unsafe fn read_i64_at_unchecked(
+        self,
+        input: &[u8],
+        index: usize,
+    ) -> Result<(i64, usize), Leb128DecodeError> {
+        // SAFETY: The caller guarantees the full i64 ZigZag range is in bounds.
+        unsafe { self.leb128.read_u64_at_unchecked(input, index) }
+            .map(|(value, consumed)| (Self::decode_u64(value), consumed))
+    }
+
+    /// Reads an `i128` value at `index` without checking slice bounds.
+    ///
+    /// # Safety
+    ///
+    /// The caller must guarantee that `index..index + 19` is in bounds for
+    /// `input`.
+    #[inline]
+    pub unsafe fn read_i128_at_unchecked(
+        self,
+        input: &[u8],
+        index: usize,
+    ) -> Result<(i128, usize), Leb128DecodeError> {
+        // SAFETY: The caller guarantees the full i128 ZigZag range is in bounds.
+        unsafe { self.leb128.read_u128_at_unchecked(input, index) }
+            .map(|(value, consumed)| (Self::decode_u128(value), consumed))
+    }
+
+    /// Encodes an `i16` value into a three-byte maximum-width array.
+    #[must_use]
+    #[inline]
+    pub fn i16_bytes(self, value: i16) -> ([u8; 3], usize) {
+        self.leb128.u16_bytes(Self::encode_i16(value))
+    }
+
+    /// Encodes an `i32` value into a five-byte maximum-width array.
+    #[must_use]
+    #[inline]
+    pub fn i32_bytes(self, value: i32) -> ([u8; 5], usize) {
+        self.leb128.u32_bytes(Self::encode_i32(value))
+    }
+
+    /// Encodes an `i64` value into a ten-byte maximum-width array.
+    #[must_use]
+    #[inline]
+    pub fn i64_bytes(self, value: i64) -> ([u8; 10], usize) {
+        self.leb128.u64_bytes(Self::encode_i64(value))
+    }
+
+    /// Encodes an `i128` value into a nineteen-byte maximum-width array.
+    #[must_use]
+    #[inline]
+    pub fn i128_bytes(self, value: i128) -> ([u8; 19], usize) {
+        self.leb128.u128_bytes(Self::encode_i128(value))
     }
 
     /// Writes a ZigZag encoded `i16` at `index`.
     #[inline]
     pub fn write_i16_at(self, output: &mut [u8], index: usize, value: i16) -> Option<usize> {
         self.leb128
-            .write_uleb_u16_at(output, index, Self::encode_i16(value))
+            .write_u16_at(output, index, Self::encode_i16(value))
     }
 
     /// Writes a ZigZag encoded `i32` at `index`.
     #[inline]
     pub fn write_i32_at(self, output: &mut [u8], index: usize, value: i32) -> Option<usize> {
         self.leb128
-            .write_uleb_u32_at(output, index, Self::encode_i32(value))
+            .write_u32_at(output, index, Self::encode_i32(value))
     }
 
     /// Writes a ZigZag encoded `i64` at `index`.
     #[inline]
     pub fn write_i64_at(self, output: &mut [u8], index: usize, value: i64) -> Option<usize> {
         self.leb128
-            .write_uleb_u64_at(output, index, Self::encode_i64(value))
+            .write_u64_at(output, index, Self::encode_i64(value))
     }
 
     /// Writes a ZigZag encoded `i128` at `index`.
     #[inline]
     pub fn write_i128_at(self, output: &mut [u8], index: usize, value: i128) -> Option<usize> {
         self.leb128
-            .write_uleb_u128_at(output, index, Self::encode_i128(value))
+            .write_u128_at(output, index, Self::encode_i128(value))
+    }
+
+    /// Writes an `i16` value at `index` without checking destination bounds.
+    ///
+    /// # Safety
+    ///
+    /// The caller must guarantee that `index..index + 3` is in bounds for
+    /// `output`.
+    #[inline]
+    pub unsafe fn write_i16_at_unchecked(
+        self,
+        output: &mut [u8],
+        index: usize,
+        value: i16,
+    ) -> usize {
+        // SAFETY: The caller guarantees the full i16 ZigZag destination range is valid.
+        unsafe {
+            self.leb128
+                .write_u16_at_unchecked(output, index, Self::encode_i16(value))
+        }
+    }
+
+    /// Writes an `i32` value at `index` without checking destination bounds.
+    ///
+    /// # Safety
+    ///
+    /// The caller must guarantee that `index..index + 5` is in bounds for
+    /// `output`.
+    #[inline]
+    pub unsafe fn write_i32_at_unchecked(
+        self,
+        output: &mut [u8],
+        index: usize,
+        value: i32,
+    ) -> usize {
+        // SAFETY: The caller guarantees the full i32 ZigZag destination range is valid.
+        unsafe {
+            self.leb128
+                .write_u32_at_unchecked(output, index, Self::encode_i32(value))
+        }
+    }
+
+    /// Writes an `i64` value at `index` without checking destination bounds.
+    ///
+    /// # Safety
+    ///
+    /// The caller must guarantee that `index..index + 10` is in bounds for
+    /// `output`.
+    #[inline]
+    pub unsafe fn write_i64_at_unchecked(
+        self,
+        output: &mut [u8],
+        index: usize,
+        value: i64,
+    ) -> usize {
+        // SAFETY: The caller guarantees the full i64 ZigZag destination range is valid.
+        unsafe {
+            self.leb128
+                .write_u64_at_unchecked(output, index, Self::encode_i64(value))
+        }
+    }
+
+    /// Writes an `i128` value at `index` without checking destination bounds.
+    ///
+    /// # Safety
+    ///
+    /// The caller must guarantee that `index..index + 19` is in bounds for
+    /// `output`.
+    #[inline]
+    pub unsafe fn write_i128_at_unchecked(
+        self,
+        output: &mut [u8],
+        index: usize,
+        value: i128,
+    ) -> usize {
+        // SAFETY: The caller guarantees the full i128 ZigZag destination range is valid.
+        unsafe {
+            self.leb128
+                .write_u128_at_unchecked(output, index, Self::encode_i128(value))
+        }
     }
 }
 
