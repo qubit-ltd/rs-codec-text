@@ -1,12 +1,9 @@
-use qubit_text_codec::{
-    Charset,
-    CharsetDecodeError,
-    CharsetDecodeErrorKind,
-};
+use qubit_text_codec::{Charset, CharsetDecodeError, CharsetDecodeErrorKind};
 
 #[test]
 fn test_charset_decode_error_exposes_context() {
-    let error = CharsetDecodeError::malformed_sequence(Charset::UTF_8, 7);
+    let kind = CharsetDecodeErrorKind::MalformedSequence { value: None };
+    let error = CharsetDecodeError::new(Charset::UTF_8, kind, 7);
 
     assert_eq!(Charset::UTF_8, error.charset());
     assert_eq!(
@@ -21,7 +18,11 @@ fn test_charset_decode_error_exposes_context() {
         error.to_string(),
     );
 
-    let incomplete = CharsetDecodeError::incomplete_sequence(Charset::UTF_16, 3, 7, 0);
+    let kind = CharsetDecodeErrorKind::IncompleteSequence {
+        required: 7,
+        available: 0,
+    };
+    let incomplete = CharsetDecodeError::new(Charset::UTF_16, kind, 3);
     assert_eq!(Charset::UTF_16, incomplete.charset());
     assert!(matches!(
         incomplete.kind(),
@@ -45,7 +46,8 @@ fn test_charset_decode_error_exposes_context() {
         incomplete.to_string(),
     );
 
-    let invalid = CharsetDecodeError::invalid_code_point(Charset::UTF_32, 5, 0x110000);
+    let kind = CharsetDecodeErrorKind::InvalidCodePoint { value: 0x110000 };
+    let invalid = CharsetDecodeError::new(Charset::UTF_32, kind, 5);
     assert_eq!(Charset::UTF_32, invalid.charset());
     assert!(matches!(
         invalid.kind(),

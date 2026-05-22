@@ -1,22 +1,8 @@
 use qubit_text_codec::{
-    Charset,
-    CharsetCodec,
-    CharsetConvertError,
-    CharsetConverter,
-    CharsetDecodeError,
-    CharsetDecodeResult,
-    CharsetDecoder,
-    CharsetEncodeError,
-    CharsetEncodeErrorKind,
-    CharsetEncodeResult,
-    CharsetEncoder,
-    Coder,
-    CoderStatus,
-    DecodeStatus,
-    MalformedAction,
-    UnmappableAction,
-    Utf8Codec,
-    Utf16U16Codec,
+    Charset, CharsetCodec, CharsetConvertError, CharsetConverter, CharsetDecodeError,
+    CharsetDecodeErrorKind, CharsetDecodeResult, CharsetDecoder, CharsetEncodeError,
+    CharsetEncodeErrorKind, CharsetEncodeResult, CharsetEncoder, Coder, CoderStatus, DecodeStatus,
+    MalformedAction, UnmappableAction, Utf16U16Codec, Utf8Codec,
 };
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -41,10 +27,8 @@ impl CharsetCodec for AsciiBytesCodec {
         }
         let value = input[index];
         if value > 0x7f {
-            return Err(CharsetDecodeError::malformed_sequence(
-                Charset::ASCII,
-                index,
-            ));
+            let kind = CharsetDecodeErrorKind::MalformedSequence { value: None };
+            return Err(CharsetDecodeError::new(Charset::ASCII, kind, index));
         }
         Ok(DecodeStatus::Complete {
             value: value as char,
@@ -83,10 +67,8 @@ impl CharsetCodec for ZeroWidthCodec {
     }
 
     fn decode_one(&self, _input: &[u8], index: usize) -> CharsetDecodeResult<DecodeStatus> {
-        Err(CharsetDecodeError::malformed_sequence(
-            Charset::ASCII,
-            index,
-        ))
+        let kind = CharsetDecodeErrorKind::MalformedSequence { value: None };
+        Err(CharsetDecodeError::new(Charset::ASCII, kind, index))
     }
 
     fn encode_one(

@@ -1,16 +1,7 @@
 use qubit_text_codec::{
-    Charset,
-    CharsetCodec,
-    CharsetDecodeError,
-    CharsetDecodeResult,
-    CharsetEncodeError,
-    CharsetEncodeErrorKind,
-    CharsetEncodeResult,
-    CharsetEncoder,
-    Coder,
-    CoderStatus,
-    DecodeStatus,
-    UnmappableAction,
+    Charset, CharsetCodec, CharsetDecodeError, CharsetDecodeErrorKind, CharsetDecodeResult,
+    CharsetEncodeError, CharsetEncodeErrorKind, CharsetEncodeResult, CharsetEncoder, Coder,
+    CoderStatus, DecodeStatus, UnmappableAction,
 };
 use std::cell::Cell;
 
@@ -29,10 +20,8 @@ impl CharsetCodec for AsciiBytesCodec {
 
     fn decode_one(&self, input: &[u8], index: usize) -> CharsetDecodeResult<DecodeStatus> {
         if index > input.len() {
-            return Err(qubit_text_codec::CharsetDecodeError::malformed_sequence(
-                Charset::ASCII,
-                index,
-            ));
+            let kind = CharsetDecodeErrorKind::MalformedSequence { value: None };
+            return Err(CharsetDecodeError::new(Charset::ASCII, kind, index));
         }
         if index == input.len() {
             return Ok(DecodeStatus::NeedMore {
@@ -42,10 +31,8 @@ impl CharsetCodec for AsciiBytesCodec {
         }
         let value = input[index];
         if value > 0x7f {
-            return Err(qubit_text_codec::CharsetDecodeError::malformed_sequence(
-                Charset::ASCII,
-                index,
-            ));
+            let kind = CharsetDecodeErrorKind::MalformedSequence { value: None };
+            return Err(CharsetDecodeError::new(Charset::ASCII, kind, index));
         }
         Ok(DecodeStatus::Complete {
             value: value as char,
@@ -84,10 +71,8 @@ impl CharsetCodec for InvalidBangCodec {
     }
 
     fn decode_one(&self, _input: &[u8], index: usize) -> CharsetDecodeResult<DecodeStatus> {
-        Err(CharsetDecodeError::malformed_sequence(
-            Charset::ASCII,
-            index,
-        ))
+        let kind = CharsetDecodeErrorKind::MalformedSequence { value: None };
+        Err(CharsetDecodeError::new(Charset::ASCII, kind, index))
     }
 
     fn encode_one(&self, ch: char, output: &mut [u8], index: usize) -> CharsetEncodeResult<usize> {
@@ -121,10 +106,8 @@ impl CharsetCodec for ReplacementFallbackCodec {
     }
 
     fn decode_one(&self, _input: &[u8], index: usize) -> CharsetDecodeResult<DecodeStatus> {
-        Err(CharsetDecodeError::malformed_sequence(
-            Charset::ASCII,
-            index,
-        ))
+        let kind = CharsetDecodeErrorKind::MalformedSequence { value: None };
+        Err(CharsetDecodeError::new(Charset::ASCII, kind, index))
     }
 
     fn encode_one(&self, ch: char, output: &mut [u8], index: usize) -> CharsetEncodeResult<usize> {
@@ -166,10 +149,8 @@ impl CharsetCodec for ReplacementAllUnencodableCodec {
     }
 
     fn decode_one(&self, _input: &[u8], index: usize) -> CharsetDecodeResult<DecodeStatus> {
-        Err(CharsetDecodeError::malformed_sequence(
-            Charset::ASCII,
-            index,
-        ))
+        let kind = CharsetDecodeErrorKind::MalformedSequence { value: None };
+        Err(CharsetDecodeError::new(Charset::ASCII, kind, index))
     }
 
     fn encode_one(&self, ch: char, output: &mut [u8], index: usize) -> CharsetEncodeResult<usize> {
@@ -213,10 +194,8 @@ impl CharsetCodec for CountingAsciiEncoderCodec {
 
     fn decode_one(&self, input: &[u8], index: usize) -> CharsetDecodeResult<DecodeStatus> {
         if index > input.len() {
-            return Err(qubit_text_codec::CharsetDecodeError::malformed_sequence(
-                Charset::ASCII,
-                index,
-            ));
+            let kind = CharsetDecodeErrorKind::MalformedSequence { value: None };
+            return Err(CharsetDecodeError::new(Charset::ASCII, kind, index));
         }
         if index == input.len() {
             return Ok(DecodeStatus::NeedMore {
@@ -226,10 +205,8 @@ impl CharsetCodec for CountingAsciiEncoderCodec {
         }
         let value = input[index];
         if value > 0x7f {
-            return Err(qubit_text_codec::CharsetDecodeError::malformed_sequence(
-                Charset::ASCII,
-                index,
-            ));
+            let kind = CharsetDecodeErrorKind::MalformedSequence { value: None };
+            return Err(CharsetDecodeError::new(Charset::ASCII, kind, index));
         }
         Ok(DecodeStatus::Complete {
             value: value as char,

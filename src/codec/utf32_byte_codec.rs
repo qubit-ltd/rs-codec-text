@@ -9,13 +9,7 @@
  ******************************************************************************/
 use super::inner::utf32;
 use crate::{
-    ByteOrder,
-    Charset,
-    CharsetCodec,
-    CharsetDecodeResult,
-    CharsetEncodeResult,
-    DecodeStatus,
-    Utf32,
+    ByteOrder, Charset, CharsetCodec, CharsetDecodeResult, CharsetEncodeResult, DecodeStatus, Utf32,
 };
 
 /// Combined byte-serialized UTF-32 codec.
@@ -145,8 +139,9 @@ impl CharsetCodec for Utf32ByteCodec {
     ///
     /// # Errors
     ///
-    /// * `CharsetDecodeError::malformed_sequence` when byte index is invalid.
-    /// * `CharsetDecodeError::invalid_code_point` when bytes decode to an invalid scalar.
+    /// * [`crate::CharsetDecodeErrorKind::MalformedSequence`] when byte index is invalid.
+    /// * [`crate::CharsetDecodeErrorKind::InvalidCodePoint`] when bytes decode
+    ///   to an invalid scalar.
     fn decode_one(&self, input: &[u8], index: usize) -> CharsetDecodeResult<DecodeStatus> {
         utf32::decode_bytes_prefix(input, index, self.byte_order)
     }

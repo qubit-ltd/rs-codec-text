@@ -8,14 +8,7 @@
  *
  ******************************************************************************/
 use super::inner::utf32;
-use crate::{
-    Charset,
-    CharsetCodec,
-    CharsetDecodeResult,
-    CharsetEncodeResult,
-    DecodeStatus,
-    Utf32,
-};
+use crate::{Charset, CharsetCodec, CharsetDecodeResult, CharsetEncodeResult, DecodeStatus, Utf32};
 
 /// Combined UTF-32 `u32` code-unit codec.
 ///
@@ -111,8 +104,10 @@ impl CharsetCodec for Utf32U32Codec {
     ///
     /// # Errors
     ///
-    /// * `CharsetDecodeError::malformed_sequence` when index is out of bounds.
-    /// * `CharsetDecodeError::invalid_code_point` when unit is not a valid scalar.
+    /// * [`crate::CharsetDecodeErrorKind::MalformedSequence`] when index is out
+    ///   of bounds.
+    /// * [`crate::CharsetDecodeErrorKind::InvalidCodePoint`] when unit is not a
+    ///   valid scalar.
     fn decode_one(&self, input: &[u32], index: usize) -> CharsetDecodeResult<DecodeStatus> {
         utf32::decode_units_prefix(input, index)
     }

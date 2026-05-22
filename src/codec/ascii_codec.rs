@@ -8,15 +8,8 @@
  *
  ******************************************************************************/
 use crate::{
-    Ascii,
-    Charset,
-    CharsetCodec,
-    CharsetDecodeError,
-    CharsetDecodeResult,
-    CharsetEncodeError,
-    CharsetEncodeErrorKind,
-    CharsetEncodeResult,
-    DecodeStatus,
+    Ascii, Charset, CharsetCodec, CharsetDecodeError, CharsetDecodeErrorKind, CharsetDecodeResult,
+    CharsetEncodeError, CharsetEncodeErrorKind, CharsetEncodeResult, DecodeStatus,
 };
 
 /// Single-byte ASCII codec for bytes.
@@ -85,16 +78,14 @@ impl CharsetCodec for AsciiCodec {
     ///
     /// # Errors
     ///
-    /// Returns [`CharsetDecodeError::malformed_sequence`] when:
+    /// Returns [`CharsetDecodeErrorKind::MalformedSequence`] when:
     /// - `index` is out of range, or
     /// - current byte is not in the ASCII range `0x00..=0x7F`.
     #[inline]
     fn decode_one(&self, input: &[u8], index: usize) -> CharsetDecodeResult<DecodeStatus> {
         if index > input.len() {
-            return Err(CharsetDecodeError::malformed_sequence(
-                Charset::ASCII,
-                index,
-            ));
+            let kind = CharsetDecodeErrorKind::MalformedSequence { value: None };
+            return Err(CharsetDecodeError::new(Charset::ASCII, kind, index));
         }
 
         if index == input.len() {
@@ -106,11 +97,10 @@ impl CharsetCodec for AsciiCodec {
 
         let value = input[index];
         if value > Ascii::MAX_BYTE {
-            return Err(CharsetDecodeError::malformed_sequence_with_value(
-                Charset::ASCII,
-                index,
-                value as u32,
-            ));
+            let kind = CharsetDecodeErrorKind::MalformedSequence {
+                value: Some(value as u32),
+            };
+            return Err(CharsetDecodeError::new(Charset::ASCII, kind, index));
         }
 
         Ok(DecodeStatus::Complete {

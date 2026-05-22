@@ -10,16 +10,14 @@
 use core::fmt;
 use std::error::Error;
 
-use crate::{
-    Charset,
-    CharsetDecodeErrorKind,
-};
+use crate::{Charset, CharsetDecodeErrorKind};
 
 /// Error reported by a charset decoder.
 ///
 /// The error always carries the charset, error kind, and input unit index at
 /// which the failure was detected. Errors that decode a raw numeric value, such
-/// as invalid UTF-32 units, also carry that value through [`Self::value`].
+/// as invalid UTF-32 units, carry that value through [`Self::kind`] and
+/// [`Self::value`].
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct CharsetDecodeError {
     /// Charset being decoded when this error was detected.
@@ -28,8 +26,6 @@ pub struct CharsetDecodeError {
     kind: CharsetDecodeErrorKind,
     /// Input unit index at which decoding failure occurred.
     index: usize,
-    /// Raw numeric value that caused the failure, if captured from input.
-    value: Option<u32>,
 }
 
 /// Result type returned by charset decoders.
@@ -57,125 +53,7 @@ impl CharsetDecodeError {
             charset,
             kind,
             index,
-            value: None,
         }
-    }
-
-    /// Creates a decoding error with an associated raw value.
-    ///
-    /// # Parameters
-    ///
-    /// - `charset`: The charset being decoded.
-    /// - `kind`: The failure category.
-    /// - `index`: The input unit index where the failure was detected.
-    /// - `value`: The raw value associated with the failure.
-    ///
-    /// # Returns
-    ///
-    /// Returns a decoding error carrying the supplied context and value.
-    #[inline]
-    pub const fn with_value(
-        charset: Charset,
-        kind: CharsetDecodeErrorKind,
-        index: usize,
-        value: u32,
-    ) -> Self {
-        Self {
-            charset,
-            kind,
-            index,
-            value: Some(value),
-        }
-    }
-
-    /// Creates a malformed-sequence decoding error.
-    ///
-    /// # Parameters
-    ///
-    /// - `charset`: The charset being decoded.
-    /// - `index`: The input unit index where the malformed sequence was detected.
-    ///
-    /// # Returns
-    ///
-    /// Returns a decoding error with [`CharsetDecodeErrorKind::MalformedSequence`].
-    #[inline]
-    pub const fn malformed_sequence(charset: Charset, index: usize) -> Self {
-        Self::new(
-            charset,
-            CharsetDecodeErrorKind::MalformedSequence { value: None },
-            index,
-        )
-    }
-
-    /// Creates a malformed-sequence decoding error with a captured offending value.
-    ///
-    /// # Parameters
-    ///
-    /// - `charset`: The charset being decoded.
-    /// - `index`: The input unit index where the malformed sequence was detected.
-    /// - `value`: Raw value read from the offending input location.
-    ///
-    /// # Returns
-    ///
-    /// Returns a decoding error with [`CharsetDecodeErrorKind::MalformedSequence`]
-    /// and an attached offending value.
-    #[inline]
-    pub const fn malformed_sequence_with_value(charset: Charset, index: usize, value: u32) -> Self {
-        Self::new(
-            charset,
-            CharsetDecodeErrorKind::MalformedSequence { value: Some(value) },
-            index,
-        )
-    }
-
-    /// Creates an incomplete-sequence decoding error.
-    ///
-    /// # Parameters
-    ///
-    /// - `charset`: The charset being decoded.
-    /// - `index`: The input unit index where more input was required.
-    /// - `required`: Total required input units.
-    /// - `available`: Available input units from the sequence start.
-    ///
-    /// # Returns
-    ///
-    /// Returns a decoding error with [`CharsetDecodeErrorKind::IncompleteSequence`].
-    #[inline]
-    pub const fn incomplete_sequence(
-        charset: Charset,
-        index: usize,
-        required: usize,
-        available: usize,
-    ) -> Self {
-        Self::new(
-            charset,
-            CharsetDecodeErrorKind::IncompleteSequence {
-                required,
-                available,
-            },
-            index,
-        )
-    }
-
-    /// Creates an invalid-code-point decoding error.
-    ///
-    /// # Parameters
-    ///
-    /// - `charset`: The charset being decoded.
-    /// - `index`: The input unit index associated with the invalid code point.
-    /// - `value`: The invalid raw code point value.
-    ///
-    /// # Returns
-    ///
-    /// Returns a decoding error with [`CharsetDecodeErrorKind::InvalidCodePoint`].
-    #[inline]
-    pub const fn invalid_code_point(charset: Charset, index: usize, value: u32) -> Self {
-        Self::with_value(
-            charset,
-            CharsetDecodeErrorKind::InvalidCodePoint { value },
-            index,
-            value,
-        )
     }
 
     /// Returns the charset being decoded.
@@ -234,11 +112,11 @@ impl CharsetDecodeError {
     ///
     /// # Returns
     ///
-    /// Returns `Some(value)` when the decoder captured a raw value that caused
-    /// the error, or `None` when the error is only tied to an input unit index.
+    /// Returns `Some(value)` when the error kind carries a raw unit or code
+    /// point value, or `None` for kinds without an associated value.
     #[inline]
     pub const fn value(self) -> Option<u32> {
-        self.value
+        self.kind.value()
     }
 
     /// Offsets this error by a base unit index.
@@ -256,7 +134,6 @@ impl CharsetDecodeError {
             charset: self.charset,
             kind: self.kind,
             index: self.index + base,
-            value: self.value,
         }
     }
 }
@@ -272,7 +149,7 @@ impl fmt::Display for CharsetDecodeError {
     ///
     /// Returns any formatting error reported by `formatter`.
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if let Some(value) = self.value {
+        if let Some(value) = self.kind.value() {
             write!(
                 formatter,
                 "{} decoding error at index {} for value 0x{:x}: {}",

@@ -8,14 +8,7 @@
  *
  ******************************************************************************/
 use super::inner::utf8;
-use crate::{
-    Charset,
-    CharsetCodec,
-    CharsetDecodeResult,
-    CharsetEncodeResult,
-    DecodeStatus,
-    Utf8,
-};
+use crate::{Charset, CharsetCodec, CharsetDecodeResult, CharsetEncodeResult, DecodeStatus, Utf8};
 
 /// UTF-8 byte-buffer charset codec.
 ///
@@ -107,7 +100,8 @@ impl CharsetCodec for Utf8Codec {
     ///
     /// # Errors
     ///
-    /// * `CharsetDecodeError::malformed_sequence` for invalid UTF-8 byte sequence.
+    /// * [`crate::CharsetDecodeErrorKind::MalformedSequence`] for invalid UTF-8
+    ///   byte sequence.
     fn decode_one(&self, input: &[u8], index: usize) -> CharsetDecodeResult<DecodeStatus> {
         utf8::decode_prefix(input, index)
     }

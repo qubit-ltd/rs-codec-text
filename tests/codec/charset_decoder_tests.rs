@@ -1,19 +1,7 @@
 use qubit_text_codec::{
-    Charset,
-    CharsetCodec,
-    CharsetDecodeError,
-    CharsetDecodeErrorKind,
-    CharsetDecodeResult,
-    CharsetDecoder,
-    CharsetEncodeError,
-    CharsetEncodeErrorKind,
-    CharsetEncodeResult,
-    Coder,
-    CoderStatus,
-    DecodeStatus,
-    MalformedAction,
-    Utf8Codec,
-    Utf32U32Codec,
+    Charset, CharsetCodec, CharsetDecodeError, CharsetDecodeErrorKind, CharsetDecodeResult,
+    CharsetDecoder, CharsetEncodeError, CharsetEncodeErrorKind, CharsetEncodeResult, Coder,
+    CoderStatus, DecodeStatus, MalformedAction, Utf32U32Codec, Utf8Codec,
 };
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -30,12 +18,11 @@ impl CharsetCodec for IncompleteErrorCodec {
     }
 
     fn decode_one(&self, _input: &[u8], index: usize) -> CharsetDecodeResult<DecodeStatus> {
-        Err(CharsetDecodeError::incomplete_sequence(
-            Charset::ASCII,
-            index,
-            index + 1,
-            0,
-        ))
+        let kind = CharsetDecodeErrorKind::IncompleteSequence {
+            required: index + 1,
+            available: 0,
+        };
+        Err(CharsetDecodeError::new(Charset::ASCII, kind, index))
     }
 
     fn encode_one(

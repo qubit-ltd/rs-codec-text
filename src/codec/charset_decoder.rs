@@ -7,18 +7,11 @@
  *    Licensed under the Apache License, Version 2.0.
  *
  ******************************************************************************/
-use crate::{
-    CharsetDecodeError,
-    CharsetDecodeErrorKind,
-};
+use crate::{CharsetDecodeError, CharsetDecodeErrorKind};
 
 use super::{
-    charset_codec::CharsetCodec,
-    coder::Coder,
-    coder_progress::CoderProgress,
-    coder_status::CoderStatus,
-    decode_status::DecodeStatus,
-    malformed_action::MalformedAction,
+    charset_codec::CharsetCodec, coder::Coder, coder_progress::CoderProgress,
+    coder_status::CoderStatus, decode_status::DecodeStatus, malformed_action::MalformedAction,
 };
 
 /// Converts units of one charset into Unicode scalar values.
@@ -174,8 +167,10 @@ where
         output_index: usize,
     ) -> Result<CoderProgress, Self::Error> {
         if input_index > input.len() {
-            return Err(CharsetDecodeError::malformed_sequence(
+            let kind = CharsetDecodeErrorKind::MalformedSequence { value: None };
+            return Err(CharsetDecodeError::new(
                 self.codec.charset(),
+                kind,
                 input_index,
             ));
         }

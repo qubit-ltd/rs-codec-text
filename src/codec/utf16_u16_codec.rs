@@ -8,14 +8,7 @@
  *
  ******************************************************************************/
 use super::inner::utf16;
-use crate::{
-    Charset,
-    CharsetCodec,
-    CharsetDecodeResult,
-    CharsetEncodeResult,
-    DecodeStatus,
-    Utf16,
-};
+use crate::{Charset, CharsetCodec, CharsetDecodeResult, CharsetEncodeResult, DecodeStatus, Utf16};
 
 /// Combined UTF-16 `u16` code-unit codec.
 ///
@@ -112,8 +105,10 @@ impl CharsetCodec for Utf16U16Codec {
     ///
     /// # Errors
     ///
-    /// * `CharsetDecodeError::malformed_sequence` for invalid surrogate combinations.
-    /// * `CharsetDecodeError::invalid_code_point` when resulting scalar is invalid.
+    /// * [`crate::CharsetDecodeErrorKind::MalformedSequence`] for invalid
+    ///   surrogate combinations.
+    /// * [`crate::CharsetDecodeErrorKind::InvalidCodePoint`] when resulting
+    ///   scalar is invalid.
     fn decode_one(&self, input: &[u16], index: usize) -> CharsetDecodeResult<DecodeStatus> {
         utf16::decode_units_prefix(input, index)
     }

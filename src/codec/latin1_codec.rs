@@ -8,15 +8,8 @@
  *
  ******************************************************************************/
 use crate::{
-    Charset,
-    CharsetCodec,
-    CharsetDecodeError,
-    CharsetDecodeResult,
-    CharsetEncodeError,
-    CharsetEncodeErrorKind,
-    CharsetEncodeResult,
-    DecodeStatus,
-    Unicode,
+    Charset, CharsetCodec, CharsetDecodeError, CharsetDecodeErrorKind, CharsetDecodeResult,
+    CharsetEncodeError, CharsetEncodeErrorKind, CharsetEncodeResult, DecodeStatus, Unicode,
 };
 
 /// Single-byte ISO-8859-1 codec for bytes.
@@ -84,15 +77,13 @@ impl CharsetCodec for Latin1Codec {
     ///
     /// # Errors
     ///
-    /// Returns [`CharsetDecodeError::malformed_sequence`] when `index` is out of
-    /// range.
+    /// Returns [`CharsetDecodeErrorKind::MalformedSequence`] when `index` is out
+    /// of range.
     #[inline]
     fn decode_one(&self, input: &[u8], index: usize) -> CharsetDecodeResult<DecodeStatus> {
         if index > input.len() {
-            return Err(CharsetDecodeError::malformed_sequence(
-                Charset::ISO_8859_1,
-                index,
-            ));
+            let kind = CharsetDecodeErrorKind::MalformedSequence { value: None };
+            return Err(CharsetDecodeError::new(Charset::ISO_8859_1, kind, index));
         }
 
         if index == input.len() {

@@ -8,16 +8,8 @@
  *
  ***************************************************************************/
 use crate::{
-    ByteOrder,
-    Charset,
-    CharsetDecodeError,
-    CharsetDecodeResult,
-    CharsetEncodeError,
-    CharsetEncodeErrorKind,
-    CharsetEncodeResult,
-    DecodeStatus,
-    Unicode,
-    Utf16,
+    ByteOrder, Charset, CharsetDecodeError, CharsetDecodeErrorKind, CharsetDecodeResult,
+    CharsetEncodeError, CharsetEncodeErrorKind, CharsetEncodeResult, DecodeStatus, Unicode, Utf16,
 };
 
 /// Decodes the first UTF-16 character from a `u16` prefix.
@@ -40,8 +32,8 @@ use crate::{
 ///
 /// # Errors
 ///
-/// * `CharsetDecodeError::malformed_sequence` for invalid UTF-16 sequences (invalid high/low
-///   surrogate pairing).
+/// * `CharsetDecodeErrorKind::MalformedSequence` for invalid UTF-16 sequences
+///   (invalid high/low surrogate pairing).
 /// # Panics
 ///
 /// This function does not panic for invalid UTF-16 input because malformed sequences are
@@ -51,10 +43,8 @@ pub(crate) fn decode_units_prefix(
     index: usize,
 ) -> CharsetDecodeResult<DecodeStatus> {
     if index > input.len() {
-        return Err(CharsetDecodeError::malformed_sequence(
-            Charset::UTF_16,
-            index,
-        ));
+        let kind = CharsetDecodeErrorKind::MalformedSequence { value: None };
+        return Err(CharsetDecodeError::new(Charset::UTF_16, kind, index));
     }
     if index == input.len() {
         return Ok(DecodeStatus::NeedMore {
@@ -76,18 +66,18 @@ pub(crate) fn decode_units_prefix(
                 value: ch,
                 consumed: 2,
             }),
-            None => Err(CharsetDecodeError::malformed_sequence_with_value(
-                Charset::UTF_16,
-                index + 1,
-                second as u32,
-            )),
+            None => {
+                let kind = CharsetDecodeErrorKind::MalformedSequence {
+                    value: Some(second as u32),
+                };
+                Err(CharsetDecodeError::new(Charset::UTF_16, kind, index + 1))
+            }
         }
     } else if Utf16::is_low_surrogate(first) {
-        Err(CharsetDecodeError::malformed_sequence_with_value(
-            Charset::UTF_16,
-            index,
-            first as u32,
-        ))
+        let kind = CharsetDecodeErrorKind::MalformedSequence {
+            value: Some(first as u32),
+        };
+        Err(CharsetDecodeError::new(Charset::UTF_16, kind, index))
     } else {
         let ch = char::from_u32(first as u32).expect("non-surrogate UTF-16 unit is a scalar value");
         Ok(DecodeStatus::Complete {
@@ -169,8 +159,8 @@ pub(crate) fn encode_units_char(
 ///
 /// # Errors
 ///
-/// * `CharsetDecodeError::malformed_sequence` for invalid UTF-16 byte sequences or
-///   malformed surrogate usage.
+/// * `CharsetDecodeErrorKind::MalformedSequence` for invalid UTF-16 byte
+///   sequences or malformed surrogate usage.
 pub(crate) fn decode_bytes_prefix(
     input: &[u8],
     index: usize,
@@ -178,7 +168,8 @@ pub(crate) fn decode_bytes_prefix(
 ) -> CharsetDecodeResult<DecodeStatus> {
     let charset = Charset::from_utf16_byte_order(byte_order);
     if index > input.len() {
-        return Err(CharsetDecodeError::malformed_sequence(charset, index));
+        let kind = CharsetDecodeErrorKind::MalformedSequence { value: None };
+        return Err(CharsetDecodeError::new(charset, kind, index));
     }
     if index + 2 > input.len() {
         return Ok(DecodeStatus::NeedMore {
@@ -200,18 +191,18 @@ pub(crate) fn decode_bytes_prefix(
                 value: ch,
                 consumed: 4,
             }),
-            None => Err(CharsetDecodeError::malformed_sequence_with_value(
-                charset,
-                index + 2,
-                second as u32,
-            )),
+            None => {
+                let kind = CharsetDecodeErrorKind::MalformedSequence {
+                    value: Some(second as u32),
+                };
+                Err(CharsetDecodeError::new(charset, kind, index + 2))
+            }
         }
     } else if Utf16::is_low_surrogate(first) {
-        Err(CharsetDecodeError::malformed_sequence_with_value(
-            charset,
-            index,
-            first as u32,
-        ))
+        let kind = CharsetDecodeErrorKind::MalformedSequence {
+            value: Some(first as u32),
+        };
+        Err(CharsetDecodeError::new(charset, kind, index))
     } else {
         let ch = char::from_u32(first as u32).expect("non-surrogate UTF-16 unit is a scalar value");
         Ok(DecodeStatus::Complete {
