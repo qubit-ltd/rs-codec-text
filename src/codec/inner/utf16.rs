@@ -171,21 +171,24 @@ pub(crate) fn decode_bytes_prefix(
     if index > input.len() {
         return Err(CharsetDecodeError::malformed_sequence(charset, index));
     }
-    if index + 2 > input.len() {
+    let available = input.len() - index;
+    if available < 2 {
         return Ok(DecodeStatus::NeedMore {
-            required: index + 2,
-            available: input.len() - index,
+            required: index.saturating_add(2),
+            available,
         });
     }
-    let first = byte_order.read_u16(&input[index..]);
+    // SAFETY: The length check above guarantees that `index..index + 2` is in bounds.
+    let first = unsafe { byte_order.read_u16_at_unchecked(input, index) };
     if Utf16::is_high_surrogate(first) {
-        if index + 4 > input.len() {
+        if available < 4 {
             return Ok(DecodeStatus::NeedMore {
-                required: index + 4,
-                available: input.len() - index,
+                required: index.saturating_add(4),
+                available,
             });
         }
-        let second = byte_order.read_u16(&input[index + 2..]);
+        // SAFETY: The `available < 4` check above guarantees this two-byte range is in bounds.
+        let second = unsafe { byte_order.read_u16_at_unchecked(input, index + 2) };
         match Utf16::compose_pair(first, second).and_then(Unicode::to_char) {
             Some(ch) => Ok(DecodeStatus::Complete {
                 value: ch,
@@ -241,9 +244,9 @@ pub(crate) fn encode_bytes_char(
     let mut units = [0_u16; Utf16::MAX_UNITS_PER_CHAR];
     let unit_count = encode_units_char(ch, &mut units, 0)?;
     for (unit_index, unit) in units.iter().take(unit_count).enumerate() {
-        let bytes = byte_order.u16_bytes(*unit);
         let offset = index + unit_index * 2;
-        output[offset..offset + 2].copy_from_slice(&bytes);
+        // SAFETY: The capacity check above guarantees every two-byte unit write is in bounds.
+        unsafe { byte_order.write_u16_at_unchecked(output, offset, *unit) };
     }
     Ok(required)
 }

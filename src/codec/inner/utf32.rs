@@ -122,13 +122,15 @@ pub(crate) fn decode_bytes_prefix(
     if index > input.len() {
         return Err(CharsetDecodeError::malformed_sequence(charset, index));
     }
-    if index + 4 > input.len() {
+    let available = input.len() - index;
+    if available < 4 {
         return Ok(DecodeStatus::NeedMore {
-            required: index + 4,
-            available: input.len() - index,
+            required: index.saturating_add(4),
+            available,
         });
     }
-    let unit = byte_order.read_u32(&input[index..]);
+    // SAFETY: The length check above guarantees that `index..index + 4` is in bounds.
+    let unit = unsafe { byte_order.read_u32_at_unchecked(input, index) };
     match Unicode::to_char(unit) {
         Some(ch) => Ok(DecodeStatus::Complete {
             value: ch,
@@ -167,6 +169,7 @@ pub(crate) fn encode_bytes_char(
     if output.len() - index < 4 {
         return Err(CharsetEncodeError::buffer_too_small(charset, output.len()));
     }
-    output[index..index + 4].copy_from_slice(&byte_order.u32_bytes(ch as u32));
+    // SAFETY: The capacity check above guarantees that `index..index + 4` is in bounds.
+    unsafe { byte_order.write_u32_at_unchecked(output, index, ch as u32) };
     Ok(4)
 }
