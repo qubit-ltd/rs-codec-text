@@ -16,6 +16,7 @@ use super::{
     charset_codec::CharsetCodec,
     coder::Coder,
     coder_progress::CoderProgress,
+    coder_status::CoderStatus,
     decode_status::DecodeStatus,
     malformed_action::MalformedAction,
 };
@@ -179,19 +180,27 @@ where
             ));
         }
         if output_index > output.len() {
-            return Ok(CoderProgress::need_output(0, 0, output_index, 1, 0));
+            let status = CoderStatus::NeedOutput {
+                output_index,
+                required: 1,
+                available: 0,
+            };
+            return Ok(CoderProgress::new(status, 0, 0));
         }
 
         let mut input_cursor = input_index;
         let mut output_cursor = output_index;
         while input_cursor < input.len() {
             if output_cursor == output.len() {
-                return Ok(CoderProgress::need_output(
+                let status = CoderStatus::NeedOutput {
+                    output_index: output_cursor,
+                    required: 1,
+                    available: 0,
+                };
+                return Ok(CoderProgress::new(
+                    status,
                     input_cursor - input_index,
                     output_cursor - output_index,
-                    output_cursor,
-                    1,
-                    0,
                 ));
             }
             match self.codec.decode_one(input, input_cursor) {
@@ -205,12 +214,15 @@ where
                     available,
                 }) => {
                     let needed = required.saturating_sub(input_cursor);
-                    return Ok(CoderProgress::need_input(
+                    let status = CoderStatus::NeedInput {
+                        input_index: input_cursor,
+                        required: needed,
+                        available,
+                    };
+                    return Ok(CoderProgress::new(
+                        status,
                         input_cursor - input_index,
                         output_cursor - output_index,
-                        input_cursor,
-                        needed,
-                        available,
                     ));
                 }
                 Err(error)

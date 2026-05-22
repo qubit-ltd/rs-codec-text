@@ -31,13 +31,12 @@ impl Coder<u8, u8> for CopyCoder {
         if input_index + read == input.len() {
             Ok(CoderProgress::complete(read, written))
         } else {
-            Ok(CoderProgress::need_output(
-                read,
-                written,
-                output_index + written,
-                1,
-                output.len().saturating_sub(output_index + written),
-            ))
+            let status = CoderStatus::NeedOutput {
+                output_index: output_index + written,
+                required: 1,
+                available: output.len().saturating_sub(output_index + written),
+            };
+            Ok(CoderProgress::new(status, read, written))
         }
     }
 }

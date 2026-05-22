@@ -62,12 +62,15 @@ use super::coder_progress::CoderProgress;
 ///         if input_index + read == input.len() {
 ///             Ok(CoderProgress::complete(read, written))
 ///         } else {
-///             Ok(CoderProgress::need_output(
+///             let status = CoderStatus::NeedOutput {
+///                 output_index: output_index + written,
+///                 required: 1,
+///                 available: output.len().saturating_sub(output_index + written),
+///             };
+///             Ok(CoderProgress::new(
+///                 status,
 ///                 read,
 ///                 written,
-///                 output_index + written,
-///                 1,
-///                 output.len().saturating_sub(output_index + written),
 ///             ))
 ///         }
 ///     }
@@ -124,12 +127,15 @@ use super::coder_progress::CoderProgress;
 ///         if input_index + read == input.len() {
 ///             Ok(CoderProgress::complete(read, written))
 ///         } else {
-///             Ok(CoderProgress::need_output(
+///             let status = CoderStatus::NeedOutput {
+///                 output_index: output_index + written,
+///                 required: 1,
+///                 available: output.len().saturating_sub(output_index + written),
+///             };
+///             Ok(CoderProgress::new(
+///                 status,
 ///                 read,
 ///                 written,
-///                 output_index + written,
-///                 1,
-///                 output.len().saturating_sub(output_index + written),
 ///             ))
 ///         }
 ///     }
@@ -254,17 +260,20 @@ pub trait Coder<Input, Output> {
     ///             read += 1;
     ///             written += 1;
     ///         }
-    ///         if input_index + read == input.len() {
-    ///             Ok(qubit_text_codec::CoderProgress::complete(read, written))
-    ///         } else {
-    ///             Ok(qubit_text_codec::CoderProgress::need_output(
-    ///                 read,
-    ///                 written,
-    ///                 output_index + written,
-    ///                 1,
-    ///                 output.len().saturating_sub(output_index + written),
-    ///             ))
-    ///         }
+///         if input_index + read == input.len() {
+///             Ok(qubit_text_codec::CoderProgress::complete(read, written))
+///         } else {
+///             let status = qubit_text_codec::CoderStatus::NeedOutput {
+///                 output_index: output_index + written,
+///                 required: 1,
+///                 available: output.len().saturating_sub(output_index + written),
+///             };
+///             Ok(qubit_text_codec::CoderProgress::new(
+///                 status,
+///                 read,
+///                 written,
+///             ))
+///         }
     ///     }
     /// }
     ///

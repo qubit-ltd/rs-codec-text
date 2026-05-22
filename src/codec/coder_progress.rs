@@ -58,68 +58,6 @@ impl CoderProgress {
         Self::new(CoderStatus::Complete, read, written)
     }
 
-    /// Creates a need-input progress value.
-    ///
-    /// # Parameters
-    ///
-    /// - `read`: Number of consumed input units.
-    /// - `written`: Number of produced output units.
-    /// - `index`: Absolute input index where input ended while decoding.
-    ///
-    /// # Returns
-    ///
-    /// Returns a progress value whose status is [`CoderStatus::NeedInput`].
-    #[must_use]
-    #[inline]
-    pub const fn need_input(
-        read: usize,
-        written: usize,
-        index: usize,
-        required: usize,
-        available: usize,
-    ) -> Self {
-        Self::new(
-            CoderStatus::NeedInput {
-                input_index: index,
-                required,
-                available,
-            },
-            read,
-            written,
-        )
-    }
-
-    /// Creates a need-output progress value.
-    ///
-    /// # Parameters
-    ///
-    /// - `read`: Number of consumed input units.
-    /// - `written`: Number of produced output units.
-    /// - `index`: Absolute output index where output ended while decoding.
-    ///
-    /// # Returns
-    ///
-    /// Returns a progress value whose status is [`CoderStatus::NeedOutput`].
-    #[must_use]
-    #[inline]
-    pub const fn need_output(
-        read: usize,
-        written: usize,
-        index: usize,
-        required: usize,
-        available: usize,
-    ) -> Self {
-        Self::new(
-            CoderStatus::NeedOutput {
-                output_index: index,
-                required,
-                available,
-            },
-            read,
-            written,
-        )
-    }
-
     /// Returns the status that stopped conversion.
     ///
     /// # Returns

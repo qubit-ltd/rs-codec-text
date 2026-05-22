@@ -17,6 +17,7 @@ use super::{
     charset_codec::CharsetCodec,
     coder::Coder,
     coder_progress::CoderProgress,
+    coder_status::CoderStatus,
     unmappable_action::UnmappableAction,
 };
 
@@ -253,7 +254,12 @@ where
             ));
         }
         if output_index > output.len() {
-            return Ok(CoderProgress::need_output(0, 0, output_index, 1, 0));
+            let status = CoderStatus::NeedOutput {
+                output_index,
+                required: 1,
+                available: 0,
+            };
+            return Ok(CoderProgress::new(status, 0, 0));
         }
 
         let mut input_cursor = input_index;
@@ -273,12 +279,15 @@ where
                         .unwrap_or(output_cursor + 1)
                         .saturating_sub(output_cursor);
                     let available = error.available().unwrap_or(0);
-                    return Ok(CoderProgress::need_output(
-                        input_cursor - input_index,
-                        output_cursor - output_index,
-                        output_cursor,
+                    let status = CoderStatus::NeedOutput {
+                        output_index: output_cursor,
                         required,
                         available,
+                    };
+                    return Ok(CoderProgress::new(
+                        status,
+                        input_cursor - input_index,
+                        output_cursor - output_index,
                     ));
                 }
                 Err(error)
@@ -316,12 +325,15 @@ where
                                         .unwrap_or(output_cursor + 1)
                                         .saturating_sub(output_cursor);
                                     let available = error.available().unwrap_or(0);
-                                    return Ok(CoderProgress::need_output(
-                                        input_cursor - input_index,
-                                        output_cursor - output_index,
-                                        output_cursor,
+                                    let status = CoderStatus::NeedOutput {
+                                        output_index: output_cursor,
                                         required,
                                         available,
+                                    };
+                                    return Ok(CoderProgress::new(
+                                        status,
+                                        input_cursor - input_index,
+                                        output_cursor - output_index,
                                     ));
                                 }
                                 Err(error) => return Err(error),

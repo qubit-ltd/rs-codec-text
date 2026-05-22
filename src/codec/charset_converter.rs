@@ -180,13 +180,12 @@ where
         if let Some(ch) = self.pending {
             let status = self.write_pending(ch, output, output_index, &mut written)?;
             if matches!(status.status(), CoderStatus::NeedOutput { .. }) {
-                return Ok(CoderProgress::need_output(
-                    read,
-                    written,
-                    output_index + written,
-                    status.required(),
-                    status.available(),
-                ));
+                let status = CoderStatus::NeedOutput {
+                    output_index: output_index + written,
+                    required: status.required(),
+                    available: status.available(),
+                };
+                return Ok(CoderProgress::new(status, read, written));
             }
         }
 
@@ -204,13 +203,12 @@ where
                     self.pending = Some(ch);
                     let status = self.write_pending(ch, output, output_index, &mut written)?;
                     if matches!(status.status(), CoderStatus::NeedOutput { .. }) {
-                        return Ok(CoderProgress::need_output(
-                            read,
-                            written,
-                            output_index + written,
-                            status.required(),
-                            status.available(),
-                        ));
+                        let status = CoderStatus::NeedOutput {
+                            output_index: output_index + written,
+                            required: status.required(),
+                            available: status.available(),
+                        };
+                        return Ok(CoderProgress::new(status, read, written));
                     }
                 }
             }
@@ -221,13 +219,12 @@ where
                 }
                 CoderStatus::Complete => {}
                 CoderStatus::NeedInput { .. } => {
-                    return Ok(CoderProgress::need_input(
-                        read,
-                        written,
-                        input_index + read,
-                        decode_progress.required(),
-                        decode_progress.available(),
-                    ));
+                    let status = CoderStatus::NeedInput {
+                        input_index: input_index + read,
+                        required: decode_progress.required(),
+                        available: decode_progress.available(),
+                    };
+                    return Ok(CoderProgress::new(status, read, written));
                 }
                 CoderStatus::NeedOutput { .. } => {
                     debug_assert!(
@@ -268,13 +265,12 @@ where
             let mut written = 0;
             let status = self.write_pending(ch, output, output_index, &mut written)?;
             if matches!(status.status(), CoderStatus::NeedOutput { .. }) {
-                return Ok(CoderProgress::need_output(
-                    0,
-                    written,
-                    output_index + written,
-                    status.required(),
-                    status.available(),
-                ));
+                let status = CoderStatus::NeedOutput {
+                    output_index: output_index + written,
+                    required: status.required(),
+                    available: status.available(),
+                };
+                return Ok(CoderProgress::new(status, 0, written));
             }
             return Ok(CoderProgress::complete(0, written));
         }
