@@ -11,10 +11,7 @@ use qubit_text_codec::{
 fn test_ascii_codec_exposes_identity_and_limits() {
     let codec = AsciiCodec;
 
-    assert_eq!(
-        Charset::ASCII,
-        <AsciiCodec as CharsetCodec>::charset(&codec)
-    );
+    assert_eq!(Charset::ASCII, <AsciiCodec as CharsetCodec>::charset(&codec));
     assert_eq!(1, <AsciiCodec as CharsetCodec>::max_units_per_char(&codec));
     assert_eq!(
         DecodeStatus::NeedMore {
@@ -25,8 +22,7 @@ fn test_ascii_codec_exposes_identity_and_limits() {
     );
     assert_eq!(
         1,
-        <AsciiCodec as CharsetCodec>::encode_one(&codec, 'A', &mut [0_u8; 1], 0)
-            .expect("encode ascii"),
+        <AsciiCodec as CharsetCodec>::encode_one(&codec, 'A', &mut [0_u8; 1], 0).expect("encode ascii"),
     );
 
     assert_eq!(Charset::ASCII, codec.charset());
@@ -58,14 +54,10 @@ fn test_ascii_codec_decodes_ascii_bytes_and_reports_need_more_and_malformed() {
             required: 2,
             available: 0,
         },
-        codec
-            .decode_one(&[0x41], 1)
-            .expect("need more at exact boundary"),
+        codec.decode_one(&[0x41], 1).expect("need more at exact boundary"),
     );
 
-    let error = codec
-        .decode_one(&[0x80], 0)
-        .expect_err("non-ASCII byte is malformed");
+    let error = codec.decode_one(&[0x80], 0).expect_err("non-ASCII byte is malformed");
     assert_eq!(
         CharsetDecodeErrorKind::MalformedSequence { value: Some(128) },
         error.kind()
@@ -75,10 +67,7 @@ fn test_ascii_codec_decodes_ascii_bytes_and_reports_need_more_and_malformed() {
     let error = codec
         .decode_one(&[0x41], 2)
         .expect_err("index out of range is malformed");
-    assert_eq!(
-        CharsetDecodeErrorKind::MalformedSequence { value: None },
-        error.kind()
-    );
+    assert_eq!(CharsetDecodeErrorKind::MalformedSequence { value: None }, error.kind());
     assert_eq!(2, error.index());
 }
 
@@ -87,10 +76,7 @@ fn test_ascii_codec_encodes_ascii_and_reports_limits_and_unmappable_chars() {
     let codec = AsciiCodec;
     let mut output = [0_u8; 2];
 
-    assert_eq!(
-        1,
-        codec.encode_one('A', &mut output, 0).expect("encode ASCII")
-    );
+    assert_eq!(1, codec.encode_one('A', &mut output, 0).expect("encode ASCII"));
     assert_eq!(b'A', output[0]);
 
     let error = codec

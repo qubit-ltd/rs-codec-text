@@ -25,14 +25,8 @@ fn test_prelude_reexports_common_types() {
     assert_eq!(2, Utf16::unit_len('😀'));
     assert!(Utf32::is_valid_unit('中' as u32));
     assert!(Unicode::is_scalar_value('中' as u32));
-    assert_eq!(
-        Some(ByteOrder::LittleEndian),
-        Utf16::detect_bom(&[0xff, 0xfe])
-    );
-    assert_eq!(
-        Some(UnicodeBom::Utf8),
-        UnicodeBom::detect(&[0xef, 0xbb, 0xbf])
-    );
+    assert_eq!(Some(ByteOrder::LittleEndian), Utf16::detect_bom(&[0xff, 0xfe]));
+    assert_eq!(Some(UnicodeBom::Utf8), UnicodeBom::detect(&[0xef, 0xbb, 0xbf]));
 
     let utf8 = Utf8Codec;
     assert_eq!(Charset::UTF_8, utf8.charset());
@@ -53,9 +47,7 @@ fn test_prelude_reexports_common_types() {
     let utf32 = Utf32ByteCodec::new(ByteOrder::LittleEndian);
     let mut encoder = CharsetEncoder::new(utf32);
     let mut output = [0_u8; 4];
-    let progress = encoder
-        .convert(&['A'], 0, &mut output, 0)
-        .expect("policy encoder");
+    let progress = encoder.convert(&['A'], 0, &mut output, 0).expect("policy encoder");
     assert_eq!(Charset::UTF_32LE, encoder.codec().charset());
     assert_eq!(CoderStatus::Complete, progress.status());
 }

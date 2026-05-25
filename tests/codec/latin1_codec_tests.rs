@@ -12,10 +12,7 @@ use qubit_text_codec::{
 fn test_latin1_codec_exposes_identity_and_limits() {
     let codec = Latin1Codec;
 
-    assert_eq!(
-        Charset::ISO_8859_1,
-        <Latin1Codec as CharsetCodec>::charset(&codec)
-    );
+    assert_eq!(Charset::ISO_8859_1, <Latin1Codec as CharsetCodec>::charset(&codec));
     assert_eq!(1, <Latin1Codec as CharsetCodec>::max_units_per_char(&codec));
     assert_eq!(
         DecodeStatus::NeedMore {
@@ -26,8 +23,7 @@ fn test_latin1_codec_exposes_identity_and_limits() {
     );
     assert_eq!(
         1,
-        <Latin1Codec as CharsetCodec>::encode_one(&codec, 'A', &mut [0_u8; 1], 0)
-            .expect("encode latin1"),
+        <Latin1Codec as CharsetCodec>::encode_one(&codec, 'A', &mut [0_u8; 1], 0).expect("encode latin1"),
     );
 
     assert_eq!(Charset::ISO_8859_1, codec.charset());
@@ -79,16 +75,11 @@ fn test_latin1_codec_reports_errors_for_invalid_indices_and_unmappable_character
     let error = codec
         .decode_one(&[0x41], 2)
         .expect_err("index out of range is malformed");
-    assert_eq!(
-        CharsetDecodeErrorKind::MalformedSequence { value: None },
-        error.kind()
-    );
+    assert_eq!(CharsetDecodeErrorKind::MalformedSequence { value: None }, error.kind());
 
     assert_eq!(
         1,
-        codec
-            .encode_one('\u{00ff}', &mut output, 0)
-            .expect("max valid latin1"),
+        codec.encode_one('\u{00ff}', &mut output, 0).expect("max valid latin1"),
     );
     assert_eq!(0xff, output[0]);
 
@@ -104,9 +95,6 @@ fn test_latin1_codec_reports_errors_for_invalid_indices_and_unmappable_character
     let error = codec
         .encode_one('\u{00a9}', &mut output, 1)
         .expect_err("output index out of range");
-    assert!(matches!(
-        error.kind(),
-        CharsetEncodeErrorKind::BufferTooSmall { .. },
-    ));
+    assert!(matches!(error.kind(), CharsetEncodeErrorKind::BufferTooSmall { .. },));
     assert_eq!(1, error.index());
 }

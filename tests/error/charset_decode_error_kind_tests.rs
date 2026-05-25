@@ -39,10 +39,7 @@ fn test_charset_decode_error_kind_displays_messages() {
     assert_eq!(None, invalid.required());
     assert_eq!(None, invalid.available());
 
-    assert_eq!(
-        None,
-        CharsetDecodeErrorKind::MalformedSequence { value: None }.value()
-    );
+    assert_eq!(None, CharsetDecodeErrorKind::MalformedSequence { value: None }.value());
     assert_eq!(
         Some(0x41),
         CharsetDecodeErrorKind::MalformedSequence { value: Some(0x41) }.value()

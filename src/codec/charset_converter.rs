@@ -173,9 +173,7 @@ where
         written: &mut usize,
     ) -> Result<CoderProgress, CharsetConvertError> {
         let single = [ch];
-        let encode_progress = self
-            .encoder
-            .convert(&single, 0, output, output_index + *written)?;
+        let encode_progress = self.encoder.convert(&single, 0, output, output_index + *written)?;
         if encode_progress.status() == CoderStatus::Complete && encode_progress.read() == 1 {
             self.pending = None;
         }
@@ -230,9 +228,7 @@ where
 
         while input_index + read < input.len() {
             let mut decoded = ['\0'; 4];
-            let decode_progress =
-                self.decoder
-                    .convert(input, input_index + read, &mut decoded, 0)?;
+            let decode_progress = self.decoder.convert(input, input_index + read, &mut decoded, 0)?;
             let decode_status = decode_progress.status();
             let decode_read = decode_progress.read();
             read += decode_read;
@@ -295,11 +291,7 @@ where
     /// Returns `CharsetConvertError::Encode` when encoding the pending
     /// character violates target charset policy.
     #[inline]
-    fn finish(
-        &mut self,
-        output: &mut [E::Unit],
-        output_index: usize,
-    ) -> Result<CoderProgress, Self::Error> {
+    fn finish(&mut self, output: &mut [E::Unit], output_index: usize) -> Result<CoderProgress, Self::Error> {
         if let Some(ch) = self.pending {
             let mut written = 0;
             let status = self.write_pending(ch, output, output_index, &mut written)?;

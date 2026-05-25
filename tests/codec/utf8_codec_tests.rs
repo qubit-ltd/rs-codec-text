@@ -26,8 +26,7 @@ fn test_utf8_codec_exposes_encoder_and_decoder_contracts() {
     );
     assert_eq!(
         1,
-        <Utf8Codec as CharsetCodec>::encode_one(&codec, 'A', &mut [0_u8; 4], 0)
-            .expect("encode ascii as utf8"),
+        <Utf8Codec as CharsetCodec>::encode_one(&codec, 'A', &mut [0_u8; 4], 0).expect("encode ascii as utf8"),
     );
 
     assert_eq!(Charset::UTF_8, codec.charset());
@@ -84,18 +83,14 @@ fn test_utf8_codec_decodes_all_lengths_and_partial_prefixes() {
             required: 3,
             available: 1,
         },
-        codec
-            .decode_one(&[0xe4], 0)
-            .expect("partial three-byte prefix"),
+        codec.decode_one(&[0xe4], 0).expect("partial three-byte prefix"),
     );
     assert_eq!(
         DecodeStatus::NeedMore {
             required: 4,
             available: 2,
         },
-        codec
-            .decode_one(&[0xf0, 0x90], 0)
-            .expect("partial four-byte prefix"),
+        codec.decode_one(&[0xf0, 0x90], 0).expect("partial four-byte prefix"),
     );
 }
 
@@ -119,23 +114,15 @@ fn test_utf8_codec_reports_malformed_sequences() {
     ];
 
     for (input, index, value) in cases {
-        let error = codec
-            .decode_one(input, 0)
-            .expect_err("malformed UTF-8 should fail");
-        assert_eq!(
-            CharsetDecodeErrorKind::MalformedSequence { value },
-            error.kind()
-        );
+        let error = codec.decode_one(input, 0).expect_err("malformed UTF-8 should fail");
+        assert_eq!(CharsetDecodeErrorKind::MalformedSequence { value }, error.kind());
         assert_eq!(index, error.index());
     }
 
     let error = codec
         .decode_one(b"", 1)
         .expect_err("input index outside slice should fail");
-    assert_eq!(
-        CharsetDecodeErrorKind::MalformedSequence { value: None },
-        error.kind()
-    );
+    assert_eq!(CharsetDecodeErrorKind::MalformedSequence { value: None }, error.kind());
     assert_eq!(1, error.index());
 }
 
@@ -146,30 +133,18 @@ fn test_utf8_codec_encodes_all_lengths_and_reports_small_buffers() {
 
     assert_eq!(1, codec.encode_one('A', &mut output, 0).expect("ASCII"));
     assert_eq!(2, codec.encode_one('é', &mut output, 0).expect("two bytes"));
-    assert_eq!(
-        3,
-        codec.encode_one('中', &mut output, 0).expect("three bytes")
-    );
-    assert_eq!(
-        4,
-        codec.encode_one('😀', &mut output, 0).expect("four bytes")
-    );
+    assert_eq!(3, codec.encode_one('中', &mut output, 0).expect("three bytes"));
+    assert_eq!(4, codec.encode_one('😀', &mut output, 0).expect("four bytes"));
 
     let error = codec
         .encode_one('A', &mut output[..0], 1)
         .expect_err("output index outside slice should fail");
-    assert!(matches!(
-        error.kind(),
-        CharsetEncodeErrorKind::BufferTooSmall { .. },
-    ));
+    assert!(matches!(error.kind(), CharsetEncodeErrorKind::BufferTooSmall { .. },));
     assert_eq!(1, error.index());
 
     let error = codec
         .encode_one('中', &mut output[..2], 0)
         .expect_err("short output should fail");
-    assert!(matches!(
-        error.kind(),
-        CharsetEncodeErrorKind::BufferTooSmall { .. },
-    ));
+    assert!(matches!(error.kind(), CharsetEncodeErrorKind::BufferTooSmall { .. },));
     assert_eq!(0, error.index());
 }

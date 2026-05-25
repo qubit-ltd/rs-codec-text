@@ -19,10 +19,7 @@ fn test_utf16_classifies_units_and_surrogate_pairs() {
     assert_eq!(Some(1), Utf16::unit_len_code_point('中' as u32));
     assert_eq!(Some(2), Utf16::unit_len_code_point(0x1f600));
     assert_eq!(None, Utf16::unit_len_code_point(0xd800));
-    assert_eq!(
-        Some(ByteOrder::LittleEndian),
-        Utf16::detect_bom(&[0xff, 0xfe])
-    );
+    assert_eq!(Some(ByteOrder::LittleEndian), Utf16::detect_bom(&[0xff, 0xfe]));
     assert_eq!(None, Utf16::compose_pair(0xde00, 0xd83d));
     assert_eq!(None, Utf16::high_surrogate('A' as u32));
     assert_eq!(None, Utf16::low_surrogate('A' as u32));

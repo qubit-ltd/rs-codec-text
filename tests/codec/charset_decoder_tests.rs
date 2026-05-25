@@ -37,12 +37,7 @@ impl CharsetCodec for IncompleteErrorCodec {
         Err(CharsetDecodeError::new(Charset::ASCII, kind, index))
     }
 
-    fn encode_one(
-        &self,
-        _ch: char,
-        _output: &mut [u8],
-        index: usize,
-    ) -> CharsetEncodeResult<usize> {
+    fn encode_one(&self, _ch: char, _output: &mut [u8], index: usize) -> CharsetEncodeResult<usize> {
         let kind = CharsetEncodeErrorKind::BufferTooSmall {
             required: index + 1,
             available: 0,
@@ -118,10 +113,7 @@ fn test_charset_decoder_reports_invalid_indices_capacity_and_need_input() {
     let error = decoder
         .convert(input, input.len() + 1, &mut output, 0)
         .expect_err("input index outside input slice");
-    assert_eq!(
-        CharsetDecodeErrorKind::MalformedSequence { value: None },
-        error.kind()
-    );
+    assert_eq!(CharsetDecodeErrorKind::MalformedSequence { value: None }, error.kind());
     assert_eq!(input.len() + 1, error.index());
 
     let beyond_output = output.len() + 1;

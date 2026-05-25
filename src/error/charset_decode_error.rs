@@ -52,11 +52,7 @@ impl CharsetDecodeError {
     /// Returns a decoding error carrying the supplied context.
     #[inline]
     pub const fn new(charset: Charset, kind: CharsetDecodeErrorKind, index: usize) -> Self {
-        Self {
-            charset,
-            kind,
-            index,
-        }
+        Self { charset, kind, index }
     }
 
     /// Returns the charset being decoded.

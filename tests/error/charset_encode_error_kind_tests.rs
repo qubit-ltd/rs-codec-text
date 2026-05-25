@@ -41,10 +41,7 @@ fn test_charset_encode_error_kind_displays_messages() {
         None,
         CharsetEncodeErrorKind::InvalidInputIndex { input_len: 0 }.available()
     );
-    assert_eq!(
-        None,
-        CharsetEncodeErrorKind::InvalidInputIndex { input_len: 0 }.value()
-    );
+    assert_eq!(None, CharsetEncodeErrorKind::InvalidInputIndex { input_len: 0 }.value());
 
     let buffer = CharsetEncodeErrorKind::BufferTooSmall {
         required: 4,

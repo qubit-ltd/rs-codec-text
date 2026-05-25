@@ -8,8 +8,10 @@
  *
  ***************************************************************************/
 use qubit_io::{
+    BigEndian,
     BinaryCodec,
     ByteOrder,
+    LittleEndian,
 };
 
 use crate::{
@@ -51,10 +53,7 @@ use crate::{
 ///
 /// This function does not panic for invalid UTF-16 input because malformed sequences are
 /// surfaced as `CharsetDecodeError`. It assumes `index <= input.len()`.
-pub(crate) fn decode_units_prefix(
-    input: &[u16],
-    index: usize,
-) -> CharsetDecodeResult<DecodeStatus> {
+pub(crate) fn decode_units_prefix(input: &[u16], index: usize) -> CharsetDecodeResult<DecodeStatus> {
     if index > input.len() {
         let kind = CharsetDecodeErrorKind::MalformedSequence { value: None };
         return Err(CharsetDecodeError::new(Charset::UTF_16, kind, index));
@@ -75,10 +74,7 @@ pub(crate) fn decode_units_prefix(
         }
         let second = input[index + 1];
         match Utf16::compose_pair(first, second).and_then(Unicode::to_char) {
-            Some(ch) => Ok(DecodeStatus::Complete {
-                value: ch,
-                consumed: 2,
-            }),
+            Some(ch) => Ok(DecodeStatus::Complete { value: ch, consumed: 2 }),
             None => {
                 let kind = CharsetDecodeErrorKind::MalformedSequence {
                     value: Some(second as u32),
@@ -93,10 +89,7 @@ pub(crate) fn decode_units_prefix(
         Err(CharsetDecodeError::new(Charset::UTF_16, kind, index))
     } else {
         let ch = char::from_u32(first as u32).expect("non-surrogate UTF-16 unit is a scalar value");
-        Ok(DecodeStatus::Complete {
-            value: ch,
-            consumed: 1,
-        })
+        Ok(DecodeStatus::Complete { value: ch, consumed: 1 })
     }
 }
 
@@ -119,11 +112,7 @@ pub(crate) fn decode_units_prefix(
 ///
 /// * `CharsetEncodeErrorKind::BufferTooSmall` when insufficient room exists
 ///   from `index`.
-pub(crate) fn encode_units_char(
-    ch: char,
-    output: &mut [u16],
-    index: usize,
-) -> CharsetEncodeResult<usize> {
+pub(crate) fn encode_units_char(ch: char, output: &mut [u16], index: usize) -> CharsetEncodeResult<usize> {
     if index > output.len() {
         let kind = CharsetEncodeErrorKind::BufferTooSmall {
             required: index + 1,
@@ -144,10 +133,8 @@ pub(crate) fn encode_units_char(
     if length == 1 {
         output[index] = code_point as u16;
     } else {
-        output[index] =
-            Utf16::high_surrogate(code_point).expect("supplementary scalar has high surrogate");
-        output[index + 1] =
-            Utf16::low_surrogate(code_point).expect("supplementary scalar has low surrogate");
+        output[index] = Utf16::high_surrogate(code_point).expect("supplementary scalar has high surrogate");
+        output[index + 1] = Utf16::low_surrogate(code_point).expect("supplementary scalar has low surrogate");
     }
     Ok(length)
 }
@@ -191,9 +178,11 @@ pub(crate) fn decode_bytes_prefix(
             available,
         });
     }
-    let binary_codec = BinaryCodec::new(byte_order);
     // SAFETY: The length check above guarantees that `index..index + 2` is in bounds.
-    let first = unsafe { binary_codec.read_u16_at_unchecked(input, index) };
+    let first = match byte_order {
+        ByteOrder::BigEndian => unsafe { BinaryCodec::<u16, BigEndian>::read_unchecked(input, index) },
+        ByteOrder::LittleEndian => unsafe { BinaryCodec::<u16, LittleEndian>::read_unchecked(input, index) },
+    };
     if Utf16::is_high_surrogate(first) {
         if available < 4 {
             return Ok(DecodeStatus::NeedMore {
@@ -202,12 +191,12 @@ pub(crate) fn decode_bytes_prefix(
             });
         }
         // SAFETY: The `available < 4` check above guarantees this two-byte range is in bounds.
-        let second = unsafe { binary_codec.read_u16_at_unchecked(input, index + 2) };
+        let second = match byte_order {
+            ByteOrder::BigEndian => unsafe { BinaryCodec::<u16, BigEndian>::read_unchecked(input, index + 2) },
+            ByteOrder::LittleEndian => unsafe { BinaryCodec::<u16, LittleEndian>::read_unchecked(input, index + 2) },
+        };
         match Utf16::compose_pair(first, second).and_then(Unicode::to_char) {
-            Some(ch) => Ok(DecodeStatus::Complete {
-                value: ch,
-                consumed: 4,
-            }),
+            Some(ch) => Ok(DecodeStatus::Complete { value: ch, consumed: 4 }),
             None => {
                 let kind = CharsetDecodeErrorKind::MalformedSequence {
                     value: Some(second as u32),
@@ -222,10 +211,7 @@ pub(crate) fn decode_bytes_prefix(
         Err(CharsetDecodeError::new(charset, kind, index))
     } else {
         let ch = char::from_u32(first as u32).expect("non-surrogate UTF-16 unit is a scalar value");
-        Ok(DecodeStatus::Complete {
-            value: ch,
-            consumed: 2,
-        })
+        Ok(DecodeStatus::Complete { value: ch, consumed: 2 })
     }
 }
 
@@ -274,11 +260,15 @@ pub(crate) fn encode_bytes_char(
     }
     let mut units = [0_u16; Utf16::MAX_UNITS_PER_CHAR];
     let unit_count = encode_units_char(ch, &mut units, 0)?;
-    let binary_codec = BinaryCodec::new(byte_order);
     for (unit_index, unit) in units.iter().take(unit_count).enumerate() {
         let offset = index + unit_index * 2;
         // SAFETY: The capacity check above guarantees every two-byte unit write is in bounds.
-        unsafe { binary_codec.write_u16_at_unchecked(output, offset, *unit) };
+        match byte_order {
+            ByteOrder::BigEndian => unsafe { BinaryCodec::<u16, BigEndian>::write_unchecked(output, offset, *unit) },
+            ByteOrder::LittleEndian => unsafe {
+                BinaryCodec::<u16, LittleEndian>::write_unchecked(output, offset, *unit)
+            },
+        }
     }
     Ok(required)
 }

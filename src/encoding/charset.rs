@@ -52,13 +52,7 @@ impl Charset {
     pub const ISO_8859_1: Self = Self::new(
         "iso-8859-1",
         "ISO-8859-1",
-        &[
-            "latin1",
-            "latin-1",
-            "iso8859-1",
-            "csisolatin1",
-            "iso_8859-1",
-        ],
+        &["latin1", "latin-1", "iso8859-1", "csisolatin1", "iso_8859-1"],
     );
 
     /// UTF-8 text.
@@ -68,35 +62,19 @@ impl Charset {
     pub const UTF_16: Self = Self::new("utf-16", "UTF-16", &["utf16"]);
 
     /// UTF-16 text serialized in little-endian byte order.
-    pub const UTF_16LE: Self = Self::new(
-        "utf-16le",
-        "UTF-16LE",
-        &["utf16le", "utf16_le", "utf_16_le"],
-    );
+    pub const UTF_16LE: Self = Self::new("utf-16le", "UTF-16LE", &["utf16le", "utf16_le", "utf_16_le"]);
 
     /// UTF-16 text serialized in big-endian byte order.
-    pub const UTF_16BE: Self = Self::new(
-        "utf-16be",
-        "UTF-16BE",
-        &["utf16be", "utf16_be", "utf_16_be"],
-    );
+    pub const UTF_16BE: Self = Self::new("utf-16be", "UTF-16BE", &["utf16be", "utf16_be", "utf_16_be"]);
 
     /// UTF-32 text.
     pub const UTF_32: Self = Self::new("utf-32", "UTF-32", &["utf32"]);
 
     /// UTF-32 text serialized in little-endian byte order.
-    pub const UTF_32LE: Self = Self::new(
-        "utf-32le",
-        "UTF-32LE",
-        &["utf32le", "utf32_le", "utf_32_le"],
-    );
+    pub const UTF_32LE: Self = Self::new("utf-32le", "UTF-32LE", &["utf32le", "utf32_le", "utf_32_le"]);
 
     /// UTF-32 text serialized in big-endian byte order.
-    pub const UTF_32BE: Self = Self::new(
-        "utf-32be",
-        "UTF-32BE",
-        &["utf32be", "utf32_be", "utf_32_be"],
-    );
+    pub const UTF_32BE: Self = Self::new("utf-32be", "UTF-32BE", &["utf32be", "utf32_be", "utf_32_be"]);
 
     /// Creates a charset descriptor.
     ///
@@ -110,11 +88,7 @@ impl Charset {
     ///
     /// Returns a charset descriptor carrying the supplied metadata.
     #[inline]
-    pub const fn new(
-        id: &'static str,
-        name: &'static str,
-        aliases: &'static [&'static str],
-    ) -> Self {
+    pub const fn new(id: &'static str, name: &'static str, aliases: &'static [&'static str]) -> Self {
         Self { id, name, aliases }
     }
 
@@ -217,9 +191,7 @@ impl Charset {
         if label.eq_ignore_ascii_case(self.id) || label.eq_ignore_ascii_case(self.name) {
             return true;
         }
-        self.aliases
-            .iter()
-            .any(|alias| label.eq_ignore_ascii_case(alias))
+        self.aliases.iter().any(|alias| label.eq_ignore_ascii_case(alias))
     }
 }
 

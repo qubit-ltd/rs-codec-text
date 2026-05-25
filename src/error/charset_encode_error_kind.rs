@@ -34,9 +34,7 @@ pub enum CharsetEncodeErrorKind {
     },
 
     /// The supplied output buffer is too small for the encoded character.
-    #[error(
-        "The output buffer is too small (required {required} units, available {available} units)."
-    )]
+    #[error("The output buffer is too small (required {required} units, available {available} units).")]
     BufferTooSmall {
         /// Total units required to encode the character.
         required: usize,
@@ -74,9 +72,7 @@ impl CharsetEncodeErrorKind {
     pub const fn required(self) -> Option<usize> {
         match self {
             Self::BufferTooSmall { required, .. } => Some(required),
-            Self::InvalidInputIndex { .. }
-            | Self::InvalidCodePoint { .. }
-            | Self::UnmappableCharacter { .. } => None,
+            Self::InvalidInputIndex { .. } | Self::InvalidCodePoint { .. } | Self::UnmappableCharacter { .. } => None,
         }
     }
 
@@ -92,9 +88,7 @@ impl CharsetEncodeErrorKind {
     pub const fn available(self) -> Option<usize> {
         match self {
             Self::BufferTooSmall { available, .. } => Some(available),
-            Self::InvalidInputIndex { .. }
-            | Self::InvalidCodePoint { .. }
-            | Self::UnmappableCharacter { .. } => None,
+            Self::InvalidInputIndex { .. } | Self::InvalidCodePoint { .. } | Self::UnmappableCharacter { .. } => None,
         }
     }
 
@@ -109,9 +103,7 @@ impl CharsetEncodeErrorKind {
     pub const fn input_len(self) -> Option<usize> {
         match self {
             Self::InvalidInputIndex { input_len } => Some(input_len),
-            Self::InvalidCodePoint { .. }
-            | Self::UnmappableCharacter { .. }
-            | Self::BufferTooSmall { .. } => None,
+            Self::InvalidCodePoint { .. } | Self::UnmappableCharacter { .. } | Self::BufferTooSmall { .. } => None,
         }
     }
 }

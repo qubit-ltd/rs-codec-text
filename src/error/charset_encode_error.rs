@@ -52,11 +52,7 @@ impl CharsetEncodeError {
     /// Returns an encoding error carrying the supplied context.
     #[inline]
     pub const fn new(charset: Charset, kind: CharsetEncodeErrorKind, index: usize) -> Self {
-        Self {
-            charset,
-            kind,
-            index,
-        }
+        Self { charset, kind, index }
     }
 
     /// Returns required output units for this encoding error, if reported.

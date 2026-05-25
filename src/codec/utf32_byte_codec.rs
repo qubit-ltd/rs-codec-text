@@ -8,6 +8,11 @@
  *
  ******************************************************************************/
 use super::inner::utf32;
+use core::hash::{
+    Hash,
+    Hasher,
+};
+
 use crate::{
     ByteOrder,
     Charset,
@@ -50,10 +55,24 @@ use crate::{
 ///     codec.decode_one(&output[..written], 0).expect("valid UTF-32BE"),
 /// );
 /// ```
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Utf32ByteCodec {
     /// Byte order used by both encoder and decoder paths.
     byte_order: ByteOrder,
+}
+
+impl Hash for Utf32ByteCodec {
+    /// Hashes the fixed-endian UTF-32 charset identity.
+    ///
+    /// # Parameters
+    ///
+    /// - `state`: The hasher receiving this codec's identity.
+    fn hash<H>(&self, state: &mut H)
+    where
+        H: Hasher,
+    {
+        self.charset().hash(state);
+    }
 }
 
 impl Utf32ByteCodec {

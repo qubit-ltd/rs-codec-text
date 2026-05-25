@@ -175,11 +175,7 @@ where
     ) -> Result<CoderProgress, Self::Error> {
         if input_index > input.len() {
             let kind = CharsetDecodeErrorKind::MalformedSequence { value: None };
-            return Err(CharsetDecodeError::new(
-                self.codec.charset(),
-                kind,
-                input_index,
-            ));
+            return Err(CharsetDecodeError::new(self.codec.charset(), kind, input_index));
         }
         if output_index > output.len() {
             let status = CoderStatus::NeedOutput {
@@ -211,10 +207,7 @@ where
                     input_cursor += consumed;
                     output_cursor += 1;
                 }
-                Ok(DecodeStatus::NeedMore {
-                    required,
-                    available,
-                }) => {
+                Ok(DecodeStatus::NeedMore { required, available }) => {
                     let needed = required.saturating_sub(input_cursor);
                     let status = CoderStatus::NeedInput {
                         input_index: input_cursor,

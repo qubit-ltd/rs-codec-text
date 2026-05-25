@@ -365,10 +365,7 @@ fn test_charset_encoder_reports_invalid_indices_and_capacity() {
     let error = encoder
         .convert(&input, input.len() + 1, &mut output, 0)
         .expect_err("input index is outside input slice");
-    assert_eq!(
-        CharsetEncodeErrorKind::InvalidInputIndex { input_len: 2 },
-        error.kind()
-    );
+    assert_eq!(CharsetEncodeErrorKind::InvalidInputIndex { input_len: 2 }, error.kind());
     assert_eq!(input.len() + 1, error.index());
 
     let beyond_output = output.len() + 1;
@@ -422,10 +419,7 @@ fn test_charset_encoder_propagates_non_policy_encoding_errors() {
         .convert(&input, 0, &mut output, 0)
         .expect_err("invalid code point error is not absorbed");
 
-    assert!(matches!(
-        error.kind(),
-        CharsetEncodeErrorKind::InvalidCodePoint { .. },
-    ));
+    assert!(matches!(error.kind(), CharsetEncodeErrorKind::InvalidCodePoint { .. },));
     assert_eq!(Some('!' as u32), error.value());
 }
 

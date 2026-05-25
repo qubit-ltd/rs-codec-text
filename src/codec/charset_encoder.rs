@@ -84,21 +84,19 @@ where
                 encoder.replacement_units = replacement_units;
                 encoder
             }
-            Err(default_error) => {
-                match encoder.encode_replacement(Self::DEFAULT_FALLBACK_REPLACEMENT) {
-                    Ok(replacement_units) => {
-                        encoder.replacement = Self::DEFAULT_FALLBACK_REPLACEMENT;
-                        encoder.replacement_units = replacement_units;
-                        encoder
-                    }
-                    Err(_) => panic!(
-                        "cannot initialize CharsetEncoder for {:?}: neither {:?} nor {:?} is encodable ({default_error})",
-                        encoder.codec.charset(),
-                        Self::DEFAULT_REPLACEMENT,
-                        Self::DEFAULT_FALLBACK_REPLACEMENT,
-                    ),
+            Err(default_error) => match encoder.encode_replacement(Self::DEFAULT_FALLBACK_REPLACEMENT) {
+                Ok(replacement_units) => {
+                    encoder.replacement = Self::DEFAULT_FALLBACK_REPLACEMENT;
+                    encoder.replacement_units = replacement_units;
+                    encoder
                 }
-            }
+                Err(_) => panic!(
+                    "cannot initialize CharsetEncoder for {:?}: neither {:?} nor {:?} is encodable ({default_error})",
+                    encoder.codec.charset(),
+                    Self::DEFAULT_REPLACEMENT,
+                    Self::DEFAULT_FALLBACK_REPLACEMENT,
+                ),
+            },
         }
     }
 
@@ -212,8 +210,7 @@ where
     #[inline]
     fn encode_replacement(&self, ch: char) -> CharsetEncodeResult<Vec<C::Unit>> {
         let mut output = vec![C::Unit::default(); self.codec.max_units_per_char().max(1)];
-        let written =
-            self.encode_char_to_units(ch, output.as_mut_slice(), 0, |_, _, error| Err(error))?;
+        let written = self.encode_char_to_units(ch, output.as_mut_slice(), 0, |_, _, error| Err(error))?;
         output.truncate(written);
         Ok(output)
     }
@@ -245,18 +242,12 @@ where
         ch: char,
         output: &mut [C::Unit],
         output_index: usize,
-        on_unmappable: impl FnOnce(
-            &mut [C::Unit],
-            usize,
-            CharsetEncodeError,
-        ) -> CharsetEncodeResult<usize>,
+        on_unmappable: impl FnOnce(&mut [C::Unit], usize, CharsetEncodeError) -> CharsetEncodeResult<usize>,
     ) -> CharsetEncodeResult<usize> {
         match self.codec.encode_one(ch, output, output_index) {
             Ok(written) => Ok(written),
             Err(error) => match error.kind() {
-                CharsetEncodeErrorKind::UnmappableCharacter { .. } => {
-                    on_unmappable(output, output_index, error)
-                }
+                CharsetEncodeErrorKind::UnmappableCharacter { .. } => on_unmappable(output, output_index, error),
                 CharsetEncodeErrorKind::BufferTooSmall { .. }
                 | CharsetEncodeErrorKind::InvalidInputIndex { .. }
                 | CharsetEncodeErrorKind::InvalidCodePoint { .. } => Err(error),
@@ -279,22 +270,14 @@ where
     ///
     /// Returns [`CharsetEncodeError`] when the output buffer is too small.
     #[inline]
-    fn write_replacement(
-        &self,
-        output: &mut [C::Unit],
-        output_index: usize,
-    ) -> CharsetEncodeResult<usize> {
+    fn write_replacement(&self, output: &mut [C::Unit], output_index: usize) -> CharsetEncodeResult<usize> {
         let available = output.len().saturating_sub(output_index);
         if available < self.replacement_units.len() {
             let kind = CharsetEncodeErrorKind::BufferTooSmall {
                 required: output_index + self.replacement_units.len(),
                 available,
             };
-            return Err(CharsetEncodeError::new(
-                self.codec.charset(),
-                kind,
-                output_index,
-            ));
+            return Err(CharsetEncodeError::new(self.codec.charset(), kind, output_index));
         }
         if self.replacement_units.is_empty() {
             return Ok(0);
@@ -326,14 +309,8 @@ where
         output_index: usize,
     ) -> Result<CoderProgress, Self::Error> {
         if input_index > input.len() {
-            let kind = CharsetEncodeErrorKind::InvalidInputIndex {
-                input_len: input.len(),
-            };
-            return Err(CharsetEncodeError::new(
-                self.codec.charset(),
-                kind,
-                input_index,
-            ));
+            let kind = CharsetEncodeErrorKind::InvalidInputIndex { input_len: input.len() };
+            return Err(CharsetEncodeError::new(self.codec.charset(), kind, input_index));
         }
         if output_index > output.len() {
             let status = CoderStatus::NeedOutput {
@@ -352,11 +329,7 @@ where
                 match self.unmappable_action {
                     UnmappableAction::Report => {
                         let kind = CharsetEncodeErrorKind::UnmappableCharacter { value: ch as u32 };
-                        Err(CharsetEncodeError::new(
-                            self.codec.charset(),
-                            kind,
-                            input_cursor,
-                        ))
+                        Err(CharsetEncodeError::new(self.codec.charset(), kind, input_cursor))
                     }
                     UnmappableAction::Ignore => Ok(0),
                     UnmappableAction::Replace => self.write_replacement(output, output_index),
@@ -366,9 +339,7 @@ where
                     input_cursor += 1;
                     output_cursor += written;
                 }
-                Err(error)
-                    if matches!(error.kind(), CharsetEncodeErrorKind::BufferTooSmall { .. }) =>
-                {
+                Err(error) if matches!(error.kind(), CharsetEncodeErrorKind::BufferTooSmall { .. }) => {
                     let required = error
                         .required()
                         .unwrap_or(output_cursor + 1)

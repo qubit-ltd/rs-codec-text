@@ -8,8 +8,10 @@
  *
  ***************************************************************************/
 use qubit_io::{
+    BigEndian,
     BinaryCodec,
     ByteOrder,
+    LittleEndian,
 };
 
 use crate::{
@@ -44,10 +46,7 @@ use crate::{
 /// * `CharsetDecodeErrorKind::MalformedSequence` when `index` is out of bounds.
 /// * `CharsetDecodeErrorKind::InvalidCodePoint` when `input[index]` is not a
 ///   valid scalar.
-pub(crate) fn decode_units_prefix(
-    input: &[u32],
-    index: usize,
-) -> CharsetDecodeResult<DecodeStatus> {
+pub(crate) fn decode_units_prefix(input: &[u32], index: usize) -> CharsetDecodeResult<DecodeStatus> {
     if index > input.len() {
         let kind = CharsetDecodeErrorKind::MalformedSequence { value: None };
         return Err(CharsetDecodeError::new(Charset::UTF_32, kind, index));
@@ -59,14 +58,9 @@ pub(crate) fn decode_units_prefix(
         });
     }
     match Unicode::to_char(input[index]) {
-        Some(ch) => Ok(DecodeStatus::Complete {
-            value: ch,
-            consumed: 1,
-        }),
+        Some(ch) => Ok(DecodeStatus::Complete { value: ch, consumed: 1 }),
         None => {
-            let kind = CharsetDecodeErrorKind::InvalidCodePoint {
-                value: input[index],
-            };
+            let kind = CharsetDecodeErrorKind::InvalidCodePoint { value: input[index] };
             Err(CharsetDecodeError::new(Charset::UTF_32, kind, index))
         }
     }
@@ -88,11 +82,7 @@ pub(crate) fn decode_units_prefix(
 ///
 /// * `CharsetEncodeErrorKind::BufferTooSmall` when no unit can be written at
 ///   `index`.
-pub(crate) fn encode_units_char(
-    ch: char,
-    output: &mut [u32],
-    index: usize,
-) -> CharsetEncodeResult<usize> {
+pub(crate) fn encode_units_char(ch: char, output: &mut [u32], index: usize) -> CharsetEncodeResult<usize> {
     if index >= output.len() {
         let kind = CharsetEncodeErrorKind::BufferTooSmall {
             required: index + 1,
@@ -142,14 +132,13 @@ pub(crate) fn decode_bytes_prefix(
             available,
         });
     }
-    let binary_codec = BinaryCodec::new(byte_order);
     // SAFETY: The length check above guarantees that `index..index + 4` is in bounds.
-    let unit = unsafe { binary_codec.read_u32_at_unchecked(input, index) };
+    let unit = match byte_order {
+        ByteOrder::BigEndian => unsafe { BinaryCodec::<u32, BigEndian>::read_unchecked(input, index) },
+        ByteOrder::LittleEndian => unsafe { BinaryCodec::<u32, LittleEndian>::read_unchecked(input, index) },
+    };
     match Unicode::to_char(unit) {
-        Some(ch) => Ok(DecodeStatus::Complete {
-            value: ch,
-            consumed: 4,
-        }),
+        Some(ch) => Ok(DecodeStatus::Complete { value: ch, consumed: 4 }),
         None => {
             let kind = CharsetDecodeErrorKind::InvalidCodePoint { value: unit };
             Err(CharsetDecodeError::new(charset, kind, index))
@@ -197,8 +186,12 @@ pub(crate) fn encode_bytes_char(
         };
         return Err(CharsetEncodeError::new(charset, kind, index));
     }
-    let binary_codec = BinaryCodec::new(byte_order);
     // SAFETY: The capacity check above guarantees that `index..index + 4` is in bounds.
-    unsafe { binary_codec.write_u32_at_unchecked(output, index, ch as u32) };
+    match byte_order {
+        ByteOrder::BigEndian => unsafe { BinaryCodec::<u32, BigEndian>::write_unchecked(output, index, ch as u32) },
+        ByteOrder::LittleEndian => unsafe {
+            BinaryCodec::<u32, LittleEndian>::write_unchecked(output, index, ch as u32)
+        },
+    }
     Ok(4)
 }

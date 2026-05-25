@@ -10,10 +10,7 @@ fn test_charset_decode_error_exposes_context() {
     let error = CharsetDecodeError::new(Charset::UTF_8, kind, 7);
 
     assert_eq!(Charset::UTF_8, error.charset());
-    assert_eq!(
-        CharsetDecodeErrorKind::MalformedSequence { value: None },
-        error.kind()
-    );
+    assert_eq!(CharsetDecodeErrorKind::MalformedSequence { value: None }, error.kind());
     assert_eq!(7, error.index());
     assert_eq!(None, error.value());
     assert_eq!(10, error.offset_by(3).index());

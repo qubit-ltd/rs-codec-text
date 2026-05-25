@@ -165,10 +165,7 @@ impl Utf16 {
     #[inline]
     pub const fn high_surrogate(code_point: u32) -> Option<u16> {
         if Unicode::is_supplementary(code_point) {
-            Some(
-                (((code_point - Unicode::SUPPLEMENTARY_MIN) >> 10) + Unicode::HIGH_SURROGATE_MIN)
-                    as u16,
-            )
+            Some((((code_point - Unicode::SUPPLEMENTARY_MIN) >> 10) + Unicode::HIGH_SURROGATE_MIN) as u16)
         } else {
             None
         }
@@ -186,10 +183,7 @@ impl Utf16 {
     #[inline]
     pub const fn low_surrogate(code_point: u32) -> Option<u16> {
         if Unicode::is_supplementary(code_point) {
-            Some(
-                (((code_point - Unicode::SUPPLEMENTARY_MIN) & 0x3ff) + Unicode::LOW_SURROGATE_MIN)
-                    as u16,
-            )
+            Some((((code_point - Unicode::SUPPLEMENTARY_MIN) & 0x3ff) + Unicode::LOW_SURROGATE_MIN) as u16)
         } else {
             None
         }

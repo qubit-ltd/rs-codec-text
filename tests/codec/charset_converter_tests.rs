@@ -86,12 +86,7 @@ impl CharsetCodec for ZeroWidthCodec {
         Err(CharsetDecodeError::new(Charset::ASCII, kind, index))
     }
 
-    fn encode_one(
-        &self,
-        _ch: char,
-        _output: &mut [u8],
-        index: usize,
-    ) -> CharsetEncodeResult<usize> {
+    fn encode_one(&self, _ch: char, _output: &mut [u8], index: usize) -> CharsetEncodeResult<usize> {
         let kind = CharsetEncodeErrorKind::BufferTooSmall {
             required: index + 1,
             available: 0,
@@ -145,21 +140,11 @@ fn test_charset_converter_exposes_configuration_and_bounds() {
     assert_eq!(Charset::UTF_16, converter.encoder().codec().charset());
     assert_eq!(Some(6), converter.max_output_len(3));
 
-    converter
-        .decoder_mut()
-        .set_malformed_action(MalformedAction::Ignore);
-    converter
-        .encoder_mut()
-        .set_unmappable_action(UnmappableAction::Ignore);
+    converter.decoder_mut().set_malformed_action(MalformedAction::Ignore);
+    converter.encoder_mut().set_unmappable_action(UnmappableAction::Ignore);
 
-    assert_eq!(
-        MalformedAction::Ignore,
-        converter.decoder().malformed_action()
-    );
-    assert_eq!(
-        UnmappableAction::Ignore,
-        converter.encoder().unmappable_action()
-    );
+    assert_eq!(MalformedAction::Ignore, converter.decoder().malformed_action());
+    assert_eq!(UnmappableAction::Ignore, converter.encoder().unmappable_action());
 
     converter.reset();
 }
@@ -181,10 +166,7 @@ fn test_charset_converter_from_codecs_uses_default_policies() {
 
 #[test]
 fn test_charset_converter_convert_empty_without_input_is_complete() {
-    let mut converter = CharsetConverter::new(
-        CharsetDecoder::new(Utf8Codec),
-        CharsetEncoder::new(Utf16U16Codec),
-    );
+    let mut converter = CharsetConverter::new(CharsetDecoder::new(Utf8Codec), CharsetEncoder::new(Utf16U16Codec));
     let progress = converter
         .convert(b"", 0, &mut [0_u16; 0], 0)
         .expect("empty input returns complete");
@@ -214,15 +196,10 @@ fn test_charset_converter_combines_decoder_and_encoder_with_offsets() {
 
 #[test]
 fn test_charset_converter_finish_without_pending_returns_complete() {
-    let mut converter = CharsetConverter::new(
-        CharsetDecoder::new(Utf8Codec),
-        CharsetEncoder::new(Utf16U16Codec),
-    );
+    let mut converter = CharsetConverter::new(CharsetDecoder::new(Utf8Codec), CharsetEncoder::new(Utf16U16Codec));
     let mut output = [0_u16; 1];
 
-    let progress = converter
-        .finish(&mut output, 0)
-        .expect("finish without pending");
+    let progress = converter.finish(&mut output, 0).expect("finish without pending");
 
     assert_eq!(CoderStatus::Complete, progress.status());
     assert_eq!(0, progress.read());
@@ -265,10 +242,7 @@ fn test_charset_converter_keeps_pending_character_when_output_is_full() {
 
 #[test]
 fn test_charset_converter_resets_pending_state() {
-    let mut converter = CharsetConverter::new(
-        CharsetDecoder::new(Utf8Codec),
-        CharsetEncoder::new(Utf16U16Codec),
-    );
+    let mut converter = CharsetConverter::new(CharsetDecoder::new(Utf8Codec), CharsetEncoder::new(Utf16U16Codec));
     let mut empty_output = [];
     converter
         .convert(b"A", 0, &mut empty_output, 0)
@@ -310,10 +284,7 @@ fn test_charset_converter_finish_flushes_pending_character() {
 
 #[test]
 fn test_charset_converter_finish_needs_output_when_target_buffer_is_empty() {
-    let mut converter = CharsetConverter::new(
-        CharsetDecoder::new(Utf8Codec),
-        CharsetEncoder::new(Utf16U16Codec),
-    );
+    let mut converter = CharsetConverter::new(CharsetDecoder::new(Utf8Codec), CharsetEncoder::new(Utf16U16Codec));
 
     let mut empty_output = [];
     let progress = converter
@@ -375,10 +346,7 @@ fn test_charset_converter_continues_after_decoder_chunk_overflow() {
     assert_eq!(CoderStatus::Complete, progress.status());
     assert_eq!(5, progress.read());
     assert_eq!(5, progress.written());
-    assert_eq!(
-        ['A' as u16, 'B' as u16, 'C' as u16, 'D' as u16, 'E' as u16],
-        output
-    );
+    assert_eq!(['A' as u16, 'B' as u16, 'C' as u16, 'D' as u16, 'E' as u16], output);
 }
 
 #[test]
@@ -423,8 +391,7 @@ fn test_charset_converter_propagates_decode_and_encode_errors() {
 }
 
 #[test]
-fn test_charset_converter_returns_need_output_when_source_decoder_buffer_is_exhausted_immediately()
-{
+fn test_charset_converter_returns_need_output_when_source_decoder_buffer_is_exhausted_immediately() {
     let decoder = CharsetDecoder::new(ZeroWidthCodec);
     let encoder = CharsetEncoder::new(AsciiBytesCodec);
     let mut converter = CharsetConverter::new(decoder, encoder);

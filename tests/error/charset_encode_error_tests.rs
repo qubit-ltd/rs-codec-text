@@ -15,10 +15,7 @@ fn test_charset_encode_error_exposes_context() {
     let error = CharsetEncodeError::new(Charset::UTF_16, kind, 2);
 
     assert_eq!(Charset::UTF_16, error.charset());
-    assert!(matches!(
-        error.kind(),
-        CharsetEncodeErrorKind::BufferTooSmall { .. },
-    ));
+    assert!(matches!(error.kind(), CharsetEncodeErrorKind::BufferTooSmall { .. },));
     assert_eq!(2, error.index());
     assert_eq!(None, error.value());
     assert_eq!(7, error.offset_by(5).index());
@@ -41,15 +38,11 @@ fn test_charset_encode_error_exposes_context() {
         invalid.to_string(),
     );
 
-    let kind = CharsetEncodeErrorKind::UnmappableCharacter {
-        value: '中' as u32
-    };
+    let kind = CharsetEncodeErrorKind::UnmappableCharacter { value: '中' as u32 };
     let unmappable = CharsetEncodeError::new(GBK, kind, 4);
     assert_eq!(GBK, unmappable.charset());
     assert_eq!(
-        CharsetEncodeErrorKind::UnmappableCharacter {
-            value: '中' as u32
-        },
+        CharsetEncodeErrorKind::UnmappableCharacter { value: '中' as u32 },
         unmappable.kind()
     );
     assert_eq!(4, unmappable.index());

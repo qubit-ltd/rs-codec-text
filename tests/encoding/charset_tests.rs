@@ -72,22 +72,13 @@ fn test_charset_exposes_fixed_byte_order_helpers() {
         Charset::UTF_16LE,
         Charset::from_utf16_byte_order(ByteOrder::LittleEndian)
     );
-    assert_eq!(
-        Charset::UTF_16BE,
-        Charset::from_utf16_byte_order(ByteOrder::BigEndian)
-    );
+    assert_eq!(Charset::UTF_16BE, Charset::from_utf16_byte_order(ByteOrder::BigEndian));
     assert_eq!(
         Charset::UTF_32LE,
         Charset::from_utf32_byte_order(ByteOrder::LittleEndian)
     );
-    assert_eq!(
-        Charset::UTF_32BE,
-        Charset::from_utf32_byte_order(ByteOrder::BigEndian)
-    );
-    assert_eq!(
-        Some(ByteOrder::LittleEndian),
-        Charset::UTF_16LE.byte_order()
-    );
+    assert_eq!(Charset::UTF_32BE, Charset::from_utf32_byte_order(ByteOrder::BigEndian));
+    assert_eq!(Some(ByteOrder::LittleEndian), Charset::UTF_16LE.byte_order());
     assert_eq!(Some(ByteOrder::BigEndian), Charset::UTF_32BE.byte_order());
     assert_eq!(None, Charset::UTF_16.byte_order());
     assert_eq!(None, Charset::UTF_8.byte_order());

@@ -20,9 +20,7 @@ pub enum CharsetDecodeErrorKind {
     },
 
     /// The closed input ended before a complete character was available.
-    #[error(
-        "The encoded text sequence is incomplete (required {required} units, available {available} units)."
-    )]
+    #[error("The encoded text sequence is incomplete (required {required} units, available {available} units).")]
     IncompleteSequence {
         /// Total units required to complete the current sequence.
         required: usize,

@@ -85,10 +85,5 @@ pub trait CharsetCodec {
     ///
     /// Returns [`crate::CharsetEncodeError`] when `ch` cannot be represented by
     /// this charset or `output` does not have enough capacity from `index`.
-    fn encode_one(
-        &self,
-        ch: char,
-        output: &mut [Self::Unit],
-        index: usize,
-    ) -> CharsetEncodeResult<usize>;
+    fn encode_one(&self, ch: char, output: &mut [Self::Unit], index: usize) -> CharsetEncodeResult<usize>;
 }
