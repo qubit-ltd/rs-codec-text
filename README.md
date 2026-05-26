@@ -28,6 +28,50 @@ This crate intentionally stays below `std::io` reader/writer adapters,
 automatic charset detection, normalization, segmentation, collation, display
 width, and locale-aware text behavior.
 
+## Design Goals
+
+- **Buffer-Level Control**: expose charset codecs that operate on caller-managed
+  buffers.
+- **Unicode Fundamentals**: provide ASCII, Unicode, UTF-8, UTF-16, and UTF-32
+  primitives without higher-level locale behavior.
+- **Policy-Aware Conversion**: make malformed and unmappable handling explicit
+  through decoder and encoder configuration.
+- **Precise Diagnostics**: report typed errors with source indices and context.
+- **I/O Independence**: keep stream adapters in `qubit-io-text`.
+- **Small Core Dependency**: depend on `qubit-codec` for shared coder and byte
+  order primitives.
+
+## Features
+
+### Charset Metadata
+
+- **`Charset`**: identifies supported charsets and their byte-order behavior.
+- **`UnicodeBom`**: detects Unicode byte order marks.
+- **ASCII and Unicode namespaces**: expose constants and validation helpers.
+
+### Buffer-Level Codecs
+
+- **`AsciiCodec`**: ASCII byte codec.
+- **`Latin1Codec`**: ISO-8859-1 byte codec.
+- **`Utf8Codec`**: UTF-8 byte codec.
+- **`Utf16ByteCodec` / `Utf32ByteCodec`**: byte-oriented UTF-16 and UTF-32
+  codecs with explicit byte order.
+- **`Utf16U16Codec` / `Utf32U32Codec`**: unit-oriented UTF-16 and UTF-32 codecs.
+
+### Stateful Converters
+
+- **`CharsetDecoder`**: decodes input units into `char` output.
+- **`CharsetEncoder`**: encodes `char` input into target units.
+- **`CharsetConverter`**: converts between decoder and encoder pairs.
+- **`MalformedAction` / `UnmappableAction`**: configure strict or replacement
+  behavior.
+
+### Focused Public API
+
+- **`prelude` module**: imports common charset, codec, error, and core coder
+  types.
+- **No stream I/O**: use `qubit-io-text` for reader and writer adapters.
+
 ## Documentation
 
 - [User Guide](doc/user_guide.md)
@@ -44,7 +88,7 @@ qubit-codec-text = "0.1"
 `qubit-codec` is the core runtime dependency. The core buffer-level traits used
 by this public API are re-exported by `qubit-codec-text`.
 
-## Quick Example
+## Quick Start
 
 ```rust
 use qubit_codec_text::{
@@ -82,28 +126,119 @@ assert_eq!(CoderStatus::Complete, progress.status());
 assert_eq!("😀".as_bytes(), &output[..progress.written()]);
 ```
 
-## Development
+## API Reference
+
+### Charset and Unicode Types
+
+| Type | Purpose |
+|------|---------|
+| `Charset` | Supported charset identity and byte-order metadata |
+| `UnicodeBom` | Unicode BOM detection |
+| `Ascii`, `Unicode`, `Utf8`, `Utf16`, `Utf32` | Namespace helpers for character set rules |
+
+### Codec Types
+
+| Type | Purpose |
+|------|---------|
+| `AsciiCodec` | ASCII byte encoding and decoding |
+| `Latin1Codec` | ISO-8859-1 byte encoding and decoding |
+| `Utf8Codec` | UTF-8 byte encoding and decoding |
+| `Utf16ByteCodec` / `Utf32ByteCodec` | Explicit-byte-order Unicode byte codecs |
+| `Utf16U16Codec` / `Utf32U32Codec` | Unit-oriented Unicode codecs |
+
+### Converter Types
+
+| Type | Purpose |
+|------|---------|
+| `CharsetDecoder<C>` | Stateful buffer decoder |
+| `CharsetEncoder<C>` | Stateful buffer encoder |
+| `CharsetConverter<D, E>` | Decode and encode between two charset codecs |
+| `DecodeStatus` | Result of decoding one character |
+| `MalformedAction` | Policy for malformed input |
+| `UnmappableAction` | Policy for unencodable output characters |
+
+### Error Types
+
+| Type | Purpose |
+|------|---------|
+| `CharsetDecodeError` / `CharsetDecodeErrorKind` | Decode failure with precise index |
+| `CharsetEncodeError` / `CharsetEncodeErrorKind` | Encode failure with precise index |
+| `CharsetConvertError` | Converter-level decode or encode failure |
+
+## Performance Considerations
+
+Codec implementations work against caller-provided input and output buffers.
+`CharsetDecoder` and `CharsetEncoder` report `NeedInput` and `NeedOutput`
+through the shared `Coder` progress model so callers can control allocation and
+buffer reuse.
+
+## Testing & Code Coverage
+
+This project keeps charset behavior covered by integration tests under `tests/`.
+
+### Running Tests
 
 ```bash
 # Run tests
 cargo test
 
+# Run with coverage report
+./coverage.sh
+
+# Generate text format report
+./coverage.sh text
+
 # Align formatting and clippy with CI
 ./align-ci.sh
 
-# Run the full local CI pipeline
+# Run CI checks (format, clippy, test, coverage, audit)
 RS_CI_SKIP_TOOLCHAIN_UPDATE=1 ./ci-check.sh
 ```
+
+## Dependencies
+
+Runtime dependencies are intentionally small:
+
+- `qubit-codec` provides shared byte-order and coder primitives.
+- `thiserror` provides the public error type implementations.
 
 ## License
 
 Copyright (c) 2026. Haixing Hu.
 
-Licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE) for the
-full license text.
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+See [LICENSE](LICENSE) for the full license text.
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+### Development Guidelines
+
+- Keep this crate focused on buffer-level text codecs.
+- Keep documentation aligned with user guides and public API names.
+- Add tests for strict, replacement, malformed, and unmappable behavior.
+- Ensure all checks pass before submitting a PR.
+
+## Author
+
+**Haixing Hu**
 
 ## Related Projects
 
+- [qubit-codec](https://github.com/qubit-ltd/rs-codec): shared core codec traits
+  and byte-order markers.
 - [qubit-io-text](https://github.com/qubit-ltd/rs-io-text): text stream adapters
   for Rust.
 - More Rust libraries from Qubit are published under the
