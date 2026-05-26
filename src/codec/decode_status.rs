@@ -13,13 +13,18 @@ use crate::{
     CharsetDecodeErrorKind,
 };
 
-/// Non-error status reported after inspecting a decoder input prefix.
+/// Non-error status reported by the safe [`crate::CharsetCodec`] wrapper.
 ///
 /// Values are reported for a [`crate::CharsetCodec::decode_one`] call over a
 /// complete input slice and an absolute start index. `Complete` advances by a
 /// positive number of units from that start index. `NeedMore` reports an
 /// absolute required input length and the units currently available from the
 /// same start index.
+///
+/// This type is intentionally part of the text-specific safe wrapper layer. It
+/// is not returned by the lower-level [`qubit_codec::Codec`] trait, whose
+/// unchecked decode contract is reserved for callers that already know a
+/// complete value is readable.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[must_use]
 pub enum DecodeStatus {

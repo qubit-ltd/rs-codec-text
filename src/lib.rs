@@ -63,6 +63,7 @@ pub use error::{
 };
 pub use qubit_codec::{
     ByteOrder,
+    Codec,
     Coder,
     CoderProgress,
     CoderStatus,

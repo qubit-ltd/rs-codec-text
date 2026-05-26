@@ -19,6 +19,7 @@ use crate::{
     DecodeStatus,
     Unicode,
 };
+use qubit_codec::Codec;
 
 /// Single-byte ISO-8859-1 codec for bytes.
 ///
@@ -101,11 +102,8 @@ impl CharsetCodec for Latin1Codec {
             });
         }
 
-        let value = input[index] as u32;
-        Ok(DecodeStatus::Complete {
-            value: Unicode::to_char(value).expect("valid Latin-1 byte decodes to Unicode scalar"),
-            consumed: 1,
-        })
+        let (value, consumed) = unsafe { <Self as Codec<char, u8>>::decode_unchecked(self, input, index)? };
+        Ok(DecodeStatus::Complete { value, consumed })
     }
 
     /// Encodes one `char` into one ISO-8859-1 byte.
@@ -140,7 +138,40 @@ impl CharsetCodec for Latin1Codec {
             return Err(CharsetEncodeError::new(Charset::ISO_8859_1, kind, index));
         }
 
-        // Since we validated `value`, cast is safe for 0..=0xFF.
+        unsafe { <Self as Codec<char, u8>>::encode_unchecked(self, ch, output, index) }
+    }
+}
+
+unsafe impl Codec<char, u8> for Latin1Codec {
+    type DecodeError = CharsetDecodeError;
+    type EncodeError = CharsetEncodeError;
+
+    #[inline]
+    fn min_units_per_value(&self) -> usize {
+        1
+    }
+
+    #[inline]
+    fn max_units_per_value(&self) -> usize {
+        1
+    }
+
+    #[inline]
+    unsafe fn decode_unchecked(&self, input: &[u8], index: usize) -> CharsetDecodeResult<(char, usize)> {
+        let value = input[index] as u32;
+        Ok((
+            Unicode::to_char(value).expect("valid Latin-1 byte decodes to Unicode scalar"),
+            1,
+        ))
+    }
+
+    #[inline]
+    unsafe fn encode_unchecked(&self, ch: char, output: &mut [u8], index: usize) -> CharsetEncodeResult<usize> {
+        let value = ch as u32;
+        if value > Unicode::LATIN1_MAX {
+            let kind = CharsetEncodeErrorKind::UnmappableCharacter { value };
+            return Err(CharsetEncodeError::new(Charset::ISO_8859_1, kind, index));
+        }
         output[index] = value as u8;
         Ok(1)
     }

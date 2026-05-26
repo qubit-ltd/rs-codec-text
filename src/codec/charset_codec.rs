@@ -15,12 +15,15 @@ use crate::{
 
 use super::decode_status::DecodeStatus;
 
-/// Low-level charset algorithm for one storage-unit representation.
+/// Safe text wrapper around a low-level `Codec<char, Unit>`.
 ///
-/// `CharsetCodec` performs only primitive per-character encoding and decoding.
-/// Policy decisions such as replacement, ignoring malformed input, or reporting
-/// unmappable characters are handled by [`crate::CharsetDecoder`] and
-/// [`crate::CharsetEncoder`].
+/// `CharsetCodec` adds charset metadata and checked one-character convenience
+/// calls on top of the lower-level [`qubit_codec::Codec`] contract. The checked
+/// [`Self::decode_one`] method is also where partial-input reporting lives:
+/// [`DecodeStatus::NeedMore`] belongs to this safe text wrapper, not to the
+/// underlying `Codec` trait. Policy decisions such as replacement, ignoring
+/// malformed input, or reporting unmappable characters are handled by
+/// [`crate::CharsetDecoder`] and [`crate::CharsetEncoder`].
 ///
 /// # Associated Types
 ///

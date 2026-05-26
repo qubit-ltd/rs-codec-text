@@ -19,6 +19,7 @@ use crate::{
     CharsetEncodeResult,
     DecodeStatus,
 };
+use qubit_codec::Codec;
 
 /// Single-byte ASCII codec for bytes.
 ///
@@ -103,18 +104,8 @@ impl CharsetCodec for AsciiCodec {
             });
         }
 
-        let value = input[index];
-        if value > Ascii::MAX_BYTE {
-            let kind = CharsetDecodeErrorKind::MalformedSequence {
-                value: Some(value as u32),
-            };
-            return Err(CharsetDecodeError::new(Charset::ASCII, kind, index));
-        }
-
-        Ok(DecodeStatus::Complete {
-            value: value as char,
-            consumed: 1,
-        })
+        let (value, consumed) = unsafe { <Self as Codec<char, u8>>::decode_unchecked(self, input, index)? };
+        Ok(DecodeStatus::Complete { value, consumed })
     }
 
     /// Encodes one `char` into one ASCII byte.
@@ -147,7 +138,42 @@ impl CharsetCodec for AsciiCodec {
             let kind = CharsetEncodeErrorKind::UnmappableCharacter { value: ch as u32 };
             return Err(CharsetEncodeError::new(Charset::ASCII, kind, index));
         }
-        // Since we validated `ch`, the cast is safe.
+        unsafe { <Self as Codec<char, u8>>::encode_unchecked(self, ch, output, index) }
+    }
+}
+
+unsafe impl Codec<char, u8> for AsciiCodec {
+    type DecodeError = CharsetDecodeError;
+    type EncodeError = CharsetEncodeError;
+
+    #[inline]
+    fn min_units_per_value(&self) -> usize {
+        1
+    }
+
+    #[inline]
+    fn max_units_per_value(&self) -> usize {
+        1
+    }
+
+    #[inline]
+    unsafe fn decode_unchecked(&self, input: &[u8], index: usize) -> CharsetDecodeResult<(char, usize)> {
+        let value = input[index];
+        if value > Ascii::MAX_BYTE {
+            let kind = CharsetDecodeErrorKind::MalformedSequence {
+                value: Some(value as u32),
+            };
+            return Err(CharsetDecodeError::new(Charset::ASCII, kind, index));
+        }
+        Ok((value as char, 1))
+    }
+
+    #[inline]
+    unsafe fn encode_unchecked(&self, ch: char, output: &mut [u8], index: usize) -> CharsetEncodeResult<usize> {
+        if ch > Ascii::MAX_CHAR {
+            let kind = CharsetEncodeErrorKind::UnmappableCharacter { value: ch as u32 };
+            return Err(CharsetEncodeError::new(Charset::ASCII, kind, index));
+        }
         output[index] = ch as u8;
         Ok(1)
     }

@@ -25,6 +25,7 @@ pub use crate::{
     CharsetEncodeErrorKind,
     CharsetEncodeResult,
     CharsetEncoder,
+    Codec,
     Coder,
     CoderProgress,
     CoderStatus,

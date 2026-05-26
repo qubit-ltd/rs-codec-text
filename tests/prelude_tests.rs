@@ -5,6 +5,7 @@ use qubit_codec_text::prelude::{
     CharsetCodec,
     CharsetDecoder,
     CharsetEncoder,
+    Codec,
     Coder,
     CoderStatus,
     DecodeStatus,
@@ -30,6 +31,7 @@ fn test_prelude_reexports_common_types() {
 
     let utf8 = Utf8Codec;
     assert_eq!(Charset::UTF_8, utf8.charset());
+    assert_eq!(4, utf8.max_units_per_value());
     assert!(matches!(
         utf8.decode_one("A".as_bytes(), 0).expect("UTF-8 prefix"),
         DecodeStatus::Complete { .. },

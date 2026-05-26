@@ -11,11 +11,14 @@ use super::inner::utf8;
 use crate::{
     Charset,
     CharsetCodec,
+    CharsetDecodeError,
     CharsetDecodeResult,
+    CharsetEncodeError,
     CharsetEncodeResult,
     DecodeStatus,
     Utf8,
 };
+use qubit_codec::Codec;
 
 /// UTF-8 byte-buffer charset codec.
 ///
@@ -112,7 +115,13 @@ impl CharsetCodec for Utf8Codec {
     /// * [`crate::CharsetDecodeErrorKind::MalformedSequence`] for invalid UTF-8
     ///   byte sequence.
     fn decode_one(&self, input: &[u8], index: usize) -> CharsetDecodeResult<DecodeStatus> {
-        utf8::decode_prefix(input, index)
+        match utf8::decode_prefix(input, index)? {
+            DecodeStatus::Complete { .. } => {
+                let (value, consumed) = unsafe { <Self as Codec<char, u8>>::decode_unchecked(self, input, index)? };
+                Ok(DecodeStatus::Complete { value, consumed })
+            }
+            status @ DecodeStatus::NeedMore { .. } => Ok(status),
+        }
     }
 
     /// Encodes one Unicode scalar value into UTF-8 bytes at `index`.
@@ -133,6 +142,44 @@ impl CharsetCodec for Utf8Codec {
     /// * [`crate::CharsetEncodeErrorKind::BufferTooSmall`] if output has
     ///   insufficient bytes from `index`.
     fn encode_one(&self, ch: char, output: &mut [u8], index: usize) -> CharsetEncodeResult<usize> {
+        if index > output.len() {
+            return utf8::encode_char(ch, output, index);
+        }
+        let length = Utf8::byte_len(ch);
+        let available = output.len() - index;
+        if available < length {
+            return utf8::encode_char(ch, output, index);
+        }
+        unsafe { <Self as Codec<char, u8>>::encode_unchecked(self, ch, output, index) }
+    }
+}
+
+unsafe impl Codec<char, u8> for Utf8Codec {
+    type DecodeError = CharsetDecodeError;
+    type EncodeError = CharsetEncodeError;
+
+    #[inline]
+    fn min_units_per_value(&self) -> usize {
+        1
+    }
+
+    #[inline]
+    fn max_units_per_value(&self) -> usize {
+        Utf8::MAX_UNITS_PER_CHAR
+    }
+
+    #[inline]
+    unsafe fn decode_unchecked(&self, input: &[u8], index: usize) -> CharsetDecodeResult<(char, usize)> {
+        match utf8::decode_prefix(input, index)? {
+            DecodeStatus::Complete { value, consumed } => Ok((value, consumed)),
+            DecodeStatus::NeedMore { .. } => {
+                unreachable!("Codec::decode_unchecked requires a complete UTF-8 value")
+            }
+        }
+    }
+
+    #[inline]
+    unsafe fn encode_unchecked(&self, ch: char, output: &mut [u8], index: usize) -> CharsetEncodeResult<usize> {
         utf8::encode_char(ch, output, index)
     }
 }

@@ -11,11 +11,14 @@ use super::inner::utf32;
 use crate::{
     Charset,
     CharsetCodec,
+    CharsetDecodeError,
     CharsetDecodeResult,
+    CharsetEncodeError,
     CharsetEncodeResult,
     DecodeStatus,
     Utf32,
 };
+use qubit_codec::Codec;
 
 /// Combined UTF-32 `u32` code-unit codec.
 ///
@@ -116,7 +119,13 @@ impl CharsetCodec for Utf32U32Codec {
     /// * [`crate::CharsetDecodeErrorKind::InvalidCodePoint`] when unit is not a
     ///   valid scalar.
     fn decode_one(&self, input: &[u32], index: usize) -> CharsetDecodeResult<DecodeStatus> {
-        utf32::decode_units_prefix(input, index)
+        match utf32::decode_units_prefix(input, index)? {
+            DecodeStatus::Complete { .. } => {
+                let (value, consumed) = unsafe { <Self as Codec<char, u32>>::decode_unchecked(self, input, index)? };
+                Ok(DecodeStatus::Complete { value, consumed })
+            }
+            status @ DecodeStatus::NeedMore { .. } => Ok(status),
+        }
     }
 
     /// Encodes one Unicode scalar value into a `u32` unit at `index`.
@@ -137,6 +146,39 @@ impl CharsetCodec for Utf32U32Codec {
     /// * [`crate::CharsetEncodeErrorKind::BufferTooSmall`] if `output` has no
     ///   room at `index`.
     fn encode_one(&self, ch: char, output: &mut [u32], index: usize) -> CharsetEncodeResult<usize> {
+        if index >= output.len() {
+            return utf32::encode_units_char(ch, output, index);
+        }
+        unsafe { <Self as Codec<char, u32>>::encode_unchecked(self, ch, output, index) }
+    }
+}
+
+unsafe impl Codec<char, u32> for Utf32U32Codec {
+    type DecodeError = CharsetDecodeError;
+    type EncodeError = CharsetEncodeError;
+
+    #[inline]
+    fn min_units_per_value(&self) -> usize {
+        1
+    }
+
+    #[inline]
+    fn max_units_per_value(&self) -> usize {
+        Utf32::MAX_UNITS_PER_CHAR
+    }
+
+    #[inline]
+    unsafe fn decode_unchecked(&self, input: &[u32], index: usize) -> CharsetDecodeResult<(char, usize)> {
+        match utf32::decode_units_prefix(input, index)? {
+            DecodeStatus::Complete { value, consumed } => Ok((value, consumed)),
+            DecodeStatus::NeedMore { .. } => {
+                unreachable!("Codec::decode_unchecked requires a complete UTF-32 value")
+            }
+        }
+    }
+
+    #[inline]
+    unsafe fn encode_unchecked(&self, ch: char, output: &mut [u32], index: usize) -> CharsetEncodeResult<usize> {
         utf32::encode_units_char(ch, output, index)
     }
 }
