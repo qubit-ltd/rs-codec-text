@@ -34,8 +34,11 @@ API 参考文档可在 [docs.rs](https://docs.rs/qubit-text-codec) 查看。
 ```toml
 [dependencies]
 qubit-text-codec = "0.1"
-qubit-io = "0.5"
 ```
+
+`qubit-io` 是本库的运行时依赖；公开 API 用到的核心缓冲区级接口和
+progress 类型已经由 `qubit-text-codec` 重导出。只有在业务代码直接使用
+`qubit_io::...` API 时，才需要额外显式添加 `qubit-io = "0.5"`。
 
 ## 快速示例
 
@@ -165,7 +168,9 @@ UTF-8 解码遵循 [Unicode Standard 表 3-7](https://www.unicode.org/versions/l
 | `CharsetDecodeError` | 包含 charset、解码错误种类、输入单元下标和可选原始值 |
 | `CharsetEncodeError` | 包含 charset、编码错误种类、输出/输入下标和可选原始值 |
 
-`DecodeStatus::NeedMore` 不是错误。流式文本读取器应在可能时继续读取更多输入，并在输入结束时把它转成不完整序列错误或合适的 `std::io::Error`。
+`DecodeStatus::NeedMore` 不是错误。流式文本读取器应在可能时继续读取更多输入，并在输入结束时把它转成不完整序列错误或合适的 `std::io::Error`。当关闭输入应转换为 `CharsetDecodeErrorKind::IncompleteSequence` 时，可使用 `DecodeStatus::incomplete_error(charset, index)`。
+
+`CharsetDecodeErrorKind::InvalidInputIndex` 表示调用方传入的输入下标超过了当前缓冲区范围，并可通过 `input_len()` 取回缓冲区长度。它不同于 `MalformedSequence`；后者只表示缓冲区中实际存在、但对当前 charset 非法的字节或码元。
 
 与原始值相关的错误，例如非法 UTF-32 单元或无法映射的字符，可通过 `value()` 取回该值。
 
@@ -198,7 +203,9 @@ use qubit_text_codec::prelude::*;
 
 ## 依赖
 
-本库使用 `thiserror` 实现错误类型的 `Display` 和 `Error`。
+本库使用 `qubit-io` 提供并重导出缓冲区级 API 所需的 `Coder` 接口、
+progress/status 值、字节序辅助工具和二进制字节编解码能力；同时使用
+`thiserror` 实现错误类型的 `Display` 和 `Error`。
 
 ## 测试与代码覆盖率
 

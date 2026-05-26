@@ -34,8 +34,12 @@ API reference documentation is available on [docs.rs](https://docs.rs/qubit-text
 ```toml
 [dependencies]
 qubit-text-codec = "0.1"
-qubit-io = "0.5"
 ```
+
+`qubit-io` is a runtime dependency of this crate, and the core buffer-level
+traits and progress types used by the public API are re-exported from
+`qubit-text-codec`. Add `qubit-io = "0.5"` only when your code uses
+`qubit_io::...` APIs directly.
 
 ## Quick Example
 
@@ -173,7 +177,9 @@ Byte codecs carry a `ByteOrder` value. Use `UnicodeBom::detect`, `Utf16::detect_
 | `CharsetDecodeError` | Charset, decoding error kind, input unit index, and optional raw value |
 | `CharsetEncodeError` | Charset, encoding error kind, output/input index, and optional raw value |
 
-`DecodeStatus::NeedMore` is not an error. A streaming text reader should read more input when possible, and convert it at EOF into an incomplete-sequence error or an appropriate `std::io::Error`.
+`DecodeStatus::NeedMore` is not an error. A streaming text reader should read more input when possible, and convert it at EOF into an incomplete-sequence error or an appropriate `std::io::Error`. Use `DecodeStatus::incomplete_error(charset, index)` when closed input should become a `CharsetDecodeErrorKind::IncompleteSequence`.
+
+`CharsetDecodeErrorKind::InvalidInputIndex` reports caller-supplied input indices beyond the provided buffer and exposes the buffer length through `input_len()`. It is distinct from `MalformedSequence`, which is reserved for bytes or units that are present but invalid for the charset.
 
 Errors tied to a raw value, such as an invalid UTF-32 unit or an unmappable character, expose that value through `value()`.
 
@@ -206,7 +212,10 @@ Use specialized crates such as `unicode-segmentation`, `unicode-normalization`, 
 
 ## Dependencies
 
-This crate uses `thiserror` for error `Display` and `Error` implementations.
+This crate uses `qubit-io` for the `Coder` interface, progress/status values,
+byte-order helpers, and binary byte codecs that are re-exported as part of the
+buffer-level API. It uses `thiserror` for error `Display` and `Error`
+implementations.
 
 ## Testing & Code Coverage
 
