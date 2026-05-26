@@ -10,7 +10,7 @@
 //! # Qubit Text Codec
 //!
 //! Low-level Unicode constants, character classification helpers, and text codec
-//! primitives for UTF-8, UTF-16, UTF-32, and ASCII-oriented code.
+//! primitives for ASCII, ISO-8859-1, UTF-8, UTF-16, and UTF-32-oriented code.
 //!
 //! This crate deliberately stays below `std::io::Read` and `std::io::Write`.
 //! Concrete text I/O adapters are expected to own buffering, EOF handling, line

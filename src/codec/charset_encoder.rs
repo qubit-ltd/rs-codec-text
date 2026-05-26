@@ -76,7 +76,9 @@ where
     /// Panics when neither [`Self::DEFAULT_REPLACEMENT`] nor
     /// [`Self::DEFAULT_FALLBACK_REPLACEMENT`] can be encoded by `codec`.
     /// Built-in codecs can always encode the fallback `?`; failure here means
-    /// the supplied codec cannot encode a minimal ASCII replacement.
+    /// the supplied codec cannot encode a minimal ASCII replacement. For custom
+    /// [`CharsetCodec`] implementations, this indicates a broken codec
+    /// invariant rather than recoverable input data.
     #[must_use]
     pub fn new(codec: C) -> Self {
         let mut encoder = Self {

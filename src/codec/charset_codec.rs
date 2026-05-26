@@ -70,8 +70,9 @@ pub trait CharsetCodec {
     ///
     /// # Errors
     ///
-    /// Returns [`crate::CharsetDecodeError`] when the sequence at `index` is
-    /// malformed or decodes to a non-scalar value.
+    /// Returns [`crate::CharsetDecodeError`] when `index` is outside `input`,
+    /// or when the sequence at `index` is malformed or decodes to a non-scalar
+    /// value.
     fn decode_one(&self, input: &[Self::Unit], index: usize) -> CharsetDecodeResult<DecodeStatus>;
 
     /// Encodes one Unicode scalar value into `output` starting at `index`.
