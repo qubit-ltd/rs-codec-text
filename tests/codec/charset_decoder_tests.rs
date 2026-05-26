@@ -142,7 +142,10 @@ fn test_charset_decoder_reports_invalid_indices_capacity_and_need_input() {
     let error = decoder
         .convert(input, input.len() + 1, &mut output, 0)
         .expect_err("input index outside input slice");
-    assert_eq!(CharsetDecodeErrorKind::MalformedSequence { value: None }, error.kind());
+    assert_eq!(
+        CharsetDecodeErrorKind::InvalidInputIndex { input_len: input.len() },
+        error.kind()
+    );
     assert_eq!(input.len() + 1, error.index());
 
     let beyond_output = output.len() + 1;

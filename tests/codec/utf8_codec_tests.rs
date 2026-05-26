@@ -122,7 +122,7 @@ fn test_utf8_codec_reports_malformed_sequences() {
     let error = codec
         .decode_one(b"", 1)
         .expect_err("input index outside slice should fail");
-    assert_eq!(CharsetDecodeErrorKind::MalformedSequence { value: None }, error.kind());
+    assert_eq!(CharsetDecodeErrorKind::InvalidInputIndex { input_len: 0 }, error.kind());
     assert_eq!(1, error.index());
 }
 

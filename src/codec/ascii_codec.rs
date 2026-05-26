@@ -86,13 +86,13 @@ impl CharsetCodec for AsciiCodec {
     ///
     /// # Errors
     ///
-    /// Returns [`CharsetDecodeErrorKind::MalformedSequence`] when:
-    /// - `index` is out of range, or
-    /// - current byte is not in the ASCII range `0x00..=0x7F`.
+    /// Returns [`CharsetDecodeErrorKind::InvalidInputIndex`] when `index` is
+    /// greater than `input.len()`, or [`CharsetDecodeErrorKind::MalformedSequence`]
+    /// when the current byte is not in the ASCII range `0x00..=0x7F`.
     #[inline]
     fn decode_one(&self, input: &[u8], index: usize) -> CharsetDecodeResult<DecodeStatus> {
         if index > input.len() {
-            let kind = CharsetDecodeErrorKind::MalformedSequence { value: None };
+            let kind = CharsetDecodeErrorKind::InvalidInputIndex { input_len: input.len() };
             return Err(CharsetDecodeError::new(Charset::ASCII, kind, index));
         }
 

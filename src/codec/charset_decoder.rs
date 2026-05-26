@@ -179,7 +179,7 @@ where
         output_index: usize,
     ) -> Result<CoderProgress, Self::Error> {
         if input_index > input.len() {
-            let kind = CharsetDecodeErrorKind::MalformedSequence { value: None };
+            let kind = CharsetDecodeErrorKind::InvalidInputIndex { input_len: input.len() };
             return Err(CharsetDecodeError::new(self.codec.charset(), kind, input_index));
         }
         if output_index > output.len() {

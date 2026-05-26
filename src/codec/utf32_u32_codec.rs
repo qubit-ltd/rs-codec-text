@@ -111,8 +111,8 @@ impl CharsetCodec for Utf32U32Codec {
     ///
     /// # Errors
     ///
-    /// * [`crate::CharsetDecodeErrorKind::MalformedSequence`] when index is out
-    ///   of bounds.
+    /// * [`crate::CharsetDecodeErrorKind::InvalidInputIndex`] when `index` is
+    ///   greater than `input.len()`.
     /// * [`crate::CharsetDecodeErrorKind::InvalidCodePoint`] when unit is not a
     ///   valid scalar.
     fn decode_one(&self, input: &[u32], index: usize) -> CharsetDecodeResult<DecodeStatus> {

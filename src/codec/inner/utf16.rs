@@ -47,15 +47,17 @@ use crate::{
 ///
 /// # Errors
 ///
+/// * `CharsetDecodeErrorKind::InvalidInputIndex` when `index` is greater than
+///   `input.len()`.
 /// * `CharsetDecodeErrorKind::MalformedSequence` for invalid UTF-16 sequences
 ///   (invalid high/low surrogate pairing).
 /// # Panics
 ///
-/// This function does not panic for invalid UTF-16 input because malformed sequences are
-/// surfaced as `CharsetDecodeError`. It assumes `index <= input.len()`.
+/// This function does not panic for invalid UTF-16 input because invalid input
+/// is surfaced as `CharsetDecodeError`.
 pub(crate) fn decode_units_prefix(input: &[u16], index: usize) -> CharsetDecodeResult<DecodeStatus> {
     if index > input.len() {
-        let kind = CharsetDecodeErrorKind::MalformedSequence { value: None };
+        let kind = CharsetDecodeErrorKind::InvalidInputIndex { input_len: input.len() };
         return Err(CharsetDecodeError::new(Charset::UTF_16, kind, index));
     }
     if index == input.len() {
@@ -159,6 +161,8 @@ pub(crate) fn encode_units_char(ch: char, output: &mut [u16], index: usize) -> C
 ///
 /// # Errors
 ///
+/// * `CharsetDecodeErrorKind::InvalidInputIndex` when `index` is greater than
+///   `input.len()`.
 /// * `CharsetDecodeErrorKind::MalformedSequence` for invalid UTF-16 byte
 ///   sequences or malformed surrogate usage.
 pub(crate) fn decode_bytes_prefix(
@@ -168,7 +172,7 @@ pub(crate) fn decode_bytes_prefix(
 ) -> CharsetDecodeResult<DecodeStatus> {
     let charset = Charset::from_utf16_byte_order(byte_order);
     if index > input.len() {
-        let kind = CharsetDecodeErrorKind::MalformedSequence { value: None };
+        let kind = CharsetDecodeErrorKind::InvalidInputIndex { input_len: input.len() };
         return Err(CharsetDecodeError::new(charset, kind, index));
     }
     let available = input.len() - index;

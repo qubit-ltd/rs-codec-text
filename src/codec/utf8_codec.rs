@@ -107,6 +107,8 @@ impl CharsetCodec for Utf8Codec {
     ///
     /// # Errors
     ///
+    /// * [`crate::CharsetDecodeErrorKind::InvalidInputIndex`] when `index` is
+    ///   greater than `input.len()`.
     /// * [`crate::CharsetDecodeErrorKind::MalformedSequence`] for invalid UTF-8
     ///   byte sequence.
     fn decode_one(&self, input: &[u8], index: usize) -> CharsetDecodeResult<DecodeStatus> {

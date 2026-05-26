@@ -19,6 +19,13 @@ pub enum CharsetDecodeErrorKind {
         value: Option<u32>,
     },
 
+    /// The requested input unit index is outside the input buffer.
+    #[error("The input unit index is outside the input buffer.")]
+    InvalidInputIndex {
+        /// Length of the input provided to the codec call.
+        input_len: usize,
+    },
+
     /// The closed input ended before a complete character was available.
     #[error("The encoded text sequence is incomplete (required {required} units, available {available} units).")]
     IncompleteSequence {
@@ -49,7 +56,7 @@ impl CharsetDecodeErrorKind {
     pub const fn required(self) -> Option<usize> {
         match self {
             Self::IncompleteSequence { required, .. } => Some(required),
-            Self::MalformedSequence { .. } | Self::InvalidCodePoint { .. } => None,
+            Self::MalformedSequence { .. } | Self::InvalidInputIndex { .. } | Self::InvalidCodePoint { .. } => None,
         }
     }
 
@@ -65,7 +72,7 @@ impl CharsetDecodeErrorKind {
     pub const fn available(self) -> Option<usize> {
         match self {
             Self::IncompleteSequence { available, .. } => Some(available),
-            Self::MalformedSequence { .. } | Self::InvalidCodePoint { .. } => None,
+            Self::MalformedSequence { .. } | Self::InvalidInputIndex { .. } | Self::InvalidCodePoint { .. } => None,
         }
     }
 
@@ -83,7 +90,22 @@ impl CharsetDecodeErrorKind {
         match self {
             Self::MalformedSequence { value } => value,
             Self::InvalidCodePoint { value } => Some(value),
-            Self::IncompleteSequence { .. } => None,
+            Self::IncompleteSequence { .. } | Self::InvalidInputIndex { .. } => None,
+        }
+    }
+
+    /// Returns the input length when this error comes from an invalid input index.
+    ///
+    /// # Returns
+    ///
+    /// - `Some(input_len)` for [`Self::InvalidInputIndex`];
+    /// - `None` for other variants.
+    #[must_use]
+    #[inline]
+    pub const fn input_len(self) -> Option<usize> {
+        match self {
+            Self::InvalidInputIndex { input_len } => Some(input_len),
+            Self::MalformedSequence { .. } | Self::IncompleteSequence { .. } | Self::InvalidCodePoint { .. } => None,
         }
     }
 }

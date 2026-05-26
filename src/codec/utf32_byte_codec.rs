@@ -146,7 +146,8 @@ impl CharsetCodec for Utf32ByteCodec {
     ///
     /// # Errors
     ///
-    /// * [`crate::CharsetDecodeErrorKind::MalformedSequence`] when byte index is invalid.
+    /// * [`crate::CharsetDecodeErrorKind::InvalidInputIndex`] when `index` is
+    ///   greater than `input.len()`.
     /// * [`crate::CharsetDecodeErrorKind::InvalidCodePoint`] when bytes decode
     ///   to an invalid scalar.
     fn decode_one(&self, input: &[u8], index: usize) -> CharsetDecodeResult<DecodeStatus> {

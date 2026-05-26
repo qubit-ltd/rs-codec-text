@@ -85,12 +85,12 @@ impl CharsetCodec for Latin1Codec {
     ///
     /// # Errors
     ///
-    /// Returns [`CharsetDecodeErrorKind::MalformedSequence`] when `index` is out
-    /// of range.
+    /// Returns [`CharsetDecodeErrorKind::InvalidInputIndex`] when `index` is
+    /// greater than `input.len()`.
     #[inline]
     fn decode_one(&self, input: &[u8], index: usize) -> CharsetDecodeResult<DecodeStatus> {
         if index > input.len() {
-            let kind = CharsetDecodeErrorKind::MalformedSequence { value: None };
+            let kind = CharsetDecodeErrorKind::InvalidInputIndex { input_len: input.len() };
             return Err(CharsetDecodeError::new(Charset::ISO_8859_1, kind, index));
         }
 

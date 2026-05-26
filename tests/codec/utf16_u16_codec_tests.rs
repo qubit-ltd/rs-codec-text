@@ -75,7 +75,7 @@ fn test_utf16_u16_codec_decodes_bmp_and_reports_partial_or_malformed_units() {
     );
 
     let error = codec.decode_one(&[], 1).expect_err("index outside slice should fail");
-    assert_eq!(CharsetDecodeErrorKind::MalformedSequence { value: None }, error.kind());
+    assert_eq!(CharsetDecodeErrorKind::InvalidInputIndex { input_len: 0 }, error.kind());
     assert_eq!(1, error.index());
 
     let error = codec

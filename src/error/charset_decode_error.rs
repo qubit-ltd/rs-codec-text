@@ -107,6 +107,17 @@ impl CharsetDecodeError {
         self.kind.available()
     }
 
+    /// Returns input length for this decoding error, if reported.
+    ///
+    /// # Returns
+    ///
+    /// Returns `Some(input_len)` for [`CharsetDecodeErrorKind::InvalidInputIndex`],
+    /// otherwise `None`.
+    #[inline]
+    pub const fn input_len(self) -> Option<usize> {
+        self.kind.input_len()
+    }
+
     /// Returns the raw value associated with this error.
     ///
     /// # Returns

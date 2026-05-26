@@ -60,4 +60,12 @@ fn test_charset_decode_error_exposes_context() {
         "UTF-32 decoding error at index 5 for value 0x110000: The decoded code point 0x110000 is not a valid Unicode scalar value.",
         invalid.to_string(),
     );
+
+    let kind = CharsetDecodeErrorKind::InvalidInputIndex { input_len: 2 };
+    let invalid_index = CharsetDecodeError::new(Charset::UTF_8, kind, 3);
+    assert_eq!(Some(2), invalid_index.input_len());
+    assert_eq!(
+        "UTF-8 decoding error at index 3: The input unit index is outside the input buffer.",
+        invalid_index.to_string(),
+    );
 }

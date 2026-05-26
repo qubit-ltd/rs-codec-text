@@ -43,12 +43,13 @@ use crate::{
 ///
 /// # Errors
 ///
-/// * `CharsetDecodeErrorKind::MalformedSequence` when `index` is out of bounds.
+/// * `CharsetDecodeErrorKind::InvalidInputIndex` when `index` is greater than
+///   `input.len()`.
 /// * `CharsetDecodeErrorKind::InvalidCodePoint` when `input[index]` is not a
 ///   valid scalar.
 pub(crate) fn decode_units_prefix(input: &[u32], index: usize) -> CharsetDecodeResult<DecodeStatus> {
     if index > input.len() {
-        let kind = CharsetDecodeErrorKind::MalformedSequence { value: None };
+        let kind = CharsetDecodeErrorKind::InvalidInputIndex { input_len: input.len() };
         return Err(CharsetDecodeError::new(Charset::UTF_32, kind, index));
     }
     if index == input.len() {
@@ -112,7 +113,8 @@ pub(crate) fn encode_units_char(ch: char, output: &mut [u32], index: usize) -> C
 ///
 /// # Errors
 ///
-/// * `CharsetDecodeErrorKind::MalformedSequence` when `index` is out of bounds.
+/// * `CharsetDecodeErrorKind::InvalidInputIndex` when `index` is greater than
+///   `input.len()`.
 /// * `CharsetDecodeErrorKind::InvalidCodePoint` when the decoded unit is not a
 ///   valid scalar.
 pub(crate) fn decode_bytes_prefix(
@@ -122,7 +124,7 @@ pub(crate) fn decode_bytes_prefix(
 ) -> CharsetDecodeResult<DecodeStatus> {
     let charset = Charset::from_utf32_byte_order(byte_order);
     if index > input.len() {
-        let kind = CharsetDecodeErrorKind::MalformedSequence { value: None };
+        let kind = CharsetDecodeErrorKind::InvalidInputIndex { input_len: input.len() };
         return Err(CharsetDecodeError::new(charset, kind, index));
     }
     let available = input.len() - index;

@@ -40,11 +40,13 @@ use crate::{
 ///
 /// # Errors
 ///
+/// * `CharsetDecodeErrorKind::InvalidInputIndex` when `index` is greater than
+///   `input.len()`.
 /// * `CharsetDecodeErrorKind::MalformedSequence` when the first byte or
 ///   continuation bytes are invalid for UTF-8.
 pub(crate) fn decode_prefix(input: &[u8], index: usize) -> CharsetDecodeResult<DecodeStatus> {
     if index > input.len() {
-        let kind = CharsetDecodeErrorKind::MalformedSequence { value: None };
+        let kind = CharsetDecodeErrorKind::InvalidInputIndex { input_len: input.len() };
         return Err(CharsetDecodeError::new(Charset::UTF_8, kind, index));
     }
     if index == input.len() {

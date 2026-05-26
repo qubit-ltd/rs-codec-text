@@ -112,6 +112,8 @@ impl CharsetCodec for Utf16U16Codec {
     ///
     /// # Errors
     ///
+    /// * [`crate::CharsetDecodeErrorKind::InvalidInputIndex`] when `index` is
+    ///   greater than `input.len()`.
     /// * [`crate::CharsetDecodeErrorKind::MalformedSequence`] for invalid
     ///   surrogate combinations.
     /// * [`crate::CharsetDecodeErrorKind::InvalidCodePoint`] when resulting

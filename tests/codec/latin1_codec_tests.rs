@@ -72,10 +72,8 @@ fn test_latin1_codec_reports_errors_for_invalid_indices_and_unmappable_character
     let codec = Latin1Codec;
     let mut output = [0_u8; 1];
 
-    let error = codec
-        .decode_one(&[0x41], 2)
-        .expect_err("index out of range is malformed");
-    assert_eq!(CharsetDecodeErrorKind::MalformedSequence { value: None }, error.kind());
+    let error = codec.decode_one(&[0x41], 2).expect_err("index out of range is invalid");
+    assert_eq!(CharsetDecodeErrorKind::InvalidInputIndex { input_len: 1 }, error.kind());
 
     assert_eq!(
         1,

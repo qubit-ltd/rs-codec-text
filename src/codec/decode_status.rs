@@ -7,6 +7,12 @@
  *    Licensed under the Apache License, Version 2.0.
  *
  ******************************************************************************/
+use crate::{
+    Charset,
+    CharsetDecodeError,
+    CharsetDecodeErrorKind,
+};
+
 /// Non-error status reported after inspecting a decoder input prefix.
 ///
 /// Values are reported for a [`crate::CharsetCodec::decode_one`] call over a
@@ -43,4 +49,38 @@ pub enum DecodeStatus {
         /// For a `decode_one(input, index)` call, this is `input.len() - index`.
         available: usize,
     },
+}
+
+impl DecodeStatus {
+    /// Converts an incomplete decode status into a closed-input decoding error.
+    ///
+    /// This helper is intended for stream or file readers that reach EOF after
+    /// a codec reported [`DecodeStatus::NeedMore`]. The `required` field in
+    /// [`DecodeStatus::NeedMore`] is an absolute input length for the current
+    /// `decode_one(input, index)` call, while
+    /// [`CharsetDecodeErrorKind::IncompleteSequence`] reports how many units
+    /// the current sequence requires from `index`.
+    ///
+    /// # Parameters
+    ///
+    /// - `charset`: Charset being decoded.
+    /// - `index`: Absolute input index where the incomplete sequence starts.
+    ///
+    /// # Returns
+    ///
+    /// Returns `Some(CharsetDecodeError)` for [`DecodeStatus::NeedMore`], or
+    /// `None` when the status is [`DecodeStatus::Complete`].
+    #[must_use]
+    pub const fn incomplete_error(self, charset: Charset, index: usize) -> Option<CharsetDecodeError> {
+        match self {
+            Self::NeedMore { required, available } => {
+                let kind = CharsetDecodeErrorKind::IncompleteSequence {
+                    required: required.saturating_sub(index),
+                    available,
+                };
+                Some(CharsetDecodeError::new(charset, kind, index))
+            }
+            Self::Complete { .. } => None,
+        }
+    }
 }

@@ -147,7 +147,10 @@ impl CharsetCodec for Utf16ByteCodec {
     ///
     /// # Errors
     ///
-    /// * `CharsetDecodeError` when UTF-16 structure is malformed.
+    /// * [`crate::CharsetDecodeErrorKind::InvalidInputIndex`] when `index` is
+    ///   greater than `input.len()`.
+    /// * [`crate::CharsetDecodeErrorKind::MalformedSequence`] when UTF-16
+    ///   structure is malformed.
     fn decode_one(&self, input: &[u8], index: usize) -> CharsetDecodeResult<DecodeStatus> {
         utf16::decode_bytes_prefix(input, index, self.byte_order)
     }

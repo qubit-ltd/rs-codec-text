@@ -64,10 +64,8 @@ fn test_ascii_codec_decodes_ascii_bytes_and_reports_need_more_and_malformed() {
     );
     assert_eq!(0, error.index());
 
-    let error = codec
-        .decode_one(&[0x41], 2)
-        .expect_err("index out of range is malformed");
-    assert_eq!(CharsetDecodeErrorKind::MalformedSequence { value: None }, error.kind());
+    let error = codec.decode_one(&[0x41], 2).expect_err("index out of range is invalid");
+    assert_eq!(CharsetDecodeErrorKind::InvalidInputIndex { input_len: 1 }, error.kind());
     assert_eq!(2, error.index());
 }
 
