@@ -26,7 +26,7 @@ use crate::ByteOrder;
 /// # Examples
 ///
 /// ```rust
-/// use qubit_text_codec::Charset;
+/// use qubit_codec_text::Charset;
 ///
 /// const GBK: Charset = Charset::new("gbk", "GBK", &["cp936"]);
 ///

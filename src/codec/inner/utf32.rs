@@ -7,12 +7,7 @@
  *    Licensed under the Apache License, Version 2.0.
  *
  ***************************************************************************/
-use qubit_io::{
-    BigEndian,
-    BinaryCodec,
-    ByteOrder,
-    LittleEndian,
-};
+use qubit_codec::ByteOrder;
 
 use crate::{
     Charset,
@@ -134,11 +129,7 @@ pub(crate) fn decode_bytes_prefix(
             available,
         });
     }
-    // SAFETY: The length check above guarantees that `index..index + 4` is in bounds.
-    let unit = match byte_order {
-        ByteOrder::BigEndian => unsafe { BinaryCodec::<u32, BigEndian>::read_unchecked(input, index) },
-        ByteOrder::LittleEndian => unsafe { BinaryCodec::<u32, LittleEndian>::read_unchecked(input, index) },
-    };
+    let unit = read_ordered_u32(input, index, byte_order);
     match Unicode::to_char(unit) {
         Some(ch) => Ok(DecodeStatus::Complete { value: ch, consumed: 4 }),
         None => {
@@ -188,12 +179,43 @@ pub(crate) fn encode_bytes_char(
         };
         return Err(CharsetEncodeError::new(charset, kind, index));
     }
-    // SAFETY: The capacity check above guarantees that `index..index + 4` is in bounds.
-    match byte_order {
-        ByteOrder::BigEndian => unsafe { BinaryCodec::<u32, BigEndian>::write_unchecked(output, index, ch as u32) },
-        ByteOrder::LittleEndian => unsafe {
-            BinaryCodec::<u32, LittleEndian>::write_unchecked(output, index, ch as u32)
-        },
-    }
+    write_ordered_u32(output, index, ch as u32, byte_order);
     Ok(4)
+}
+
+/// Reads one endian-aware `u32` value from an already checked byte slice.
+///
+/// # Parameters
+///
+/// - `input`: Source byte slice.
+/// - `index`: Start byte offset. The caller must guarantee four bytes are
+///   available from this offset.
+/// - `byte_order`: Byte order used to interpret the four bytes.
+///
+/// # Returns
+///
+/// Returns the decoded UTF-32 unit.
+fn read_ordered_u32(input: &[u8], index: usize, byte_order: ByteOrder) -> u32 {
+    let bytes = [input[index], input[index + 1], input[index + 2], input[index + 3]];
+    match byte_order {
+        ByteOrder::BigEndian => u32::from_be_bytes(bytes),
+        ByteOrder::LittleEndian => u32::from_le_bytes(bytes),
+    }
+}
+
+/// Writes one endian-aware `u32` value into an already checked byte slice.
+///
+/// # Parameters
+///
+/// - `output`: Destination byte slice.
+/// - `index`: Start byte offset. The caller must guarantee four bytes are
+///   writable from this offset.
+/// - `unit`: UTF-32 unit to write.
+/// - `byte_order`: Byte order used to serialize the unit.
+fn write_ordered_u32(output: &mut [u8], index: usize, unit: u32, byte_order: ByteOrder) {
+    let bytes = match byte_order {
+        ByteOrder::BigEndian => unit.to_be_bytes(),
+        ByteOrder::LittleEndian => unit.to_le_bytes(),
+    };
+    output[index..index + 4].copy_from_slice(&bytes);
 }

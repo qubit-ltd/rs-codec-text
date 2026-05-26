@@ -6,7 +6,7 @@ use std::{
     },
 };
 
-use qubit_text_codec::{
+use qubit_codec_text::{
     ByteOrder,
     Charset,
 };

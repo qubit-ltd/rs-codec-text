@@ -33,7 +33,7 @@ use crate::{
 /// - `E`: Low-level charset codec used by the target encoder.
 ///
 /// ```rust
-/// use qubit_text_codec::{Coder, CharsetDecoder, CharsetEncoder, CharsetConverter, Utf8Codec, Utf16U16Codec};
+/// use qubit_codec_text::{Coder, CharsetDecoder, CharsetEncoder, CharsetConverter, Utf8Codec, Utf16U16Codec};
 ///
 /// let mut converter = CharsetConverter::new(
 ///     CharsetDecoder::new(Utf8Codec),

@@ -1,4 +1,4 @@
-use qubit_text_codec::CharsetEncodeErrorKind;
+use qubit_codec_text::CharsetEncodeErrorKind;
 
 #[test]
 fn test_charset_encode_error_kind_displays_messages() {

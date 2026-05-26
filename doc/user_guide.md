@@ -1,6 +1,6 @@
 # Qubit Text Codec User Guide
 
-This guide explains what `qubit-text-codec` provides, how the pieces fit
+This guide explains what `qubit-codec-text` provides, how the pieces fit
 together, and how to use the crate in buffer-oriented text codec code.
 
 For a shorter project overview, see the [README](../README.md). For Chinese,
@@ -8,7 +8,7 @@ see the [Chinese user guide](user_guide.zh_CN.md).
 
 ## Purpose
 
-`qubit-text-codec` is a low-level text codec core. It is intended for parsers,
+`qubit-codec-text` is a low-level text codec core. It is intended for parsers,
 binary formats, and text I/O adapters that need explicit control over byte or
 code-unit buffers, exact error positions, and strict malformed/unmappable
 policy.
@@ -36,23 +36,22 @@ adapters. Use crates such as `unicode-segmentation`, `unicode-normalization`,
 
 ```toml
 [dependencies]
-qubit-text-codec = "0.1"
+qubit-codec-text = "0.1"
 ```
 
-`qubit-io` is a runtime dependency and the core buffer-level traits used by the
-public API are re-exported by `qubit-text-codec`. Add `qubit-io = "0.5"` only
-when your code imports `qubit_io::...` items directly.
+`qubit-codec` is the core runtime dependency and the core buffer-level traits
+used by the public API are re-exported by `qubit-codec-text`.
 
 For compact imports:
 
 ```rust
-use qubit_text_codec::prelude::*;
+use qubit_codec_text::prelude::*;
 ```
 
 For explicit imports:
 
 ```rust
-use qubit_text_codec::{
+use qubit_codec_text::{
     CharsetCodec,
     CharsetDecoder,
     CharsetEncoder,
@@ -86,7 +85,7 @@ The namespace enums are stateless. They group constants and helper functions
 without owning buffers.
 
 ```rust
-use qubit_text_codec::{
+use qubit_codec_text::{
     Ascii,
     Unicode,
     Utf8,
@@ -117,7 +116,7 @@ Unicode case folding.
 `id`; the display name and aliases are used for presentation and label matching.
 
 ```rust
-use qubit_text_codec::Charset;
+use qubit_codec_text::Charset;
 
 assert_eq!("utf-8", Charset::UTF_8.id());
 assert_eq!("UTF-8", Charset::UTF_8.name());
@@ -149,7 +148,7 @@ charset labels.
 byte buffer.
 
 ```rust
-use qubit_text_codec::{
+use qubit_codec_text::{
     ByteOrder,
     Charset,
     UnicodeBom,
@@ -189,7 +188,7 @@ Unicode scalar value using a codec-specific storage unit.
 Decode one scalar value:
 
 ```rust
-use qubit_text_codec::{
+use qubit_codec_text::{
     CharsetCodec,
     DecodeStatus,
     Utf8Codec,
@@ -222,7 +221,7 @@ assert_eq!(
 Encode one scalar value:
 
 ```rust
-use qubit_text_codec::{
+use qubit_codec_text::{
     CharsetCodec,
     Utf8Codec,
     Utf8,
@@ -253,7 +252,7 @@ errors. Policy decisions are handled by the wrappers described below.
 turn it into an incomplete sequence error:
 
 ```rust
-use qubit_text_codec::{
+use qubit_codec_text::{
     Charset,
     DecodeStatus,
 };
@@ -280,7 +279,7 @@ assert_eq!(Some(1), error.available());
 | `MalformedAction::Report` | Return `CharsetDecodeError`. |
 
 ```rust
-use qubit_text_codec::{
+use qubit_codec_text::{
     CharsetDecoder,
     Coder,
     CoderStatus,
@@ -304,7 +303,7 @@ assert_eq!(['A', 'é'], output);
 For strict validation:
 
 ```rust
-use qubit_text_codec::{
+use qubit_codec_text::{
     CharsetDecoder,
     Coder,
     MalformedAction,
@@ -335,7 +334,7 @@ documented `DecodeStatus` invariants. Built-in codecs satisfy those invariants.
 | `UnmappableAction::Report` | Return `CharsetEncodeError`. |
 
 ```rust
-use qubit_text_codec::{
+use qubit_codec_text::{
     CharsetEncoder,
     Coder,
     CoderStatus,
@@ -360,7 +359,7 @@ assert_eq!("😀".as_bytes(), &output[..progress.written()]);
 For ASCII output with strict unmappable handling:
 
 ```rust
-use qubit_text_codec::{
+use qubit_codec_text::{
     AsciiCodec,
     CharsetEncoder,
     Coder,
@@ -387,7 +386,7 @@ Use `with_replacement` or `set_replacement` to validate a custom replacement
 character up front:
 
 ```rust
-use qubit_text_codec::{
+use qubit_codec_text::{
     AsciiCodec,
     CharsetEncoder,
 };
@@ -404,7 +403,7 @@ assert_eq!('?', encoder.replacement());
 uses `char` values as the intermediate representation.
 
 ```rust
-use qubit_text_codec::{
+use qubit_codec_text::{
     CharsetConverter,
     Coder,
     CoderStatus,
@@ -434,7 +433,7 @@ source input has ended to flush pending output.
 failures:
 
 ```rust
-use qubit_text_codec::{
+use qubit_codec_text::{
     CharsetConvertError,
     CharsetConverter,
     Coder,
@@ -454,7 +453,7 @@ assert!(matches!(error, CharsetConvertError::Decode(_)));
 
 ## Progress and Buffering
 
-`Coder<Input, Output>` is re-exported from `qubit-io`. It has three central
+`Coder<Input, Output>` is re-exported from `qubit-codec`. It has three central
 methods:
 
 | Method | Meaning |
@@ -516,7 +515,7 @@ arrays. Use `Utf16ByteCodec` and `Utf32ByteCodec` when the data is serialized
 as bytes.
 
 ```rust
-use qubit_text_codec::{
+use qubit_codec_text::{
     ByteOrder,
     CharsetCodec,
     Utf16ByteCodec,
@@ -532,7 +531,7 @@ let written = codec
 assert_eq!(&[0x3d, 0xd8, 0x00, 0xde], &output[..written]);
 ```
 
-The byte codecs rely on `qubit-io` binary byte helpers internally. Public
+The byte codecs read and write fixed-endian byte sequences directly. Public
 callers usually interact with them through `CharsetCodec`, `CharsetEncoder`, or
 `CharsetConverter`.
 

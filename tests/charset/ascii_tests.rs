@@ -1,4 +1,4 @@
-use qubit_text_codec::Ascii;
+use qubit_codec_text::Ascii;
 
 #[test]
 fn test_ascii_classifies_ascii_code_points() {

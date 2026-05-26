@@ -1,14 +1,14 @@
 [package]
-name = "qubit-text-codec"
+name = "qubit-codec-text"
 version = "0.1.0"
 edition = "2024"
 rust-version = "1.94"
 authors = ["Haixing Hu <starfish.hu@gmail.com>"]
 license = "Apache-2.0"
-repository = "https://github.com/qubit-ltd/rs-text-codec"
+repository = "https://github.com/qubit-ltd/rs-codec-text"
 description = "Buffer-oriented text encoding and decoding utilities for Rust"
-homepage = "https://github.com/qubit-ltd/rs-text-codec"
-documentation = "https://docs.rs/qubit-text-codec"
+homepage = "https://github.com/qubit-ltd/rs-codec-text"
+documentation = "https://docs.rs/qubit-codec-text"
 readme = "README.md"
 keywords = ["text", "encoding", "codec", "unicode", "utf8"]
 categories = ["encoding", "text-processing"]
@@ -27,7 +27,7 @@ include = [
 ]
 
 [lib]
-name = "qubit_text_codec"
+name = "qubit_codec_text"
 doctest = true
 
 [[test]]
@@ -47,7 +47,7 @@ name = "encoding"
 path = "tests/encoding/mod.rs"
 
 [dependencies]
-qubit-io = { version = "0.5" }
+qubit-codec = { version = "0.1", path = "../rs-codec" }
 thiserror = "2.0"
 
 [lints.rust]

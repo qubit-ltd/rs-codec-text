@@ -7,12 +7,7 @@
  *    Licensed under the Apache License, Version 2.0.
  *
  ***************************************************************************/
-use qubit_io::{
-    BigEndian,
-    BinaryCodec,
-    ByteOrder,
-    LittleEndian,
-};
+use qubit_codec::ByteOrder;
 
 use crate::{
     Charset,
@@ -182,11 +177,7 @@ pub(crate) fn decode_bytes_prefix(
             available,
         });
     }
-    // SAFETY: The length check above guarantees that `index..index + 2` is in bounds.
-    let first = match byte_order {
-        ByteOrder::BigEndian => unsafe { BinaryCodec::<u16, BigEndian>::read_unchecked(input, index) },
-        ByteOrder::LittleEndian => unsafe { BinaryCodec::<u16, LittleEndian>::read_unchecked(input, index) },
-    };
+    let first = read_ordered_u16(input, index, byte_order);
     if Utf16::is_high_surrogate(first) {
         if available < 4 {
             return Ok(DecodeStatus::NeedMore {
@@ -194,11 +185,7 @@ pub(crate) fn decode_bytes_prefix(
                 available,
             });
         }
-        // SAFETY: The `available < 4` check above guarantees this two-byte range is in bounds.
-        let second = match byte_order {
-            ByteOrder::BigEndian => unsafe { BinaryCodec::<u16, BigEndian>::read_unchecked(input, index + 2) },
-            ByteOrder::LittleEndian => unsafe { BinaryCodec::<u16, LittleEndian>::read_unchecked(input, index + 2) },
-        };
+        let second = read_ordered_u16(input, index + 2, byte_order);
         match Utf16::compose_pair(first, second).and_then(Unicode::to_char) {
             Some(ch) => Ok(DecodeStatus::Complete { value: ch, consumed: 4 }),
             None => {
@@ -266,13 +253,44 @@ pub(crate) fn encode_bytes_char(
     let unit_count = encode_units_char(ch, &mut units, 0)?;
     for (unit_index, unit) in units.iter().take(unit_count).enumerate() {
         let offset = index + unit_index * 2;
-        // SAFETY: The capacity check above guarantees every two-byte unit write is in bounds.
-        match byte_order {
-            ByteOrder::BigEndian => unsafe { BinaryCodec::<u16, BigEndian>::write_unchecked(output, offset, *unit) },
-            ByteOrder::LittleEndian => unsafe {
-                BinaryCodec::<u16, LittleEndian>::write_unchecked(output, offset, *unit)
-            },
-        }
+        write_ordered_u16(output, offset, *unit, byte_order);
     }
     Ok(required)
+}
+
+/// Reads one endian-aware `u16` value from an already checked byte slice.
+///
+/// # Parameters
+///
+/// - `input`: Source byte slice.
+/// - `index`: Start byte offset. The caller must guarantee two bytes are
+///   available from this offset.
+/// - `byte_order`: Byte order used to interpret the two bytes.
+///
+/// # Returns
+///
+/// Returns the decoded UTF-16 unit.
+fn read_ordered_u16(input: &[u8], index: usize, byte_order: ByteOrder) -> u16 {
+    let bytes = [input[index], input[index + 1]];
+    match byte_order {
+        ByteOrder::BigEndian => u16::from_be_bytes(bytes),
+        ByteOrder::LittleEndian => u16::from_le_bytes(bytes),
+    }
+}
+
+/// Writes one endian-aware `u16` value into an already checked byte slice.
+///
+/// # Parameters
+///
+/// - `output`: Destination byte slice.
+/// - `index`: Start byte offset. The caller must guarantee two bytes are
+///   writable from this offset.
+/// - `unit`: UTF-16 unit to write.
+/// - `byte_order`: Byte order used to serialize the unit.
+fn write_ordered_u16(output: &mut [u8], index: usize, unit: u16, byte_order: ByteOrder) {
+    let bytes = match byte_order {
+        ByteOrder::BigEndian => unit.to_be_bytes(),
+        ByteOrder::LittleEndian => unit.to_le_bytes(),
+    };
+    output[index..index + 2].copy_from_slice(&bytes);
 }

@@ -1,8 +1,8 @@
 # Qubit Text Codec
 
-[![Rust CI](https://github.com/qubit-ltd/rs-text-codec/actions/workflows/ci.yml/badge.svg)](https://github.com/qubit-ltd/rs-text-codec/actions/workflows/ci.yml)
-[![Coverage](https://img.shields.io/endpoint?url=https://qubit-ltd.github.io/rs-text-codec/coverage-badge.json)](https://qubit-ltd.github.io/rs-text-codec/coverage/)
-[![Crates.io](https://img.shields.io/crates/v/qubit-text-codec.svg?color=blue)](https://crates.io/crates/qubit-text-codec)
+[![Rust CI](https://github.com/qubit-ltd/rs-codec-text/actions/workflows/ci.yml/badge.svg)](https://github.com/qubit-ltd/rs-codec-text/actions/workflows/ci.yml)
+[![Coverage](https://img.shields.io/endpoint?url=https://qubit-ltd.github.io/rs-codec-text/coverage-badge.json)](https://qubit-ltd.github.io/rs-codec-text/coverage/)
+[![Crates.io](https://img.shields.io/crates/v/qubit-codec-text.svg?color=blue)](https://crates.io/crates/qubit-codec-text)
 [![Rust](https://img.shields.io/badge/rust-1.94+-blue.svg?logo=rust)](https://www.rust-lang.org)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 [![Chinese Document](https://img.shields.io/badge/Document-Chinese-blue.svg)](README.zh_CN.md)
@@ -22,7 +22,7 @@ below ordinary `str`, `String`, and `char` APIs. It provides:
   wrappers.
 - Typed decode/encode/convert errors with precise buffer indices.
 - `Coder`, `CoderProgress`, `CoderStatus`, and `ByteOrder` re-exported from
-  `qubit-io`.
+  `qubit-codec`.
 
 This crate intentionally stays below `std::io` reader/writer adapters,
 automatic charset detection, normalization, segmentation, collation, display
@@ -31,23 +31,23 @@ width, and locale-aware text behavior.
 ## Documentation
 
 - [User Guide](doc/user_guide.md)
-- [API Reference](https://docs.rs/qubit-text-codec)
+- [API Reference](https://docs.rs/qubit-codec-text)
 - [Chinese README](README.zh_CN.md)
 
 ## Installation
 
 ```toml
 [dependencies]
-qubit-text-codec = "0.1"
+qubit-codec-text = "0.1"
 ```
 
-`qubit-io` is a runtime dependency. Add `qubit-io = "0.5"` only when your code
-uses `qubit_io::...` APIs directly.
+`qubit-codec` is the core runtime dependency. The core buffer-level traits used
+by this public API are re-exported by `qubit-codec-text`.
 
 ## Quick Example
 
 ```rust
-use qubit_text_codec::{
+use qubit_codec_text::{
     CharsetCodec,
     CharsetEncoder,
     Coder,
@@ -104,9 +104,9 @@ full license text.
 
 ## Related Projects
 
-- [qubit-io](https://github.com/qubit-ltd/rs-io): stream and byte I/O utilities
+- [qubit-io-text](https://github.com/qubit-ltd/rs-io-text): text stream adapters
   for Rust.
 - More Rust libraries from Qubit are published under the
   [qubit-ltd](https://github.com/qubit-ltd) organization on GitHub.
 
-Repository: [https://github.com/qubit-ltd/rs-text-codec](https://github.com/qubit-ltd/rs-text-codec)
+Repository: [https://github.com/qubit-ltd/rs-codec-text](https://github.com/qubit-ltd/rs-codec-text)

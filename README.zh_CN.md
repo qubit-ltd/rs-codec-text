@@ -1,8 +1,8 @@
 # Qubit Text Codec
 
-[![Rust CI](https://github.com/qubit-ltd/rs-text-codec/actions/workflows/ci.yml/badge.svg)](https://github.com/qubit-ltd/rs-text-codec/actions/workflows/ci.yml)
-[![Coverage](https://img.shields.io/endpoint?url=https://qubit-ltd.github.io/rs-text-codec/coverage-badge.json)](https://qubit-ltd.github.io/rs-text-codec/coverage/)
-[![Crates.io](https://img.shields.io/crates/v/qubit-text-codec.svg?color=blue)](https://crates.io/crates/qubit-text-codec)
+[![Rust CI](https://github.com/qubit-ltd/rs-codec-text/actions/workflows/ci.yml/badge.svg)](https://github.com/qubit-ltd/rs-codec-text/actions/workflows/ci.yml)
+[![Coverage](https://img.shields.io/endpoint?url=https://qubit-ltd.github.io/rs-codec-text/coverage-badge.json)](https://qubit-ltd.github.io/rs-codec-text/coverage/)
+[![Crates.io](https://img.shields.io/crates/v/qubit-codec-text.svg?color=blue)](https://crates.io/crates/qubit-codec-text)
 [![Rust](https://img.shields.io/badge/rust-1.94+-blue.svg?logo=rust)](https://www.rust-lang.org)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 [![English Document](https://img.shields.io/badge/Document-English-blue.svg)](README.md)
@@ -19,7 +19,7 @@ Qubit Text Codec 是一个低层编解码核心，服务于那些需要在 Rust 
 - ASCII、ISO-8859-1、UTF-8、UTF-16、UTF-32 的缓冲区级 codec。
 - 带策略的 `CharsetDecoder`、`CharsetEncoder` 和 `CharsetConverter`。
 - 带精确缓冲区下标的强类型 decode / encode / convert 错误。
-- 从 `qubit-io` 重导出的 `Coder`、`CoderProgress`、`CoderStatus` 和
+- 从 `qubit-codec` 重导出的 `Coder`、`CoderProgress`、`CoderStatus` 和
   `ByteOrder`。
 
 本库刻意停留在 `std::io` 读写适配器、自动 charset 检测、规范化、切分、
@@ -28,23 +28,23 @@ Qubit Text Codec 是一个低层编解码核心，服务于那些需要在 Rust 
 ## 文档
 
 - [用户指南](doc/user_guide.zh_CN.md)
-- [API 文档](https://docs.rs/qubit-text-codec)
+- [API 文档](https://docs.rs/qubit-codec-text)
 - [英文 README](README.md)
 
 ## 安装
 
 ```toml
 [dependencies]
-qubit-text-codec = "0.1"
+qubit-codec-text = "0.1"
 ```
 
-`qubit-io` 是运行时依赖。只有在业务代码直接使用 `qubit_io::...` API 时，
-才需要额外添加 `qubit-io = "0.5"`。
+`qubit-codec` 是核心运行时依赖。公开 API 使用的核心缓冲区级 trait 已经由
+`qubit-codec-text` 重导出。
 
 ## 快速示例
 
 ```rust
-use qubit_text_codec::{
+use qubit_codec_text::{
     CharsetCodec,
     CharsetEncoder,
     Coder,
@@ -100,9 +100,9 @@ Copyright (c) 2026. Haixing Hu.
 
 ## 相关项目
 
-- [qubit-io](https://github.com/qubit-ltd/rs-io)：面向 Rust 的流和字节 I/O
+- [qubit-io-text](https://github.com/qubit-ltd/rs-io-text)：文本 stream adapter
   工具库。
 - Qubit 旗下的更多 Rust 库发布在 GitHub 组织
   [qubit-ltd](https://github.com/qubit-ltd)。
 
-仓库地址：[https://github.com/qubit-ltd/rs-text-codec](https://github.com/qubit-ltd/rs-text-codec)
+仓库地址：[https://github.com/qubit-ltd/rs-codec-text](https://github.com/qubit-ltd/rs-codec-text)

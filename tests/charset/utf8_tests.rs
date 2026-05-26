@@ -1,4 +1,4 @@
-use qubit_text_codec::Utf8;
+use qubit_codec_text::Utf8;
 
 #[test]
 fn test_utf8_classifies_bytes_and_lengths() {

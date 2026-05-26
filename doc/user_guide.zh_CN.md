@@ -1,6 +1,6 @@
 # Qubit Text Codec 用户指南
 
-本文说明 `qubit-text-codec` 提供的能力、核心类型之间的关系，以及如何在面向
+本文说明 `qubit-codec-text` 提供的能力、核心类型之间的关系，以及如何在面向
 缓冲区的文本编解码代码中使用本库。
 
 简短概览见[中文 README](../README.zh_CN.md)。英文说明见
@@ -8,7 +8,7 @@
 
 ## 用途
 
-`qubit-text-codec` 是一个低层文本编解码核心。它面向解析器、二进制格式、
+`qubit-codec-text` 是一个低层文本编解码核心。它面向解析器、二进制格式、
 文本 I/O 适配器等场景，这些场景通常需要直接控制字节或码元缓冲区、保留精确
 错误位置，并明确区分 malformed / unmappable 的处理策略。
 
@@ -31,23 +31,22 @@
 
 ```toml
 [dependencies]
-qubit-text-codec = "0.1"
+qubit-codec-text = "0.1"
 ```
 
-`qubit-io` 是运行时依赖；公开 API 使用的核心缓冲区级 trait 已经由
-`qubit-text-codec` 重导出。只有业务代码直接导入 `qubit_io::...` 项时，
-才需要额外添加 `qubit-io = "0.5"`。
+`qubit-codec` 是核心运行时依赖；公开 API 使用的核心缓冲区级 trait 已经由
+`qubit-codec-text` 重导出。
 
 需要紧凑导入时：
 
 ```rust
-use qubit_text_codec::prelude::*;
+use qubit_codec_text::prelude::*;
 ```
 
 需要显式导入时：
 
 ```rust
-use qubit_text_codec::{
+use qubit_codec_text::{
     CharsetCodec,
     CharsetDecoder,
     CharsetEncoder,
@@ -79,7 +78,7 @@ use qubit_text_codec::{
 命名空间枚举是无状态的，只组织常量和辅助函数，不持有缓冲区。
 
 ```rust
-use qubit_text_codec::{
+use qubit_codec_text::{
     Ascii,
     Unicode,
     Utf8,
@@ -109,7 +108,7 @@ assert!(Utf32::is_valid_unit('中' as u32));
 展示与标签匹配。
 
 ```rust
-use qubit_text_codec::Charset;
+use qubit_codec_text::Charset;
 
 assert_eq!("utf-8", Charset::UTF_8.id());
 assert_eq!("UTF-8", Charset::UTF_8.name());
@@ -140,7 +139,7 @@ assert!(GBK.matches_label("CP936"));
 `UnicodeBom` 从字节缓冲区开头检测受支持的 Unicode BOM。
 
 ```rust
-use qubit_text_codec::{
+use qubit_codec_text::{
     ByteOrder,
     Charset,
     UnicodeBom,
@@ -180,7 +179,7 @@ Unicode 标量值。
 解码单个标量值：
 
 ```rust
-use qubit_text_codec::{
+use qubit_codec_text::{
     CharsetCodec,
     DecodeStatus,
     Utf8Codec,
@@ -213,7 +212,7 @@ assert_eq!(
 编码单个标量值：
 
 ```rust
-use qubit_text_codec::{
+use qubit_codec_text::{
     CharsetCodec,
     Utf8Codec,
     Utf8,
@@ -242,7 +241,7 @@ assert_eq!("é".as_bytes(), &output[..written]);
 流仍打开时，`NeedMore` 不是错误。到达 EOF 后，调用方可以把它转换为不完整序列错误：
 
 ```rust
-use qubit_text_codec::{
+use qubit_codec_text::{
     Charset,
     DecodeStatus,
 };
@@ -268,7 +267,7 @@ assert_eq!(Some(1), error.available());
 | `MalformedAction::Report` | 返回 `CharsetDecodeError`。 |
 
 ```rust
-use qubit_text_codec::{
+use qubit_codec_text::{
     CharsetDecoder,
     Coder,
     CoderStatus,
@@ -292,7 +291,7 @@ assert_eq!(['A', 'é'], output);
 严格校验时：
 
 ```rust
-use qubit_text_codec::{
+use qubit_codec_text::{
     CharsetDecoder,
     Coder,
     MalformedAction,
@@ -322,7 +321,7 @@ assert_eq!(0, error.index());
 | `UnmappableAction::Report` | 返回 `CharsetEncodeError`。 |
 
 ```rust
-use qubit_text_codec::{
+use qubit_codec_text::{
     CharsetEncoder,
     Coder,
     CoderStatus,
@@ -347,7 +346,7 @@ assert_eq!("😀".as_bytes(), &output[..progress.written()]);
 ASCII 输出的严格 unmappable 处理：
 
 ```rust
-use qubit_text_codec::{
+use qubit_codec_text::{
     AsciiCodec,
     CharsetEncoder,
     Coder,
@@ -372,7 +371,7 @@ assert_eq!(Some('é' as u32), error.value());
 需要自定义替换字符时，可使用 `with_replacement` 或 `set_replacement` 提前验证：
 
 ```rust
-use qubit_text_codec::{
+use qubit_codec_text::{
     AsciiCodec,
     CharsetEncoder,
 };
@@ -389,7 +388,7 @@ assert_eq!('?', encoder.replacement());
 `char`。
 
 ```rust
-use qubit_text_codec::{
+use qubit_codec_text::{
     CharsetConverter,
     Coder,
     CoderStatus,
@@ -418,7 +417,7 @@ pending 输出。
 `CharsetConvertError` 会区分源端解码失败和目标端编码失败：
 
 ```rust
-use qubit_text_codec::{
+use qubit_codec_text::{
     CharsetConvertError,
     CharsetConverter,
     Coder,
@@ -438,7 +437,7 @@ assert!(matches!(error, CharsetConvertError::Decode(_)));
 
 ## 进度与缓冲
 
-`Coder<Input, Output>` 从 `qubit-io` 重导出。它有三个核心方法：
+`Coder<Input, Output>` 从 `qubit-codec` 重导出。它有三个核心方法：
 
 | 方法 | 含义 |
 | --- | --- |
@@ -494,7 +493,7 @@ assert!(matches!(error, CharsetConvertError::Decode(_)));
 序列化字节时，使用 `Utf16ByteCodec` 和 `Utf32ByteCodec`。
 
 ```rust
-use qubit_text_codec::{
+use qubit_codec_text::{
     ByteOrder,
     CharsetCodec,
     Utf16ByteCodec,
@@ -510,7 +509,7 @@ let written = codec
 assert_eq!(&[0x3d, 0xd8, 0x00, 0xde], &output[..written]);
 ```
 
-字节 codec 内部复用 `qubit-io` 的二进制字节辅助能力。公开调用方通常通过
+字节 codec 会直接读写固定字节序的 byte sequence。公开调用方通常通过
 `CharsetCodec`、`CharsetEncoder` 或 `CharsetConverter` 使用它们。
 
 ## 扩展新的 Charset

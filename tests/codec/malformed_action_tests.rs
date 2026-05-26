@@ -1,4 +1,4 @@
-use qubit_text_codec::MalformedAction;
+use qubit_codec_text::MalformedAction;
 
 #[test]
 fn test_malformed_action_default_replaces() {

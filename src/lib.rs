@@ -61,7 +61,7 @@ pub use error::{
     CharsetEncodeErrorKind,
     CharsetEncodeResult,
 };
-pub use qubit_io::{
+pub use qubit_codec::{
     ByteOrder,
     Coder,
     CoderProgress,
