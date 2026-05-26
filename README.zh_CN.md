@@ -135,6 +135,8 @@ assert_eq!("😀".as_bytes(), &output[..progress.written()]);
 | `Utf8Codec` | UTF-8 byte 编码和解码 |
 | `Utf16ByteCodec` / `Utf32ByteCodec` | 显式字节序的 Unicode byte codec |
 | `Utf16U16Codec` / `Utf32U32Codec` | Unit-oriented Unicode codec |
+| `Codec<char, Unit>` | 从 `qubit-codec` 重导出的最低层完整值 codec trait |
+| `CharsetCodec` | 文本元数据和带边界检查的单字符 wrapper，负责报告不完整前缀 |
 
 ### Converter 类型
 
@@ -143,7 +145,7 @@ assert_eq!("😀".as_bytes(), &output[..progress.written()]);
 | `CharsetDecoder<C>` | 有状态缓冲区 decoder |
 | `CharsetEncoder<C>` | 有状态缓冲区 encoder |
 | `CharsetConverter<D, E>` | 在两个 charset codec 之间 decode + encode |
-| `DecodeStatus` | 解码单个字符的结果 |
+| `DecodeStatus` | `CharsetCodec::decode_one` 的安全 wrapper 状态，包括不完整前缀 |
 | `MalformedAction` | Malformed input 处理策略 |
 | `UnmappableAction` | 无法编码输出字符的处理策略 |
 

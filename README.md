@@ -145,6 +145,8 @@ assert_eq!("😀".as_bytes(), &output[..progress.written()]);
 | `Utf8Codec` | UTF-8 byte encoding and decoding |
 | `Utf16ByteCodec` / `Utf32ByteCodec` | Explicit-byte-order Unicode byte codecs |
 | `Utf16U16Codec` / `Utf32U32Codec` | Unit-oriented Unicode codecs |
+| `Codec<char, Unit>` | Lowest-level complete-value codec trait re-exported from `qubit-codec` |
+| `CharsetCodec` | Text metadata and checked single-character wrapper with partial-input reporting |
 
 ### Converter Types
 
@@ -153,7 +155,7 @@ assert_eq!("😀".as_bytes(), &output[..progress.written()]);
 | `CharsetDecoder<C>` | Stateful buffer decoder |
 | `CharsetEncoder<C>` | Stateful buffer encoder |
 | `CharsetConverter<D, E>` | Decode and encode between two charset codecs |
-| `DecodeStatus` | Result of decoding one character |
+| `DecodeStatus` | Checked `CharsetCodec::decode_one` status, including incomplete prefixes |
 | `MalformedAction` | Policy for malformed input |
 | `UnmappableAction` | Policy for unencodable output characters |
 

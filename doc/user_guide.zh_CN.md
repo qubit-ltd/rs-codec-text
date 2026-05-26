@@ -63,7 +63,8 @@ use qubit_codec_text::{
 | --- | --- | --- |
 | 命名空间辅助工具 | `Ascii`、`Unicode`、`Utf8`、`Utf16`、`Utf32` | 常量、分类、长度和 BOM 辅助函数。 |
 | Charset 元数据 | `Charset`、`UnicodeBom`、`ByteOrder` | 稳定 charset 身份、别名、固定字节序和 BOM 元数据。 |
-| 低层 codec | `CharsetCodec`、内置 codec 结构体 | 从调用方缓冲区解码或编码单个 Unicode 标量值。 |
+| 低层 codec | `Codec<char, Unit>`、内置 codec 结构体 | 从调用方缓冲区解码或编码一个完整 Unicode 标量值。 |
+| 文本 codec wrapper | `CharsetCodec`、`DecodeStatus` | 增加 charset 元数据、边界检查和单个标量值的不完整输入报告。 |
 | 策略包装器 | `CharsetDecoder`、`CharsetEncoder` | 在批量转换时应用 malformed / unmappable 策略。 |
 | Charset 转换 | `CharsetConverter` | 先把源单元解码成 `char`，再编码成目标单元。 |
 | 进度 API | `Coder`、`CoderProgress`、`CoderStatus` | 报告部分进度、输入不足和输出回压。 |
@@ -163,8 +164,14 @@ BOM。BOM 处理由调用方负责。
 
 ## 低层 Codec
 
-`CharsetCodec` 是最基础的算法 trait。它使用 codec 自己的存储单元解码或编码单个
-Unicode 标量值。
+内置 text codec 结构体实现了领域无关的 `qubit_codec::Codec<char, Unit>`
+trait。这个 trait 是最低层完整值契约：调用 `decode_unchecked` 和
+`encode_unchecked` 前，调用方必须已经知道一个值所需的输入或输出单元足够。
+
+`CharsetCodec` 位于这个 unsafe trait 之上，是文本专用的安全 wrapper。它增加
+`charset()` 元数据、`max_units_per_char()`、带检查的 `decode_one()` 和
+`encode_one()`。`decode_one()` 是能够为开放流返回 `DecodeStatus::NeedMore`
+的层；底层 `Codec` trait 不承载 partial-input 状态。
 
 | Codec | 存储单元 | Charset |
 | --- | --- | --- |
@@ -226,12 +233,13 @@ let written = Utf8Codec
 assert_eq!("é".as_bytes(), &output[..written]);
 ```
 
-低层 codec 是严格的。它们会把 malformed input、非法输入下标、非法标量值、
-无法映射的字符、输出缓冲区不足都报告为强类型错误。策略决策交给后面的包装器。
+低层 codec 是严格的。`CharsetCodec` 会把 malformed input、非法输入下标、
+非法标量值、无法映射的字符、输出缓冲区不足都报告为强类型错误。策略决策交给后面的包装器。
 
 ## DecodeStatus 与不完整输入
 
-`DecodeStatus` 只由 `CharsetCodec::decode_one` 返回。
+`DecodeStatus` 只由安全的 `CharsetCodec::decode_one` wrapper 返回。它不是底层
+`Codec<char, Unit>` trait 的一部分。
 
 | 状态 | 含义 |
 | --- | --- |
@@ -517,11 +525,13 @@ assert_eq!(&[0x3d, 0xd8, 0x00, 0xde], &output[..written]);
 在下游 crate 中新增 charset 时：
 
 1. 定义 codec 类型。
-2. 实现 `CharsetCodec`。
-3. 从 `charset()` 返回稳定的 `Charset` 描述对象。
-4. 从 `max_units_per_char()` 返回单个标量值最多需要的存储单元数。
-5. 实现严格的 `decode_one` 和 `encode_one`。
-6. 使用 `CharsetDecoder`、`CharsetEncoder` 或 `CharsetConverter` 应用策略。
+2. 实现 `qubit_codec::Codec<char, Unit>`，负责完整值的 decode / encode。
+3. 实现 `CharsetCodec`。
+4. 从 `charset()` 返回稳定的 `Charset` 描述对象。
+5. 从 `max_units_per_char()` 返回单个标量值最多需要的存储单元数。
+6. 在 `decode_one` 和 `encode_one` 中先校验下标与容量，再委托 unsafe
+   `Codec` 方法。
+7. 使用 `CharsetDecoder`、`CharsetEncoder` 或 `CharsetConverter` 应用策略。
 
 重要的 `decode_one` 不变量：
 

@@ -68,7 +68,8 @@ The crate is split into a few small layers.
 | --- | --- | --- |
 | Namespace helpers | `Ascii`, `Unicode`, `Utf8`, `Utf16`, `Utf32` | Constants, classification, sizing, and BOM helper functions. |
 | Charset metadata | `Charset`, `UnicodeBom`, `ByteOrder` | Stable charset identity, aliases, fixed byte order, and BOM metadata. |
-| Low-level codecs | `CharsetCodec`, built-in codec structs | Decode or encode one Unicode scalar value from/to caller-owned buffers. |
+| Low-level codecs | `Codec<char, Unit>`, built-in codec structs | Decode or encode one complete Unicode scalar value from/to caller-owned buffers. |
+| Text codec wrappers | `CharsetCodec`, `DecodeStatus` | Add charset metadata, checked boundaries, and partial-input reporting for one scalar value. |
 | Policy wrappers | `CharsetDecoder`, `CharsetEncoder` | Apply malformed/unmappable policy while converting many units. |
 | Charset conversion | `CharsetConverter` | Decode source units to `char`, then encode them to target units. |
 | Progress API | `Coder`, `CoderProgress`, `CoderStatus` | Report partial progress, input starvation, and output backpressure. |
@@ -172,8 +173,17 @@ detect, skip, or emit BOM bytes automatically. The caller owns BOM handling.
 
 ## Low-Level Codecs
 
-`CharsetCodec` is the primitive algorithm trait. It decodes or encodes one
-Unicode scalar value using a codec-specific storage unit.
+The built-in text codec structs implement the domain-neutral
+`qubit_codec::Codec<char, Unit>` trait. That trait is the lowest-level
+complete-value contract: callers of `decode_unchecked` and `encode_unchecked`
+must already know that enough input or output units are available for one
+value.
+
+`CharsetCodec` sits above that unsafe trait as a text-specific safe wrapper. It
+adds `charset()` metadata, `max_units_per_char()`, checked `decode_one()` and
+checked `encode_one()`. `decode_one()` is the layer that can return
+`DecodeStatus::NeedMore` for open streams; the underlying `Codec` trait does not
+carry a partial-input status.
 
 | Codec | Storage unit | Charset |
 | --- | --- | --- |
@@ -235,13 +245,15 @@ let written = Utf8Codec
 assert_eq!("é".as_bytes(), &output[..written]);
 ```
 
-Low-level codecs are strict. They report malformed input, invalid input indices,
-invalid scalar values, unmappable characters, and small output buffers as typed
-errors. Policy decisions are handled by the wrappers described below.
+Low-level codecs are strict. `CharsetCodec` reports malformed input, invalid
+input indices, invalid scalar values, unmappable characters, and small output
+buffers as typed errors. Policy decisions are handled by the wrappers described
+below.
 
 ## Decode Status and Incomplete Input
 
-`DecodeStatus` is returned only by `CharsetCodec::decode_one`.
+`DecodeStatus` is returned only by the safe `CharsetCodec::decode_one` wrapper.
+It is not part of the lower-level `Codec<char, Unit>` trait.
 
 | Status | Meaning |
 | --- | --- |
@@ -540,12 +552,15 @@ callers usually interact with them through `CharsetCodec`, `CharsetEncoder`, or
 To add another charset in a downstream crate:
 
 1. Define a codec type.
-2. Implement `CharsetCodec`.
-3. Return a stable `Charset` descriptor from `charset()`.
-4. Return the maximum storage units needed for one scalar value from
+2. Implement `qubit_codec::Codec<char, Unit>` for complete-value decode and
+   encode.
+3. Implement `CharsetCodec`.
+4. Return a stable `Charset` descriptor from `charset()`.
+5. Return the maximum storage units needed for one scalar value from
    `max_units_per_char()`.
-5. Implement strict `decode_one` and `encode_one`.
-6. Use `CharsetDecoder`, `CharsetEncoder`, or `CharsetConverter` to apply
+6. Implement checked `decode_one` and `encode_one` by validating indices and
+   capacities before delegating to the unsafe `Codec` methods.
+7. Use `CharsetDecoder`, `CharsetEncoder`, or `CharsetConverter` to apply
    policy.
 
 Important `decode_one` invariants:
