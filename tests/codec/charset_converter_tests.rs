@@ -195,6 +195,31 @@ fn test_charset_converter_combines_decoder_and_encoder_with_offsets() {
 }
 
 #[test]
+fn test_charset_converter_reports_invalid_input_index() {
+    let decoder = CharsetDecoder::new(Utf8Codec);
+    let encoder = CharsetEncoder::new(Utf16U16Codec);
+    let mut converter = CharsetConverter::new(decoder, encoder);
+    let input = b"A";
+    let mut output = [0_u16; 1];
+
+    let error = converter
+        .convert(input, input.len() + 1, &mut output, 0)
+        .expect_err("input index outside input slice should fail");
+
+    match error {
+        CharsetConvertError::Decode(error) => {
+            assert_eq!(Charset::UTF_8, error.charset());
+            assert_eq!(
+                CharsetDecodeErrorKind::InvalidInputIndex { input_len: input.len() },
+                error.kind()
+            );
+            assert_eq!(input.len() + 1, error.index());
+        }
+        CharsetConvertError::Encode(_) => panic!("invalid source index must be reported as a decode error"),
+    }
+}
+
+#[test]
 fn test_charset_converter_finish_without_pending_returns_complete() {
     let mut converter = CharsetConverter::new(CharsetDecoder::new(Utf8Codec), CharsetEncoder::new(Utf16U16Codec));
     let mut output = [0_u16; 1];

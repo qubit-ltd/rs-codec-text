@@ -14,6 +14,8 @@ use super::{
     charset_encoder::CharsetEncoder,
 };
 use crate::{
+    CharsetDecodeError,
+    CharsetDecodeErrorKind,
     Coder,
     CoderProgress,
     CoderStatus,
@@ -204,6 +206,12 @@ where
     }
 
     /// Converts source units to target units through the configured decoder and encoder.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CharsetConvertError::Decode`] when `input_index` is outside
+    /// the source input buffer or source decoding fails. Returns
+    /// [`CharsetConvertError::Encode`] when target encoding fails.
     fn convert(
         &mut self,
         input: &[D::Unit],
@@ -211,6 +219,11 @@ where
         output: &mut [E::Unit],
         output_index: usize,
     ) -> Result<CoderProgress, Self::Error> {
+        if input_index > input.len() {
+            let kind = CharsetDecodeErrorKind::InvalidInputIndex { input_len: input.len() };
+            return Err(CharsetDecodeError::new(self.decoder.codec().charset(), kind, input_index).into());
+        }
+
         let mut read = 0;
         let mut written = 0;
 
