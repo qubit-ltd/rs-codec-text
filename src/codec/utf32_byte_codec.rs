@@ -209,6 +209,8 @@ unsafe impl Codec<char, u8> for Utf32ByteCodec {
 
     #[inline]
     unsafe fn decode_unchecked(&self, input: &[u8], index: usize) -> CharsetDecodeResult<(char, usize)> {
+        debug_assert!(index + Utf32::MAX_BYTES_PER_CHAR <= input.len());
+
         match utf32::decode_bytes_prefix(input, index, self.byte_order)? {
             DecodeStatus::Complete { value, consumed } => Ok((value, consumed)),
             DecodeStatus::NeedMore { .. } => {
@@ -219,6 +221,8 @@ unsafe impl Codec<char, u8> for Utf32ByteCodec {
 
     #[inline]
     unsafe fn encode_unchecked(&self, ch: char, output: &mut [u8], index: usize) -> CharsetEncodeResult<usize> {
+        debug_assert!(index + Utf32::MAX_BYTES_PER_CHAR <= output.len());
+
         utf32::encode_bytes_char(ch, output, self.byte_order, index)
     }
 }

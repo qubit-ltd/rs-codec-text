@@ -158,6 +158,8 @@ unsafe impl Codec<char, u8> for AsciiCodec {
 
     #[inline]
     unsafe fn decode_unchecked(&self, input: &[u8], index: usize) -> CharsetDecodeResult<(char, usize)> {
+        debug_assert!(index < input.len());
+
         let value = input[index];
         if value > Ascii::MAX_BYTE {
             let kind = CharsetDecodeErrorKind::MalformedSequence {
@@ -170,6 +172,8 @@ unsafe impl Codec<char, u8> for AsciiCodec {
 
     #[inline]
     unsafe fn encode_unchecked(&self, ch: char, output: &mut [u8], index: usize) -> CharsetEncodeResult<usize> {
+        debug_assert!(index < output.len());
+
         if ch > Ascii::MAX_CHAR {
             let kind = CharsetEncodeErrorKind::UnmappableCharacter { value: ch as u32 };
             return Err(CharsetEncodeError::new(Charset::ASCII, kind, index));

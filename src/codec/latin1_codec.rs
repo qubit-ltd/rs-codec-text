@@ -158,6 +158,8 @@ unsafe impl Codec<char, u8> for Latin1Codec {
 
     #[inline]
     unsafe fn decode_unchecked(&self, input: &[u8], index: usize) -> CharsetDecodeResult<(char, usize)> {
+        debug_assert!(index < input.len());
+
         let value = input[index] as u32;
         Ok((
             Unicode::to_char(value).expect("valid Latin-1 byte decodes to Unicode scalar"),
@@ -167,6 +169,8 @@ unsafe impl Codec<char, u8> for Latin1Codec {
 
     #[inline]
     unsafe fn encode_unchecked(&self, ch: char, output: &mut [u8], index: usize) -> CharsetEncodeResult<usize> {
+        debug_assert!(index < output.len());
+
         let value = ch as u32;
         if value > Unicode::LATIN1_MAX {
             let kind = CharsetEncodeErrorKind::UnmappableCharacter { value };

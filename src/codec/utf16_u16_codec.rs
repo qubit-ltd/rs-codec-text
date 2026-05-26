@@ -177,6 +177,8 @@ unsafe impl Codec<char, u16> for Utf16U16Codec {
 
     #[inline]
     unsafe fn decode_unchecked(&self, input: &[u16], index: usize) -> CharsetDecodeResult<(char, usize)> {
+        debug_assert!(index < input.len());
+
         match utf16::decode_units_prefix(input, index)? {
             DecodeStatus::Complete { value, consumed } => Ok((value, consumed)),
             DecodeStatus::NeedMore { .. } => {
@@ -187,6 +189,8 @@ unsafe impl Codec<char, u16> for Utf16U16Codec {
 
     #[inline]
     unsafe fn encode_unchecked(&self, ch: char, output: &mut [u16], index: usize) -> CharsetEncodeResult<usize> {
+        debug_assert!(index + ch.len_utf16() <= output.len());
+
         utf16::encode_units_char(ch, output, index)
     }
 }
