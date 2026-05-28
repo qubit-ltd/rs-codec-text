@@ -19,8 +19,9 @@ Qubit Text Codec 是一个低层编解码核心，服务于那些需要在 Rust 
 - ASCII、ISO-8859-1、UTF-8、UTF-16、UTF-32 的缓冲区级 codec。
 - 带策略的 `CharsetDecoder`、`CharsetEncoder` 和 `CharsetConverter`。
 - 带精确缓冲区下标的强类型 decode / encode / convert 错误。
-- 从 `qubit-codec` 重导出的 `Coder`、`CoderProgress`、`CoderStatus` 和
-  `ByteOrder`。
+- 从 `qubit-codec` 重导出的 `CodecValueEncoder`、`CodecBufferedEncoder`、
+  `BufferedEncoder`、`BufferedDecoder`、`BufferedConverter`、`Transcoder`、
+  `TranscodeProgress`、`TranscodeStatus` 和 `ByteOrder`。
 
 本库刻意停留在 `std::io` 读写适配器、自动 charset 检测、规范化、切分、
 排序、显示宽度和区域相关文本行为之下。
@@ -32,7 +33,7 @@ Qubit Text Codec 是一个低层编解码核心，服务于那些需要在 Rust 
 - **策略明确的转换**：通过 decoder 和 encoder 配置显式控制 malformed 与 unmappable 行为。
 - **诊断精确**：用强类型错误报告源下标和上下文。
 - **不耦合 I/O**：stream adapter 放在 `qubit-io-text`。
-- **核心依赖小**：依赖 `qubit-codec` 复用 coder 和字节序原语。
+- **核心依赖小**：依赖 `qubit-codec` 复用 transcoder 和字节序原语。
 
 ## 特性
 
@@ -56,10 +57,11 @@ Qubit Text Codec 是一个低层编解码核心，服务于那些需要在 Rust 
 - **`CharsetEncoder`**：把 `char` 输入编码为目标单元。
 - **`CharsetConverter`**：在 decoder 与 encoder 组合之间转换。
 - **`MalformedAction` / `UnmappableAction`**：配置 strict 或 replacement 行为。
+- **EOF 收尾**：`finish()` 会对尾部不完整源序列应用 malformed-input 策略，并刷新 converter 中暂存的输出。
 
 ### 聚焦的公开 API
 
-- **`prelude` 模块**：导入常用 charset、codec、error 和核心 coder 类型。
+- **`prelude` 模块**：导入常用 charset、codec、error 和核心 transcoder 类型。
 - **不包含 stream I/O**：reader 和 writer adapter 使用 `qubit-io-text`。
 
 ## 文档
@@ -82,11 +84,10 @@ qubit-codec-text = "0.1"
 
 ```rust
 use qubit_codec_text::{
-    CharsetCodec,
     CharsetEncoder,
-    Coder,
-    CoderStatus,
-    DecodeStatus,
+    Codec,
+    TranscodeStatus,
+    Transcoder,
     UnicodeBom,
     Utf8,
     Utf8Codec,
@@ -95,24 +96,20 @@ use qubit_codec_text::{
 assert_eq!(Some(UnicodeBom::Utf8), UnicodeBom::detect(&[0xef, 0xbb, 0xbf]));
 assert_eq!(Some(3), Utf8::byte_len_from_leading_byte(0xe4));
 
-let decoded = Utf8Codec
-    .decode_one("中".as_bytes(), 0)
+let (decoded, consumed) = unsafe {
+    Utf8Codec
+        .decode_unchecked("中".as_bytes(), 0)
+}
     .expect("valid UTF-8 input");
-assert_eq!(
-    DecodeStatus::Complete {
-        value: '中',
-        consumed: 3,
-    },
-    decoded,
-);
+assert_eq!(('中', 3), (decoded, consumed));
 
 let mut encoder = CharsetEncoder::new(Utf8Codec);
 let mut output = [0_u8; Utf8::MAX_BYTES_PER_CHAR];
 let progress = encoder
-    .convert(&['😀'], 0, &mut output, 0)
+    .transcode(&['😀'], 0, &mut output, 0)
     .expect("UTF-8 output buffer is large enough");
 
-assert_eq!(CoderStatus::Complete, progress.status());
+assert_eq!(TranscodeStatus::Complete, progress.status());
 assert_eq!("😀".as_bytes(), &output[..progress.written()]);
 ```
 
@@ -136,16 +133,16 @@ assert_eq!("😀".as_bytes(), &output[..progress.written()]);
 | `Utf16ByteCodec` / `Utf32ByteCodec` | 显式字节序的 Unicode byte codec |
 | `Utf16U16Codec` / `Utf32U32Codec` | Unit-oriented Unicode codec |
 | `Codec<char, Unit>` | 从 `qubit-codec` 重导出的最低层完整值 codec trait |
-| `CharsetCodec` | 文本元数据和带边界检查的单字符 wrapper，负责报告不完整前缀 |
+| `CharsetCodec` | 附加在低层文本 codec 实现上的 charset 元数据 |
+| `CharsetEncodeProbe` | 单字符输出长度和可映射性探测 |
 
 ### Converter 类型
 
 | 类型 | 用途 |
 |------|------|
-| `CharsetDecoder<C>` | 有状态缓冲区 decoder |
-| `CharsetEncoder<C>` | 有状态缓冲区 encoder |
-| `CharsetConverter<D, E>` | 在两个 charset codec 之间 decode + encode |
-| `DecodeStatus` | `CharsetCodec::decode_one` 的安全 wrapper 状态，包括不完整前缀 |
+| `CharsetDecoder<C>` | 实现 `BufferedDecoder<C::Unit, char>` 的有状态缓冲区 decoder |
+| `CharsetEncoder<C>` | 实现 `BufferedEncoder<char, C::Unit>` 的有状态缓冲区 encoder |
+| `CharsetConverter<D, E>` | 在两个 charset codec 之间 decode + encode，并实现 `BufferedConverter<D::Unit, E::Unit>` |
 | `MalformedAction` | Malformed input 处理策略 |
 | `UnmappableAction` | 无法编码输出字符的处理策略 |
 
@@ -159,9 +156,12 @@ assert_eq!("😀".as_bytes(), &output[..progress.written()]);
 
 ## 性能考虑
 
-Codec 实现直接操作调用方提供的输入和输出缓冲区。`CharsetDecoder` 和
-`CharsetEncoder` 通过共享的 `Coder` 进度模型报告 `NeedInput` 和 `NeedOutput`，
-调用方可以自行控制分配和缓冲区复用。
+Codec 实现直接操作调用方提供的输入和输出缓冲区。`CharsetDecoder` 在至少有
+`codec.min_units_per_value()` 个可读单元时调用 `Codec::decode_unchecked`，
+charset codec 通过 `CharsetDecodeError` 报告不完整前缀。`NeedInput` 表示当前单元是
+合法但不完整的前缀；到达 EOF 后调用 `finish()` 闭合尾部，并按 configured
+malformed-input 策略替换、忽略或报错。`CharsetEncoder` 通过共享的 `Transcoder`
+进度模型报告 `NeedOutput`，调用方可以自行控制分配和缓冲区复用。
 
 ## 测试与代码覆盖率
 
@@ -190,7 +190,7 @@ RS_CI_SKIP_TOOLCHAIN_UPDATE=1 ./ci-check.sh
 
 运行时依赖保持很少：
 
-- `qubit-codec` 提供共享字节序和 coder 原语。
+- `qubit-codec` 提供共享字节序和 transcoder 原语。
 - `thiserror` 提供公共错误类型实现。
 
 ## 许可证

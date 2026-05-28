@@ -10,22 +10,23 @@
 use core::fmt;
 
 use crate::{
+    BufferedEncoder,
     CharsetEncodeError,
     CharsetEncodeErrorKind,
     CharsetEncodeResult,
-    Coder,
-    CoderProgress,
-    CoderStatus,
+    TranscodeProgress,
+    TranscodeStatus,
+    Transcoder,
 };
 
 use super::{
-    charset_codec::CharsetCodec,
+    charset_encode_probe::CharsetEncodeProbe,
     unmappable_action::UnmappableAction,
 };
 
 /// Converts Unicode scalar values into units of one charset.
 ///
-/// `CharsetEncoder` wraps a low-level [`CharsetCodec`] and applies the
+/// `CharsetEncoder` wraps a low-level [`crate::CharsetCodec`] and applies the
 /// configured [`UnmappableAction`] whenever the codec reports that an input
 /// character cannot be represented by the target charset.
 ///
@@ -36,7 +37,7 @@ use super::{
 #[derive(Clone)]
 pub struct CharsetEncoder<C>
 where
-    C: CharsetCodec,
+    C: CharsetEncodeProbe,
 {
     /// Low-level codec used for target encoding.
     codec: C,
@@ -50,7 +51,7 @@ where
 
 impl<C> CharsetEncoder<C>
 where
-    C: CharsetCodec,
+    C: CharsetEncodeProbe,
 {
     /// Default replacement character used when unmappable input is replaced.
     pub const DEFAULT_REPLACEMENT: char = '\u{fffd}';
@@ -77,7 +78,7 @@ where
     /// [`Self::DEFAULT_FALLBACK_REPLACEMENT`] can be encoded by `codec`.
     /// Built-in codecs can always encode the fallback `?`; failure here means
     /// the supplied codec cannot encode a minimal ASCII replacement. For custom
-    /// [`CharsetCodec`] implementations, this indicates a broken codec
+    /// [`crate::CharsetCodec`] implementations, this indicates a broken codec
     /// invariant rather than recoverable input data.
     #[must_use]
     pub fn new(codec: C) -> Self {
@@ -218,21 +219,23 @@ where
     /// Returns an error when the target charset cannot encode the character.
     #[inline]
     fn encode_replacement(&self, ch: char) -> CharsetEncodeResult<Vec<C::Unit>> {
-        let mut output = vec![C::Unit::default(); self.codec.max_units_per_char().max(1)];
-        let written = self.encode_char_to_units(ch, output.as_mut_slice(), 0, |_, _, error| Err(error))?;
+        let mut output = vec![C::Unit::default(); self.codec.max_units_per_value().max(1)];
+        let written = self.encode_char_to_units(ch, 0, output.as_mut_slice(), 0, |_, _, error| Err(error))?;
         output.truncate(written);
         Ok(output)
     }
 
     /// Encodes a single Unicode scalar value into the caller-provided unit buffer.
     ///
-    /// This is the common template around [`CharsetCodec::encode_one`]. It
+    /// This is the common template around [`CharsetEncodeProbe::encode_len`] and
+    /// [`Codec::encode_unchecked`]. It
     /// keeps all direct codec error inspection in one place while allowing the
     /// caller to decide how an unmappable character should be handled.
     ///
     /// # Parameters
     ///
     /// - `ch`: Character to encode.
+    /// - `input_index`: Input character index used for unmappable error context.
     /// - `output`: Target unit buffer to write into.
     /// - `output_index`: Start position in `output` to write the encoded units.
     /// - `on_unmappable`: Handler called when the codec reports
@@ -249,19 +252,29 @@ where
     fn encode_char_to_units(
         &self,
         ch: char,
+        input_index: usize,
         output: &mut [C::Unit],
         output_index: usize,
         on_unmappable: impl FnOnce(&mut [C::Unit], usize, CharsetEncodeError) -> CharsetEncodeResult<usize>,
     ) -> CharsetEncodeResult<usize> {
-        match self.codec.encode_one(ch, output, output_index) {
-            Ok(written) => Ok(written),
-            Err(error) => match error.kind() {
-                CharsetEncodeErrorKind::UnmappableCharacter { .. } => on_unmappable(output, output_index, error),
-                CharsetEncodeErrorKind::BufferTooSmall { .. }
-                | CharsetEncodeErrorKind::InvalidInputIndex { .. }
-                | CharsetEncodeErrorKind::InvalidCodePoint { .. } => Err(error),
-            },
+        let required = match self.codec.encode_len(ch, input_index) {
+            Ok(required) => required,
+            Err(error) if matches!(error.kind(), CharsetEncodeErrorKind::UnmappableCharacter { .. }) => {
+                return on_unmappable(output, output_index, error);
+            }
+            Err(error) => return Err(error),
+        };
+        let available = output.len().saturating_sub(output_index);
+        if available < required {
+            let kind = CharsetEncodeErrorKind::BufferTooSmall {
+                required: output_index.saturating_add(required),
+                available,
+            };
+            return Err(CharsetEncodeError::new(self.codec.charset(), kind, output_index));
         }
+        // SAFETY: The probe and capacity check above guarantee that `output`
+        // has enough writable units for this character.
+        unsafe { self.codec.encode_unchecked(&ch, output, output_index) }
     }
 
     /// Writes the cached replacement units into the target output slice.
@@ -297,44 +310,44 @@ where
     }
 }
 
-impl<C> Coder<char, C::Unit> for CharsetEncoder<C>
+impl<C> Transcoder<char, C::Unit> for CharsetEncoder<C>
 where
-    C: CharsetCodec,
+    C: CharsetEncodeProbe,
 {
     type Error = CharsetEncodeError;
 
     /// Returns the maximum number of target units needed for `input_len` characters.
     #[inline]
     fn max_output_len(&self, input_len: usize) -> Option<usize> {
-        input_len.checked_mul(self.codec.max_units_per_char())
+        input_len.checked_mul(self.codec.max_units_per_value())
     }
 
     /// Encodes characters into the target charset while applying unmappable policy.
-    fn convert(
+    fn transcode(
         &mut self,
         input: &[char],
         input_index: usize,
         output: &mut [C::Unit],
         output_index: usize,
-    ) -> Result<CoderProgress, Self::Error> {
+    ) -> Result<TranscodeProgress, Self::Error> {
         if input_index > input.len() {
             let kind = CharsetEncodeErrorKind::InvalidInputIndex { input_len: input.len() };
             return Err(CharsetEncodeError::new(self.codec.charset(), kind, input_index));
         }
         if output_index > output.len() {
-            let status = CoderStatus::NeedOutput {
+            let status = TranscodeStatus::NeedOutput {
                 output_index,
                 required: 1,
                 available: 0,
             };
-            return Ok(CoderProgress::new(status, 0, 0));
+            return Ok(TranscodeProgress::new(status, 0, 0));
         }
 
         let mut input_cursor = input_index;
         let mut output_cursor = output_index;
         while input_cursor < input.len() {
             let ch = input[input_cursor];
-            match self.encode_char_to_units(ch, output, output_cursor, |output, output_index, _| {
+            match self.encode_char_to_units(ch, input_cursor, output, output_cursor, |output, output_index, _| {
                 match self.unmappable_action {
                     UnmappableAction::Report => {
                         let kind = CharsetEncodeErrorKind::UnmappableCharacter { value: ch as u32 };
@@ -354,12 +367,12 @@ where
                         .unwrap_or(output_cursor + 1)
                         .saturating_sub(output_cursor);
                     let available = error.available().unwrap_or(0);
-                    let status = CoderStatus::NeedOutput {
+                    let status = TranscodeStatus::NeedOutput {
                         output_index: output_cursor,
                         required,
                         available,
                     };
-                    return Ok(CoderProgress::new(
+                    return Ok(TranscodeProgress::new(
                         status,
                         input_cursor - input_index,
                         output_cursor - output_index,
@@ -370,18 +383,20 @@ where
                 }
             }
         }
-        Ok(CoderProgress::complete(
+        Ok(TranscodeProgress::complete(
             input_cursor - input_index,
             output_cursor - output_index,
         ))
     }
 }
 
-impl<C> Eq for CharsetEncoder<C> where C: CharsetCodec + Eq {}
+impl<C> BufferedEncoder<char, C::Unit> for CharsetEncoder<C> where C: CharsetEncodeProbe {}
+
+impl<C> Eq for CharsetEncoder<C> where C: CharsetEncodeProbe + Eq {}
 
 impl<C> PartialEq for CharsetEncoder<C>
 where
-    C: CharsetCodec + PartialEq,
+    C: CharsetEncodeProbe + PartialEq,
 {
     /// Compares encoder configuration without leaking cached-unit trait bounds.
     fn eq(&self, other: &Self) -> bool {
@@ -393,7 +408,7 @@ where
 
 impl<C> fmt::Debug for CharsetEncoder<C>
 where
-    C: CharsetCodec + fmt::Debug,
+    C: CharsetEncodeProbe + fmt::Debug,
 {
     /// Formats the encoder without exposing additional bounds for cached units.
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

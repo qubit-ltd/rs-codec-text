@@ -17,11 +17,10 @@ use crate::{
     CharsetEncodeError,
     CharsetEncodeErrorKind,
     CharsetEncodeResult,
-    DecodeStatus,
     Unicode,
 };
 
-/// Decodes the first UTF-32 character from a `u32` prefix.
+/// Decodes the first UTF-32 character from a closed `u32` buffer.
 ///
 /// Each UTF-32 unit is interpreted as a Unicode scalar value directly.
 ///
@@ -32,29 +31,30 @@ use crate::{
 ///
 /// # Returns
 ///
-/// * `Ok(DecodeStatus::NeedMore { required, available })` if input ends exactly at `index`.
-/// * `Ok(DecodeStatus::Complete { value, consumed })` when one character is decoded.
-///   `consumed` is always `1`.
+/// Returns the decoded character and `1` consumed unit.
 ///
 /// # Errors
 ///
 /// * `CharsetDecodeErrorKind::InvalidInputIndex` when `index` is greater than
 ///   `input.len()`.
+/// * `CharsetDecodeErrorKind::IncompleteSequence` when EOF appears before one
+///   UTF-32 unit is available.
 /// * `CharsetDecodeErrorKind::InvalidCodePoint` when `input[index]` is not a
 ///   valid scalar.
-pub(crate) fn decode_units_prefix(input: &[u32], index: usize) -> CharsetDecodeResult<DecodeStatus> {
+pub(crate) fn decode_units_prefix(input: &[u32], index: usize) -> CharsetDecodeResult<(char, usize)> {
     if index > input.len() {
         let kind = CharsetDecodeErrorKind::InvalidInputIndex { input_len: input.len() };
         return Err(CharsetDecodeError::new(Charset::UTF_32, kind, index));
     }
     if index == input.len() {
-        return Ok(DecodeStatus::NeedMore {
-            required: index + 1,
+        let kind = CharsetDecodeErrorKind::IncompleteSequence {
+            required: 1,
             available: 0,
-        });
+        };
+        return Err(CharsetDecodeError::new(Charset::UTF_32, kind, index));
     }
     match Unicode::to_char(input[index]) {
-        Some(ch) => Ok(DecodeStatus::Complete { value: ch, consumed: 1 }),
+        Some(ch) => Ok((ch, 1)),
         None => {
             let kind = CharsetDecodeErrorKind::InvalidCodePoint { value: input[index] };
             Err(CharsetDecodeError::new(Charset::UTF_32, kind, index))
@@ -90,7 +90,7 @@ pub(crate) fn encode_units_char(ch: char, output: &mut [u32], index: usize) -> C
     Ok(1)
 }
 
-/// Decodes the first UTF-32 character from a byte prefix.
+/// Decodes the first UTF-32 character from a closed byte buffer.
 ///
 /// The input bytes are interpreted according to `byte_order`.
 ///
@@ -102,21 +102,21 @@ pub(crate) fn encode_units_char(ch: char, output: &mut [u32], index: usize) -> C
 ///
 /// # Returns
 ///
-/// * `Ok(DecodeStatus::NeedMore { required, available })` if fewer than four bytes remain.
-/// * `Ok(DecodeStatus::Complete { value, consumed })` when one character is decoded.
-///   `consumed` is always `4`.
+/// Returns the decoded character and `4` consumed bytes.
 ///
 /// # Errors
 ///
 /// * `CharsetDecodeErrorKind::InvalidInputIndex` when `index` is greater than
 ///   `input.len()`.
+/// * `CharsetDecodeErrorKind::IncompleteSequence` when EOF appears before four
+///   bytes are available.
 /// * `CharsetDecodeErrorKind::InvalidCodePoint` when the decoded unit is not a
 ///   valid scalar.
 pub(crate) fn decode_bytes_prefix(
     input: &[u8],
     index: usize,
     byte_order: ByteOrder,
-) -> CharsetDecodeResult<DecodeStatus> {
+) -> CharsetDecodeResult<(char, usize)> {
     let charset = Charset::from_utf32_byte_order(byte_order);
     if index > input.len() {
         let kind = CharsetDecodeErrorKind::InvalidInputIndex { input_len: input.len() };
@@ -124,17 +124,15 @@ pub(crate) fn decode_bytes_prefix(
     }
     let available = input.len() - index;
     if available < 4 {
-        return Ok(DecodeStatus::NeedMore {
-            required: index.saturating_add(4),
-            available,
-        });
+        let kind = CharsetDecodeErrorKind::IncompleteSequence { required: 4, available };
+        return Err(CharsetDecodeError::new(charset, kind, index));
     }
     let unit = read_ordered_u32(input, index, byte_order);
     match Unicode::to_char(unit) {
-        Some(ch) => Ok(DecodeStatus::Complete { value: ch, consumed: 4 }),
+        Some(ch) => Ok((ch, 4)),
         None => {
             let kind = CharsetDecodeErrorKind::InvalidCodePoint { value: unit };
-            Err(CharsetDecodeError::new(charset, kind, index))
+            Err(CharsetDecodeError::new(charset, kind, index).with_consumed(4))
         }
     }
 }

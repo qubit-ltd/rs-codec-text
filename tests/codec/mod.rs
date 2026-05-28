@@ -6,7 +6,6 @@ mod charset_decoder_tests;
 mod charset_encoder_tests;
 mod codec_stdlib_consistency_tests;
 mod core_codec_trait_tests;
-mod decode_status_tests;
 mod latin1_codec_tests;
 mod malformed_action_tests;
 mod unmappable_action_tests;

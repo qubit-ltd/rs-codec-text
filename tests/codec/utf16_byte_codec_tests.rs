@@ -3,8 +3,8 @@ use qubit_codec_text::{
     Charset,
     CharsetCodec,
     CharsetDecodeErrorKind,
-    CharsetEncodeErrorKind,
-    DecodeStatus,
+    CharsetEncodeProbe,
+    Codec,
     Utf16,
     Utf16ByteCodec,
 };
@@ -14,26 +14,12 @@ fn test_utf16_byte_codec_exposes_encoder_and_decoder_contracts() {
     let codec = Utf16ByteCodec::new(ByteOrder::LittleEndian);
 
     assert_eq!(Charset::UTF_16LE, <Utf16ByteCodec as CharsetCodec>::charset(&codec));
-    assert_eq!(
-        Utf16::MAX_BYTES_PER_CHAR,
-        <Utf16ByteCodec as CharsetCodec>::max_units_per_char(&codec)
-    );
-    assert_eq!(
-        DecodeStatus::NeedMore {
-            required: 2,
-            available: 0,
-        },
-        <Utf16ByteCodec as CharsetCodec>::decode_one(&codec, &[], 0).expect("utf16-be byte need more"),
-    );
-    assert_eq!(
-        2,
-        <Utf16ByteCodec as CharsetCodec>::encode_one(&codec, 'A', &mut [0_u8; 2], 0).expect("utf16-be byte encode"),
-    );
+    assert_eq!(2, codec.min_units_per_value());
+    assert_eq!(Utf16::MAX_BYTES_PER_CHAR, codec.max_units_per_value());
+    assert_eq!(2, codec.encode_len('A', 0).expect("encode UTF-16 bytes"));
 
     assert_eq!(ByteOrder::LittleEndian, codec.byte_order());
     assert_eq!(Charset::UTF_16LE, codec.charset());
-    assert_eq!(Utf16::MAX_BYTES_PER_CHAR, codec.max_units_per_char());
-    assert_eq!(Utf16::MAX_BYTES_PER_CHAR, codec.max_units_per_char());
 }
 
 #[test]
@@ -41,48 +27,49 @@ fn test_utf16_byte_codec_encodes_and_decodes_bytes() {
     let codec = Utf16ByteCodec::new(ByteOrder::LittleEndian);
     let mut output = [0_u8; Utf16::MAX_BYTES_PER_CHAR];
 
-    assert_eq!(4, codec.encode_one('😀', &mut output, 0).expect("encode pair bytes"));
+    assert_eq!(4, unsafe {
+        codec
+            .encode_unchecked(&'😀', &mut output, 0)
+            .expect("encode pair bytes")
+    });
     assert_eq!(
-        DecodeStatus::Complete {
-            value: '😀',
-            consumed: 4,
-        },
-        codec.decode_one(&output, 0).expect("decode pair bytes"),
+        ('😀', 4),
+        unsafe { codec.decode_unchecked(&output, 0) }.expect("decode pair bytes"),
     );
 }
 
 #[test]
-fn test_utf16_byte_codec_decodes_bmp_and_reports_partial_or_malformed_bytes() {
+fn test_utf16_byte_codec_decodes_bmp_and_reports_closed_tail_or_malformed_bytes() {
     let codec = Utf16ByteCodec::new(ByteOrder::BigEndian);
 
     assert_eq!(
-        DecodeStatus::Complete {
-            value: 'A',
-            consumed: 2,
-        },
-        codec.decode_one(&[0x00, 0x41], 0).expect("BMP bytes"),
+        ('A', 2),
+        unsafe { codec.decode_unchecked(&[0x00, 0x41], 0) }.expect("BMP bytes"),
     );
+
+    let error = unsafe { codec.decode_unchecked(&[0x00], 0) }.expect_err("partial unit is incomplete");
     assert_eq!(
-        DecodeStatus::NeedMore {
+        CharsetDecodeErrorKind::IncompleteSequence {
             required: 2,
             available: 1,
         },
-        codec.decode_one(&[0x00], 0).expect("partial unit"),
+        error.kind()
     );
+
+    let error = unsafe { codec.decode_unchecked(&[0xd8, 0x3d], 0) }.expect_err("partial surrogate pair is incomplete");
     assert_eq!(
-        DecodeStatus::NeedMore {
+        CharsetDecodeErrorKind::IncompleteSequence {
             required: 4,
             available: 2,
         },
-        codec.decode_one(&[0xd8, 0x3d], 0).expect("partial surrogate pair"),
+        error.kind()
     );
 
-    let error = codec.decode_one(&[], 1).expect_err("index outside slice should fail");
+    let error = unsafe { codec.decode_unchecked(&[], 1) }.expect_err("index outside slice should fail");
     assert_eq!(CharsetDecodeErrorKind::InvalidInputIndex { input_len: 0 }, error.kind());
     assert_eq!(1, error.index());
 
-    let error = codec
-        .decode_one(&[0xd8, 0x3d, 0x00, 0x41], 0)
+    let error = unsafe { codec.decode_unchecked(&[0xd8, 0x3d, 0x00, 0x41], 0) }
         .expect_err("high surrogate followed by BMP unit should fail");
     assert_eq!(
         CharsetDecodeErrorKind::MalformedSequence { value: Some(0x0041) },
@@ -90,9 +77,7 @@ fn test_utf16_byte_codec_decodes_bmp_and_reports_partial_or_malformed_bytes() {
     );
     assert_eq!(2, error.index());
 
-    let error = codec
-        .decode_one(&[0xde, 0x00], 0)
-        .expect_err("isolated low surrogate should fail");
+    let error = unsafe { codec.decode_unchecked(&[0xde, 0x00], 0) }.expect_err("isolated low surrogate should fail");
     assert_eq!(
         CharsetDecodeErrorKind::MalformedSequence { value: Some(0xde00) },
         error.kind()
@@ -101,21 +86,25 @@ fn test_utf16_byte_codec_decodes_bmp_and_reports_partial_or_malformed_bytes() {
 }
 
 #[test]
-fn test_utf16_byte_codec_reports_small_output_buffers() {
+fn test_utf16_byte_codec_encodes_bmp_and_supplementary_scalars() {
     let codec = Utf16ByteCodec::new(ByteOrder::LittleEndian);
     let mut output = [0_u8; Utf16::MAX_BYTES_PER_CHAR];
 
-    assert_eq!(2, codec.encode_one('A', &mut output, 0).expect("BMP byte encoding"));
+    assert_eq!(2, unsafe {
+        codec.encode_unchecked(&'A', &mut output, 0).expect("BMP byte encoding")
+    });
+    assert_eq!(4, unsafe {
+        codec
+            .encode_unchecked(&'😀', &mut output, 0)
+            .expect("surrogate pair bytes")
+    });
 
-    let error = codec
-        .encode_one('A', &mut output[..0], 1)
-        .expect_err("index outside slice should fail");
-    assert!(matches!(error.kind(), CharsetEncodeErrorKind::BufferTooSmall { .. },));
-    assert_eq!(1, error.index());
+    let error =
+        unsafe { codec.encode_unchecked(&'😀', &mut output[..2], 0) }.expect_err("surrogate pair needs four bytes");
+    assert_eq!(Some(4), error.required());
+    assert_eq!(Some(2), error.available());
 
-    let error = codec
-        .encode_one('😀', &mut output[..2], 0)
-        .expect_err("surrogate pair needs four bytes");
-    assert!(matches!(error.kind(), CharsetEncodeErrorKind::BufferTooSmall { .. },));
-    assert_eq!(0, error.index());
+    let error = unsafe { codec.encode_unchecked(&'A', &mut [], 1) }.expect_err("output index outside slice");
+    assert_eq!(Some(3), error.required());
+    assert_eq!(Some(0), error.available());
 }

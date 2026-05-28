@@ -16,8 +16,8 @@ use crate::{
     CharsetDecodeResult,
     CharsetEncodeError,
     CharsetEncodeErrorKind,
+    CharsetEncodeProbe,
     CharsetEncodeResult,
-    DecodeStatus,
 };
 use qubit_codec::Codec;
 
@@ -39,21 +39,11 @@ impl AsciiCodec {
     pub const fn charset(self) -> Charset {
         Charset::ASCII
     }
-
-    /// Returns the maximum number of bytes needed for one ASCII character.
-    ///
-    /// # Returns
-    ///
-    /// Returns `1`.
-    #[must_use]
-    #[inline]
-    pub const fn max_units_per_char(self) -> usize {
-        1
-    }
 }
 
 impl CharsetCodec for AsciiCodec {
     type Unit = u8;
+
     /// Returns the charset descriptor for this codec.
     ///
     /// # Returns
@@ -63,82 +53,30 @@ impl CharsetCodec for AsciiCodec {
     fn charset(&self) -> Charset {
         Charset::ASCII
     }
+}
 
-    /// Returns the maximum number of output bytes for one character.
-    ///
-    /// # Returns
-    ///
-    /// Returns `1`.
-    #[inline]
-    fn max_units_per_char(&self) -> usize {
-        1
-    }
-
-    /// Decodes one ASCII byte into a `char`.
-    ///
-    /// # Parameters
-    ///
-    /// - `input`: Complete input byte slice.
-    /// - `index`: Absolute byte index at which decoding starts.
-    ///
-    /// # Returns
-    ///
-    /// `Ok(DecodeStatus::Complete { value, consumed: 1 })` for ASCII bytes.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`CharsetDecodeErrorKind::InvalidInputIndex`] when `index` is
-    /// greater than `input.len()`, or [`CharsetDecodeErrorKind::MalformedSequence`]
-    /// when the current byte is not in the ASCII range `0x00..=0x7F`.
-    #[inline]
-    fn decode_one(&self, input: &[u8], index: usize) -> CharsetDecodeResult<DecodeStatus> {
-        if index > input.len() {
-            let kind = CharsetDecodeErrorKind::InvalidInputIndex { input_len: input.len() };
-            return Err(CharsetDecodeError::new(Charset::ASCII, kind, index));
-        }
-
-        if index == input.len() {
-            return Ok(DecodeStatus::NeedMore {
-                required: index + 1,
-                available: 0,
-            });
-        }
-
-        let (value, consumed) = unsafe { <Self as Codec<char, u8>>::decode_unchecked(self, input, index)? };
-        Ok(DecodeStatus::Complete { value, consumed })
-    }
-
+impl CharsetEncodeProbe for AsciiCodec {
     /// Encodes one `char` into one ASCII byte.
     ///
     /// # Parameters
     ///
     /// - `ch`: The character to encode.
-    /// - `output`: Output byte slice.
-    /// - `index`: Absolute output index where writing starts.
+    /// - `index`: Input character index used for error context.
     ///
     /// # Returns
     ///
-    /// `Ok(1)` when one byte is written.
+    /// `Ok(1)` when one byte is needed.
     ///
     /// # Errors
     ///
-    /// * `CharsetEncodeErrorKind::BufferTooSmall` if `index >= output.len()`.
     /// * `CharsetEncodeErrorKind::UnmappableCharacter` if `ch` is not ASCII.
     #[inline]
-    fn encode_one(&self, ch: char, output: &mut [u8], index: usize) -> CharsetEncodeResult<usize> {
-        if index >= output.len() {
-            let kind = CharsetEncodeErrorKind::BufferTooSmall {
-                required: index + 1,
-                available: 0,
-            };
-            return Err(CharsetEncodeError::new(Charset::ASCII, kind, index));
-        }
-
+    fn encode_len(&self, ch: char, index: usize) -> CharsetEncodeResult<usize> {
         if ch > Ascii::MAX_CHAR {
             let kind = CharsetEncodeErrorKind::UnmappableCharacter { value: ch as u32 };
             return Err(CharsetEncodeError::new(Charset::ASCII, kind, index));
         }
-        unsafe { <Self as Codec<char, u8>>::encode_unchecked(self, ch, output, index) }
+        Ok(1)
     }
 }
 
@@ -158,7 +96,17 @@ unsafe impl Codec<char, u8> for AsciiCodec {
 
     #[inline]
     unsafe fn decode_unchecked(&self, input: &[u8], index: usize) -> CharsetDecodeResult<(char, usize)> {
-        debug_assert!(index < input.len());
+        if index > input.len() {
+            let kind = CharsetDecodeErrorKind::InvalidInputIndex { input_len: input.len() };
+            return Err(CharsetDecodeError::new(Charset::ASCII, kind, index));
+        }
+        if index == input.len() {
+            let kind = CharsetDecodeErrorKind::IncompleteSequence {
+                required: 1,
+                available: 0,
+            };
+            return Err(CharsetDecodeError::new(Charset::ASCII, kind, index));
+        }
 
         let value = input[index];
         if value > Ascii::MAX_BYTE {
@@ -167,18 +115,19 @@ unsafe impl Codec<char, u8> for AsciiCodec {
             };
             return Err(CharsetDecodeError::new(Charset::ASCII, kind, index));
         }
+        debug_assert!(index < input.len());
         Ok((value as char, 1))
     }
 
     #[inline]
-    unsafe fn encode_unchecked(&self, ch: char, output: &mut [u8], index: usize) -> CharsetEncodeResult<usize> {
+    unsafe fn encode_unchecked(&self, ch: &char, output: &mut [u8], index: usize) -> CharsetEncodeResult<usize> {
         debug_assert!(index < output.len());
 
-        if ch > Ascii::MAX_CHAR {
-            let kind = CharsetEncodeErrorKind::UnmappableCharacter { value: ch as u32 };
+        if *ch > Ascii::MAX_CHAR {
+            let kind = CharsetEncodeErrorKind::UnmappableCharacter { value: *ch as u32 };
             return Err(CharsetEncodeError::new(Charset::ASCII, kind, index));
         }
-        output[index] = ch as u8;
+        output[index] = *ch as u8;
         Ok(1)
     }
 }

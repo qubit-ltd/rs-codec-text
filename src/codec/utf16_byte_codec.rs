@@ -16,8 +16,8 @@ use crate::{
     CharsetDecodeError,
     CharsetDecodeResult,
     CharsetEncodeError,
+    CharsetEncodeProbe,
     CharsetEncodeResult,
-    DecodeStatus,
     Utf16,
 };
 use qubit_codec::Codec;
@@ -34,7 +34,8 @@ use qubit_codec::Codec;
 /// use qubit_codec_text::{
 ///     ByteOrder,
 ///     CharsetCodec,
-///     DecodeStatus,
+///     CharsetEncodeProbe,
+///     Codec,
 ///     Charset,
 ///     Utf16,
 ///     Utf16ByteCodec,
@@ -42,17 +43,17 @@ use qubit_codec::Codec;
 ///
 /// let codec = Utf16ByteCodec::new(ByteOrder::LittleEndian);
 /// assert_eq!(Charset::UTF_16LE, codec.charset());
-/// assert_eq!(Utf16::MAX_BYTES_PER_CHAR, codec.max_units_per_char());
+/// assert_eq!(Utf16::MAX_BYTES_PER_CHAR, codec.max_units_per_value());
 ///
 /// let mut output = [0_u8; Utf16::MAX_BYTES_PER_CHAR];
-/// let written = codec.encode_one('😀', &mut output, 0).expect("buffer fits");
-/// assert_eq!(
-///     DecodeStatus::Complete {
-///         value: '😀',
-///         consumed: written,
-///     },
-///     codec.decode_one(&output[..written], 0).expect("valid UTF-16LE"),
-/// );
+/// let written = codec.encode_len('😀', 0).expect("mappable");
+/// unsafe {
+///     codec.encode_unchecked(&'😀', &mut output, 0).expect("buffer fits");
+/// }
+/// let (value, consumed) = unsafe {
+///     codec.decode_unchecked(&output[..written], 0).expect("valid UTF-16LE")
+/// };
+/// assert_eq!(('😀', written), (value, consumed));
 /// ```
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Utf16ByteCodec {
@@ -98,21 +99,11 @@ impl Utf16ByteCodec {
     pub const fn charset(self) -> Charset {
         Charset::from_utf16_byte_order(self.byte_order)
     }
-
-    /// Returns the maximum number of serialized UTF-16 bytes for one character.
-    ///
-    /// # Returns
-    ///
-    /// Returns [`Utf16::MAX_BYTES_PER_CHAR`].
-    #[must_use]
-    #[inline]
-    pub const fn max_units_per_char(self) -> usize {
-        Utf16::MAX_BYTES_PER_CHAR
-    }
 }
 
 impl CharsetCodec for Utf16ByteCodec {
     type Unit = u8;
+
     /// Returns the fixed-endian UTF-16 charset for the configured byte order.
     ///
     /// # Returns
@@ -123,74 +114,21 @@ impl CharsetCodec for Utf16ByteCodec {
     fn charset(&self) -> Charset {
         Charset::from_utf16_byte_order(self.byte_order)
     }
+}
 
-    /// Returns the maximum number of UTF-16 bytes for a single encoded character.
-    ///
-    /// # Returns
-    ///
-    /// Returns [`Utf16::MAX_BYTES_PER_CHAR`].
-    #[inline]
-    fn max_units_per_char(&self) -> usize {
-        Utf16::MAX_BYTES_PER_CHAR
-    }
-
-    /// Decodes one UTF-16 scalar value from a byte-prefixed UTF-16 stream.
-    ///
-    /// # Arguments
-    ///
-    /// * `input` - Byte-prefixed UTF-16 buffer.
-    /// * `index` - Start offset for parsing; must satisfy `index <= input.len()`.
-    ///
-    /// # Returns
-    ///
-    /// * `Ok(DecodeStatus::NeedMore { required, available })` when the current slice
-    ///   has only a partial unit/pair.
-    /// * `Ok(DecodeStatus::Complete { value, consumed })` when one Unicode scalar value
-    ///   is decoded.
-    ///
-    /// # Errors
-    ///
-    /// * [`crate::CharsetDecodeErrorKind::InvalidInputIndex`] when `index` is
-    ///   greater than `input.len()`.
-    /// * [`crate::CharsetDecodeErrorKind::MalformedSequence`] when UTF-16
-    ///   structure is malformed.
-    fn decode_one(&self, input: &[u8], index: usize) -> CharsetDecodeResult<DecodeStatus> {
-        match utf16::decode_bytes_prefix(input, index, self.byte_order)? {
-            DecodeStatus::Complete { .. } => {
-                let (value, consumed) = unsafe { <Self as Codec<char, u8>>::decode_unchecked(self, input, index)? };
-                Ok(DecodeStatus::Complete { value, consumed })
-            }
-            status @ DecodeStatus::NeedMore { .. } => Ok(status),
-        }
-    }
-
+impl CharsetEncodeProbe for Utf16ByteCodec {
     /// Encodes one Unicode scalar value into UTF-16 bytes at `index`.
     ///
     /// # Arguments
     ///
     /// * `ch` - The Unicode scalar value to encode.
-    /// * `output` - Destination byte buffer.
-    /// * `index` - Start offset where bytes are written; must satisfy
-    ///   `index <= output.len()`.
+    /// * `index` - Input character index used for error context.
     ///
     /// # Returns
     ///
-    /// `Ok(usize)` with the number of written bytes (`2` for BMP and `4` for supplementary).
-    ///
-    /// # Errors
-    ///
-    /// * [`crate::CharsetEncodeErrorKind::BufferTooSmall`] if output does not
-    ///   have enough space.
-    fn encode_one(&self, ch: char, output: &mut [u8], index: usize) -> CharsetEncodeResult<usize> {
-        if index > output.len() {
-            return utf16::encode_bytes_char(ch, output, self.byte_order, index);
-        }
-        let required = Utf16::unit_len(ch) * 2;
-        let available = output.len() - index;
-        if available < required {
-            return utf16::encode_bytes_char(ch, output, self.byte_order, index);
-        }
-        unsafe { <Self as Codec<char, u8>>::encode_unchecked(self, ch, output, index) }
+    /// `Ok(usize)` with the required bytes (`2` for BMP and `4` for supplementary).
+    fn encode_len(&self, ch: char, _index: usize) -> CharsetEncodeResult<usize> {
+        Ok(Utf16::unit_len(ch) * 2)
     }
 }
 
@@ -210,20 +148,17 @@ unsafe impl Codec<char, u8> for Utf16ByteCodec {
 
     #[inline]
     unsafe fn decode_unchecked(&self, input: &[u8], index: usize) -> CharsetDecodeResult<(char, usize)> {
-        debug_assert!(index + 2 <= input.len());
-
-        match utf16::decode_bytes_prefix(input, index, self.byte_order)? {
-            DecodeStatus::Complete { value, consumed } => Ok((value, consumed)),
-            DecodeStatus::NeedMore { .. } => {
-                unreachable!("Codec::decode_unchecked requires a complete UTF-16 byte value")
-            }
-        }
+        let decoded = utf16::decode_bytes_prefix(input, index, self.byte_order)?;
+        debug_assert!(decoded.1 > 0);
+        debug_assert!(decoded.1 <= input.len() - index);
+        Ok(decoded)
     }
 
     #[inline]
-    unsafe fn encode_unchecked(&self, ch: char, output: &mut [u8], index: usize) -> CharsetEncodeResult<usize> {
-        debug_assert!(index + ch.len_utf16() * 2 <= output.len());
-
-        utf16::encode_bytes_char(ch, output, self.byte_order, index)
+    unsafe fn encode_unchecked(&self, ch: &char, output: &mut [u8], index: usize) -> CharsetEncodeResult<usize> {
+        let written = utf16::encode_bytes_char(*ch, output, self.byte_order, index)?;
+        debug_assert_eq!(written, ch.len_utf16() * 2);
+        debug_assert!(written <= output.len() - index);
+        Ok(written)
     }
 }

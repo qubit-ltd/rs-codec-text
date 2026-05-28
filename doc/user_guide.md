@@ -23,8 +23,10 @@ Use this crate when you need:
 - Buffer-level codecs for ASCII, ISO-8859-1, UTF-8, UTF-16, and UTF-32.
 - Policy-aware decoders, encoders, and converters with replace, ignore, and
   report modes.
-- `Charset`, `UnicodeBom`, `ByteOrder`, `Coder`, and typed encode/decode error
-  values for building higher-level adapters.
+- `Charset`, `UnicodeBom`, `ByteOrder`, `CodecValueEncoder`,
+  `CodecBufferedEncoder`, `BufferedEncoder`, `BufferedDecoder`,
+  `BufferedConverter`, `Transcoder`, and typed encode/decode error values for
+  building higher-level adapters.
 
 This crate is not a general text processing library. It intentionally stays
 below grapheme segmentation, normalization, collation, locale-aware case
@@ -39,8 +41,9 @@ adapters. Use crates such as `unicode-segmentation`, `unicode-normalization`,
 qubit-codec-text = "0.1"
 ```
 
-`qubit-codec` is the core runtime dependency and the core buffer-level traits
-used by the public API are re-exported by `qubit-codec-text`.
+`qubit-codec` is the core runtime dependency, and the core buffer-level traits
+and codec-backed encoder adapters used by the public API are re-exported by
+`qubit-codec-text`.
 
 For compact imports:
 
@@ -55,7 +58,7 @@ use qubit_codec_text::{
     CharsetCodec,
     CharsetDecoder,
     CharsetEncoder,
-    Coder,
+    Transcoder,
     Utf8Codec,
 };
 ```
@@ -69,16 +72,16 @@ The crate is split into a few small layers.
 | Namespace helpers | `Ascii`, `Unicode`, `Utf8`, `Utf16`, `Utf32` | Constants, classification, sizing, and BOM helper functions. |
 | Charset metadata | `Charset`, `UnicodeBom`, `ByteOrder` | Stable charset identity, aliases, fixed byte order, and BOM metadata. |
 | Low-level codecs | `Codec<char, Unit>`, built-in codec structs | Decode or encode one complete Unicode scalar value from/to caller-owned buffers. |
-| Text codec wrappers | `CharsetCodec`, `DecodeStatus` | Add charset metadata, checked boundaries, and partial-input reporting for one scalar value. |
-| Policy wrappers | `CharsetDecoder`, `CharsetEncoder` | Apply malformed/unmappable policy while converting many units. |
-| Charset conversion | `CharsetConverter` | Decode source units to `char`, then encode them to target units. |
-| Progress API | `Coder`, `CoderProgress`, `CoderStatus` | Report partial progress, input starvation, and output backpressure. |
+| Text codec metadata | `CharsetCodec`, `CharsetEncodeProbe` | Attach charset metadata and exact encode sizing to low-level codec implementations. |
+| Policy wrappers | `CharsetDecoder`, `CharsetEncoder` | Apply malformed/unmappable policy while converting many units; implement `BufferedDecoder` / `BufferedEncoder`. |
+| Charset conversion | `CharsetConverter` | Decode source units to `char`, then encode them to target units; implements `BufferedConverter`. |
+| Progress API | `Transcoder`, `TranscodeProgress`, `TranscodeStatus` | Report partial progress, input starvation, and output backpressure. |
 | Errors | `CharsetDecodeError`, `CharsetEncodeError`, `CharsetConvertError` | Preserve charset, kind, absolute index, and optional raw value. |
 
 All codec operations are buffer-oriented. Callers pass a complete input slice,
 a complete output slice, and absolute start indices. Returned `read` and
 `written` counts are relative to those start indices. Error indices and
-`CoderStatus` indices are absolute within the supplied buffers.
+`TranscodeStatus` indices are absolute within the supplied buffers.
 
 ## Namespace Helpers
 
@@ -175,15 +178,23 @@ detect, skip, or emit BOM bytes automatically. The caller owns BOM handling.
 
 The built-in text codec structs implement the domain-neutral
 `qubit_codec::Codec<char, Unit>` trait. That trait is the lowest-level
-complete-value contract: callers of `decode_unchecked` and `encode_unchecked`
-must already know that enough input or output units are available for one
-value.
+single-value contract: `decode_unchecked` decodes one Unicode scalar value from
+caller-owned input units, and `encode_unchecked` writes one Unicode scalar value
+to caller-owned output units.
 
-`CharsetCodec` sits above that unsafe trait as a text-specific safe wrapper. It
-adds `charset()` metadata, `max_units_per_char()`, checked `decode_one()` and
-checked `encode_one()`. `decode_one()` is the layer that can return
-`DecodeStatus::NeedMore` for open streams; the underlying `Codec` trait does not
-carry a partial-input status.
+`CharsetCodec` stays at this same low-level layer. It adds only `charset()`
+metadata and the storage `Unit` type. `CharsetEncodeProbe` adds `encode_len()`,
+which is used by encoders to validate mappability and compute the exact output
+unit count before calling unsafe `encode_unchecked`.
+
+For decoding through `decode_unchecked`, callers must provide at least
+`codec.min_units_per_value()` readable units from the current input index before
+calling `decode_unchecked`. Callers should normally provide up to
+`codec.max_units_per_value()` unless EOF makes that impossible. Built-in codecs
+decode complete shorter representations, such as one-byte UTF-8 ASCII, and
+return `CharsetDecodeErrorKind::IncompleteSequence` / `MalformedSequence` for
+incomplete or malformed prefixes. `CharsetDecoder` uses those errors to report
+`NeedInput` for open buffered input.
 
 | Codec | Storage unit | Charset |
 | --- | --- | --- |
@@ -195,89 +206,86 @@ carry a partial-input status.
 | `Utf32U32Codec` | `u32` | `Charset::UTF_32` |
 | `Utf32ByteCodec` | `u8` | `Charset::UTF_32LE` or `Charset::UTF_32BE` |
 
-Decode one scalar value:
+Decode one scalar value from a closed or sufficiently buffered input slice:
 
 ```rust
 use qubit_codec_text::{
-    CharsetCodec,
-    DecodeStatus,
+    Codec,
     Utf8Codec,
 };
 
-let status = Utf8Codec
-    .decode_one("中".as_bytes(), 0)
+let decoded = unsafe {
+    Utf8Codec
+        .decode_unchecked("中".as_bytes(), 0)
+}
     .expect("valid UTF-8 input");
-assert_eq!(
-    DecodeStatus::Complete {
-        value: '中',
-        consumed: 3,
-    },
-    status,
-);
+assert_eq!(('中', 3), decoded);
+```
 
-let status = Utf8Codec
-    .decode_one(&[0xe4], 0)
-    .expect("valid incomplete UTF-8 prefix");
+Decode a closed EOF tail:
+
+```rust
+use qubit_codec_text::{
+    CharsetDecodeErrorKind,
+    Codec,
+    Utf8Codec,
+};
+
+let error = unsafe {
+    Utf8Codec
+        .decode_unchecked(&[0xe4], 0)
+}
+    .expect_err("closed input ended inside a UTF-8 scalar value");
+
 assert_eq!(
-    DecodeStatus::NeedMore {
+    CharsetDecodeErrorKind::IncompleteSequence {
         required: 3,
         available: 1,
     },
-    status,
+    error.kind(),
 );
-
 ```
 
 Encode one scalar value:
 
 ```rust
 use qubit_codec_text::{
-    CharsetCodec,
+    CharsetEncodeProbe,
+    Codec,
     Utf8Codec,
     Utf8,
 };
 
 let mut output = [0_u8; Utf8::MAX_BYTES_PER_CHAR];
-let written = Utf8Codec
-    .encode_one('é', &mut output, 0)
+let required = Utf8Codec
+    .encode_len('é', 0)
+    .expect("UTF-8 can encode every scalar value");
+let written = unsafe {
+    Utf8Codec
+        .encode_unchecked(&'é', &mut output, 0)
+}
     .expect("buffer is large enough");
 
+assert_eq!(2, required);
 assert_eq!("é".as_bytes(), &output[..written]);
 ```
 
-Low-level codecs are strict. `CharsetCodec` reports malformed input, invalid
-input indices, invalid scalar values, unmappable characters, and small output
-buffers as typed errors. Policy decisions are handled by the wrappers described
-below.
+Low-level codecs are strict. They report malformed input, invalid input
+indices, invalid scalar values, unmappable characters, and small output buffers
+as typed errors. Policy decisions are handled by the wrappers described below.
 
-## Decode Status and Incomplete Input
+## EOF and Incomplete Input
 
-`DecodeStatus` is returned only by the safe `CharsetCodec::decode_one` wrapper.
-It is not part of the lower-level `Codec<char, Unit>` trait.
+The low-level codec layer has only closed input: a short buffer is interpreted
+as EOF, not as "maybe more data later". The streaming distinction belongs to
+`CharsetDecoder`.
 
-| Status | Meaning |
-| --- | --- |
-| `Complete { value, consumed }` | One Unicode scalar value was decoded. `consumed` must be greater than zero. |
-| `NeedMore { required, available }` | The current prefix is valid so far, but more input units are needed. |
-
-`NeedMore` is not an error while the stream is still open. At EOF, callers can
-turn it into an incomplete sequence error:
-
-```rust
-use qubit_codec_text::{
-    Charset,
-    DecodeStatus,
-};
-
-let status = DecodeStatus::NeedMore {
-    required: 3,
-    available: 1,
-};
-let error = status.incomplete_error(Charset::UTF_8, 0);
-
-assert_eq!(Some(3), error.required());
-assert_eq!(Some(1), error.available());
-```
+`CharsetDecoder::transcode` asks the codec whether the currently available units
+already contain one complete scalar. Complete shorter representations are decoded
+immediately. If the current chunk is only a valid incomplete prefix,
+`transcode()` returns `TranscodeStatus::NeedInput` and retains the tail. After
+the caller reaches EOF, `finish()` closes that retained tail and handles it using
+the configured `MalformedAction`.
 
 ## Policy Decoding
 
@@ -293,8 +301,8 @@ assert_eq!(Some(1), error.available());
 ```rust
 use qubit_codec_text::{
     CharsetDecoder,
-    Coder,
-    CoderStatus,
+    Transcoder,
+    TranscodeStatus,
     Utf8Codec,
 };
 
@@ -302,10 +310,9 @@ let mut decoder = CharsetDecoder::new(Utf8Codec);
 let mut output = ['\0'; 2];
 
 let progress = decoder
-    .convert("Aé".as_bytes(), 0, &mut output, 0)
+    .transcode("Aé".as_bytes(), 0, &mut output, 0)
     .expect("valid UTF-8 input");
-
-assert_eq!(CoderStatus::Complete, progress.status());
+assert_eq!(TranscodeStatus::Complete, progress.status());
 assert_eq!(3, progress.read());
 assert_eq!(2, progress.written());
 assert_eq!(['A', 'é'], output);
@@ -317,7 +324,7 @@ For strict validation:
 ```rust
 use qubit_codec_text::{
     CharsetDecoder,
-    Coder,
+    Transcoder,
     MalformedAction,
     Utf8Codec,
 };
@@ -326,13 +333,16 @@ let mut decoder = CharsetDecoder::new(Utf8Codec);
 decoder.set_malformed_action(MalformedAction::Report);
 
 let mut output = ['\0'; 1];
-let error = decoder.convert(&[0x80], 0, &mut output, 0).expect_err("invalid UTF-8");
+let error = decoder
+    .transcode(&[0x80], 0, &mut output, 0)
+    .expect_err("invalid UTF-8");
 
 assert_eq!(0, error.index());
 ```
 
-`CharsetDecoder::convert` may panic if a custom `CharsetCodec` violates the
-documented `DecodeStatus` invariants. Built-in codecs satisfy those invariants.
+`CharsetDecoder::transcode` may panic if a custom `CharsetCodec` violates the
+low-level `Codec::decode_unchecked` contract by consuming zero units or more
+units than were provided. Built-in codecs satisfy that contract.
 
 ## Policy Encoding
 
@@ -348,8 +358,8 @@ documented `DecodeStatus` invariants. Built-in codecs satisfy those invariants.
 ```rust
 use qubit_codec_text::{
     CharsetEncoder,
-    Coder,
-    CoderStatus,
+    Transcoder,
+    TranscodeStatus,
     Utf8Codec,
     Utf8,
 };
@@ -358,10 +368,10 @@ let mut encoder = CharsetEncoder::new(Utf8Codec);
 let mut output = [0_u8; Utf8::MAX_BYTES_PER_CHAR];
 
 let progress = encoder
-    .convert(&['😀'], 0, &mut output, 0)
+    .transcode(&['😀'], 0, &mut output, 0)
     .expect("UTF-8 output buffer is large enough");
 
-assert_eq!(CoderStatus::Complete, progress.status());
+assert_eq!(TranscodeStatus::Complete, progress.status());
 assert_eq!(1, progress.read());
 assert_eq!(4, progress.written());
 assert_eq!("😀".as_bytes(), &output[..progress.written()]);
@@ -374,7 +384,7 @@ For ASCII output with strict unmappable handling:
 use qubit_codec_text::{
     AsciiCodec,
     CharsetEncoder,
-    Coder,
+    Transcoder,
     UnmappableAction,
 };
 
@@ -382,7 +392,7 @@ let mut encoder = CharsetEncoder::new(AsciiCodec);
 encoder.set_unmappable_action(UnmappableAction::Report);
 
 let mut output = [0_u8; 1];
-let error = encoder.convert(&['é'], 0, &mut output, 0).expect_err("not ASCII");
+let error = encoder.transcode(&['é'], 0, &mut output, 0).expect_err("not ASCII");
 
 assert_eq!(0, error.index());
 assert_eq!(Some('é' as u32), error.value());
@@ -417,8 +427,8 @@ uses `char` values as the intermediate representation.
 ```rust
 use qubit_codec_text::{
     CharsetConverter,
-    Coder,
-    CoderStatus,
+    Transcoder,
+    TranscodeStatus,
     Utf8Codec,
     Utf16U16Codec,
 };
@@ -427,18 +437,22 @@ let mut converter = CharsetConverter::from_codecs(Utf8Codec, Utf16U16Codec);
 let mut output = [0_u16; 2];
 
 let progress = converter
-    .convert("A中".as_bytes(), 0, &mut output, 0)
+    .transcode("A中".as_bytes(), 0, &mut output, 0)
     .expect("valid UTF-8 input and enough UTF-16 output");
-
-assert_eq!(CoderStatus::Complete, progress.status());
+assert!(matches!(progress.status(), TranscodeStatus::NeedInput { .. }));
 assert_eq!(4, progress.read());
-assert_eq!(2, progress.written());
+assert_eq!(1, progress.written());
+
+let progress = converter
+    .finish(&mut output, progress.written())
+    .expect("closed tail converts successfully");
+assert_eq!(TranscodeStatus::Complete, progress.status());
 assert_eq!(['A' as u16, '中' as u16], output);
 
 ```
 
 Converters keep at most one pending decoded character when target output is
-full. Call `convert` again with more output space, or call `finish` after the
+full. Call `transcode` again with more output space, or call `finish` after the
 source input has ended to flush pending output.
 
 `CharsetConvertError` distinguishes source decode failures from target encode
@@ -448,7 +462,7 @@ failures:
 use qubit_codec_text::{
     CharsetConvertError,
     CharsetConverter,
-    Coder,
+    Transcoder,
     Utf8Codec,
     Utf16U16Codec,
 };
@@ -457,7 +471,7 @@ let mut converter = CharsetConverter::from_codecs(Utf8Codec, Utf16U16Codec);
 let mut output = [0_u16; 1];
 
 let error = converter
-    .convert(b"A", 2, &mut output, 0)
+    .transcode(b"A", 2, &mut output, 0)
     .expect_err("source index is outside input");
 
 assert!(matches!(error, CharsetConvertError::Decode(_)));
@@ -465,16 +479,21 @@ assert!(matches!(error, CharsetConvertError::Decode(_)));
 
 ## Progress and Buffering
 
-`Coder<Input, Output>` is re-exported from `qubit-codec`. It has three central
-methods:
+`Transcoder<Input, Output>` is re-exported from `qubit-codec`. It models one
+logical input stream converted into one logical output stream. Call
+`transcode()` for each available segment, then call `finish()` after EOF and
+continue while it reports `NeedOutput`. Call `reset()` before reusing the same
+instance for another logical stream. It has four central methods:
 
 | Method | Meaning |
 | --- | --- |
 | `max_output_len(input_len)` | Returns an upper bound when one is known. |
-| `convert(input, input_index, output, output_index)` | Converts as much as possible from caller-owned buffers. |
-| `finish(output, output_index)` | Flushes buffered output after all source input has been provided. |
+| `max_finish_output_len()` | Returns an upper bound for output produced by EOF finalization. |
+| `reset()` | Clears retained conversion state while keeping configuration. |
+| `transcode(input, input_index, output, output_index)` | Converts as much as possible from caller-owned buffers. |
+| `finish(output, output_index)` | Finalizes EOF state, replacing, ignoring, or rejecting incomplete trailing input according to policy. |
 
-`CoderProgress` contains:
+`TranscodeProgress` contains:
 
 - `status()`: `Complete`, `NeedInput`, or `NeedOutput`.
 - `read()`: input units consumed relative to `input_index`.
@@ -482,7 +501,7 @@ methods:
 - `required()`, `available()`, and `index()`: convenience accessors for
   incomplete input or output backpressure.
 
-`CoderStatus` values use absolute indices:
+`TranscodeStatus` values use absolute indices:
 
 | Status | Meaning |
 | --- | --- |
@@ -492,7 +511,8 @@ methods:
 
 When output is too small, policy wrappers return `NeedOutput` instead of
 throwing an error for normal backpressure. When input is truncated but still a
-valid prefix, decoders return `NeedInput`. Malformed input, invalid indices, and
+valid prefix, decoders return `NeedInput`. If the caller has reached EOF, call
+`finish()` to close that partial sequence. Malformed input, invalid indices, and
 unmappable characters in report mode are errors.
 
 ## Error Model
@@ -529,17 +549,24 @@ as bytes.
 ```rust
 use qubit_codec_text::{
     ByteOrder,
-    CharsetCodec,
+    CharsetEncodeProbe,
+    Codec,
     Utf16ByteCodec,
 };
 
 let codec = Utf16ByteCodec::new(ByteOrder::LittleEndian);
 let mut output = [0_u8; 4];
 
-let written = codec
-    .encode_one('😀', &mut output, 0)
+let required = codec
+    .encode_len('😀', 0)
+    .expect("UTF-16 can encode every scalar value");
+let written = unsafe {
+    codec
+        .encode_unchecked(&'😀', &mut output, 0)
+}
     .expect("UTF-16 output buffer is large enough");
 
+assert_eq!(4, required);
 assert_eq!(&[0x3d, 0xd8, 0x00, 0xde], &output[..written]);
 ```
 
@@ -554,30 +581,36 @@ To add another charset in a downstream crate:
 1. Define a codec type.
 2. Implement `qubit_codec::Codec<char, Unit>` for complete-value decode and
    encode.
-3. Implement `CharsetCodec`.
+3. Implement `CharsetCodec` for charset metadata.
 4. Return a stable `Charset` descriptor from `charset()`.
-5. Return the maximum storage units needed for one scalar value from
-   `max_units_per_char()`.
-6. Implement checked `decode_one` and `encode_one` by validating indices and
-   capacities before delegating to the unsafe `Codec` methods.
-7. Use `CharsetDecoder`, `CharsetEncoder`, or `CharsetConverter` to apply
+5. Return the maximum storage units needed for one scalar value from the
+   `Codec::max_units_per_value()` implementation.
+6. Return incomplete, malformed, and invalid-scalar failures through
+   `CharsetDecodeError` from `Codec::decode_unchecked()`.
+7. Implement `CharsetEncodeProbe` if the charset can be used with
+   `CharsetEncoder` or as a converter target.
+8. Use `CharsetDecoder`, `CharsetEncoder`, or `CharsetConverter` to apply
    policy.
 
-Important `decode_one` invariants:
+Important `decode_unchecked` expectations:
 
-- `Complete` must consume at least one unit.
-- `Complete.consumed` must not exceed `input.len() - index`.
-- `NeedMore.required` is an absolute input length and must be greater than
-  `input.len()`.
-- `NeedMore.available` must equal `input.len() - index`.
-- `index > input.len()` should return
-  `CharsetDecodeErrorKind::InvalidInputIndex`.
+- Success must consume at least one input unit.
+- Success must not consume beyond `input.len() - index`.
+- Callers using `decode_unchecked` provide at least `min_units_per_value()`
+  readable units and should normally provide up to `max_units_per_value()`
+  unless EOF prevents that.
+- If the currently provided units are a valid but incomplete prefix, return
+  `IncompleteSequence`; once the units prove the sequence invalid, return
+  `MalformedSequence` or `InvalidCodePoint`.
+- `index > input.len()` is a caller contract violation for the unsafe method.
 
-Important `encode_one` expectations:
+Important `encode_unchecked` and `encode_len` expectations:
 
 - Return `BufferTooSmall` when output capacity is insufficient.
 - Return `UnmappableCharacter` when the charset cannot represent the scalar
   value.
+- `encode_len` must return the exact number of units that `encode_unchecked`
+  will write for the same character.
 - Keep replacement `?` encodable if the codec is meant to work with
   `CharsetEncoder::new`.
 

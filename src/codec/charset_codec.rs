@@ -9,34 +9,40 @@
  ******************************************************************************/
 use crate::{
     Charset,
-    CharsetDecodeResult,
-    CharsetEncodeResult,
+    CharsetDecodeError,
+    CharsetEncodeError,
 };
+use qubit_codec::Codec;
 
-use super::decode_status::DecodeStatus;
-
-/// Safe text wrapper around a low-level `Codec<char, Unit>`.
+/// Charset metadata carried by a low-level `Codec<char, Unit>`.
 ///
-/// `CharsetCodec` adds charset metadata and checked one-character convenience
-/// calls on top of the lower-level [`qubit_codec::Codec`] contract. The checked
-/// [`Self::decode_one`] method is also where partial-input reporting lives:
-/// [`DecodeStatus::NeedMore`] belongs to this safe text wrapper, not to the
-/// underlying `Codec` trait. Policy decisions such as replacement, ignoring
-/// malformed input, or reporting unmappable characters are handled by
-/// [`crate::CharsetDecoder`] and [`crate::CharsetEncoder`].
+/// `CharsetCodec` stays at the same low-level layer as [`Codec`]. It identifies
+/// the charset and storage unit type, while actual single-value encoding and
+/// decoding are provided by the inherited unsafe [`Codec`] methods. Checked
+/// buffer management, stream boundary handling, replacement policy, and
+/// unmappable-character policy live in [`crate::CharsetDecoder`] and
+/// [`crate::CharsetEncoder`].
+///
+/// Built-in variable-width codecs report incomplete prefixes through
+/// [`CharsetDecodeError`], so buffered decoders can call
+/// [`Codec::decode_unchecked`] as soon as at least
+/// [`Codec::min_units_per_value`] units are available.
 ///
 /// # Associated Types
 ///
-/// - `Unit`: Storage unit used by the encoded representation, such as `u8` for
-///   byte-oriented charsets, `u16` for UTF-16 code units, or `u32` for UTF-32
-///   code units.
-pub trait CharsetCodec {
+/// Implementors must also implement the low-level [`Codec<char, Self::Unit>`]
+/// contract with [`CharsetDecodeError`] and [`CharsetEncodeError`] as the
+/// concrete error types. This keeps the checked text wrapper and unchecked
+/// single-scalar codec API bound to the same object.
+pub trait CharsetCodec:
+    Codec<char, Self::Unit, DecodeError = CharsetDecodeError, EncodeError = CharsetEncodeError>
+{
     /// Storage unit used by the encoded representation.
     ///
     /// `u8` is used by byte-oriented codecs such as UTF-8 and Latin-1;
     /// `u16` is used by UTF-16 code-unit codecs; `u32` is used by UTF-32
     /// code-unit codecs.
-    type Unit: Copy + Default;
+    type Unit: Copy + Default + Eq + core::fmt::Debug;
     /// Returns the charset handled by this codec.
     ///
     /// # Returns
@@ -44,55 +50,4 @@ pub trait CharsetCodec {
     /// Returns the codec's charset descriptor.
     #[must_use]
     fn charset(&self) -> Charset;
-
-    /// Returns the maximum number of storage units needed for one character.
-    ///
-    /// # Returns
-    ///
-    /// Returns an upper bound for one encoded Unicode scalar value.
-    #[must_use]
-    fn max_units_per_char(&self) -> usize;
-
-    /// Decodes one Unicode scalar value from `input` starting at `index`.
-    ///
-    /// # Parameters
-    ///
-    /// - `input`: Complete input unit slice.
-    /// - `index`: Absolute input unit index where decoding starts.
-    ///
-    /// # Returns
-    ///
-    /// Returns [`DecodeStatus::Complete`] when one scalar value is available.
-    /// Its `consumed` value must be greater than zero and must not exceed
-    /// `input.len() - index`.
-    ///
-    /// Returns [`DecodeStatus::NeedMore`] when the current prefix is valid but
-    /// incomplete. Its `required` value is the absolute input length required
-    /// to complete the current value and must be greater than `input.len()`;
-    /// its `available` value is `input.len() - index`.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`crate::CharsetDecodeError`] when `index` is outside `input`,
-    /// or when the sequence at `index` is malformed or decodes to a non-scalar
-    /// value.
-    fn decode_one(&self, input: &[Self::Unit], index: usize) -> CharsetDecodeResult<DecodeStatus>;
-
-    /// Encodes one Unicode scalar value into `output` starting at `index`.
-    ///
-    /// # Parameters
-    ///
-    /// - `ch`: Unicode scalar value to encode.
-    /// - `output`: Complete output unit slice.
-    /// - `index`: Absolute output unit index where writing starts.
-    ///
-    /// # Returns
-    ///
-    /// Returns the number of output units written.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`crate::CharsetEncodeError`] when `ch` cannot be represented by
-    /// this charset or `output` does not have enough capacity from `index`.
-    fn encode_one(&self, ch: char, output: &mut [Self::Unit], index: usize) -> CharsetEncodeResult<usize>;
 }

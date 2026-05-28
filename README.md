@@ -21,8 +21,9 @@ below ordinary `str`, `String`, and `char` APIs. It provides:
 - Policy-aware `CharsetDecoder`, `CharsetEncoder`, and `CharsetConverter`
   wrappers.
 - Typed decode/encode/convert errors with precise buffer indices.
-- `Coder`, `CoderProgress`, `CoderStatus`, and `ByteOrder` re-exported from
-  `qubit-codec`.
+- `CodecValueEncoder`, `CodecBufferedEncoder`, `BufferedEncoder`,
+  `BufferedDecoder`, `BufferedConverter`, `Transcoder`, `TranscodeProgress`,
+  `TranscodeStatus`, and `ByteOrder` re-exported from `qubit-codec`.
 
 This crate intentionally stays below `std::io` reader/writer adapters,
 automatic charset detection, normalization, segmentation, collation, display
@@ -38,7 +39,7 @@ width, and locale-aware text behavior.
   through decoder and encoder configuration.
 - **Precise Diagnostics**: report typed errors with source indices and context.
 - **I/O Independence**: keep stream adapters in `qubit-io-text`.
-- **Small Core Dependency**: depend on `qubit-codec` for shared coder and byte
+- **Small Core Dependency**: depend on `qubit-codec` for shared transcoder and byte
   order primitives.
 
 ## Features
@@ -65,10 +66,12 @@ width, and locale-aware text behavior.
 - **`CharsetConverter`**: converts between decoder and encoder pairs.
 - **`MalformedAction` / `UnmappableAction`**: configure strict or replacement
   behavior.
+- **EOF finalization**: `finish()` applies malformed-input policy to incomplete
+  trailing source sequences and flushes pending converter output.
 
 ### Focused Public API
 
-- **`prelude` module**: imports common charset, codec, error, and core coder
+- **`prelude` module**: imports common charset, codec, error, and core transcoder
   types.
 - **No stream I/O**: use `qubit-io-text` for reader and writer adapters.
 
@@ -85,18 +88,18 @@ width, and locale-aware text behavior.
 qubit-codec-text = "0.1"
 ```
 
-`qubit-codec` is the core runtime dependency. The core buffer-level traits used
-by this public API are re-exported by `qubit-codec-text`.
+`qubit-codec` is the core runtime dependency. The core buffer-level traits and
+codec-backed encoder adapters used by this public API are re-exported by
+`qubit-codec-text`.
 
 ## Quick Start
 
 ```rust
 use qubit_codec_text::{
-    CharsetCodec,
     CharsetEncoder,
-    Coder,
-    CoderStatus,
-    DecodeStatus,
+    Codec,
+    TranscodeStatus,
+    Transcoder,
     UnicodeBom,
     Utf8,
     Utf8Codec,
@@ -105,24 +108,20 @@ use qubit_codec_text::{
 assert_eq!(Some(UnicodeBom::Utf8), UnicodeBom::detect(&[0xef, 0xbb, 0xbf]));
 assert_eq!(Some(3), Utf8::byte_len_from_leading_byte(0xe4));
 
-let decoded = Utf8Codec
-    .decode_one("中".as_bytes(), 0)
+let (decoded, consumed) = unsafe {
+    Utf8Codec
+        .decode_unchecked("中".as_bytes(), 0)
+}
     .expect("valid UTF-8 input");
-assert_eq!(
-    DecodeStatus::Complete {
-        value: '中',
-        consumed: 3,
-    },
-    decoded,
-);
+assert_eq!(('中', 3), (decoded, consumed));
 
 let mut encoder = CharsetEncoder::new(Utf8Codec);
 let mut output = [0_u8; Utf8::MAX_BYTES_PER_CHAR];
 let progress = encoder
-    .convert(&['😀'], 0, &mut output, 0)
+    .transcode(&['😀'], 0, &mut output, 0)
     .expect("UTF-8 output buffer is large enough");
 
-assert_eq!(CoderStatus::Complete, progress.status());
+assert_eq!(TranscodeStatus::Complete, progress.status());
 assert_eq!("😀".as_bytes(), &output[..progress.written()]);
 ```
 
@@ -146,16 +145,16 @@ assert_eq!("😀".as_bytes(), &output[..progress.written()]);
 | `Utf16ByteCodec` / `Utf32ByteCodec` | Explicit-byte-order Unicode byte codecs |
 | `Utf16U16Codec` / `Utf32U32Codec` | Unit-oriented Unicode codecs |
 | `Codec<char, Unit>` | Lowest-level complete-value codec trait re-exported from `qubit-codec` |
-| `CharsetCodec` | Text metadata and checked single-character wrapper with partial-input reporting |
+| `CharsetCodec` | Charset metadata attached to low-level text codec implementations |
+| `CharsetEncodeProbe` | Exact per-character output sizing and mappability probe |
 
 ### Converter Types
 
 | Type | Purpose |
 |------|---------|
-| `CharsetDecoder<C>` | Stateful buffer decoder |
-| `CharsetEncoder<C>` | Stateful buffer encoder |
-| `CharsetConverter<D, E>` | Decode and encode between two charset codecs |
-| `DecodeStatus` | Checked `CharsetCodec::decode_one` status, including incomplete prefixes |
+| `CharsetDecoder<C>` | Stateful buffer decoder implementing `BufferedDecoder<C::Unit, char>` |
+| `CharsetEncoder<C>` | Stateful buffer encoder implementing `BufferedEncoder<char, C::Unit>` |
+| `CharsetConverter<D, E>` | Decode and encode between two charset codecs, implementing `BufferedConverter<D::Unit, E::Unit>` |
 | `MalformedAction` | Policy for malformed input |
 | `UnmappableAction` | Policy for unencodable output characters |
 
@@ -170,9 +169,13 @@ assert_eq!("😀".as_bytes(), &output[..progress.written()]);
 ## Performance Considerations
 
 Codec implementations work against caller-provided input and output buffers.
-`CharsetDecoder` and `CharsetEncoder` report `NeedInput` and `NeedOutput`
-through the shared `Coder` progress model so callers can control allocation and
-buffer reuse.
+`CharsetDecoder` calls `Codec::decode_unchecked` once at least
+`codec.min_units_per_value()` units are readable, and charset codecs report
+incomplete prefixes through `CharsetDecodeError`. `NeedInput` means the current
+units are a valid incomplete prefix; after EOF, `finish()` closes that tail and
+applies the configured malformed-input policy. `CharsetEncoder` reports
+`NeedOutput` through the shared `Transcoder` progress model so callers can
+control allocation and buffer reuse.
 
 ## Testing & Code Coverage
 
@@ -201,7 +204,7 @@ RS_CI_SKIP_TOOLCHAIN_UPDATE=1 ./ci-check.sh
 
 Runtime dependencies are intentionally small:
 
-- `qubit-codec` provides shared byte-order and coder primitives.
+- `qubit-codec` provides shared byte-order and transcoder primitives.
 - `thiserror` provides the public error type implementations.
 
 ## License

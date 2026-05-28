@@ -14,8 +14,8 @@ use crate::{
     CharsetDecodeError,
     CharsetDecodeResult,
     CharsetEncodeError,
+    CharsetEncodeProbe,
     CharsetEncodeResult,
-    DecodeStatus,
     Utf32,
 };
 use qubit_codec::Codec;
@@ -31,7 +31,8 @@ use qubit_codec::Codec;
 /// ```rust
 /// use qubit_codec_text::{
 ///     CharsetCodec,
-///     DecodeStatus,
+///     CharsetEncodeProbe,
+///     Codec,
 ///     Charset,
 ///     Utf32,
 ///     Utf32U32Codec,
@@ -39,17 +40,17 @@ use qubit_codec::Codec;
 ///
 /// let codec = Utf32U32Codec;
 /// assert_eq!(Charset::UTF_32, codec.charset());
-/// assert_eq!(Utf32::MAX_UNITS_PER_CHAR, codec.max_units_per_char());
+/// assert_eq!(Utf32::MAX_UNITS_PER_CHAR, codec.max_units_per_value());
 ///
 /// let mut output = [0_u32; Utf32::MAX_UNITS_PER_CHAR];
-/// let written = codec.encode_one('中', &mut output, 0).expect("buffer fits");
-/// assert_eq!(
-///     DecodeStatus::Complete {
-///         value: '中',
-///         consumed: written,
-///     },
-///     codec.decode_one(&output[..written], 0).expect("valid UTF-32"),
-/// );
+/// let written = codec.encode_len('中', 0).expect("mappable");
+/// unsafe {
+///     codec.encode_unchecked(&'中', &mut output, 0).expect("buffer fits");
+/// }
+/// let (value, consumed) = unsafe {
+///     codec.decode_unchecked(&output[..written], 0).expect("valid UTF-32")
+/// };
+/// assert_eq!(('中', written), (value, consumed));
 /// ```
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
 pub struct Utf32U32Codec;
@@ -65,21 +66,11 @@ impl Utf32U32Codec {
     pub const fn charset(self) -> Charset {
         Charset::UTF_32
     }
-
-    /// Returns the maximum number of UTF-32 code units needed for one character.
-    ///
-    /// # Returns
-    ///
-    /// Returns [`Utf32::MAX_UNITS_PER_CHAR`].
-    #[must_use]
-    #[inline]
-    pub const fn max_units_per_char(self) -> usize {
-        Utf32::MAX_UNITS_PER_CHAR
-    }
 }
 
 impl CharsetCodec for Utf32U32Codec {
     type Unit = u32;
+
     /// Returns UTF-32 charset descriptor.
     ///
     /// # Returns
@@ -89,67 +80,21 @@ impl CharsetCodec for Utf32U32Codec {
     fn charset(&self) -> Charset {
         Charset::UTF_32
     }
+}
 
-    /// Returns the fixed size (1 unit) for one UTF-32 scalar value.
-    ///
-    /// # Returns
-    ///
-    /// Returns [`Utf32::MAX_UNITS_PER_CHAR`].
-    #[inline]
-    fn max_units_per_char(&self) -> usize {
-        Utf32::MAX_UNITS_PER_CHAR
-    }
-
-    /// Decodes one UTF-32 scalar value from a `u32` prefix.
-    ///
-    /// # Arguments
-    ///
-    /// * `input` - UTF-32 unit slice.
-    /// * `index` - Start offset for parsing; must satisfy `index <= input.len()`.
-    ///
-    /// # Returns
-    ///
-    /// * `Ok(DecodeStatus::NeedMore { required, available })` when no unit is available.
-    /// * `Ok(DecodeStatus::Complete { value, consumed })` with `consumed == 1`.
-    ///
-    /// # Errors
-    ///
-    /// * [`crate::CharsetDecodeErrorKind::InvalidInputIndex`] when `index` is
-    ///   greater than `input.len()`.
-    /// * [`crate::CharsetDecodeErrorKind::InvalidCodePoint`] when unit is not a
-    ///   valid scalar.
-    fn decode_one(&self, input: &[u32], index: usize) -> CharsetDecodeResult<DecodeStatus> {
-        match utf32::decode_units_prefix(input, index)? {
-            DecodeStatus::Complete { .. } => {
-                let (value, consumed) = unsafe { <Self as Codec<char, u32>>::decode_unchecked(self, input, index)? };
-                Ok(DecodeStatus::Complete { value, consumed })
-            }
-            status @ DecodeStatus::NeedMore { .. } => Ok(status),
-        }
-    }
-
+impl CharsetEncodeProbe for Utf32U32Codec {
     /// Encodes one Unicode scalar value into a `u32` unit at `index`.
     ///
     /// # Arguments
     ///
     /// * `ch` - The Unicode scalar value to encode.
-    /// * `output` - Destination `u32` buffer.
-    /// * `index` - Start offset where one unit is written; must satisfy
-    ///   `index < output.len()`.
+    /// * `index` - Input character index used for error context.
     ///
     /// # Returns
     ///
-    /// Always returns `Ok(1)` on success.
-    ///
-    /// # Errors
-    ///
-    /// * [`crate::CharsetEncodeErrorKind::BufferTooSmall`] if `output` has no
-    ///   room at `index`.
-    fn encode_one(&self, ch: char, output: &mut [u32], index: usize) -> CharsetEncodeResult<usize> {
-        if index >= output.len() {
-            return utf32::encode_units_char(ch, output, index);
-        }
-        unsafe { <Self as Codec<char, u32>>::encode_unchecked(self, ch, output, index) }
+    /// Always returns `Ok(1)`.
+    fn encode_len(&self, _ch: char, _index: usize) -> CharsetEncodeResult<usize> {
+        Ok(Utf32::MAX_UNITS_PER_CHAR)
     }
 }
 
@@ -169,20 +114,17 @@ unsafe impl Codec<char, u32> for Utf32U32Codec {
 
     #[inline]
     unsafe fn decode_unchecked(&self, input: &[u32], index: usize) -> CharsetDecodeResult<(char, usize)> {
-        debug_assert!(index < input.len());
-
-        match utf32::decode_units_prefix(input, index)? {
-            DecodeStatus::Complete { value, consumed } => Ok((value, consumed)),
-            DecodeStatus::NeedMore { .. } => {
-                unreachable!("Codec::decode_unchecked requires a complete UTF-32 value")
-            }
-        }
+        let decoded = utf32::decode_units_prefix(input, index)?;
+        debug_assert!(decoded.1 > 0);
+        debug_assert!(decoded.1 <= input.len() - index);
+        Ok(decoded)
     }
 
     #[inline]
-    unsafe fn encode_unchecked(&self, ch: char, output: &mut [u32], index: usize) -> CharsetEncodeResult<usize> {
-        debug_assert!(index < output.len());
-
-        utf32::encode_units_char(ch, output, index)
+    unsafe fn encode_unchecked(&self, ch: &char, output: &mut [u32], index: usize) -> CharsetEncodeResult<usize> {
+        let written = utf32::encode_units_char(*ch, output, index)?;
+        debug_assert_eq!(written, Utf32::MAX_UNITS_PER_CHAR);
+        debug_assert!(written <= output.len() - index);
+        Ok(written)
     }
 }

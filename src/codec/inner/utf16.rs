@@ -17,12 +17,11 @@ use crate::{
     CharsetEncodeError,
     CharsetEncodeErrorKind,
     CharsetEncodeResult,
-    DecodeStatus,
     Unicode,
     Utf16,
 };
 
-/// Decodes the first UTF-16 character from a `u16` prefix.
+/// Decodes the first UTF-16 character from a closed `u16` buffer.
 ///
 /// The function handles three cases:
 /// 1. ASCII/non-surrogate units decode to a single `char`.
@@ -31,14 +30,14 @@ use crate::{
 ///
 /// # Arguments
 ///
-/// * `input` - UTF-16 unit slice to decode from.
+/// * `input` - UTF-16 unit slice to decode from. Normal streaming callers
+///   provide at least [`Utf16::MAX_UNITS_PER_CHAR`] readable units unless EOF
+///   has been reached.
 /// * `index` - Start offset in `input`; must be `<= input.len()`.
 ///
 /// # Returns
 ///
-/// * `Ok(DecodeStatus::NeedMore { required, available })` if more units are needed
-///   (e.g. dangling high-surrogate).
-/// * `Ok(DecodeStatus::Complete { value, consumed })` when one code point is decoded.
+/// Returns the decoded character and the number of consumed UTF-16 units.
 ///
 /// # Errors
 ///
@@ -46,37 +45,41 @@ use crate::{
 ///   `input.len()`.
 /// * `CharsetDecodeErrorKind::MalformedSequence` for invalid UTF-16 sequences
 ///   (invalid high/low surrogate pairing).
+/// * `CharsetDecodeErrorKind::IncompleteSequence` when EOF appears before a
+///   complete surrogate pair is available.
 /// # Panics
 ///
 /// This function does not panic for invalid UTF-16 input because invalid input
 /// is surfaced as `CharsetDecodeError`.
-pub(crate) fn decode_units_prefix(input: &[u16], index: usize) -> CharsetDecodeResult<DecodeStatus> {
+pub(crate) fn decode_units_prefix(input: &[u16], index: usize) -> CharsetDecodeResult<(char, usize)> {
     if index > input.len() {
         let kind = CharsetDecodeErrorKind::InvalidInputIndex { input_len: input.len() };
         return Err(CharsetDecodeError::new(Charset::UTF_16, kind, index));
     }
     if index == input.len() {
-        return Ok(DecodeStatus::NeedMore {
-            required: index + 1,
+        let kind = CharsetDecodeErrorKind::IncompleteSequence {
+            required: 1,
             available: 0,
-        });
+        };
+        return Err(CharsetDecodeError::new(Charset::UTF_16, kind, index));
     }
     let first = input[index];
     if Utf16::is_high_surrogate(first) {
         if input.len() < index + 2 {
-            return Ok(DecodeStatus::NeedMore {
-                required: index + 2,
+            let kind = CharsetDecodeErrorKind::IncompleteSequence {
+                required: 2,
                 available: input.len() - index,
-            });
+            };
+            return Err(CharsetDecodeError::new(Charset::UTF_16, kind, index));
         }
         let second = input[index + 1];
         match Utf16::compose_pair(first, second).and_then(Unicode::to_char) {
-            Some(ch) => Ok(DecodeStatus::Complete { value: ch, consumed: 2 }),
+            Some(ch) => Ok((ch, 2)),
             None => {
                 let kind = CharsetDecodeErrorKind::MalformedSequence {
                     value: Some(second as u32),
                 };
-                Err(CharsetDecodeError::new(Charset::UTF_16, kind, index + 1))
+                Err(CharsetDecodeError::new(Charset::UTF_16, kind, index + 1).with_consumed(2))
             }
         }
     } else if Utf16::is_low_surrogate(first) {
@@ -86,7 +89,7 @@ pub(crate) fn decode_units_prefix(input: &[u16], index: usize) -> CharsetDecodeR
         Err(CharsetDecodeError::new(Charset::UTF_16, kind, index))
     } else {
         let ch = char::from_u32(first as u32).expect("non-surrogate UTF-16 unit is a scalar value");
-        Ok(DecodeStatus::Complete { value: ch, consumed: 1 })
+        Ok((ch, 1))
     }
 }
 
@@ -136,23 +139,22 @@ pub(crate) fn encode_units_char(ch: char, output: &mut [u16], index: usize) -> C
     Ok(length)
 }
 
-/// Decodes the first UTF-16 character from a byte prefix.
+/// Decodes the first UTF-16 character from a closed byte buffer.
 ///
 /// The input bytes are interpreted with `byte_order`, then decoded using the same
 /// surrogate rules as unit-based decoding.
 ///
 /// # Arguments
 ///
-/// * `input` - UTF-16 encoded byte slice.
+/// * `input` - UTF-16 encoded byte slice. Callers using closed-prefix decoding
+///   provide at least [`Utf16::MAX_BYTES_PER_CHAR`] readable bytes unless EOF
+///   has been reached.
 /// * `index` - Start offset in `input` bytes; must be `<= input.len()`.
 /// * `byte_order` - Byte order used to read UTF-16 units.
 ///
 /// # Returns
 ///
-/// * `Ok(DecodeStatus::NeedMore { required, available })` if a complete unit/pair is
-///   not yet available.
-/// * `Ok(DecodeStatus::Complete { value, consumed })` when one decoded character is
-///   available. `consumed` is the number of bytes consumed.
+/// Returns the decoded character and the number of consumed bytes.
 ///
 /// # Errors
 ///
@@ -160,11 +162,13 @@ pub(crate) fn encode_units_char(ch: char, output: &mut [u16], index: usize) -> C
 ///   `input.len()`.
 /// * `CharsetDecodeErrorKind::MalformedSequence` for invalid UTF-16 byte
 ///   sequences or malformed surrogate usage.
+/// * `CharsetDecodeErrorKind::IncompleteSequence` when EOF appears before a
+///   complete UTF-16 unit or surrogate pair is available.
 pub(crate) fn decode_bytes_prefix(
     input: &[u8],
     index: usize,
     byte_order: ByteOrder,
-) -> CharsetDecodeResult<DecodeStatus> {
+) -> CharsetDecodeResult<(char, usize)> {
     let charset = Charset::from_utf16_byte_order(byte_order);
     if index > input.len() {
         let kind = CharsetDecodeErrorKind::InvalidInputIndex { input_len: input.len() };
@@ -172,37 +176,33 @@ pub(crate) fn decode_bytes_prefix(
     }
     let available = input.len() - index;
     if available < 2 {
-        return Ok(DecodeStatus::NeedMore {
-            required: index.saturating_add(2),
-            available,
-        });
+        let kind = CharsetDecodeErrorKind::IncompleteSequence { required: 2, available };
+        return Err(CharsetDecodeError::new(charset, kind, index));
     }
     let first = read_ordered_u16(input, index, byte_order);
     if Utf16::is_high_surrogate(first) {
         if available < 4 {
-            return Ok(DecodeStatus::NeedMore {
-                required: index.saturating_add(4),
-                available,
-            });
+            let kind = CharsetDecodeErrorKind::IncompleteSequence { required: 4, available };
+            return Err(CharsetDecodeError::new(charset, kind, index));
         }
         let second = read_ordered_u16(input, index + 2, byte_order);
         match Utf16::compose_pair(first, second).and_then(Unicode::to_char) {
-            Some(ch) => Ok(DecodeStatus::Complete { value: ch, consumed: 4 }),
+            Some(ch) => Ok((ch, 4)),
             None => {
                 let kind = CharsetDecodeErrorKind::MalformedSequence {
                     value: Some(second as u32),
                 };
-                Err(CharsetDecodeError::new(charset, kind, index + 2))
+                Err(CharsetDecodeError::new(charset, kind, index + 2).with_consumed(4))
             }
         }
     } else if Utf16::is_low_surrogate(first) {
         let kind = CharsetDecodeErrorKind::MalformedSequence {
             value: Some(first as u32),
         };
-        Err(CharsetDecodeError::new(charset, kind, index))
+        Err(CharsetDecodeError::new(charset, kind, index).with_consumed(2))
     } else {
         let ch = char::from_u32(first as u32).expect("non-surrogate UTF-16 unit is a scalar value");
-        Ok(DecodeStatus::Complete { value: ch, consumed: 2 })
+        Ok((ch, 2))
     }
 }
 

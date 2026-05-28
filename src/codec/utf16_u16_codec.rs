@@ -14,8 +14,8 @@ use crate::{
     CharsetDecodeError,
     CharsetDecodeResult,
     CharsetEncodeError,
+    CharsetEncodeProbe,
     CharsetEncodeResult,
-    DecodeStatus,
     Utf16,
 };
 use qubit_codec::Codec;
@@ -31,7 +31,8 @@ use qubit_codec::Codec;
 /// ```rust
 /// use qubit_codec_text::{
 ///     CharsetCodec,
-///     DecodeStatus,
+///     CharsetEncodeProbe,
+///     Codec,
 ///     Charset,
 ///     Utf16,
 ///     Utf16U16Codec,
@@ -39,17 +40,17 @@ use qubit_codec::Codec;
 ///
 /// let codec = Utf16U16Codec;
 /// assert_eq!(Charset::UTF_16, codec.charset());
-/// assert_eq!(Utf16::MAX_UNITS_PER_CHAR, codec.max_units_per_char());
+/// assert_eq!(Utf16::MAX_UNITS_PER_CHAR, codec.max_units_per_value());
 ///
 /// let mut output = [0_u16; Utf16::MAX_UNITS_PER_CHAR];
-/// let written = codec.encode_one('😀', &mut output, 0).expect("buffer fits");
-/// assert_eq!(
-///     DecodeStatus::Complete {
-///         value: '😀',
-///         consumed: written,
-///     },
-///     codec.decode_one(&output[..written], 0).expect("valid UTF-16"),
-/// );
+/// let written = codec.encode_len('😀', 0).expect("mappable");
+/// unsafe {
+///     codec.encode_unchecked(&'😀', &mut output, 0).expect("buffer fits");
+/// }
+/// let (value, consumed) = unsafe {
+///     codec.decode_unchecked(&output[..written], 0).expect("valid UTF-16")
+/// };
+/// assert_eq!(('😀', written), (value, consumed));
 /// ```
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
 pub struct Utf16U16Codec;
@@ -65,21 +66,11 @@ impl Utf16U16Codec {
     pub const fn charset(self) -> Charset {
         Charset::UTF_16
     }
-
-    /// Returns the maximum number of UTF-16 code units needed for one character.
-    ///
-    /// # Returns
-    ///
-    /// Returns [`Utf16::MAX_UNITS_PER_CHAR`].
-    #[must_use]
-    #[inline]
-    pub const fn max_units_per_char(self) -> usize {
-        Utf16::MAX_UNITS_PER_CHAR
-    }
 }
 
 impl CharsetCodec for Utf16U16Codec {
     type Unit = u16;
+
     /// Returns UTF-16 charset descriptor.
     ///
     /// # Returns
@@ -89,75 +80,21 @@ impl CharsetCodec for Utf16U16Codec {
     fn charset(&self) -> Charset {
         Charset::UTF_16
     }
+}
 
-    /// Returns the maximum number of UTF-16 code units for one character.
-    ///
-    /// # Returns
-    ///
-    /// Returns [`Utf16::MAX_UNITS_PER_CHAR`].
-    #[inline]
-    fn max_units_per_char(&self) -> usize {
-        Utf16::MAX_UNITS_PER_CHAR
-    }
-
-    /// Decodes one UTF-16 scalar value from a `u16` prefix.
-    ///
-    /// # Arguments
-    ///
-    /// * `input` - UTF-16 code-unit slice.
-    /// * `index` - Start offset for parsing; must satisfy `index <= input.len()`.
-    ///
-    /// # Returns
-    ///
-    /// * `Ok(DecodeStatus::NeedMore { required, available })` when only a partial unit/pair
-    ///   is present.
-    /// * `Ok(DecodeStatus::Complete { value, consumed })` when one character is decoded.
-    ///
-    /// # Errors
-    ///
-    /// * [`crate::CharsetDecodeErrorKind::InvalidInputIndex`] when `index` is
-    ///   greater than `input.len()`.
-    /// * [`crate::CharsetDecodeErrorKind::MalformedSequence`] for invalid
-    ///   surrogate combinations.
-    /// * [`crate::CharsetDecodeErrorKind::InvalidCodePoint`] when resulting
-    ///   scalar is invalid.
-    fn decode_one(&self, input: &[u16], index: usize) -> CharsetDecodeResult<DecodeStatus> {
-        match utf16::decode_units_prefix(input, index)? {
-            DecodeStatus::Complete { .. } => {
-                let (value, consumed) = unsafe { <Self as Codec<char, u16>>::decode_unchecked(self, input, index)? };
-                Ok(DecodeStatus::Complete { value, consumed })
-            }
-            status @ DecodeStatus::NeedMore { .. } => Ok(status),
-        }
-    }
-
+impl CharsetEncodeProbe for Utf16U16Codec {
     /// Encodes one Unicode scalar value into UTF-16 code units at `index`.
     ///
     /// # Arguments
     ///
     /// * `ch` - The Unicode scalar value to encode.
-    /// * `output` - Destination `u16` buffer.
-    /// * `index` - Start offset where units are written; must satisfy
-    ///   `index <= output.len()`.
+    /// * `index` - Input character index used for error context.
     ///
     /// # Returns
     ///
-    /// `Ok(usize)` with the number of written UTF-16 units (`1` or `2`).
-    ///
-    /// # Errors
-    ///
-    /// * [`crate::CharsetEncodeErrorKind::BufferTooSmall`] if destination is
-    ///   insufficient.
-    fn encode_one(&self, ch: char, output: &mut [u16], index: usize) -> CharsetEncodeResult<usize> {
-        if index > output.len() {
-            return utf16::encode_units_char(ch, output, index);
-        }
-        let length = Utf16::unit_len(ch);
-        let available = output.len() - index;
-        if available < length {
-            return utf16::encode_units_char(ch, output, index);
-        }
-        unsafe { <Self as Codec<char, u16>>::encode_unchecked(self, ch, output, index) }
+    /// `Ok(usize)` with the required UTF-16 units (`1` or `2`).
+    fn encode_len(&self, ch: char, _index: usize) -> CharsetEncodeResult<usize> {
+        Ok(Utf16::unit_len(ch))
     }
 }
 
@@ -177,20 +114,17 @@ unsafe impl Codec<char, u16> for Utf16U16Codec {
 
     #[inline]
     unsafe fn decode_unchecked(&self, input: &[u16], index: usize) -> CharsetDecodeResult<(char, usize)> {
-        debug_assert!(index < input.len());
-
-        match utf16::decode_units_prefix(input, index)? {
-            DecodeStatus::Complete { value, consumed } => Ok((value, consumed)),
-            DecodeStatus::NeedMore { .. } => {
-                unreachable!("Codec::decode_unchecked requires a complete UTF-16 value")
-            }
-        }
+        let decoded = utf16::decode_units_prefix(input, index)?;
+        debug_assert!(decoded.1 > 0);
+        debug_assert!(decoded.1 <= input.len() - index);
+        Ok(decoded)
     }
 
     #[inline]
-    unsafe fn encode_unchecked(&self, ch: char, output: &mut [u16], index: usize) -> CharsetEncodeResult<usize> {
-        debug_assert!(index + ch.len_utf16() <= output.len());
-
-        utf16::encode_units_char(ch, output, index)
+    unsafe fn encode_unchecked(&self, ch: &char, output: &mut [u16], index: usize) -> CharsetEncodeResult<usize> {
+        let written = utf16::encode_units_char(*ch, output, index)?;
+        debug_assert_eq!(written, ch.len_utf16());
+        debug_assert!(written <= output.len() - index);
+        Ok(written)
     }
 }

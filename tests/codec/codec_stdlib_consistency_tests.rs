@@ -1,11 +1,10 @@
 use qubit_codec_text::{
     ByteOrder,
-    CharsetCodec,
     CharsetDecodeErrorKind,
     CharsetEncoder,
-    Coder,
-    CoderStatus,
-    DecodeStatus,
+    Codec,
+    TranscodeStatus,
+    Transcoder,
     Utf8Codec,
     Utf16ByteCodec,
     Utf16U16Codec,
@@ -39,9 +38,9 @@ fn test_utf8_codec_matches_std_boundaries_and_round_trip() {
 
         let mut output = vec![0_u8; bytes.len()];
         let progress = encoder
-            .convert(&expected, 0, &mut output, 0)
+            .transcode(&expected, 0, &mut output, 0)
             .expect("utf8 encode should succeed");
-        assert_eq!(CoderStatus::Complete, progress.status());
+        assert_eq!(TranscodeStatus::Complete, progress.status());
         assert_eq!(bytes.len(), progress.written());
         assert_eq!(bytes, &output);
         encoder.reset();
@@ -54,7 +53,7 @@ fn test_utf8_codec_matches_std_boundaries_and_round_trip() {
         (b"\xF4\x90\x80\x80", 1, Some(0x90)),
     ] {
         let std_error = std::str::from_utf8(input).unwrap_err();
-        let codec_error = codec.decode_one(input, 0).expect_err("malformed utf-8 should fail");
+        let codec_error = unsafe { codec.decode_unchecked(input, 0) }.expect_err("malformed utf-8 should fail");
         assert_eq!(CharsetDecodeErrorKind::MalformedSequence { value }, codec_error.kind(),);
         assert_eq!(0, std_error.valid_up_to());
         assert_eq!(error_index, codec_error.index());
@@ -68,16 +67,11 @@ fn test_utf8_codec_matches_std_boundaries_and_round_trip() {
         let std_error = std::str::from_utf8(input).unwrap_err();
         assert!(std_error.error_len().is_none());
 
-        match codec.decode_one(input, 0).expect("short input is partial") {
-            DecodeStatus::NeedMore {
-                required: expected_required,
-                available: expected_available,
-            } => {
-                assert_eq!(required, expected_required);
-                assert_eq!(available, expected_available);
-            }
-            status => panic!("expected NeedMore for {input:?}, got {status:?}"),
-        }
+        let error = unsafe { codec.decode_unchecked(input, 0) }.expect_err("short input is incomplete");
+        assert_eq!(
+            CharsetDecodeErrorKind::IncompleteSequence { required, available },
+            error.kind(),
+        );
     }
 }
 
@@ -99,9 +93,9 @@ fn test_utf16_codecs_match_std_unit_round_trip() {
 
     let mut encoded = vec![0_u16; expected_units.len()];
     let progress = CharsetEncoder::new(Utf16U16Codec)
-        .convert(&sample_chars, 0, &mut encoded, 0)
+        .transcode(&sample_chars, 0, &mut encoded, 0)
         .expect("utf16 u16 encode should succeed");
-    assert_eq!(CoderStatus::Complete, progress.status());
+    assert_eq!(TranscodeStatus::Complete, progress.status());
     assert_eq!(expected_units, &encoded[..progress.written()]);
 
     assert!(
@@ -121,7 +115,7 @@ fn test_utf16_codecs_match_std_unit_round_trip() {
         (&[0xdbff, 0x0041][..], 0x0041),
     ] {
         assert!(std::char::decode_utf16(malformed.iter().copied()).any(|result| result.is_err()));
-        let decode_result = codec.decode_one(malformed, 0);
+        let decode_result = unsafe { codec.decode_unchecked(malformed, 0) };
         assert!(matches!(
             decode_result,
             Err(ref error) if matches!(
@@ -133,14 +127,13 @@ fn test_utf16_codecs_match_std_unit_round_trip() {
     }
 
     let partial = [0xd83d];
+    let error = unsafe { codec.decode_unchecked(&partial, 0) }.expect_err("partial high surrogate is incomplete");
     assert_eq!(
-        DecodeStatus::NeedMore {
+        CharsetDecodeErrorKind::IncompleteSequence {
             required: 2,
             available: 1,
         },
-        codec
-            .decode_one(&partial, 0)
-            .expect("partial high surrogate is partial")
+        error.kind(),
     );
 }
 
@@ -168,16 +161,16 @@ fn test_utf32_codecs_match_std_unit_round_trip() {
 
     let mut encoded = vec![0_u32; expected_units.len()];
     let progress = CharsetEncoder::new(Utf32U32Codec)
-        .convert(&sample_chars, 0, &mut encoded, 0)
+        .transcode(&sample_chars, 0, &mut encoded, 0)
         .expect("utf32 u32 encode should succeed");
-    assert_eq!(CoderStatus::Complete, progress.status());
+    assert_eq!(TranscodeStatus::Complete, progress.status());
     assert_eq!(expected_units, &encoded[..progress.written()]);
 
     let invalid_units = [0xd800u32, 0xdfffu32, 0x110000u32, 0x0011_0000u32];
     for invalid in invalid_units {
         assert_eq!(None, std::char::from_u32(invalid));
         assert!(matches!(
-            codec.decode_one(&[invalid], 0),
+            unsafe { codec.decode_unchecked(&[invalid], 0) },
             Err(ref error) if matches!(error.kind(), CharsetDecodeErrorKind::InvalidCodePoint { .. }),
         ));
     }
@@ -193,8 +186,8 @@ fn decode_all_utf8(codec: &Utf8Codec, input: &[u8]) -> Vec<char> {
     let mut output = Vec::new();
     let mut index = 0;
     while index < input.len() {
-        match codec.decode_one(input, index) {
-            Ok(DecodeStatus::Complete { value, consumed }) => {
+        match unsafe { codec.decode_unchecked(input, index) } {
+            Ok((value, consumed)) => {
                 output.push(value);
                 index += consumed;
             }
@@ -208,8 +201,8 @@ fn decode_all_utf16_units(codec: &Utf16U16Codec, input: &[u16]) -> Vec<char> {
     let mut output = Vec::new();
     let mut index = 0;
     while index < input.len() {
-        match codec.decode_one(input, index) {
-            Ok(DecodeStatus::Complete { value, consumed }) => {
+        match unsafe { codec.decode_unchecked(input, index) } {
+            Ok((value, consumed)) => {
                 output.push(value);
                 index += consumed;
             }
@@ -223,8 +216,8 @@ fn decode_all_utf16_bytes(codec: &Utf16ByteCodec, input: &[u8]) -> Vec<char> {
     let mut output = Vec::new();
     let mut index = 0;
     while index < input.len() {
-        match codec.decode_one(input, index) {
-            Ok(DecodeStatus::Complete { value, consumed }) => {
+        match unsafe { codec.decode_unchecked(input, index) } {
+            Ok((value, consumed)) => {
                 output.push(value);
                 index += consumed;
             }
@@ -240,8 +233,8 @@ fn decode_all_utf32_units(codec: &Utf32U32Codec, input: &[u32]) -> Vec<char> {
     let mut output = Vec::new();
     let mut index = 0;
     while index < input.len() {
-        match codec.decode_one(input, index) {
-            Ok(DecodeStatus::Complete { value, consumed }) => {
+        match unsafe { codec.decode_unchecked(input, index) } {
+            Ok((value, consumed)) => {
                 output.push(value);
                 index += consumed;
             }
@@ -255,8 +248,8 @@ fn decode_all_utf32_bytes(codec: &Utf32ByteCodec, input: &[u8]) -> Vec<char> {
     let mut output = Vec::new();
     let mut index = 0;
     while index < input.len() {
-        match codec.decode_one(input, index) {
-            Ok(DecodeStatus::Complete { value, consumed }) => {
+        match unsafe { codec.decode_unchecked(input, index) } {
+            Ok((value, consumed)) => {
                 output.push(value);
                 index += consumed;
             }
@@ -293,9 +286,9 @@ fn assert_utf16_byte_codec_round_trip(order: ByteOrder) {
 
     let mut output = vec![0_u8; expected.len()];
     let progress = CharsetEncoder::new(codec)
-        .convert(&chars, 0, &mut output, 0)
+        .transcode(&chars, 0, &mut output, 0)
         .expect("utf16 byte encode should succeed");
-    assert_eq!(CoderStatus::Complete, progress.status());
+    assert_eq!(TranscodeStatus::Complete, progress.status());
     assert_eq!(expected, &output[..progress.written()]);
 }
 
@@ -324,9 +317,9 @@ fn assert_utf32_byte_codec_round_trip(order: ByteOrder) {
 
     let mut output = vec![0_u8; expected.len()];
     let progress = CharsetEncoder::new(codec)
-        .convert(&chars, 0, &mut output, 0)
+        .transcode(&chars, 0, &mut output, 0)
         .expect("utf32 byte encode should succeed");
-    assert_eq!(CoderStatus::Complete, progress.status());
+    assert_eq!(TranscodeStatus::Complete, progress.status());
     assert_eq!(expected, &output[..progress.written()]);
 }
 

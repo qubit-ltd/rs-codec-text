@@ -10,6 +10,11 @@
 use core::fmt;
 use std::error::Error;
 
+use qubit_codec::{
+    DecodeErrorInfo,
+    DecodeFailure,
+};
+
 use crate::{
     Charset,
     CharsetDecodeErrorKind,
@@ -20,7 +25,8 @@ use crate::{
 /// The error always carries the charset, error kind, and input unit index at
 /// which the failure was detected. Errors that decode a raw numeric value, such
 /// as invalid UTF-32 units, carry that value through [`Self::kind`] and
-/// [`Self::value`].
+/// [`Self::value`]. Invalid-input errors may also carry a consumed-unit count so
+/// buffered decoders can make progress without an extra status wrapper.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct CharsetDecodeError {
     /// Charset being decoded when this error was detected.
@@ -29,6 +35,8 @@ pub struct CharsetDecodeError {
     kind: CharsetDecodeErrorKind,
     /// Input unit index at which decoding failure occurred.
     index: usize,
+    /// Units that may be consumed after invalid input.
+    consumed: usize,
 }
 
 /// Result type returned by charset decoders.
@@ -52,7 +60,32 @@ impl CharsetDecodeError {
     /// Returns a decoding error carrying the supplied context.
     #[inline]
     pub const fn new(charset: Charset, kind: CharsetDecodeErrorKind, index: usize) -> Self {
-        Self { charset, kind, index }
+        Self {
+            charset,
+            kind,
+            index,
+            consumed: 1,
+        }
+    }
+
+    /// Returns a copy of this error with invalid-input consumption context.
+    ///
+    /// # Parameters
+    ///
+    /// - `consumed`: Number of units that may be consumed to make progress.
+    ///
+    /// # Returns
+    ///
+    /// Returns this error carrying the supplied consumption count.
+    #[must_use]
+    #[inline]
+    pub const fn with_consumed(self, consumed: usize) -> Self {
+        Self {
+            charset: self.charset,
+            kind: self.kind,
+            index: self.index,
+            consumed,
+        }
     }
 
     /// Returns the charset being decoded.
@@ -129,6 +162,24 @@ impl CharsetDecodeError {
         self.kind.value()
     }
 
+    /// Returns units that may be consumed after this invalid-input error.
+    ///
+    /// # Returns
+    ///
+    /// Returns `Some(consumed)` for malformed and invalid-code-point input, or
+    /// `None` for incomplete input and invalid caller indexes.
+    #[inline]
+    pub const fn consumed(self) -> Option<usize> {
+        match self.kind {
+            CharsetDecodeErrorKind::MalformedSequence { .. } | CharsetDecodeErrorKind::InvalidCodePoint { .. } => {
+                Some(self.consumed)
+            }
+            CharsetDecodeErrorKind::IncompleteSequence { .. } | CharsetDecodeErrorKind::InvalidInputIndex { .. } => {
+                None
+            }
+        }
+    }
+
     /// Offsets this error by a base unit index.
     ///
     /// # Parameters
@@ -144,6 +195,24 @@ impl CharsetDecodeError {
             charset: self.charset,
             kind: self.kind,
             index: self.index + base,
+            consumed: self.consumed,
+        }
+    }
+}
+
+impl DecodeErrorInfo for CharsetDecodeError {
+    /// Returns buffered-decode metadata for this charset error.
+    fn failure(&self) -> DecodeFailure {
+        match self.kind {
+            CharsetDecodeErrorKind::IncompleteSequence { required, available } => {
+                DecodeFailure::Incomplete { required, available }
+            }
+            CharsetDecodeErrorKind::MalformedSequence { .. } | CharsetDecodeErrorKind::InvalidCodePoint { .. } => {
+                DecodeFailure::Invalid {
+                    consumed: self.consumed.max(1),
+                }
+            }
+            CharsetDecodeErrorKind::InvalidInputIndex { .. } => DecodeFailure::Invalid { consumed: 0 },
         }
     }
 }

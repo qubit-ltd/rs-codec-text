@@ -45,7 +45,7 @@ where
     let mut output = [0_u8; 4];
     let written = unsafe {
         codec
-            .encode_unchecked(value, &mut output, 0)
+            .encode_unchecked(&value, &mut output, 0)
             .expect("character should encode")
     };
     assert_eq!(expected, &output[..written]);
@@ -82,7 +82,7 @@ fn test_core_codec_trait_is_implemented_for_utf16_units() {
 
     let written = unsafe {
         codec
-            .encode_unchecked('😀', &mut output, 0)
+            .encode_unchecked(&'😀', &mut output, 0)
             .expect("supplementary character should encode")
     };
     assert_eq!(2, written);
@@ -103,7 +103,7 @@ fn test_core_codec_trait_is_implemented_for_utf32_units() {
 
     let written = unsafe {
         codec
-            .encode_unchecked('中', &mut output, 0)
+            .encode_unchecked(&'中', &mut output, 0)
             .expect("character should encode")
     };
     assert_eq!(1, written);
@@ -129,7 +129,7 @@ fn test_core_codec_trait_reports_text_codec_value_errors() {
     let mut ascii_output = [0_u8; 1];
     let encode_error = unsafe {
         AsciiCodec
-            .encode_unchecked('é', &mut ascii_output, 0)
+            .encode_unchecked(&'é', &mut ascii_output, 0)
             .expect_err("non-ASCII character should be unmappable")
     };
     assert_eq!(
@@ -141,7 +141,7 @@ fn test_core_codec_trait_reports_text_codec_value_errors() {
     let mut latin1_output = [0_u8; 1];
     let encode_error = unsafe {
         Latin1Codec
-            .encode_unchecked('\u{0100}', &mut latin1_output, 0)
+            .encode_unchecked(&'\u{0100}', &mut latin1_output, 0)
             .expect_err("outside Latin-1 should be unmappable")
     };
     assert_eq!(
