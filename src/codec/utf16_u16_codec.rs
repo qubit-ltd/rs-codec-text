@@ -40,7 +40,7 @@ use qubit_codec::Codec;
 ///
 /// let codec = Utf16U16Codec;
 /// assert_eq!(Charset::UTF_16, codec.charset());
-/// assert_eq!(Utf16::MAX_UNITS_PER_CHAR, codec.max_units_per_value());
+/// assert_eq!(Utf16::MAX_UNITS_PER_CHAR, codec.max_units_per_value().get());
 ///
 /// let mut output = [0_u16; Utf16::MAX_UNITS_PER_CHAR];
 /// let written = codec.encode_len('😀', 0).expect("mappable");
@@ -50,7 +50,7 @@ use qubit_codec::Codec;
 /// let (value, consumed) = unsafe {
 ///     codec.decode_unchecked(&output[..written], 0).expect("valid UTF-16")
 /// };
-/// assert_eq!(('😀', written), (value, consumed));
+/// assert_eq!(('😀', written), (value, consumed.get()));
 /// ```
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
 pub struct Utf16U16Codec;
@@ -62,7 +62,7 @@ impl Utf16U16Codec {
     ///
     /// Returns [`Charset::UTF_16`].
     #[must_use]
-    #[inline]
+    #[inline(always)]
     pub const fn charset(self) -> Charset {
         Charset::UTF_16
     }
@@ -76,7 +76,7 @@ impl CharsetCodec for Utf16U16Codec {
     /// # Returns
     ///
     /// Returns [`Charset::UTF_16`].
-    #[inline]
+    #[inline(always)]
     fn charset(&self) -> Charset {
         Charset::UTF_16
     }
@@ -93,6 +93,7 @@ impl CharsetEncodeProbe for Utf16U16Codec {
     /// # Returns
     ///
     /// `Ok(usize)` with the required UTF-16 units (`1` or `2`).
+    #[inline(always)]
     fn encode_len(&self, ch: char, _index: usize) -> CharsetEncodeResult<usize> {
         Ok(Utf16::unit_len(ch))
     }
@@ -102,22 +103,26 @@ unsafe impl Codec<char, u16> for Utf16U16Codec {
     type DecodeError = CharsetDecodeError;
     type EncodeError = CharsetEncodeError;
 
-    #[inline]
-    fn min_units_per_value(&self) -> usize {
-        1
+    #[inline(always)]
+    fn min_units_per_value(&self) -> core::num::NonZeroUsize {
+        core::num::NonZeroUsize::MIN
+    }
+
+    #[inline(always)]
+    fn max_units_per_value(&self) -> core::num::NonZeroUsize {
+        // SAFETY: UTF-16 encodes every scalar value as at least one unit.
+        unsafe { core::num::NonZeroUsize::new_unchecked(Utf16::MAX_UNITS_PER_CHAR) }
     }
 
     #[inline]
-    fn max_units_per_value(&self) -> usize {
-        Utf16::MAX_UNITS_PER_CHAR
-    }
-
-    #[inline]
-    unsafe fn decode_unchecked(&self, input: &[u16], index: usize) -> CharsetDecodeResult<(char, usize)> {
-        let decoded = utf16::decode_units_prefix(input, index)?;
-        debug_assert!(decoded.1 > 0);
-        debug_assert!(decoded.1 <= input.len() - index);
-        Ok(decoded)
+    unsafe fn decode_unchecked(
+        &self,
+        input: &[u16],
+        index: usize,
+    ) -> CharsetDecodeResult<(char, core::num::NonZeroUsize)> {
+        let (ch, consumed) = utf16::decode_units_prefix(input, index)?;
+        debug_assert!(consumed.get() <= input.len() - index);
+        Ok((ch, consumed))
     }
 
     #[inline]

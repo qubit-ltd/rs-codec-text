@@ -13,8 +13,8 @@ fn test_utf16_u16_codec_exposes_encoder_and_decoder_contracts() {
     let codec = Utf16U16Codec;
 
     assert_eq!(Charset::UTF_16, <Utf16U16Codec as CharsetCodec>::charset(&codec));
-    assert_eq!(1, codec.min_units_per_value());
-    assert_eq!(Utf16::MAX_UNITS_PER_CHAR, codec.max_units_per_value());
+    assert_eq!(1, codec.min_units_per_value().get());
+    assert_eq!(Utf16::MAX_UNITS_PER_CHAR, codec.max_units_per_value().get());
     assert_eq!(1, codec.encode_len('A', 0).expect("encode UTF-16 BMP"));
 
     assert_eq!(Charset::UTF_16, codec.charset());
@@ -28,20 +28,18 @@ fn test_utf16_u16_codec_encodes_and_decodes_pairs() {
     assert_eq!(2, unsafe {
         codec.encode_unchecked(&'😀', &mut output, 0).expect("encode pair")
     });
-    assert_eq!(
-        ('😀', 2),
-        unsafe { codec.decode_unchecked(&output, 0) }.expect("decode pair"),
-    );
+    let (decoded, consumed) = unsafe { codec.decode_unchecked(&output, 0) }.expect("decode pair");
+    assert_eq!('😀', decoded);
+    assert_eq!(2, consumed.get());
 }
 
 #[test]
 fn test_utf16_u16_codec_decodes_bmp_and_reports_closed_tail_or_malformed_units() {
     let codec = Utf16U16Codec;
 
-    assert_eq!(
-        ('A', 1),
-        unsafe { codec.decode_unchecked(&['A' as u16], 0) }.expect("BMP scalar"),
-    );
+    let (decoded, consumed) = unsafe { codec.decode_unchecked(&['A' as u16], 0) }.expect("BMP scalar");
+    assert_eq!('A', decoded);
+    assert_eq!(1, consumed.get());
 
     let error = unsafe { codec.decode_unchecked(&[0xd83d], 0) }.expect_err("dangling high surrogate is incomplete");
     assert_eq!(

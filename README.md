@@ -21,9 +21,11 @@ below ordinary `str`, `String`, and `char` APIs. It provides:
 - Policy-aware `CharsetDecoder`, `CharsetEncoder`, and `CharsetConverter`
   wrappers.
 - Typed decode/encode/convert errors with precise buffer indices.
-- `CodecValueEncoder`, `CodecBufferedEncoder`, `BufferedEncoder`,
-  `BufferedDecoder`, `BufferedConverter`, `Transcoder`, `TranscodeProgress`,
-  `TranscodeStatus`, and `ByteOrder` re-exported from `qubit-codec`.
+- `CodecValueEncoder`, `CodecBufferedEncoder`, `CodecBufferedDecoder`,
+  `BufferedEncodeEngine`, `BufferedDecodeEngine`, `BufferedEncodeHooks`,
+  `BufferedDecodeHooks`, `EncodePlan`, `BufferedEncoder`, `BufferedDecoder`,
+  `BufferedConverter`, `Transcoder`, `TranscodeProgress`, `TranscodeStatus`,
+  and `ByteOrder` re-exported from `qubit-codec`.
 
 This crate intentionally stays below `std::io` reader/writer adapters,
 automatic charset detection, normalization, segmentation, collation, display
@@ -66,8 +68,8 @@ width, and locale-aware text behavior.
 - **`CharsetConverter`**: converts between decoder and encoder pairs.
 - **`MalformedAction` / `UnmappableAction`**: configure strict or replacement
   behavior.
-- **EOF finalization**: `finish()` applies malformed-input policy to incomplete
-  trailing source sequences and flushes pending converter output.
+- **EOF finalization**: `finish()` only drains internally retained output after
+  callers have handled any incomplete source tail reported by `NeedInput`.
 
 ### Focused Public API
 
@@ -113,7 +115,7 @@ let (decoded, consumed) = unsafe {
         .decode_unchecked("中".as_bytes(), 0)
 }
     .expect("valid UTF-8 input");
-assert_eq!(('中', 3), (decoded, consumed));
+assert_eq!(('中', 3), (decoded, consumed.get()));
 
 let mut encoder = CharsetEncoder::new(Utf8Codec);
 let mut output = [0_u8; Utf8::MAX_BYTES_PER_CHAR];
@@ -152,8 +154,9 @@ assert_eq!("😀".as_bytes(), &output[..progress.written()]);
 
 | Type | Purpose |
 |------|---------|
-| `CharsetDecoder<C>` | Stateful buffer decoder implementing `BufferedDecoder<C::Unit, char>` |
-| `CharsetEncoder<C>` | Stateful buffer encoder implementing `BufferedEncoder<char, C::Unit>` |
+| `CharsetDecoder<C>` | Stateful buffer decoder implementing `BufferedDecoder<C::Unit, char>` and reusing `BufferedDecodeEngine` for decode iteration and progress reporting |
+| `CharsetEncoder<C>` | Stateful buffer encoder implementing `BufferedEncoder<char, C::Unit>` and reusing `BufferedEncodeEngine` for its buffered loop |
+| `CharsetEncodePlan` | Plan payload used by `CharsetEncoder`'s internal encode hooks |
 | `CharsetConverter<D, E>` | Decode and encode between two charset codecs, implementing `BufferedConverter<D::Unit, E::Unit>` |
 | `MalformedAction` | Policy for malformed input |
 | `UnmappableAction` | Policy for unencodable output characters |
@@ -172,8 +175,14 @@ Codec implementations work against caller-provided input and output buffers.
 `CharsetDecoder` calls `Codec::decode_unchecked` once at least
 `codec.min_units_per_value()` units are readable, and charset codecs report
 incomplete prefixes through `CharsetDecodeError`. `NeedInput` means the current
-units are a valid incomplete prefix; after EOF, `finish()` closes that tail and
-applies the configured malformed-input policy. `CharsetEncoder` reports
+units are a valid incomplete prefix left in the caller-owned input buffer; after
+EOF, the caller handles that tail before calling `finish()` to drain internal
+output. Internally, `CharsetDecoder` stores its policy in decode hooks and
+reuses `BufferedDecodeEngine` for repeated `decode_unchecked` calls, output
+capacity progress, and status reporting.
+`CharsetEncoder` stores its unmappable policy in encode hooks and reuses
+`BufferedEncodeEngine` for input iteration and output capacity checks while
+still applying text-specific replacement, ignore, and report policy. It reports
 `NeedOutput` through the shared `Transcoder` progress model so callers can
 control allocation and buffer reuse.
 

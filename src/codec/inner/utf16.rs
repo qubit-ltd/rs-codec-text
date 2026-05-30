@@ -37,7 +37,8 @@ use crate::{
 ///
 /// # Returns
 ///
-/// Returns the decoded character and the number of consumed UTF-16 units.
+/// Returns the decoded character and the non-zero number of consumed UTF-16
+/// units.
 ///
 /// # Errors
 ///
@@ -51,7 +52,7 @@ use crate::{
 ///
 /// This function does not panic for invalid UTF-16 input because invalid input
 /// is surfaced as `CharsetDecodeError`.
-pub(crate) fn decode_units_prefix(input: &[u16], index: usize) -> CharsetDecodeResult<(char, usize)> {
+pub(crate) fn decode_units_prefix(input: &[u16], index: usize) -> CharsetDecodeResult<(char, core::num::NonZeroUsize)> {
     if index > input.len() {
         let kind = CharsetDecodeErrorKind::InvalidInputIndex { input_len: input.len() };
         return Err(CharsetDecodeError::new(Charset::UTF_16, kind, index));
@@ -74,7 +75,10 @@ pub(crate) fn decode_units_prefix(input: &[u16], index: usize) -> CharsetDecodeR
         }
         let second = input[index + 1];
         match Utf16::compose_pair(first, second).and_then(Unicode::to_char) {
-            Some(ch) => Ok((ch, 2)),
+            Some(ch) => {
+                // SAFETY: 2 is non-zero.
+                Ok((ch, unsafe { core::num::NonZeroUsize::new_unchecked(2) }))
+            }
             None => {
                 let kind = CharsetDecodeErrorKind::MalformedSequence {
                     value: Some(second as u32),
@@ -89,7 +93,7 @@ pub(crate) fn decode_units_prefix(input: &[u16], index: usize) -> CharsetDecodeR
         Err(CharsetDecodeError::new(Charset::UTF_16, kind, index))
     } else {
         let ch = char::from_u32(first as u32).expect("non-surrogate UTF-16 unit is a scalar value");
-        Ok((ch, 1))
+        Ok((ch, core::num::NonZeroUsize::MIN))
     }
 }
 
@@ -154,7 +158,7 @@ pub(crate) fn encode_units_char(ch: char, output: &mut [u16], index: usize) -> C
 ///
 /// # Returns
 ///
-/// Returns the decoded character and the number of consumed bytes.
+/// Returns the decoded character and the non-zero number of consumed bytes.
 ///
 /// # Errors
 ///
@@ -168,7 +172,7 @@ pub(crate) fn decode_bytes_prefix(
     input: &[u8],
     index: usize,
     byte_order: ByteOrder,
-) -> CharsetDecodeResult<(char, usize)> {
+) -> CharsetDecodeResult<(char, core::num::NonZeroUsize)> {
     let charset = Charset::from_utf16_byte_order(byte_order);
     if index > input.len() {
         let kind = CharsetDecodeErrorKind::InvalidInputIndex { input_len: input.len() };
@@ -187,7 +191,10 @@ pub(crate) fn decode_bytes_prefix(
         }
         let second = read_ordered_u16(input, index + 2, byte_order);
         match Utf16::compose_pair(first, second).and_then(Unicode::to_char) {
-            Some(ch) => Ok((ch, 4)),
+            Some(ch) => {
+                // SAFETY: 4 is non-zero.
+                Ok((ch, unsafe { core::num::NonZeroUsize::new_unchecked(4) }))
+            }
             None => {
                 let kind = CharsetDecodeErrorKind::MalformedSequence {
                     value: Some(second as u32),
@@ -202,7 +209,8 @@ pub(crate) fn decode_bytes_prefix(
         Err(CharsetDecodeError::new(charset, kind, index).with_consumed(2))
     } else {
         let ch = char::from_u32(first as u32).expect("non-surrogate UTF-16 unit is a scalar value");
-        Ok((ch, 2))
+        // SAFETY: 2 is non-zero.
+        Ok((ch, unsafe { core::num::NonZeroUsize::new_unchecked(2) }))
     }
 }
 

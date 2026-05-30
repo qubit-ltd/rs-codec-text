@@ -23,15 +23,19 @@ macro_rules! impl_test_codec {
             type DecodeError = CharsetDecodeError;
             type EncodeError = CharsetEncodeError;
 
-            fn min_units_per_value(&self) -> usize {
-                1
+            fn min_units_per_value(&self) -> core::num::NonZeroUsize {
+                core::num::NonZeroUsize::MIN
             }
 
-            fn max_units_per_value(&self) -> usize {
-                $max_units
+            fn max_units_per_value(&self) -> core::num::NonZeroUsize {
+                core::num::NonZeroUsize::new($max_units).expect("test maximum width is non-zero")
             }
 
-            unsafe fn decode_unchecked(&self, _input: &[u8], index: usize) -> CharsetDecodeResult<(char, usize)> {
+            unsafe fn decode_unchecked(
+                &self,
+                _input: &[u8],
+                index: usize,
+            ) -> CharsetDecodeResult<(char, core::num::NonZeroUsize)> {
                 let kind = CharsetDecodeErrorKind::MalformedSequence { value: None };
                 Err(CharsetDecodeError::new(self.charset(), kind, index))
             }
@@ -194,15 +198,19 @@ unsafe impl Codec<char, u8> for CountingAsciiEncoderCodec {
     type DecodeError = CharsetDecodeError;
     type EncodeError = CharsetEncodeError;
 
-    fn min_units_per_value(&self) -> usize {
-        1
+    fn min_units_per_value(&self) -> core::num::NonZeroUsize {
+        core::num::NonZeroUsize::MIN
     }
 
-    fn max_units_per_value(&self) -> usize {
-        1
+    fn max_units_per_value(&self) -> core::num::NonZeroUsize {
+        core::num::NonZeroUsize::MIN
     }
 
-    unsafe fn decode_unchecked(&self, _input: &[u8], index: usize) -> CharsetDecodeResult<(char, usize)> {
+    unsafe fn decode_unchecked(
+        &self,
+        _input: &[u8],
+        index: usize,
+    ) -> CharsetDecodeResult<(char, core::num::NonZeroUsize)> {
         let kind = CharsetDecodeErrorKind::MalformedSequence { value: None };
         Err(CharsetDecodeError::new(self.charset(), kind, index))
     }
@@ -249,6 +257,8 @@ fn test_charset_encoder_exposes_configuration_and_bounds() {
     assert_eq!(UnmappableAction::Replace, encoder.unmappable_action());
     assert_eq!('?', encoder.replacement());
     assert_eq!(Some(3), encoder.max_output_len(3));
+    assert_eq!(Some(0), encoder.max_finish_output_len());
+    encoder.reset();
 
     encoder
         .set_replacement('*')
@@ -330,6 +340,13 @@ fn test_charset_encoder_reports_invalid_indices_and_capacity() {
     let progress = encoder
         .transcode(&input, 0, &mut output, beyond_output)
         .expect("output index beyond output slice needs more output");
+    assert!(matches!(progress.status(), TranscodeStatus::NeedOutput { .. }));
+    assert_eq!(0, progress.read());
+    assert_eq!(0, progress.written());
+
+    let progress = encoder
+        .finish(&mut output, beyond_output)
+        .expect("finish output index beyond output slice needs more output");
     assert!(matches!(progress.status(), TranscodeStatus::NeedOutput { .. }));
     assert_eq!(0, progress.read());
     assert_eq!(0, progress.written());

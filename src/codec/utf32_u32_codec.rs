@@ -40,7 +40,7 @@ use qubit_codec::Codec;
 ///
 /// let codec = Utf32U32Codec;
 /// assert_eq!(Charset::UTF_32, codec.charset());
-/// assert_eq!(Utf32::MAX_UNITS_PER_CHAR, codec.max_units_per_value());
+/// assert_eq!(Utf32::MAX_UNITS_PER_CHAR, codec.max_units_per_value().get());
 ///
 /// let mut output = [0_u32; Utf32::MAX_UNITS_PER_CHAR];
 /// let written = codec.encode_len('中', 0).expect("mappable");
@@ -50,7 +50,7 @@ use qubit_codec::Codec;
 /// let (value, consumed) = unsafe {
 ///     codec.decode_unchecked(&output[..written], 0).expect("valid UTF-32")
 /// };
-/// assert_eq!(('中', written), (value, consumed));
+/// assert_eq!(('中', written), (value, consumed.get()));
 /// ```
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
 pub struct Utf32U32Codec;
@@ -62,7 +62,7 @@ impl Utf32U32Codec {
     ///
     /// Returns [`Charset::UTF_32`].
     #[must_use]
-    #[inline]
+    #[inline(always)]
     pub const fn charset(self) -> Charset {
         Charset::UTF_32
     }
@@ -76,7 +76,7 @@ impl CharsetCodec for Utf32U32Codec {
     /// # Returns
     ///
     /// Returns [`Charset::UTF_32`].
-    #[inline]
+    #[inline(always)]
     fn charset(&self) -> Charset {
         Charset::UTF_32
     }
@@ -93,6 +93,7 @@ impl CharsetEncodeProbe for Utf32U32Codec {
     /// # Returns
     ///
     /// Always returns `Ok(1)`.
+    #[inline(always)]
     fn encode_len(&self, _ch: char, _index: usize) -> CharsetEncodeResult<usize> {
         Ok(Utf32::MAX_UNITS_PER_CHAR)
     }
@@ -102,22 +103,25 @@ unsafe impl Codec<char, u32> for Utf32U32Codec {
     type DecodeError = CharsetDecodeError;
     type EncodeError = CharsetEncodeError;
 
-    #[inline]
-    fn min_units_per_value(&self) -> usize {
-        1
+    #[inline(always)]
+    fn min_units_per_value(&self) -> core::num::NonZeroUsize {
+        core::num::NonZeroUsize::MIN
+    }
+
+    #[inline(always)]
+    fn max_units_per_value(&self) -> core::num::NonZeroUsize {
+        core::num::NonZeroUsize::MIN
     }
 
     #[inline]
-    fn max_units_per_value(&self) -> usize {
-        Utf32::MAX_UNITS_PER_CHAR
-    }
-
-    #[inline]
-    unsafe fn decode_unchecked(&self, input: &[u32], index: usize) -> CharsetDecodeResult<(char, usize)> {
-        let decoded = utf32::decode_units_prefix(input, index)?;
-        debug_assert!(decoded.1 > 0);
-        debug_assert!(decoded.1 <= input.len() - index);
-        Ok(decoded)
+    unsafe fn decode_unchecked(
+        &self,
+        input: &[u32],
+        index: usize,
+    ) -> CharsetDecodeResult<(char, core::num::NonZeroUsize)> {
+        let (ch, consumed) = utf32::decode_units_prefix(input, index)?;
+        debug_assert!(consumed.get() <= input.len() - index);
+        Ok((ch, consumed))
     }
 
     #[inline]

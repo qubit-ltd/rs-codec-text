@@ -41,7 +41,7 @@ use crate::{
 ///   UTF-32 unit is available.
 /// * `CharsetDecodeErrorKind::InvalidCodePoint` when `input[index]` is not a
 ///   valid scalar.
-pub(crate) fn decode_units_prefix(input: &[u32], index: usize) -> CharsetDecodeResult<(char, usize)> {
+pub(crate) fn decode_units_prefix(input: &[u32], index: usize) -> CharsetDecodeResult<(char, core::num::NonZeroUsize)> {
     if index > input.len() {
         let kind = CharsetDecodeErrorKind::InvalidInputIndex { input_len: input.len() };
         return Err(CharsetDecodeError::new(Charset::UTF_32, kind, index));
@@ -54,7 +54,7 @@ pub(crate) fn decode_units_prefix(input: &[u32], index: usize) -> CharsetDecodeR
         return Err(CharsetDecodeError::new(Charset::UTF_32, kind, index));
     }
     match Unicode::to_char(input[index]) {
-        Some(ch) => Ok((ch, 1)),
+        Some(ch) => Ok((ch, core::num::NonZeroUsize::MIN)),
         None => {
             let kind = CharsetDecodeErrorKind::InvalidCodePoint { value: input[index] };
             Err(CharsetDecodeError::new(Charset::UTF_32, kind, index))
@@ -102,7 +102,7 @@ pub(crate) fn encode_units_char(ch: char, output: &mut [u32], index: usize) -> C
 ///
 /// # Returns
 ///
-/// Returns the decoded character and `4` consumed bytes.
+/// Returns the decoded character and a non-zero count of `4` consumed bytes.
 ///
 /// # Errors
 ///
@@ -116,7 +116,7 @@ pub(crate) fn decode_bytes_prefix(
     input: &[u8],
     index: usize,
     byte_order: ByteOrder,
-) -> CharsetDecodeResult<(char, usize)> {
+) -> CharsetDecodeResult<(char, core::num::NonZeroUsize)> {
     let charset = Charset::from_utf32_byte_order(byte_order);
     if index > input.len() {
         let kind = CharsetDecodeErrorKind::InvalidInputIndex { input_len: input.len() };
@@ -129,7 +129,10 @@ pub(crate) fn decode_bytes_prefix(
     }
     let unit = read_ordered_u32(input, index, byte_order);
     match Unicode::to_char(unit) {
-        Some(ch) => Ok((ch, 4)),
+        Some(ch) => {
+            // SAFETY: 4 is non-zero.
+            Ok((ch, unsafe { core::num::NonZeroUsize::new_unchecked(4) }))
+        }
         None => {
             let kind = CharsetDecodeErrorKind::InvalidCodePoint { value: unit };
             Err(CharsetDecodeError::new(charset, kind, index).with_consumed(4))

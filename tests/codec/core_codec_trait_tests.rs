@@ -16,24 +16,24 @@ use qubit_codec_text::{
 
 #[test]
 fn test_core_codec_trait_reports_text_codec_unit_bounds() {
-    assert_eq!(1, AsciiCodec.min_units_per_value());
-    assert_eq!(1, AsciiCodec.max_units_per_value());
-    assert_eq!(1, Latin1Codec.min_units_per_value());
-    assert_eq!(1, Latin1Codec.max_units_per_value());
-    assert_eq!(1, Utf8Codec.min_units_per_value());
-    assert_eq!(4, Utf8Codec.max_units_per_value());
+    assert_eq!(1, AsciiCodec.min_units_per_value().get());
+    assert_eq!(1, AsciiCodec.max_units_per_value().get());
+    assert_eq!(1, Latin1Codec.min_units_per_value().get());
+    assert_eq!(1, Latin1Codec.max_units_per_value().get());
+    assert_eq!(1, Utf8Codec.min_units_per_value().get());
+    assert_eq!(4, Utf8Codec.max_units_per_value().get());
 
     let utf16_bytes = Utf16ByteCodec::new(ByteOrder::BigEndian);
-    assert_eq!(2, utf16_bytes.min_units_per_value());
-    assert_eq!(4, utf16_bytes.max_units_per_value());
-    assert_eq!(1, Utf16U16Codec.min_units_per_value());
-    assert_eq!(2, Utf16U16Codec.max_units_per_value());
+    assert_eq!(2, utf16_bytes.min_units_per_value().get());
+    assert_eq!(4, utf16_bytes.max_units_per_value().get());
+    assert_eq!(1, Utf16U16Codec.min_units_per_value().get());
+    assert_eq!(2, Utf16U16Codec.max_units_per_value().get());
 
     let utf32_bytes = Utf32ByteCodec::new(ByteOrder::LittleEndian);
-    assert_eq!(4, utf32_bytes.min_units_per_value());
-    assert_eq!(4, utf32_bytes.max_units_per_value());
-    assert_eq!(1, Utf32U32Codec.min_units_per_value());
-    assert_eq!(1, Utf32U32Codec.max_units_per_value());
+    assert_eq!(4, utf32_bytes.min_units_per_value().get());
+    assert_eq!(4, utf32_bytes.max_units_per_value().get());
+    assert_eq!(1, Utf32U32Codec.min_units_per_value().get());
+    assert_eq!(1, Utf32U32Codec.max_units_per_value().get());
 }
 
 fn assert_u8_codec<C>(codec: C, value: char, expected: &[u8])
@@ -55,7 +55,7 @@ where
             .decode_unchecked(&output[..written], 0)
             .expect("encoded bytes should decode")
     };
-    assert_eq!((value, written), (decoded, consumed));
+    assert_eq!((value, written), (decoded, consumed.get()));
 }
 
 #[test]
@@ -88,12 +88,13 @@ fn test_core_codec_trait_is_implemented_for_utf16_units() {
     assert_eq!(2, written);
     assert_eq!([0xd83d, 0xde00], output);
 
-    let decoded = unsafe {
+    let (decoded, consumed) = unsafe {
         codec
             .decode_unchecked(&output, 0)
             .expect("surrogate pair should decode")
     };
-    assert_eq!(('😀', 2), decoded);
+    assert_eq!('😀', decoded);
+    assert_eq!(2, consumed.get());
 }
 
 #[test]
@@ -109,8 +110,9 @@ fn test_core_codec_trait_is_implemented_for_utf32_units() {
     assert_eq!(1, written);
     assert_eq!([0x4e2d], output);
 
-    let decoded = unsafe { codec.decode_unchecked(&output, 0).expect("UTF-32 unit should decode") };
-    assert_eq!(('中', 1), decoded);
+    let (decoded, consumed) = unsafe { codec.decode_unchecked(&output, 0).expect("UTF-32 unit should decode") };
+    assert_eq!('中', decoded);
+    assert_eq!(1, consumed.get());
 }
 
 #[test]

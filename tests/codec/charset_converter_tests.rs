@@ -47,15 +47,19 @@ unsafe impl Codec<char, u8> for AsciiBytesCodec {
     type DecodeError = CharsetDecodeError;
     type EncodeError = CharsetEncodeError;
 
-    fn min_units_per_value(&self) -> usize {
-        1
+    fn min_units_per_value(&self) -> core::num::NonZeroUsize {
+        core::num::NonZeroUsize::MIN
     }
 
-    fn max_units_per_value(&self) -> usize {
-        1
+    fn max_units_per_value(&self) -> core::num::NonZeroUsize {
+        core::num::NonZeroUsize::MIN
     }
 
-    unsafe fn decode_unchecked(&self, input: &[u8], index: usize) -> CharsetDecodeResult<(char, usize)> {
+    unsafe fn decode_unchecked(
+        &self,
+        input: &[u8],
+        index: usize,
+    ) -> CharsetDecodeResult<(char, core::num::NonZeroUsize)> {
         if index >= input.len() {
             let kind = CharsetDecodeErrorKind::IncompleteSequence {
                 required: 1,
@@ -70,7 +74,7 @@ unsafe impl Codec<char, u8> for AsciiBytesCodec {
             };
             return Err(CharsetDecodeError::new(Charset::ASCII, kind, index));
         }
-        Ok((value as char, 1))
+        Ok((value as char, core::num::NonZeroUsize::MIN))
     }
 
     unsafe fn encode_unchecked(&self, value: &char, output: &mut [u8], index: usize) -> CharsetEncodeResult<usize> {
@@ -188,6 +192,7 @@ fn test_charset_converter_keeps_pending_character_when_output_is_full() {
     assert_eq!(1, progress.read());
     assert_eq!(0, progress.written());
     assert_eq!(Some(2), converter.max_finish_output_len());
+    assert_eq!(Some(8), converter.max_output_len(3));
 
     let progress = converter
         .transcode(b"", 0, &mut empty_output, 0)
@@ -236,6 +241,27 @@ fn test_charset_converter_finish_reports_need_output_for_starting_pending_charac
 }
 
 #[test]
+fn test_charset_converter_finish_delegates_to_target_encoder() {
+    let mut converter = CharsetConverter::from_codecs(Utf8Codec, Utf16U16Codec);
+    let mut output = [];
+
+    let finish = converter
+        .finish(&mut output, 1)
+        .expect("target encoder reports out-of-range output index");
+
+    assert_eq!(
+        TranscodeStatus::NeedOutput {
+            output_index: 1,
+            additional: 1,
+            available: 0,
+        },
+        finish.status(),
+    );
+    assert_eq!(0, finish.read());
+    assert_eq!(0, finish.written());
+}
+
+#[test]
 fn test_charset_converter_finish_writes_starting_pending_character() {
     let mut converter = CharsetConverter::from_codecs(Utf8Codec, Utf16U16Codec);
     let mut empty_output = [];
@@ -278,7 +304,7 @@ fn test_charset_converter_resets_pending_state() {
 }
 
 #[test]
-fn test_charset_converter_finish_finalizes_incomplete_source_input() {
+fn test_charset_converter_finish_does_not_finalize_incomplete_source_input() {
     let decoder = CharsetDecoder::new(Utf8Codec);
     let encoder = CharsetEncoder::new(Utf16U16Codec);
     let mut converter = CharsetConverter::new(decoder, encoder);
@@ -289,23 +315,23 @@ fn test_charset_converter_finish_finalizes_incomplete_source_input() {
         .expect("partial source sequence needs more input");
 
     assert!(matches!(progress.status(), TranscodeStatus::NeedInput { .. }));
-    assert_eq!(2, progress.read());
+    assert_eq!(0, progress.read());
     assert_eq!(0, progress.written());
-    assert_eq!(Some(4), converter.max_finish_output_len());
+    assert_eq!(Some(0), converter.max_finish_output_len());
 
     let finish = converter
         .finish(&mut output, 0)
-        .expect("finish replaces incomplete source input");
+        .expect("finish does not process caller-owned incomplete source input");
 
     assert_eq!(TranscodeStatus::Complete, finish.status());
     assert_eq!(0, finish.read());
-    assert_eq!(1, finish.written());
-    assert_eq!(CharsetDecoder::<Utf8Codec>::DEFAULT_REPLACEMENT as u16, output[0]);
+    assert_eq!(0, finish.written());
+    assert_eq!(0, output[0]);
     assert_eq!(Some(0), converter.max_finish_output_len());
 }
 
 #[test]
-fn test_charset_converter_finish_needs_output_for_incomplete_source_replacement() {
+fn test_charset_converter_finish_has_no_output_for_incomplete_source_input() {
     let decoder = CharsetDecoder::new(Utf8Codec);
     let encoder = CharsetEncoder::new(Utf16U16Codec);
     let mut converter = CharsetConverter::new(decoder, encoder);
@@ -316,20 +342,20 @@ fn test_charset_converter_finish_needs_output_for_incomplete_source_replacement(
         .expect("partial source sequence needs more input");
 
     assert!(matches!(progress.status(), TranscodeStatus::NeedInput { .. }));
-    assert_eq!(Some(2), converter.max_finish_output_len());
+    assert_eq!(Some(0), converter.max_finish_output_len());
 
     let finish = converter
         .finish(&mut output, 0)
-        .expect("replacement character needs target capacity");
+        .expect("finish has no decoder-owned replacement output");
 
-    assert!(matches!(finish.status(), TranscodeStatus::NeedOutput { .. }));
+    assert_eq!(TranscodeStatus::Complete, finish.status());
     assert_eq!(0, finish.read());
     assert_eq!(0, finish.written());
-    assert_eq!(Some(2), converter.max_finish_output_len());
+    assert_eq!(Some(0), converter.max_finish_output_len());
 }
 
 #[test]
-fn test_charset_converter_finish_reports_incomplete_source_input() {
+fn test_charset_converter_finish_does_not_report_incomplete_source_input() {
     let mut decoder = CharsetDecoder::new(Utf8Codec);
     decoder.set_malformed_action(MalformedAction::Report);
     let encoder = CharsetEncoder::new(Utf16U16Codec);
@@ -343,23 +369,12 @@ fn test_charset_converter_finish_reports_incomplete_source_input() {
     assert!(matches!(progress.status(), TranscodeStatus::NeedInput { .. }));
     assert_eq!(Some(0), converter.max_finish_output_len());
 
-    let error = converter
+    let finish = converter
         .finish(&mut output, 0)
-        .expect_err("strict source decoder rejects incomplete EOF input");
+        .expect("finish does not process caller-owned incomplete source input");
 
-    match error {
-        CharsetConvertError::Decode(error) => {
-            assert_eq!(
-                CharsetDecodeErrorKind::IncompleteSequence {
-                    required: 3,
-                    available: 1,
-                },
-                error.kind(),
-            );
-            assert_eq!(0, error.index());
-        }
-        CharsetConvertError::Encode(_) => panic!("incomplete source input must be reported as a decode error"),
-    }
+    assert_eq!(TranscodeStatus::Complete, finish.status());
+    assert_eq!(0, finish.written());
 }
 
 #[test]

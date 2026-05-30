@@ -34,7 +34,7 @@ impl Latin1Codec {
     ///
     /// Returns [`Charset::ISO_8859_1`].
     #[must_use]
-    #[inline]
+    #[inline(always)]
     pub const fn charset(self) -> Charset {
         Charset::ISO_8859_1
     }
@@ -48,7 +48,7 @@ impl CharsetCodec for Latin1Codec {
     /// # Returns
     ///
     /// Returns [`Charset::ISO_8859_1`].
-    #[inline]
+    #[inline(always)]
     fn charset(&self) -> Charset {
         Charset::ISO_8859_1
     }
@@ -69,7 +69,7 @@ impl CharsetEncodeProbe for Latin1Codec {
     /// # Errors
     ///
     /// * `CharsetEncodeErrorKind::UnmappableCharacter` if `ch` > `U+00FF`.
-    #[inline]
+    #[inline(always)]
     fn encode_len(&self, ch: char, index: usize) -> CharsetEncodeResult<usize> {
         let value = ch as u32;
         if value > Unicode::LATIN1_MAX {
@@ -85,18 +85,22 @@ unsafe impl Codec<char, u8> for Latin1Codec {
     type DecodeError = CharsetDecodeError;
     type EncodeError = CharsetEncodeError;
 
-    #[inline]
-    fn min_units_per_value(&self) -> usize {
-        1
+    #[inline(always)]
+    fn min_units_per_value(&self) -> core::num::NonZeroUsize {
+        core::num::NonZeroUsize::MIN
+    }
+
+    #[inline(always)]
+    fn max_units_per_value(&self) -> core::num::NonZeroUsize {
+        core::num::NonZeroUsize::MIN
     }
 
     #[inline]
-    fn max_units_per_value(&self) -> usize {
-        1
-    }
-
-    #[inline]
-    unsafe fn decode_unchecked(&self, input: &[u8], index: usize) -> CharsetDecodeResult<(char, usize)> {
+    unsafe fn decode_unchecked(
+        &self,
+        input: &[u8],
+        index: usize,
+    ) -> CharsetDecodeResult<(char, core::num::NonZeroUsize)> {
         if index > input.len() {
             let kind = CharsetDecodeErrorKind::InvalidInputIndex { input_len: input.len() };
             return Err(CharsetDecodeError::new(Charset::ISO_8859_1, kind, index));
@@ -113,7 +117,7 @@ unsafe impl Codec<char, u8> for Latin1Codec {
         debug_assert!(index < input.len());
         Ok((
             Unicode::to_char(value).expect("valid Latin-1 byte decodes to Unicode scalar"),
-            1,
+            core::num::NonZeroUsize::MIN,
         ))
     }
 

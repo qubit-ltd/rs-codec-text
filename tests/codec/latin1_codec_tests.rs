@@ -14,8 +14,8 @@ fn test_latin1_codec_exposes_identity_and_limits() {
     let codec = Latin1Codec;
 
     assert_eq!(Charset::ISO_8859_1, <Latin1Codec as CharsetCodec>::charset(&codec));
-    assert_eq!(1, codec.min_units_per_value());
-    assert_eq!(1, codec.max_units_per_value());
+    assert_eq!(1, codec.min_units_per_value().get());
+    assert_eq!(1, codec.max_units_per_value().get());
     assert_eq!(1, codec.encode_len('A', 0).expect("Latin-1 ASCII is mappable"));
 
     assert_eq!(Charset::ISO_8859_1, codec.charset());
@@ -27,18 +27,18 @@ fn test_latin1_codec_decodes_all_byte_values() {
     let codec = Latin1Codec;
     let input = [0u8, 0x7f, 0xff];
 
+    let (decoded, consumed) = unsafe { codec.decode_unchecked(&input, 0) }.expect("decode zero");
+    assert_eq!('\u{0000}', decoded);
+    assert_eq!(1, consumed.get());
+    let (decoded, consumed) = unsafe { codec.decode_unchecked(&input, 1) }.expect("decode DEL");
+    assert_eq!('\u{007f}', decoded);
+    assert_eq!(1, consumed.get());
+    let (decoded, consumed) = unsafe { codec.decode_unchecked(&input, 2) }.expect("decode 0xFF");
     assert_eq!(
-        ('\u{0000}', 1),
-        unsafe { codec.decode_unchecked(&input, 0) }.expect("decode zero"),
+        Unicode::to_char(Unicode::LATIN1_MAX).expect("valid Latin-1 max"),
+        decoded
     );
-    assert_eq!(
-        ('\u{007f}', 1),
-        unsafe { codec.decode_unchecked(&input, 1) }.expect("decode DEL"),
-    );
-    assert_eq!(
-        (Unicode::to_char(Unicode::LATIN1_MAX).expect("valid Latin-1 max"), 1),
-        unsafe { codec.decode_unchecked(&input, 2) }.expect("decode 0xFF"),
-    );
+    assert_eq!(1, consumed.get());
 
     let error = unsafe { codec.decode_unchecked(&[], 0) }.expect_err("empty closed input is incomplete");
     assert_eq!(

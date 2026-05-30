@@ -52,7 +52,7 @@ impl CharsetEncodeErrorKind {
     /// - `Some(value)` for [`Self::InvalidCodePoint`] and [`Self::UnmappableCharacter`];
     /// - `None` for other kinds.
     #[must_use]
-    #[inline]
+    #[inline(always)]
     pub const fn value(self) -> Option<u32> {
         match self {
             Self::InvalidCodePoint { value, .. } => Some(value),
@@ -68,7 +68,7 @@ impl CharsetEncodeErrorKind {
     /// - `Some(required)` for [`Self::BufferTooSmall`];
     /// - `None` for all other variants.
     #[must_use]
-    #[inline]
+    #[inline(always)]
     pub const fn required(self) -> Option<usize> {
         match self {
             Self::BufferTooSmall { required, .. } => Some(required),
@@ -84,7 +84,7 @@ impl CharsetEncodeErrorKind {
     /// - `Some(available)` for [`Self::BufferTooSmall`];
     /// - `None` for all other variants.
     #[must_use]
-    #[inline]
+    #[inline(always)]
     pub const fn available(self) -> Option<usize> {
         match self {
             Self::BufferTooSmall { available, .. } => Some(available),
@@ -99,7 +99,7 @@ impl CharsetEncodeErrorKind {
     /// - `Some(input_len)` for [`Self::InvalidInputIndex`];
     /// - `None` for other variants.
     #[must_use]
-    #[inline]
+    #[inline(always)]
     pub const fn input_len(self) -> Option<usize> {
         match self {
             Self::InvalidInputIndex { input_len } => Some(input_len),

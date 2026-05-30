@@ -376,7 +376,7 @@ impl Ascii {
     /// # Returns
     ///
     /// Returns `true` if `ch` is in the ASCII range `0x00..=0x7F`.
-    #[inline]
+    #[inline(always)]
     #[must_use]
     pub const fn is_ascii_byte(ch: u8) -> bool {
         ch <= Self::MAX_BYTE
@@ -391,7 +391,7 @@ impl Ascii {
     /// # Returns
     ///
     /// Returns `true` if `ch` is in the ASCII range `U+0000..=U+007F`.
-    #[inline]
+    #[inline(always)]
     #[must_use]
     pub const fn is_ascii_char(ch: char) -> bool {
         ch <= Self::MAX_CHAR
@@ -407,7 +407,7 @@ impl Ascii {
     ///
     /// Returns `true` if `ch` is in the ASCII range `0x00..=0x7F`.
     /// Negative values and values above `0x7F` return `false`.
-    #[inline]
+    #[inline(always)]
     #[must_use]
     pub const fn is_ascii_code_point(ch: u32) -> bool {
         ch <= Self::MAX_CHAR as u32
@@ -422,7 +422,7 @@ impl Ascii {
     /// # Returns
     ///
     /// Returns `true` for tab, line feed, form feed, carriage return, or space.
-    #[inline]
+    #[inline(always)]
     #[must_use]
     pub const fn is_whitespace_byte(ch: u8) -> bool {
         ch == b'\t' || ch == b'\n' || ch == b'\x0c' || ch == b'\r' || ch == b' '
@@ -437,7 +437,7 @@ impl Ascii {
     /// # Returns
     ///
     /// Returns `true` for tab, line feed, form feed, carriage return, or space.
-    #[inline]
+    #[inline(always)]
     #[must_use]
     pub const fn is_whitespace_char(ch: char) -> bool {
         ch == '\t' || ch == '\n' || ch == '\u{000c}' || ch == '\r' || ch == ' '
@@ -453,7 +453,7 @@ impl Ascii {
     ///
     /// Returns `true` for tab, line feed, form feed, carriage return, or space.
     /// Other values, including negative values, return `false`.
-    #[inline]
+    #[inline(always)]
     #[must_use]
     pub const fn is_whitespace_code_point(ch: u32) -> bool {
         ch == '\t' as u32 || ch == '\n' as u32 || ch == '\u{000c}' as u32 || ch == '\r' as u32 || ch == ' ' as u32
@@ -468,7 +468,7 @@ impl Ascii {
     /// # Returns
     ///
     /// Returns `true` if `ch` is in `A..=Z` or `a..=z`.
-    #[inline]
+    #[inline(always)]
     #[must_use]
     pub const fn is_letter_byte(ch: u8) -> bool {
         Self::is_uppercase_letter_byte(ch) || Self::is_lowercase_letter_byte(ch)
@@ -483,7 +483,7 @@ impl Ascii {
     /// # Returns
     ///
     /// Returns `true` if `ch` is in `A..=Z` or `a..=z`.
-    #[inline]
+    #[inline(always)]
     #[must_use]
     pub const fn is_letter_char(ch: char) -> bool {
         Self::is_uppercase_letter_char(ch) || Self::is_lowercase_letter_char(ch)
@@ -498,7 +498,7 @@ impl Ascii {
     /// # Returns
     ///
     /// Returns `true` if `ch` is in `A..=Z` or `a..=z`.
-    #[inline]
+    #[inline(always)]
     #[must_use]
     pub const fn is_letter_code_point(ch: u32) -> bool {
         Self::is_uppercase_letter_code_point(ch) || Self::is_lowercase_letter_code_point(ch)
@@ -513,7 +513,7 @@ impl Ascii {
     /// # Returns
     ///
     /// Returns `true` if `ch` is in `A..=Z`.
-    #[inline]
+    #[inline(always)]
     #[must_use]
     pub const fn is_uppercase_letter_byte(ch: u8) -> bool {
         ch >= b'A' && ch <= b'Z'
@@ -528,7 +528,7 @@ impl Ascii {
     /// # Returns
     ///
     /// Returns `true` if `ch` is in `A..=Z`.
-    #[inline]
+    #[inline(always)]
     #[must_use]
     pub const fn is_uppercase_letter_char(ch: char) -> bool {
         ch >= 'A' && ch <= 'Z'
@@ -543,7 +543,7 @@ impl Ascii {
     /// # Returns
     ///
     /// Returns `true` if `ch` is in `A..=Z`.
-    #[inline]
+    #[inline(always)]
     #[must_use]
     pub const fn is_uppercase_letter_code_point(ch: u32) -> bool {
         ch >= 'A' as u32 && ch <= 'Z' as u32
@@ -558,7 +558,7 @@ impl Ascii {
     /// # Returns
     ///
     /// Returns `true` if `ch` is in `a..=z`.
-    #[inline]
+    #[inline(always)]
     #[must_use]
     pub const fn is_lowercase_letter_byte(ch: u8) -> bool {
         ch >= b'a' && ch <= b'z'
@@ -573,7 +573,7 @@ impl Ascii {
     /// # Returns
     ///
     /// Returns `true` if `ch` is in `a..=z`.
-    #[inline]
+    #[inline(always)]
     #[must_use]
     pub const fn is_lowercase_letter_char(ch: char) -> bool {
         ch >= 'a' && ch <= 'z'
@@ -588,7 +588,7 @@ impl Ascii {
     /// # Returns
     ///
     /// Returns `true` if `ch` is in `a..=z`.
-    #[inline]
+    #[inline(always)]
     #[must_use]
     pub const fn is_lowercase_letter_code_point(ch: u32) -> bool {
         ch >= 'a' as u32 && ch <= 'z' as u32
@@ -603,7 +603,7 @@ impl Ascii {
     /// # Returns
     ///
     /// Returns `true` if `ch` is in `0..=9`.
-    #[inline]
+    #[inline(always)]
     #[must_use]
     pub const fn is_digit_byte(ch: u8) -> bool {
         ch >= b'0' && ch <= b'9'
@@ -618,7 +618,7 @@ impl Ascii {
     /// # Returns
     ///
     /// Returns `true` if `ch` is in `0..=9`.
-    #[inline]
+    #[inline(always)]
     #[must_use]
     pub const fn is_digit_char(ch: char) -> bool {
         ch >= '0' && ch <= '9'
@@ -633,7 +633,7 @@ impl Ascii {
     /// # Returns
     ///
     /// Returns `true` if `ch` is in `0..=9`.
-    #[inline]
+    #[inline(always)]
     #[must_use]
     pub const fn is_digit_code_point(ch: u32) -> bool {
         ch >= '0' as u32 && ch <= '9' as u32
@@ -648,7 +648,7 @@ impl Ascii {
     /// # Returns
     ///
     /// Returns `true` if `ch` is in `0..=9`, `A..=F`, or `a..=f`.
-    #[inline]
+    #[inline(always)]
     #[must_use]
     pub const fn is_hex_digit_byte(ch: u8) -> bool {
         Self::is_digit_byte(ch) || (ch >= b'a' && ch <= b'f') || (ch >= b'A' && ch <= b'F')
@@ -663,7 +663,7 @@ impl Ascii {
     /// # Returns
     ///
     /// Returns `true` if `ch` is in `0..=9`, `A..=F`, or `a..=f`.
-    #[inline]
+    #[inline(always)]
     #[must_use]
     pub const fn is_hex_digit_char(ch: char) -> bool {
         Self::is_digit_char(ch) || (ch >= 'a' && ch <= 'f') || (ch >= 'A' && ch <= 'F')
@@ -678,7 +678,7 @@ impl Ascii {
     /// # Returns
     ///
     /// Returns `true` if `ch` is in `0..=9`, `A..=F`, or `a..=f`.
-    #[inline]
+    #[inline(always)]
     #[must_use]
     pub const fn is_hex_digit_code_point(ch: u32) -> bool {
         Self::is_digit_code_point(ch)
@@ -695,7 +695,7 @@ impl Ascii {
     /// # Returns
     ///
     /// Returns `true` if `ch` is in `0..=7`.
-    #[inline]
+    #[inline(always)]
     #[must_use]
     pub const fn is_octal_digit_byte(ch: u8) -> bool {
         ch >= b'0' && ch <= b'7'
@@ -710,7 +710,7 @@ impl Ascii {
     /// # Returns
     ///
     /// Returns `true` if `ch` is in `0..=7`.
-    #[inline]
+    #[inline(always)]
     #[must_use]
     pub const fn is_octal_digit_char(ch: char) -> bool {
         ch >= '0' && ch <= '7'
@@ -725,7 +725,7 @@ impl Ascii {
     /// # Returns
     ///
     /// Returns `true` if `ch` is in `0..=7`.
-    #[inline]
+    #[inline(always)]
     #[must_use]
     pub const fn is_octal_digit_code_point(ch: u32) -> bool {
         ch >= '0' as u32 && ch <= '7' as u32
@@ -740,7 +740,7 @@ impl Ascii {
     /// # Returns
     ///
     /// Returns `true` if `ch` is an ASCII letter or decimal digit.
-    #[inline]
+    #[inline(always)]
     #[must_use]
     pub const fn is_letter_or_digit_byte(ch: u8) -> bool {
         Self::is_letter_byte(ch) || Self::is_digit_byte(ch)
@@ -755,7 +755,7 @@ impl Ascii {
     /// # Returns
     ///
     /// Returns `true` if `ch` is an ASCII letter or decimal digit.
-    #[inline]
+    #[inline(always)]
     #[must_use]
     pub const fn is_letter_or_digit_char(ch: char) -> bool {
         Self::is_letter_char(ch) || Self::is_digit_char(ch)
@@ -770,7 +770,7 @@ impl Ascii {
     /// # Returns
     ///
     /// Returns `true` if `ch` is an ASCII letter or decimal digit.
-    #[inline]
+    #[inline(always)]
     #[must_use]
     pub const fn is_letter_or_digit_code_point(ch: u32) -> bool {
         Self::is_letter_code_point(ch) || Self::is_digit_code_point(ch)
@@ -785,7 +785,7 @@ impl Ascii {
     /// # Returns
     ///
     /// Returns `true` if `ch` is in the printable ASCII range `0x20..=0x7E`.
-    #[inline]
+    #[inline(always)]
     #[must_use]
     pub const fn is_printable_byte(ch: u8) -> bool {
         ch >= Self::MIN_PRINTABLE_BYTE && ch <= Self::MAX_PRINTABLE_BYTE
@@ -800,7 +800,7 @@ impl Ascii {
     /// # Returns
     ///
     /// Returns `true` if `ch` is in the printable ASCII range `U+0020..=U+007E`.
-    #[inline]
+    #[inline(always)]
     #[must_use]
     pub const fn is_printable_char(ch: char) -> bool {
         ch >= Self::MIN_PRINTABLE_CHAR && ch <= Self::MAX_PRINTABLE_CHAR
@@ -815,7 +815,7 @@ impl Ascii {
     /// # Returns
     ///
     /// Returns `true` if `ch` is in the printable ASCII range `0x20..=0x7E`.
-    #[inline]
+    #[inline(always)]
     #[must_use]
     pub const fn is_printable_code_point(ch: u32) -> bool {
         ch >= Self::MIN_PRINTABLE_CHAR as u32 && ch <= Self::MAX_PRINTABLE_CHAR as u32
@@ -830,7 +830,7 @@ impl Ascii {
     /// # Returns
     ///
     /// Returns `true` for `0x00..=0x1F` or `0x7F`.
-    #[inline]
+    #[inline(always)]
     #[must_use]
     pub const fn is_control_byte(ch: u8) -> bool {
         ch < Self::MIN_PRINTABLE_BYTE || ch == Self::DELETE_BYTE
@@ -845,7 +845,7 @@ impl Ascii {
     /// # Returns
     ///
     /// Returns `true` for `U+0000..=U+001F` or `U+007F`.
-    #[inline]
+    #[inline(always)]
     #[must_use]
     pub const fn is_control_char(ch: char) -> bool {
         (ch < Self::MIN_PRINTABLE_CHAR) || ch == Self::DELETE_CHAR
@@ -860,7 +860,7 @@ impl Ascii {
     /// # Returns
     ///
     /// Returns `true` for `0x00..=0x1F` or `0x7F`.
-    #[inline]
+    #[inline(always)]
     #[must_use]
     pub const fn is_control_code_point(ch: u32) -> bool {
         (ch < Self::MIN_PRINTABLE_CHAR as u32) || ch == Self::DELETE_CHAR as u32
@@ -877,7 +877,7 @@ impl Ascii {
     ///
     /// Returns `true` if the bytes are equal after converting ASCII uppercase
     /// letters to lowercase. Non-ASCII bytes are compared unchanged.
-    #[inline]
+    #[inline(always)]
     #[must_use]
     pub const fn equals_ignore_case_byte(ch1: u8, ch2: u8) -> bool {
         if ch1 == ch2 {
@@ -899,7 +899,7 @@ impl Ascii {
     /// Returns `true` if the characters are equal after converting ASCII
     /// uppercase letters to lowercase. Non-ASCII characters are compared
     /// unchanged.
-    #[inline]
+    #[inline(always)]
     #[must_use]
     pub const fn equals_ignore_case_char(ch1: char, ch2: char) -> bool {
         if ch1 == ch2 {
@@ -920,7 +920,7 @@ impl Ascii {
     ///
     /// Returns `true` if the values are equal after converting ASCII uppercase
     /// letters to lowercase. Values outside ASCII are compared unchanged.
-    #[inline]
+    #[inline(always)]
     #[must_use]
     pub const fn equals_ignore_case_code_point(ch1: u32, ch2: u32) -> bool {
         if ch1 == ch2 {
@@ -940,7 +940,7 @@ impl Ascii {
     ///
     /// Returns the uppercase ASCII equivalent for `a..=z`; all other bytes are
     /// returned unchanged.
-    #[inline]
+    #[inline(always)]
     #[must_use]
     pub const fn byte_to_uppercase(ch: u8) -> u8 {
         if ch >= b'a' && ch <= b'z' {
@@ -960,7 +960,7 @@ impl Ascii {
     ///
     /// Returns the uppercase ASCII equivalent for `a..=z`; all other characters
     /// are returned unchanged.
-    #[inline]
+    #[inline(always)]
     #[must_use]
     pub const fn char_to_uppercase(ch: char) -> char {
         if ch >= 'a' && ch <= 'z' {
@@ -980,7 +980,7 @@ impl Ascii {
     ///
     /// Returns the uppercase ASCII equivalent for `a..=z`; all other values are
     /// returned unchanged.
-    #[inline]
+    #[inline(always)]
     #[must_use]
     pub const fn code_point_to_uppercase(ch: u32) -> u32 {
         if ch >= 'a' as u32 && ch <= 'z' as u32 {
@@ -1000,7 +1000,7 @@ impl Ascii {
     ///
     /// Returns the lowercase ASCII equivalent for `A..=Z`; all other bytes are
     /// returned unchanged.
-    #[inline]
+    #[inline(always)]
     #[must_use]
     pub const fn byte_to_lowercase(ch: u8) -> u8 {
         if ch >= b'A' && ch <= b'Z' {
@@ -1020,7 +1020,7 @@ impl Ascii {
     ///
     /// Returns the lowercase ASCII equivalent for `A..=Z`; all other characters
     /// are returned unchanged.
-    #[inline]
+    #[inline(always)]
     #[must_use]
     pub const fn char_to_lowercase(ch: char) -> char {
         if ch >= 'A' && ch <= 'Z' {
@@ -1040,7 +1040,7 @@ impl Ascii {
     ///
     /// Returns the lowercase ASCII equivalent for `A..=Z`; all other values are
     /// returned unchanged.
-    #[inline]
+    #[inline(always)]
     #[must_use]
     pub const fn code_point_to_lowercase(ch: u32) -> u32 {
         if ch >= 'A' as u32 && ch <= 'Z' as u32 {
@@ -1059,7 +1059,7 @@ impl Ascii {
     /// # Returns
     ///
     /// Returns `Some(0..=9)` for `0..=9`; returns `None` otherwise.
-    #[inline]
+    #[inline(always)]
     #[must_use]
     pub const fn byte_to_digit(ch: u8) -> Option<u8> {
         if Self::is_digit_byte(ch) { Some(ch - b'0') } else { None }
@@ -1074,7 +1074,7 @@ impl Ascii {
     /// # Returns
     ///
     /// Returns `Some(0..=9)` for `0..=9`; returns `None` otherwise.
-    #[inline]
+    #[inline(always)]
     #[must_use]
     pub const fn char_to_digit(ch: char) -> Option<u8> {
         if Self::is_digit_char(ch) {
@@ -1093,7 +1093,7 @@ impl Ascii {
     /// # Returns
     ///
     /// Returns `Some(0..=9)` for `0..=9`; returns `None` otherwise.
-    #[inline]
+    #[inline(always)]
     #[must_use]
     pub const fn code_point_to_digit(ch: u32) -> Option<u8> {
         if Self::is_digit_code_point(ch) {
@@ -1113,7 +1113,7 @@ impl Ascii {
     ///
     /// Returns `Some(0..=15)` for `0..=9`, `A..=F`, or `a..=f`; returns `None`
     /// otherwise.
-    #[inline]
+    #[inline(always)]
     #[must_use]
     pub const fn byte_to_hex_digit(ch: u8) -> Option<u8> {
         if ch >= b'0' && ch <= b'9' {
@@ -1137,7 +1137,7 @@ impl Ascii {
     ///
     /// Returns `Some(0..=15)` for `0..=9`, `A..=F`, or `a..=f`; returns `None`
     /// otherwise.
-    #[inline]
+    #[inline(always)]
     #[must_use]
     pub const fn char_to_hex_digit(ch: char) -> Option<u8> {
         if ch >= '0' && ch <= '9' {
@@ -1161,7 +1161,7 @@ impl Ascii {
     ///
     /// Returns `Some(0..=15)` for `0..=9`, `A..=F`, or `a..=f`; returns `None`
     /// otherwise.
-    #[inline]
+    #[inline(always)]
     #[must_use]
     pub const fn code_point_to_hex_digit(ch: u32) -> Option<u8> {
         if ch >= '0' as u32 && ch <= '9' as u32 {

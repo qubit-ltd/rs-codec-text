@@ -13,8 +13,8 @@ fn test_utf8_codec_exposes_encoder_and_decoder_contracts() {
     let codec = Utf8Codec;
 
     assert_eq!(Charset::UTF_8, <Utf8Codec as CharsetCodec>::charset(&codec));
-    assert_eq!(1, codec.min_units_per_value());
-    assert_eq!(Utf8::MAX_UNITS_PER_CHAR, codec.max_units_per_value());
+    assert_eq!(1, codec.min_units_per_value().get());
+    assert_eq!(Utf8::MAX_UNITS_PER_CHAR, codec.max_units_per_value().get());
     assert_eq!(1, codec.encode_len('A', 0).expect("encode ascii as utf8"));
 
     assert_eq!(Charset::UTF_8, codec.charset());
@@ -28,10 +28,9 @@ fn test_utf8_codec_encodes_and_decodes() {
     assert_eq!(2, unsafe {
         codec.encode_unchecked(&'é', &mut output, 0).expect("Latin-1")
     });
-    assert_eq!(
-        ('é', 2),
-        unsafe { codec.decode_unchecked(&output[..2], 0) }.expect("decode Latin-1"),
-    );
+    let (decoded, consumed) = unsafe { codec.decode_unchecked(&output[..2], 0) }.expect("decode Latin-1");
+    assert_eq!('é', decoded);
+    assert_eq!(2, consumed.get());
 
     let error = unsafe { codec.decode_unchecked(&[], 0) }.expect_err("empty closed input is incomplete");
     assert_eq!(
@@ -47,15 +46,15 @@ fn test_utf8_codec_encodes_and_decodes() {
 fn test_utf8_codec_decodes_all_lengths_and_reports_closed_tail() {
     let codec = Utf8Codec;
 
-    assert_eq!(('A', 1), unsafe { codec.decode_unchecked(b"A", 0) }.expect("ASCII"),);
-    assert_eq!(
-        ('中', 3),
-        unsafe { codec.decode_unchecked("中".as_bytes(), 0) }.expect("three bytes"),
-    );
-    assert_eq!(
-        ('😀', 4),
-        unsafe { codec.decode_unchecked("😀".as_bytes(), 0) }.expect("four bytes"),
-    );
+    let (decoded, consumed) = unsafe { codec.decode_unchecked(b"A", 0) }.expect("ASCII");
+    assert_eq!('A', decoded);
+    assert_eq!(1, consumed.get());
+    let (decoded, consumed) = unsafe { codec.decode_unchecked("中".as_bytes(), 0) }.expect("three bytes");
+    assert_eq!('中', decoded);
+    assert_eq!(3, consumed.get());
+    let (decoded, consumed) = unsafe { codec.decode_unchecked("😀".as_bytes(), 0) }.expect("four bytes");
+    assert_eq!('😀', decoded);
+    assert_eq!(4, consumed.get());
 
     let error = unsafe { codec.decode_unchecked(&[0xe4], 0) }.expect_err("partial three-byte prefix");
     assert_eq!(

@@ -11,6 +11,7 @@ use core::fmt;
 use std::error::Error;
 
 use qubit_codec::{
+    DecodeContext,
     DecodeErrorInfo,
     DecodeFailure,
 };
@@ -58,7 +59,7 @@ impl CharsetDecodeError {
     /// # Returns
     ///
     /// Returns a decoding error carrying the supplied context.
-    #[inline]
+    #[inline(always)]
     pub const fn new(charset: Charset, kind: CharsetDecodeErrorKind, index: usize) -> Self {
         Self {
             charset,
@@ -78,7 +79,7 @@ impl CharsetDecodeError {
     ///
     /// Returns this error carrying the supplied consumption count.
     #[must_use]
-    #[inline]
+    #[inline(always)]
     pub const fn with_consumed(self, consumed: usize) -> Self {
         Self {
             charset: self.charset,
@@ -93,7 +94,7 @@ impl CharsetDecodeError {
     /// # Returns
     ///
     /// Returns the stored [`Charset`].
-    #[inline]
+    #[inline(always)]
     pub const fn charset(self) -> Charset {
         self.charset
     }
@@ -103,7 +104,7 @@ impl CharsetDecodeError {
     /// # Returns
     ///
     /// Returns the stored [`CharsetDecodeErrorKind`].
-    #[inline]
+    #[inline(always)]
     pub const fn kind(self) -> CharsetDecodeErrorKind {
         self.kind
     }
@@ -113,7 +114,7 @@ impl CharsetDecodeError {
     /// # Returns
     ///
     /// Returns the index at which the error was detected.
-    #[inline]
+    #[inline(always)]
     pub const fn index(self) -> usize {
         self.index
     }
@@ -124,7 +125,7 @@ impl CharsetDecodeError {
     ///
     /// Returns `Some(required)` for [`CharsetDecodeErrorKind::IncompleteSequence`],
     /// otherwise `None`.
-    #[inline]
+    #[inline(always)]
     pub const fn required(self) -> Option<usize> {
         self.kind.required()
     }
@@ -135,7 +136,7 @@ impl CharsetDecodeError {
     ///
     /// Returns `Some(available)` for [`CharsetDecodeErrorKind::IncompleteSequence`],
     /// otherwise `None`.
-    #[inline]
+    #[inline(always)]
     pub const fn available(self) -> Option<usize> {
         self.kind.available()
     }
@@ -146,7 +147,7 @@ impl CharsetDecodeError {
     ///
     /// Returns `Some(input_len)` for [`CharsetDecodeErrorKind::InvalidInputIndex`],
     /// otherwise `None`.
-    #[inline]
+    #[inline(always)]
     pub const fn input_len(self) -> Option<usize> {
         self.kind.input_len()
     }
@@ -157,7 +158,7 @@ impl CharsetDecodeError {
     ///
     /// Returns `Some(value)` when the error kind carries a raw unit or code
     /// point value, or `None` for kinds without an associated value.
-    #[inline]
+    #[inline(always)]
     pub const fn value(self) -> Option<u32> {
         self.kind.value()
     }
@@ -168,7 +169,7 @@ impl CharsetDecodeError {
     ///
     /// Returns `Some(consumed)` for malformed and invalid-code-point input, or
     /// `None` for incomplete input and invalid caller indexes.
-    #[inline]
+    #[inline(always)]
     pub const fn consumed(self) -> Option<usize> {
         match self.kind {
             CharsetDecodeErrorKind::MalformedSequence { .. } | CharsetDecodeErrorKind::InvalidCodePoint { .. } => {
@@ -189,7 +190,7 @@ impl CharsetDecodeError {
     /// # Returns
     ///
     /// Returns a copy of this error with its index shifted by `base`.
-    #[inline]
+    #[inline(always)]
     pub const fn offset_by(self, base: usize) -> Self {
         Self {
             charset: self.charset,
@@ -198,15 +199,41 @@ impl CharsetDecodeError {
             consumed: self.consumed,
         }
     }
+
+    /// Calculates how many input units malformed-input policy should consume.
+    ///
+    /// # Parameters
+    ///
+    /// - `context`: Buffered decode context for the failed decode attempt.
+    ///
+    /// # Returns
+    ///
+    /// Returns a count clamped to units available from `context.input_index`.
+    /// When this error has explicit consumption metadata, that value is used.
+    /// Otherwise the count includes the reported failing unit and is at least
+    /// one when input remains available.
+    #[inline]
+    pub(crate) fn policy_consumed(self, context: DecodeContext) -> usize {
+        self.consumed()
+            .unwrap_or_else(|| {
+                let input_len = context.input_index + context.available;
+                let available = input_len.saturating_sub(context.input_index);
+                let end = self.index.saturating_add(1).min(input_len);
+                end.saturating_sub(context.input_index).max(1).min(available)
+            })
+            .max(1)
+            .min(context.available)
+    }
 }
 
 impl DecodeErrorInfo for CharsetDecodeError {
     /// Returns buffered-decode metadata for this charset error.
     fn failure(&self) -> DecodeFailure {
         match self.kind {
-            CharsetDecodeErrorKind::IncompleteSequence { required, available } => {
-                DecodeFailure::Incomplete { required, available }
-            }
+            CharsetDecodeErrorKind::IncompleteSequence { required, available } => DecodeFailure::Incomplete {
+                required_total: required,
+                available,
+            },
             CharsetDecodeErrorKind::MalformedSequence { .. } | CharsetDecodeErrorKind::InvalidCodePoint { .. } => {
                 DecodeFailure::Invalid {
                     consumed: self.consumed.max(1),

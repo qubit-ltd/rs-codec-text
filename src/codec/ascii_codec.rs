@@ -35,7 +35,7 @@ impl AsciiCodec {
     ///
     /// Returns [`Charset::ASCII`].
     #[must_use]
-    #[inline]
+    #[inline(always)]
     pub const fn charset(self) -> Charset {
         Charset::ASCII
     }
@@ -49,7 +49,7 @@ impl CharsetCodec for AsciiCodec {
     /// # Returns
     ///
     /// Returns [`Charset::ASCII`].
-    #[inline]
+    #[inline(always)]
     fn charset(&self) -> Charset {
         Charset::ASCII
     }
@@ -70,7 +70,7 @@ impl CharsetEncodeProbe for AsciiCodec {
     /// # Errors
     ///
     /// * `CharsetEncodeErrorKind::UnmappableCharacter` if `ch` is not ASCII.
-    #[inline]
+    #[inline(always)]
     fn encode_len(&self, ch: char, index: usize) -> CharsetEncodeResult<usize> {
         if ch > Ascii::MAX_CHAR {
             let kind = CharsetEncodeErrorKind::UnmappableCharacter { value: ch as u32 };
@@ -84,18 +84,22 @@ unsafe impl Codec<char, u8> for AsciiCodec {
     type DecodeError = CharsetDecodeError;
     type EncodeError = CharsetEncodeError;
 
-    #[inline]
-    fn min_units_per_value(&self) -> usize {
-        1
+    #[inline(always)]
+    fn min_units_per_value(&self) -> core::num::NonZeroUsize {
+        core::num::NonZeroUsize::MIN
+    }
+
+    #[inline(always)]
+    fn max_units_per_value(&self) -> core::num::NonZeroUsize {
+        core::num::NonZeroUsize::MIN
     }
 
     #[inline]
-    fn max_units_per_value(&self) -> usize {
-        1
-    }
-
-    #[inline]
-    unsafe fn decode_unchecked(&self, input: &[u8], index: usize) -> CharsetDecodeResult<(char, usize)> {
+    unsafe fn decode_unchecked(
+        &self,
+        input: &[u8],
+        index: usize,
+    ) -> CharsetDecodeResult<(char, core::num::NonZeroUsize)> {
         if index > input.len() {
             let kind = CharsetDecodeErrorKind::InvalidInputIndex { input_len: input.len() };
             return Err(CharsetDecodeError::new(Charset::ASCII, kind, index));
@@ -116,7 +120,7 @@ unsafe impl Codec<char, u8> for AsciiCodec {
             return Err(CharsetDecodeError::new(Charset::ASCII, kind, index));
         }
         debug_assert!(index < input.len());
-        Ok((value as char, 1))
+        Ok((value as char, core::num::NonZeroUsize::MIN))
     }
 
     #[inline]

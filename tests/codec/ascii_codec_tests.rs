@@ -13,8 +13,8 @@ fn test_ascii_codec_exposes_identity_and_limits() {
     let codec = AsciiCodec;
 
     assert_eq!(Charset::ASCII, <AsciiCodec as CharsetCodec>::charset(&codec));
-    assert_eq!(1, codec.min_units_per_value());
-    assert_eq!(1, codec.max_units_per_value());
+    assert_eq!(1, codec.min_units_per_value().get());
+    assert_eq!(1, codec.max_units_per_value().get());
     assert_eq!(1, codec.encode_len('A', 0).expect("ASCII is mappable"));
 
     assert_eq!(Charset::ASCII, codec.charset());
@@ -25,10 +25,9 @@ fn test_ascii_codec_exposes_identity_and_limits() {
 fn test_ascii_codec_decodes_ascii_bytes_and_reports_closed_tail_and_malformed() {
     let codec = AsciiCodec;
 
-    assert_eq!(
-        ('A', 1),
-        unsafe { codec.decode_unchecked(b"A", 0) }.expect("ASCII decode"),
-    );
+    let (decoded, consumed) = unsafe { codec.decode_unchecked(b"A", 0) }.expect("ASCII decode");
+    assert_eq!('A', decoded);
+    assert_eq!(1, consumed.get());
 
     let error = unsafe { codec.decode_unchecked(&[], 0) }.expect_err("empty closed input is incomplete");
     assert_eq!(

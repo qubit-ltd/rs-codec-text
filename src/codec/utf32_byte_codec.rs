@@ -43,7 +43,7 @@ use qubit_codec::Codec;
 ///
 /// let codec = Utf32ByteCodec::new(ByteOrder::BigEndian);
 /// assert_eq!(Charset::UTF_32BE, codec.charset());
-/// assert_eq!(Utf32::MAX_BYTES_PER_CHAR, codec.max_units_per_value());
+/// assert_eq!(Utf32::MAX_BYTES_PER_CHAR, codec.max_units_per_value().get());
 ///
 /// let mut output = [0_u8; Utf32::MAX_BYTES_PER_CHAR];
 /// let written = codec.encode_len('中', 0).expect("mappable");
@@ -53,7 +53,7 @@ use qubit_codec::Codec;
 /// let (value, consumed) = unsafe {
 ///     codec.decode_unchecked(&output[..written], 0).expect("valid UTF-32BE")
 /// };
-/// assert_eq!(('中', written), (value, consumed));
+/// assert_eq!(('中', written), (value, consumed.get()));
 /// ```
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Utf32ByteCodec {
@@ -72,7 +72,7 @@ impl Utf32ByteCodec {
     ///
     /// Returns a UTF-32 byte codec.
     #[must_use]
-    #[inline]
+    #[inline(always)]
     pub const fn new(byte_order: ByteOrder) -> Self {
         Self { byte_order }
     }
@@ -83,7 +83,7 @@ impl Utf32ByteCodec {
     ///
     /// Returns the byte order used by this codec.
     #[must_use]
-    #[inline]
+    #[inline(always)]
     pub const fn byte_order(self) -> ByteOrder {
         self.byte_order
     }
@@ -95,7 +95,7 @@ impl Utf32ByteCodec {
     /// Returns [`Charset::UTF_32LE`] or [`Charset::UTF_32BE`] according to this
     /// codec's configured byte order.
     #[must_use]
-    #[inline]
+    #[inline(always)]
     pub const fn charset(self) -> Charset {
         Charset::from_utf32_byte_order(self.byte_order)
     }
@@ -110,7 +110,7 @@ impl CharsetCodec for Utf32ByteCodec {
     ///
     /// Returns [`Charset::UTF_32BE`] when configured with
     /// `ByteOrder::BigEndian`, otherwise [`Charset::UTF_32LE`].
-    #[inline]
+    #[inline(always)]
     fn charset(&self) -> Charset {
         Charset::from_utf32_byte_order(self.byte_order)
     }
@@ -127,6 +127,7 @@ impl CharsetEncodeProbe for Utf32ByteCodec {
     /// # Returns
     ///
     /// Always returns `Ok(4)`.
+    #[inline(always)]
     fn encode_len(&self, _ch: char, _index: usize) -> CharsetEncodeResult<usize> {
         Ok(Utf32::MAX_BYTES_PER_CHAR)
     }
@@ -136,22 +137,27 @@ unsafe impl Codec<char, u8> for Utf32ByteCodec {
     type DecodeError = CharsetDecodeError;
     type EncodeError = CharsetEncodeError;
 
-    #[inline]
-    fn min_units_per_value(&self) -> usize {
-        4
+    #[inline(always)]
+    fn min_units_per_value(&self) -> core::num::NonZeroUsize {
+        // SAFETY: 4 is non-zero.
+        unsafe { core::num::NonZeroUsize::new_unchecked(4) }
+    }
+
+    #[inline(always)]
+    fn max_units_per_value(&self) -> core::num::NonZeroUsize {
+        // SAFETY: UTF-32 byte encoding always uses four bytes.
+        unsafe { core::num::NonZeroUsize::new_unchecked(Utf32::MAX_BYTES_PER_CHAR) }
     }
 
     #[inline]
-    fn max_units_per_value(&self) -> usize {
-        Utf32::MAX_BYTES_PER_CHAR
-    }
-
-    #[inline]
-    unsafe fn decode_unchecked(&self, input: &[u8], index: usize) -> CharsetDecodeResult<(char, usize)> {
-        let decoded = utf32::decode_bytes_prefix(input, index, self.byte_order)?;
-        debug_assert!(decoded.1 > 0);
-        debug_assert!(decoded.1 <= input.len() - index);
-        Ok(decoded)
+    unsafe fn decode_unchecked(
+        &self,
+        input: &[u8],
+        index: usize,
+    ) -> CharsetDecodeResult<(char, core::num::NonZeroUsize)> {
+        let (ch, consumed) = utf32::decode_bytes_prefix(input, index, self.byte_order)?;
+        debug_assert!(consumed.get() <= input.len() - index);
+        Ok((ch, consumed))
     }
 
     #[inline]

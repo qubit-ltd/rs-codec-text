@@ -189,7 +189,7 @@ fn decode_all_utf8(codec: &Utf8Codec, input: &[u8]) -> Vec<char> {
         match unsafe { codec.decode_unchecked(input, index) } {
             Ok((value, consumed)) => {
                 output.push(value);
-                index += consumed;
+                index += consumed.get();
             }
             status => panic!("expected complete utf8 decode for valid sequence, got {status:?}"),
         }
@@ -204,7 +204,7 @@ fn decode_all_utf16_units(codec: &Utf16U16Codec, input: &[u16]) -> Vec<char> {
         match unsafe { codec.decode_unchecked(input, index) } {
             Ok((value, consumed)) => {
                 output.push(value);
-                index += consumed;
+                index += consumed.get();
             }
             status => panic!("expected complete utf16 decode for valid sequence, got {status:?}"),
         }
@@ -219,7 +219,7 @@ fn decode_all_utf16_bytes(codec: &Utf16ByteCodec, input: &[u8]) -> Vec<char> {
         match unsafe { codec.decode_unchecked(input, index) } {
             Ok((value, consumed)) => {
                 output.push(value);
-                index += consumed;
+                index += consumed.get();
             }
             status => {
                 panic!("expected complete utf16 byte decode for valid sequence, got {status:?}")
@@ -236,7 +236,7 @@ fn decode_all_utf32_units(codec: &Utf32U32Codec, input: &[u32]) -> Vec<char> {
         match unsafe { codec.decode_unchecked(input, index) } {
             Ok((value, consumed)) => {
                 output.push(value);
-                index += consumed;
+                index += consumed.get();
             }
             status => panic!("expected complete utf32 decode for valid sequence, got {status:?}"),
         }
@@ -251,7 +251,7 @@ fn decode_all_utf32_bytes(codec: &Utf32ByteCodec, input: &[u8]) -> Vec<char> {
         match unsafe { codec.decode_unchecked(input, index) } {
             Ok((value, consumed)) => {
                 output.push(value);
-                index += consumed;
+                index += consumed.get();
             }
             status => {
                 panic!("expected complete utf32 byte decode for valid sequence, got {status:?}")

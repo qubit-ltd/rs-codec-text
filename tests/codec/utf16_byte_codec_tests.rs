@@ -14,8 +14,8 @@ fn test_utf16_byte_codec_exposes_encoder_and_decoder_contracts() {
     let codec = Utf16ByteCodec::new(ByteOrder::LittleEndian);
 
     assert_eq!(Charset::UTF_16LE, <Utf16ByteCodec as CharsetCodec>::charset(&codec));
-    assert_eq!(2, codec.min_units_per_value());
-    assert_eq!(Utf16::MAX_BYTES_PER_CHAR, codec.max_units_per_value());
+    assert_eq!(2, codec.min_units_per_value().get());
+    assert_eq!(Utf16::MAX_BYTES_PER_CHAR, codec.max_units_per_value().get());
     assert_eq!(2, codec.encode_len('A', 0).expect("encode UTF-16 bytes"));
 
     assert_eq!(ByteOrder::LittleEndian, codec.byte_order());
@@ -32,20 +32,18 @@ fn test_utf16_byte_codec_encodes_and_decodes_bytes() {
             .encode_unchecked(&'😀', &mut output, 0)
             .expect("encode pair bytes")
     });
-    assert_eq!(
-        ('😀', 4),
-        unsafe { codec.decode_unchecked(&output, 0) }.expect("decode pair bytes"),
-    );
+    let (decoded, consumed) = unsafe { codec.decode_unchecked(&output, 0) }.expect("decode pair bytes");
+    assert_eq!('😀', decoded);
+    assert_eq!(4, consumed.get());
 }
 
 #[test]
 fn test_utf16_byte_codec_decodes_bmp_and_reports_closed_tail_or_malformed_bytes() {
     let codec = Utf16ByteCodec::new(ByteOrder::BigEndian);
 
-    assert_eq!(
-        ('A', 2),
-        unsafe { codec.decode_unchecked(&[0x00, 0x41], 0) }.expect("BMP bytes"),
-    );
+    let (decoded, consumed) = unsafe { codec.decode_unchecked(&[0x00, 0x41], 0) }.expect("BMP bytes");
+    assert_eq!('A', decoded);
+    assert_eq!(2, consumed.get());
 
     let error = unsafe { codec.decode_unchecked(&[0x00], 0) }.expect_err("partial unit is incomplete");
     assert_eq!(

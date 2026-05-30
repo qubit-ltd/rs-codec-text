@@ -24,9 +24,11 @@ Use this crate when you need:
 - Policy-aware decoders, encoders, and converters with replace, ignore, and
   report modes.
 - `Charset`, `UnicodeBom`, `ByteOrder`, `CodecValueEncoder`,
-  `CodecBufferedEncoder`, `BufferedEncoder`, `BufferedDecoder`,
-  `BufferedConverter`, `Transcoder`, and typed encode/decode error values for
-  building higher-level adapters.
+  `CodecBufferedEncoder`, `CodecBufferedDecoder`, `BufferedEncodeEngine`,
+  `BufferedDecodeEngine`, `BufferedEncodeHooks`, `BufferedDecodeHooks`,
+  `EncodePlan`, `BufferedEncoder`, `BufferedDecoder`, `BufferedConverter`,
+  `Transcoder`, and typed encode/decode error values for building higher-level
+  adapters.
 
 This crate is not a general text processing library. It intentionally stays
 below grapheme segmentation, normalization, collation, locale-aware case
@@ -42,8 +44,8 @@ qubit-codec-text = "0.1"
 ```
 
 `qubit-codec` is the core runtime dependency, and the core buffer-level traits
-and codec-backed encoder adapters used by the public API are re-exported by
-`qubit-codec-text`.
+and codec-backed encoder/decoder adapters used by the public API are
+re-exported by `qubit-codec-text`.
 
 For compact imports:
 
@@ -73,7 +75,7 @@ The crate is split into a few small layers.
 | Charset metadata | `Charset`, `UnicodeBom`, `ByteOrder` | Stable charset identity, aliases, fixed byte order, and BOM metadata. |
 | Low-level codecs | `Codec<char, Unit>`, built-in codec structs | Decode or encode one complete Unicode scalar value from/to caller-owned buffers. |
 | Text codec metadata | `CharsetCodec`, `CharsetEncodeProbe` | Attach charset metadata and exact encode sizing to low-level codec implementations. |
-| Policy wrappers | `CharsetDecoder`, `CharsetEncoder` | Apply malformed/unmappable policy while converting many units; implement `BufferedDecoder` / `BufferedEncoder`. |
+| Policy wrappers | `CharsetDecoder`, `CharsetEncoder` | Apply malformed/unmappable policy while converting many units; implement `BufferedDecoder` / `BufferedEncoder`. `CharsetDecoder` reuses the core `BufferedDecodeEngine` loop, and `CharsetEncoder` reuses the core `BufferedEncodeEngine` loop. |
 | Charset conversion | `CharsetConverter` | Decode source units to `char`, then encode them to target units; implements `BufferedConverter`. |
 | Progress API | `Transcoder`, `TranscodeProgress`, `TranscodeStatus` | Report partial progress, input starvation, and output backpressure. |
 | Errors | `CharsetDecodeError`, `CharsetEncodeError`, `CharsetConvertError` | Preserve charset, kind, absolute index, and optional raw value. |
@@ -190,7 +192,7 @@ unit count before calling unsafe `encode_unchecked`.
 For decoding through `decode_unchecked`, callers must provide at least
 `codec.min_units_per_value()` readable units from the current input index before
 calling `decode_unchecked`. Callers should normally provide up to
-`codec.max_units_per_value()` unless EOF makes that impossible. Built-in codecs
+`codec.max_units_per_value().get()` unless EOF makes that impossible. Built-in codecs
 decode complete shorter representations, such as one-byte UTF-8 ASCII, and
 return `CharsetDecodeErrorKind::IncompleteSequence` / `MalformedSequence` for
 incomplete or malformed prefixes. `CharsetDecoder` uses those errors to report
@@ -283,9 +285,14 @@ as EOF, not as "maybe more data later". The streaming distinction belongs to
 `CharsetDecoder::transcode` asks the codec whether the currently available units
 already contain one complete scalar. Complete shorter representations are decoded
 immediately. If the current chunk is only a valid incomplete prefix,
-`transcode()` returns `TranscodeStatus::NeedInput` and retains the tail. After
-the caller reaches EOF, `finish()` closes that retained tail and handles it using
-the configured `MalformedAction`.
+`transcode()` returns `TranscodeStatus::NeedInput` without consuming that tail.
+The caller owns tail preservation, refill, and EOF policy. After the caller has
+handled any incomplete tail, `finish()` only drains internally retained output.
+
+Internally, `CharsetDecoder` stores malformed-input policy in decode hooks and
+delegates to `BufferedDecodeEngine<C, H, C::Unit>`. The engine owns repeated
+`decode_unchecked` calls, output-capacity progress, and status reporting, while
+input-buffer refill stays with the caller.
 
 ## Policy Decoding
 
@@ -341,8 +348,8 @@ assert_eq!(0, error.index());
 ```
 
 `CharsetDecoder::transcode` may panic if a custom `CharsetCodec` violates the
-low-level `Codec::decode_unchecked` contract by consuming zero units or more
-units than were provided. Built-in codecs satisfy that contract.
+low-level `Codec::decode_unchecked` contract by reporting more consumed units
+than were provided. Built-in codecs satisfy that contract.
 
 ## Policy Encoding
 
@@ -404,6 +411,11 @@ encode either replacement. Built-in codecs do not trigger this; for a custom
 codec, that panic indicates a broken codec invariant rather than recoverable
 text input.
 
+Internally, `CharsetEncoder` stores unmappable-input policy in encode hooks and
+delegates to `BufferedEncodeEngine<C, H>`. The engine owns input iteration,
+output capacity checks, and `TranscodeProgress` construction; the hooks supply
+the charset-specific plan for original, replacement, or ignored characters.
+
 Use `with_replacement` or `set_replacement` to validate a custom replacement
 character up front:
 
@@ -453,7 +465,7 @@ assert_eq!(['A' as u16, '中' as u16], output);
 
 Converters keep at most one pending decoded character when target output is
 full. Call `transcode` again with more output space, or call `finish` after the
-source input has ended to flush pending output.
+caller has handled any incomplete source tail to drain pending output.
 
 `CharsetConvertError` distinguishes source decode failures from target encode
 failures:
@@ -488,17 +500,17 @@ instance for another logical stream. It has four central methods:
 | Method | Meaning |
 | --- | --- |
 | `max_output_len(input_len)` | Returns an upper bound when one is known. |
-| `max_finish_output_len()` | Returns an upper bound for output produced by EOF finalization. |
+| `max_finish_output_len()` | Returns an upper bound for output produced by finalizing internal state. |
 | `reset()` | Clears retained conversion state while keeping configuration. |
 | `transcode(input, input_index, output, output_index)` | Converts as much as possible from caller-owned buffers. |
-| `finish(output, output_index)` | Finalizes EOF state, replacing, ignoring, or rejecting incomplete trailing input according to policy. |
+| `finish(output, output_index)` | Finalizes internal state after the caller has handled incomplete trailing input. |
 
 `TranscodeProgress` contains:
 
 - `status()`: `Complete`, `NeedInput`, or `NeedOutput`.
 - `read()`: input units consumed relative to `input_index`.
 - `written()`: output units produced relative to `output_index`.
-- `required()`, `available()`, and `index()`: convenience accessors for
+- `additional()`, `available()`, and `index()`: convenience accessors for
   incomplete input or output backpressure.
 
 `TranscodeStatus` values use absolute indices:
@@ -506,14 +518,15 @@ instance for another logical stream. It has four central methods:
 | Status | Meaning |
 | --- | --- |
 | `Complete` | The current call completed without needing more input or output. |
-| `NeedInput { input_index, required, available }` | More source units are required at `input_index`. |
-| `NeedOutput { output_index, required, available }` | More target units are required at `output_index`. |
+| `NeedInput { input_index, additional, available }` | More source units are required at `input_index`. |
+| `NeedOutput { output_index, additional, available }` | More target units are required at `output_index`. |
 
 When output is too small, policy wrappers return `NeedOutput` instead of
 throwing an error for normal backpressure. When input is truncated but still a
-valid prefix, decoders return `NeedInput`. If the caller has reached EOF, call
-`finish()` to close that partial sequence. Malformed input, invalid indices, and
-unmappable characters in report mode are errors.
+valid prefix, decoders return `NeedInput` and leave the tail for the caller. If
+the caller has reached EOF, it handles that tail before calling `finish()`.
+Malformed input, invalid indices, and unmappable characters in report mode are
+errors.
 
 ## Error Model
 
@@ -583,8 +596,8 @@ To add another charset in a downstream crate:
    encode.
 3. Implement `CharsetCodec` for charset metadata.
 4. Return a stable `Charset` descriptor from `charset()`.
-5. Return the maximum storage units needed for one scalar value from the
-   `Codec::max_units_per_value()` implementation.
+5. Return the non-zero maximum storage units needed for one scalar value from
+   the `Codec::max_units_per_value()` implementation.
 6. Return incomplete, malformed, and invalid-scalar failures through
    `CharsetDecodeError` from `Codec::decode_unchecked()`.
 7. Implement `CharsetEncodeProbe` if the charset can be used with
@@ -594,10 +607,10 @@ To add another charset in a downstream crate:
 
 Important `decode_unchecked` expectations:
 
-- Success must consume at least one input unit.
+- Success returns a `NonZeroUsize` consumed-unit count.
 - Success must not consume beyond `input.len() - index`.
 - Callers using `decode_unchecked` provide at least `min_units_per_value()`
-  readable units and should normally provide up to `max_units_per_value()`
+  readable units and should normally provide up to `max_units_per_value().get()`
   unless EOF prevents that.
 - If the currently provided units are a valid but incomplete prefix, return
   `IncompleteSequence`; once the units prove the sequence invalid, return

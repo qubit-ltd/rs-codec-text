@@ -8,9 +8,13 @@
  *
  ******************************************************************************/
 use crate::{
+    CharsetCodec,
     CharsetDecodeError,
+    CharsetDecodeErrorKind,
+    CharsetDecoder,
     CharsetEncodeError,
 };
+use qubit_codec::ConvertErrorFactory;
 
 /// Error reported while converting between two charsets.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, thiserror::Error)]
@@ -22,4 +26,16 @@ pub enum CharsetConvertError {
     /// Target encoding failed.
     #[error("Failed to encode target charset: {0}")]
     Encode(#[from] CharsetEncodeError),
+}
+
+impl<D> ConvertErrorFactory<CharsetDecoder<D>> for CharsetConvertError
+where
+    D: CharsetCodec,
+{
+    /// Creates an input-index error for a charset converter.
+    #[inline(always)]
+    fn invalid_input_index(decoder: &CharsetDecoder<D>, index: usize, input_len: usize) -> Self {
+        let kind = CharsetDecodeErrorKind::InvalidInputIndex { input_len };
+        Self::Decode(CharsetDecodeError::new(decoder.codec().charset(), kind, index))
+    }
 }

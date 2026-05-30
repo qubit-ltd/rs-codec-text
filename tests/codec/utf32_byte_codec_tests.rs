@@ -14,8 +14,8 @@ fn test_utf32_byte_codec_exposes_encoder_and_decoder_contracts() {
     let codec = Utf32ByteCodec::new(ByteOrder::BigEndian);
 
     assert_eq!(Charset::UTF_32BE, <Utf32ByteCodec as CharsetCodec>::charset(&codec));
-    assert_eq!(4, codec.min_units_per_value());
-    assert_eq!(Utf32::MAX_BYTES_PER_CHAR, codec.max_units_per_value());
+    assert_eq!(4, codec.min_units_per_value().get());
+    assert_eq!(Utf32::MAX_BYTES_PER_CHAR, codec.max_units_per_value().get());
     assert_eq!(4, codec.encode_len('A', 0).expect("encode utf32 unit bytes"));
 
     assert_eq!(ByteOrder::BigEndian, codec.byte_order());
@@ -30,10 +30,9 @@ fn test_utf32_byte_codec_encodes_and_decodes_bytes() {
     assert_eq!(4, unsafe {
         codec.encode_unchecked(&'A', &mut output, 0).expect("encode UTF-32BE A")
     });
-    assert_eq!(
-        ('A', 4),
-        unsafe { codec.decode_unchecked(&output, 0) }.expect("decode UTF-32BE A"),
-    );
+    let (decoded, consumed) = unsafe { codec.decode_unchecked(&output, 0) }.expect("decode UTF-32BE A");
+    assert_eq!('A', decoded);
+    assert_eq!(4, consumed.get());
 
     let error = unsafe { codec.encode_unchecked(&'A', &mut output[..2], 0) }.expect_err("UTF-32 bytes need four bytes");
     assert_eq!(Some(4), error.required());

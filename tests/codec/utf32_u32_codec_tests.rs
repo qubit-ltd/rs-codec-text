@@ -13,8 +13,8 @@ fn test_utf32_u32_codec_exposes_encoder_and_decoder_contracts() {
     let codec = Utf32U32Codec;
 
     assert_eq!(Charset::UTF_32, <Utf32U32Codec as CharsetCodec>::charset(&codec));
-    assert_eq!(1, codec.min_units_per_value());
-    assert_eq!(Utf32::MAX_UNITS_PER_CHAR, codec.max_units_per_value());
+    assert_eq!(1, codec.min_units_per_value().get());
+    assert_eq!(Utf32::MAX_UNITS_PER_CHAR, codec.max_units_per_value().get());
     assert_eq!(1, codec.encode_len('A', 0).expect("encode utf32 unit"));
 
     assert_eq!(Charset::UTF_32, codec.charset());
@@ -30,10 +30,9 @@ fn test_utf32_u32_codec_encodes_and_decodes_units() {
             .encode_unchecked(&'😀', &mut output, 0)
             .expect("encode unit codec")
     });
-    assert_eq!(
-        ('😀', 1),
-        unsafe { codec.decode_unchecked(&output, 0) }.expect("decode unit codec"),
-    );
+    let (decoded, consumed) = unsafe { codec.decode_unchecked(&output, 0) }.expect("decode unit codec");
+    assert_eq!('😀', decoded);
+    assert_eq!(1, consumed.get());
 
     let error = unsafe { codec.encode_unchecked(&'A', &mut [], 0) }.expect_err("UTF-32 needs one unit");
     assert_eq!(Some(1), error.required());

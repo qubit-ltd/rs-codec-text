@@ -71,3 +71,29 @@ fn test_charset_decode_error_kind_displays_messages() {
     );
     assert_eq!(None, invalid.input_len());
 }
+
+#[test]
+fn test_charset_decode_error_kind_exposes_decode_policy_helpers() {
+    let malformed = CharsetDecodeErrorKind::MalformedSequence { value: Some(0x80) };
+    let incomplete = CharsetDecodeErrorKind::IncompleteSequence {
+        required: 3,
+        available: 1,
+    };
+    let invalid_index = CharsetDecodeErrorKind::InvalidInputIndex { input_len: 2 };
+    let invalid_code_point = CharsetDecodeErrorKind::InvalidCodePoint { value: 0x110000 };
+
+    assert!(!malformed.is_incomplete());
+    assert!(incomplete.is_incomplete());
+    assert!(!invalid_index.is_incomplete());
+    assert!(!invalid_code_point.is_incomplete());
+
+    assert_eq!(None, malformed.incomplete());
+    assert_eq!(Some((3, 1)), incomplete.incomplete());
+    assert_eq!(None, invalid_index.incomplete());
+    assert_eq!(None, invalid_code_point.incomplete());
+
+    assert!(malformed.is_malformed_input());
+    assert!(!incomplete.is_malformed_input());
+    assert!(!invalid_index.is_malformed_input());
+    assert!(invalid_code_point.is_malformed_input());
+}

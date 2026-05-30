@@ -10,16 +10,15 @@
 use super::{
     charset_codec::CharsetCodec,
     charset_convert_error::CharsetConvertError,
+    charset_convert_hooks::CharsetConvertHooks,
     charset_decoder::CharsetDecoder,
     charset_encode_probe::CharsetEncodeProbe,
     charset_encoder::CharsetEncoder,
 };
 use crate::{
+    BufferedConvertEngine,
     BufferedConverter,
-    CharsetDecodeError,
-    CharsetDecodeErrorKind,
     TranscodeProgress,
-    TranscodeStatus,
     Transcoder,
 };
 
@@ -28,9 +27,9 @@ use crate::{
 /// The converter owns a [`CharsetDecoder`] for the source charset and a
 /// [`CharsetEncoder`] for the target charset. A decoded character may be kept
 /// pending between calls when the target output buffer is full. During
-/// [`Transcoder::finish`], the converter also finalizes the source decoder so
-/// incomplete trailing input is handled by the decoder's malformed-input policy
-/// before any resulting replacement character is encoded into the target buffer.
+/// [`Transcoder::finish`], the converter only drains internally retained output.
+/// Callers remain responsible for handling any incomplete input tail before
+/// finishing the logical stream.
 ///
 /// # Type Parameters
 ///
@@ -69,12 +68,8 @@ where
     D: CharsetCodec,
     E: CharsetEncodeProbe,
 {
-    /// Source charset decoder.
-    decoder: CharsetDecoder<D>,
-    /// Target charset encoder.
-    encoder: CharsetEncoder<E>,
-    /// Decoded character waiting for target output capacity.
-    pending: Option<char>,
+    /// Common buffered converter engine.
+    engine: BufferedConvertEngine<CharsetDecoder<D>, CharsetEncoder<E>, CharsetConvertHooks, D::Unit>,
 }
 
 impl<D, E> CharsetConverter<D, E>
@@ -109,12 +104,10 @@ where
     ///
     /// Returns a converter that composes the supplied decoder and encoder.
     #[must_use]
-    #[inline]
+    #[inline(always)]
     pub fn new(decoder: CharsetDecoder<D>, encoder: CharsetEncoder<E>) -> Self {
         Self {
-            decoder,
-            encoder,
-            pending: None,
+            engine: BufferedConvertEngine::new(decoder, encoder, CharsetConvertHooks::new()),
         }
     }
 
@@ -124,9 +117,9 @@ where
     ///
     /// Returns a shared reference to the configured decoder.
     #[must_use]
-    #[inline]
+    #[inline(always)]
     pub const fn decoder(&self) -> &CharsetDecoder<D> {
-        &self.decoder
+        self.engine.decoder()
     }
 
     /// Returns the target encoder.
@@ -135,9 +128,9 @@ where
     ///
     /// Returns a shared reference to the configured encoder.
     #[must_use]
-    #[inline]
+    #[inline(always)]
     pub const fn encoder(&self) -> &CharsetEncoder<E> {
-        &self.encoder
+        self.engine.encoder()
     }
 
     /// Returns a mutable source decoder.
@@ -146,9 +139,9 @@ where
     ///
     /// Returns a mutable reference to the configured decoder.
     #[must_use]
-    #[inline]
+    #[inline(always)]
     pub fn decoder_mut(&mut self) -> &mut CharsetDecoder<D> {
-        &mut self.decoder
+        self.engine.decoder_mut()
     }
 
     /// Returns a mutable target encoder.
@@ -157,44 +150,9 @@ where
     ///
     /// Returns a mutable reference to the configured encoder.
     #[must_use]
-    #[inline]
+    #[inline(always)]
     pub fn encoder_mut(&mut self) -> &mut CharsetEncoder<E> {
-        &mut self.encoder
-    }
-
-    /// Writes the pending character through the target encoder.
-    ///
-    /// # Parameters
-    ///
-    /// - `ch`: Pending character to encode.
-    /// - `output`: Complete output slice visible to the converter.
-    /// - `output_index`: Absolute output index where this conversion call started.
-    /// - `written`: Number of output units already written by this conversion call.
-    ///
-    /// # Returns
-    ///
-    /// Returns [`TranscodeStatus::Complete`] when the pending character was written.
-    /// Returns [`TranscodeStatus::NeedOutput`] when it must stay pending for a later call.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`CharsetConvertError::Encode`] when target encoding fails
-    /// according to the configured encoder policy.
-    #[inline]
-    fn write_pending(
-        &mut self,
-        ch: char,
-        output: &mut [E::Unit],
-        output_index: usize,
-        written: &mut usize,
-    ) -> Result<TranscodeProgress, CharsetConvertError> {
-        let single = [ch];
-        let encode_progress = self.encoder.transcode(&single, 0, output, output_index + *written)?;
-        if !matches!(encode_progress.status(), TranscodeStatus::NeedOutput { .. }) {
-            self.pending = None;
-        }
-        *written += encode_progress.written();
-        Ok(encode_progress)
+        self.engine.encoder_mut()
     }
 }
 
@@ -206,28 +164,21 @@ where
     type Error = CharsetConvertError;
 
     /// Returns the target-side upper bound for converted output units.
-    #[inline]
+    #[inline(always)]
     fn max_output_len(&self, input_len: usize) -> Option<usize> {
-        input_len.checked_mul(self.encoder.codec().max_units_per_value())
+        self.engine.max_output_len::<char, E::Unit>(input_len)
     }
 
     /// Returns the maximum target units needed to finalize pending conversion state.
-    #[inline]
+    #[inline(always)]
     fn max_finish_output_len(&self) -> Option<usize> {
-        let units_per_char = self.encoder.codec().max_units_per_value();
-        let pending_units = usize::from(self.pending.is_some()) * units_per_char;
-        let decoder_units = self.decoder.max_finish_output_len()?.checked_mul(units_per_char)?;
-        pending_units
-            .checked_add(decoder_units)?
-            .checked_add(self.encoder.max_finish_output_len()?)
+        self.engine.max_finish_output_len::<char, E::Unit>()
     }
 
     /// Clears any pending decoded character.
-    #[inline]
+    #[inline(always)]
     fn reset(&mut self) {
-        self.pending = None;
-        self.decoder.reset();
-        self.encoder.reset();
+        self.engine.reset::<char, E::Unit>();
     }
 
     /// Converts source units to target units through the configured decoder and encoder.
@@ -244,72 +195,8 @@ where
         output: &mut [E::Unit],
         output_index: usize,
     ) -> Result<TranscodeProgress, Self::Error> {
-        if input_index > input.len() {
-            let kind = CharsetDecodeErrorKind::InvalidInputIndex { input_len: input.len() };
-            return Err(CharsetConvertError::Decode(CharsetDecodeError::new(
-                self.decoder.codec().charset(),
-                kind,
-                input_index,
-            )));
-        }
-
-        let mut read = 0;
-        let mut written = 0;
-
-        if let Some(ch) = self.pending {
-            let status = self.write_pending(ch, output, output_index, &mut written)?;
-            if matches!(status.status(), TranscodeStatus::NeedOutput { .. }) {
-                let status = TranscodeStatus::NeedOutput {
-                    output_index: output_index + written,
-                    required: status.required(),
-                    available: status.available(),
-                };
-                return Ok(TranscodeProgress::new(status, read, written));
-            }
-        }
-
-        while input_index + read < input.len() {
-            let mut decoded = ['\0'; 1];
-            let decode_progress = self.decoder.transcode(input, input_index + read, &mut decoded, 0)?;
-            let decode_status = decode_progress.status();
-            let decode_read = decode_progress.read();
-            read += decode_read;
-
-            if decode_progress.written() > 0 {
-                for &ch in decoded.iter().take(decode_progress.written()) {
-                    self.pending = Some(ch);
-                    let status = self.write_pending(ch, output, output_index, &mut written)?;
-                    if matches!(status.status(), TranscodeStatus::NeedOutput { .. }) {
-                        let status = TranscodeStatus::NeedOutput {
-                            output_index: output_index + written,
-                            required: status.required(),
-                            available: status.available(),
-                        };
-                        return Ok(TranscodeProgress::new(status, read, written));
-                    }
-                }
-            }
-
-            match decode_status {
-                TranscodeStatus::Complete => return Ok(TranscodeProgress::complete(read, written)),
-                TranscodeStatus::NeedInput { .. } => {
-                    let status = TranscodeStatus::NeedInput {
-                        input_index: input_index + read,
-                        required: decode_progress.required(),
-                        available: decode_progress.available(),
-                    };
-                    return Ok(TranscodeProgress::new(status, read, written));
-                }
-                TranscodeStatus::NeedOutput { .. } => {
-                    debug_assert!(
-                        decode_read > 0,
-                        "Charset decoder must consume at least one input unit when reporting NeedOutput"
-                    );
-                }
-            }
-        }
-
-        Ok(TranscodeProgress::complete(read, written))
+        self.engine
+            .transcode::<char, E::Unit>(input, input_index, output, output_index)
     }
 
     /// Finalizes pending decoded characters and source decoder state.
@@ -331,45 +218,7 @@ where
     /// incomplete EOF input. Returns `CharsetConvertError::Encode` when encoding
     /// pending decoded characters violates target charset policy.
     fn finish(&mut self, output: &mut [E::Unit], output_index: usize) -> Result<TranscodeProgress, Self::Error> {
-        let mut written = 0;
-
-        if let Some(ch) = self.pending {
-            let status = self.write_pending(ch, output, output_index, &mut written)?;
-            if matches!(status.status(), TranscodeStatus::NeedOutput { .. }) {
-                let status = TranscodeStatus::NeedOutput {
-                    output_index: output_index + written,
-                    required: status.required(),
-                    available: status.available(),
-                };
-                return Ok(TranscodeProgress::new(status, 0, written));
-            }
-        }
-
-        loop {
-            let mut decoded = ['\0'; 1];
-            let decode_finish = self.decoder.finish(&mut decoded, 0)?;
-            for &ch in decoded.iter().take(decode_finish.written()) {
-                self.pending = Some(ch);
-                let status = self.write_pending(ch, output, output_index, &mut written)?;
-                if matches!(status.status(), TranscodeStatus::NeedOutput { .. }) {
-                    let status = TranscodeStatus::NeedOutput {
-                        output_index: output_index + written,
-                        required: status.required(),
-                        available: status.available(),
-                    };
-                    return Ok(TranscodeProgress::new(status, 0, written));
-                }
-            }
-            if decode_finish.status() == TranscodeStatus::Complete {
-                break;
-            }
-            debug_assert!(
-                decode_finish.written() > 0,
-                "decoder finish has one output slot and should only request more output after writing",
-            );
-        }
-
-        Ok(TranscodeProgress::complete(0, written))
+        self.engine.finish::<char, E::Unit>(output, output_index)
     }
 }
 

@@ -33,7 +33,7 @@ use crate::{
 ///
 /// # Returns
 ///
-/// Returns the decoded character and the number of consumed bytes.
+/// Returns the decoded character and the non-zero number of consumed bytes.
 ///
 /// # Errors
 ///
@@ -43,7 +43,7 @@ use crate::{
 ///   continuation bytes are invalid for UTF-8.
 /// * `CharsetDecodeErrorKind::IncompleteSequence` when EOF appears before the
 ///   complete UTF-8 sequence is available.
-pub(crate) fn decode_prefix(input: &[u8], index: usize) -> CharsetDecodeResult<(char, usize)> {
+pub(crate) fn decode_prefix(input: &[u8], index: usize) -> CharsetDecodeResult<(char, core::num::NonZeroUsize)> {
     if index > input.len() {
         let kind = CharsetDecodeErrorKind::InvalidInputIndex { input_len: input.len() };
         return Err(CharsetDecodeError::new(Charset::UTF_8, kind, index));
@@ -81,7 +81,10 @@ pub(crate) fn decode_prefix(input: &[u8], index: usize) -> CharsetDecodeResult<(
         _ => unreachable!("UTF-8 sequence length is limited to four bytes"),
     };
     let ch = Unicode::to_char(code_point).expect("well-formed UTF-8 decodes to a Unicode scalar");
-    Ok((ch, length))
+    Ok((
+        ch,
+        core::num::NonZeroUsize::new(length).expect("well-formed UTF-8 sequence has non-zero length"),
+    ))
 }
 
 /// Encodes one Unicode scalar value into UTF-8 at `index` in `output`.
