@@ -23,12 +23,10 @@ Use this crate when you need:
 - Buffer-level codecs for ASCII, ISO-8859-1, UTF-8, UTF-16, and UTF-32.
 - Policy-aware decoders, encoders, and converters with replace, ignore, and
   report modes.
-- `Charset`, `UnicodeBom`, `ByteOrder`, `CodecValueEncoder`,
-  `CodecBufferedEncoder`, `CodecBufferedDecoder`, `BufferedEncodeEngine`,
-  `BufferedDecodeEngine`, `BufferedEncodeHooks`, `BufferedDecodeHooks`,
-  `EncodePlan`, `BufferedEncoder`, `BufferedDecoder`, `BufferedConverter`,
-  `Transcoder`, and typed encode/decode error values for building higher-level
-  adapters.
+- `Charset`, `UnicodeBom`, `ByteOrder`, `Codec`, `Transcoder`, typed
+  encode/decode errors, and policy-aware wrappers for building higher-level
+  adapters. Custom buffered adapters should import core engines and hooks
+  directly from `qubit-codec`.
 
 This crate is not a general text processing library. It intentionally stays
 below grapheme segmentation, normalization, collation, locale-aware case
@@ -43,9 +41,10 @@ adapters. Use crates such as `unicode-segmentation`, `unicode-normalization`,
 qubit-codec-text = "0.1"
 ```
 
-`qubit-codec` is the core runtime dependency, and the core buffer-level traits
-and codec-backed encoder/decoder adapters used by the public API are
-re-exported by `qubit-codec-text`.
+`qubit-codec` is the core runtime dependency. `qubit-codec-text` re-exports the
+small set of core traits and status types needed by normal text-codec calls;
+custom adapters should import engines, hooks, and generic adapters directly from
+`qubit-codec`.
 
 For compact imports:
 
@@ -331,13 +330,12 @@ For strict validation:
 ```rust
 use qubit_codec_text::{
     CharsetDecoder,
+    CharsetDecodePolicy,
     Transcoder,
-    MalformedAction,
     Utf8Codec,
 };
 
-let mut decoder = CharsetDecoder::new(Utf8Codec);
-decoder.set_malformed_action(MalformedAction::Report);
+let mut decoder = CharsetDecoder::with_policy(Utf8Codec, CharsetDecodePolicy::report());
 
 let mut output = ['\0'; 1];
 let error = decoder
@@ -391,12 +389,12 @@ For ASCII output with strict unmappable handling:
 use qubit_codec_text::{
     AsciiCodec,
     CharsetEncoder,
+    CharsetEncodePolicy,
     Transcoder,
-    UnmappableAction,
 };
 
-let mut encoder = CharsetEncoder::new(AsciiCodec);
-encoder.set_unmappable_action(UnmappableAction::Report);
+let mut encoder = CharsetEncoder::with_policy(AsciiCodec, CharsetEncodePolicy::report())
+    .expect("report policy is constructible");
 
 let mut output = [0_u8; 1];
 let error = encoder.transcode(&['é'], 0, &mut output, 0).expect_err("not ASCII");
@@ -416,17 +414,16 @@ delegates to `BufferedEncodeEngine<C, H>`. The engine owns input iteration,
 output capacity checks, and `TranscodeProgress` construction; the hooks supply
 the charset-specific plan for original, replacement, or ignored characters.
 
-Use `with_replacement` or `set_replacement` to validate a custom replacement
-character up front:
+Use `with_policy` to validate a custom replacement character up front:
 
 ```rust
 use qubit_codec_text::{
     AsciiCodec,
+    CharsetEncodePolicy,
     CharsetEncoder,
 };
 
-let encoder = CharsetEncoder::new(AsciiCodec)
-    .with_replacement('?')
+let encoder = CharsetEncoder::with_policy(AsciiCodec, CharsetEncodePolicy::replace('?'))
     .expect("ASCII replacement is encodable");
 assert_eq!('?', encoder.replacement());
 ```

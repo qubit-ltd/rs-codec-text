@@ -19,11 +19,9 @@
 - UTF-8、UTF-16、UTF-32 命名空间辅助函数，用于长度计算和 BOM 检测。
 - ASCII、ISO-8859-1、UTF-8、UTF-16、UTF-32 的缓冲区级 codec。
 - 带策略的 decoder、encoder 和 converter，支持 replace、ignore、report。
-- `Charset`、`UnicodeBom`、`ByteOrder`、`CodecValueEncoder`、
-  `CodecBufferedEncoder`、`CodecBufferedDecoder`、`BufferedEncodeEngine`、
-  `BufferedDecodeEngine`、`BufferedEncodeHooks`、`BufferedDecodeHooks`、
-  `EncodePlan`、`BufferedEncoder`、`BufferedDecoder`、`BufferedConverter`、
-  `Transcoder` 和强类型编解码错误，便于构建更高层适配器。
+- `Charset`、`UnicodeBom`、`ByteOrder`、`Codec`、`Transcoder`、强类型
+  编解码错误，以及带策略的 wrapper，便于构建更高层适配器。自定义
+  buffered adapter 需要直接从 `qubit-codec` 引入 core engine 和 hook。
 
 本库不是通用文本处理库。它刻意停留在字素簇切分、规范化、排序、区域相关大小写
 映射、显示宽度、自动 charset 检测和 `std::io` 读写适配器之下。这些能力应使用
@@ -37,8 +35,9 @@
 qubit-codec-text = "0.1"
 ```
 
-`qubit-codec` 是核心运行时依赖；公开 API 使用的核心缓冲区级 trait 已经由
-`qubit-codec-text` 重导出。
+`qubit-codec` 是核心运行时依赖。`qubit-codec-text` 只重导出普通 text-codec
+调用需要的一小组 core trait 和状态类型；自定义 adapter 应直接从 `qubit-codec`
+引入 engine、hook 和通用 adapter。
 
 需要紧凑导入时：
 
@@ -309,13 +308,12 @@ assert_eq!(['A', 'é'], output);
 ```rust
 use qubit_codec_text::{
     CharsetDecoder,
+    CharsetDecodePolicy,
     Transcoder,
-    MalformedAction,
     Utf8Codec,
 };
 
-let mut decoder = CharsetDecoder::new(Utf8Codec);
-decoder.set_malformed_action(MalformedAction::Report);
+let mut decoder = CharsetDecoder::with_policy(Utf8Codec, CharsetDecodePolicy::report());
 
 let mut output = ['\0'; 1];
 let error = decoder
@@ -367,13 +365,13 @@ ASCII 输出的严格 unmappable 处理：
 ```rust
 use qubit_codec_text::{
     AsciiCodec,
+    CharsetEncodePolicy,
     CharsetEncoder,
     Transcoder,
-    UnmappableAction,
 };
 
-let mut encoder = CharsetEncoder::new(AsciiCodec);
-encoder.set_unmappable_action(UnmappableAction::Report);
+let mut encoder = CharsetEncoder::with_policy(AsciiCodec, CharsetEncodePolicy::report())
+    .expect("report policy is constructible");
 
 let mut output = [0_u8; 1];
 let error = encoder.transcode(&['é'], 0, &mut output, 0).expect_err("not ASCII");
@@ -392,16 +390,16 @@ assert_eq!(Some('é' as u32), error.value());
 `TranscodeProgress` 构造；hooks 提供 original、replacement 或 ignored 字符对应的
 charset-specific 计划。
 
-需要自定义替换字符时，可使用 `with_replacement` 或 `set_replacement` 提前验证：
+需要自定义替换字符时，可使用 `with_policy` 提前验证：
 
 ```rust
 use qubit_codec_text::{
     AsciiCodec,
+    CharsetEncodePolicy,
     CharsetEncoder,
 };
 
-let encoder = CharsetEncoder::new(AsciiCodec)
-    .with_replacement('?')
+let encoder = CharsetEncoder::with_policy(AsciiCodec, CharsetEncodePolicy::replace('?'))
     .expect("ASCII replacement is encodable");
 assert_eq!('?', encoder.replacement());
 ```

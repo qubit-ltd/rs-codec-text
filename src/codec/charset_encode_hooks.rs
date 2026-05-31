@@ -137,3 +137,18 @@ where
         }
     }
 }
+
+/// Encodes a replacement character for charset encode hooks.
+pub(super) fn encode_replacement<C>(codec: &C, ch: char) -> CharsetEncodeResult<Vec<C::Unit>>
+where
+    C: CharsetEncodeProbe,
+{
+    let required = codec.encode_len(ch, 0)?;
+    let mut output = vec![C::Unit::default(); required];
+    // SAFETY: CharsetEncodeProbe reports the exact output width accepted by
+    // charset codec implementations.
+    let written = unsafe { codec.encode_unchecked(&ch, output.as_mut_slice(), 0) }?;
+    debug_assert!(written <= required);
+    output.truncate(written);
+    Ok(output)
+}

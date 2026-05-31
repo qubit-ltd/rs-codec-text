@@ -11,7 +11,6 @@ use core::fmt;
 use std::error::Error;
 
 use qubit_codec::{
-    DecodeContext,
     DecodeErrorInfo,
     DecodeFailure,
 };
@@ -198,31 +197,6 @@ impl CharsetDecodeError {
             index: self.index + base,
             consumed: self.consumed,
         }
-    }
-
-    /// Calculates how many input units malformed-input policy should consume.
-    ///
-    /// # Parameters
-    ///
-    /// - `context`: Buffered decode context for the failed decode attempt.
-    ///
-    /// # Returns
-    ///
-    /// Returns a count clamped to units available from `context.input_index`.
-    /// When this error has explicit consumption metadata, that value is used.
-    /// Otherwise the count includes the reported failing unit and is at least
-    /// one when input remains available.
-    #[inline]
-    pub(crate) fn policy_consumed(self, context: DecodeContext) -> usize {
-        self.consumed()
-            .unwrap_or_else(|| {
-                let input_len = context.input_index + context.available;
-                let available = input_len.saturating_sub(context.input_index);
-                let end = self.index.saturating_add(1).min(input_len);
-                end.saturating_sub(context.input_index).max(1).min(available)
-            })
-            .max(1)
-            .min(context.available)
     }
 }
 

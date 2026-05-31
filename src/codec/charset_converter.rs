@@ -11,25 +11,30 @@ use super::{
     charset_codec::CharsetCodec,
     charset_convert_error::CharsetConvertError,
     charset_convert_hooks::CharsetConvertHooks,
-    charset_decoder::CharsetDecoder,
+    charset_decode_policy::CharsetDecodePolicy,
+    charset_encode_policy::CharsetEncodePolicy,
     charset_encode_probe::CharsetEncodeProbe,
     charset_encoder::CharsetEncoder,
 };
-use crate::{
+use crate::CharsetEncodeError;
+use qubit_codec::{
     BufferedConvertEngine,
     BufferedConverter,
+    CapacityError,
     TranscodeProgress,
     Transcoder,
 };
 
 /// Converts units encoded with one charset into units encoded with another charset.
 ///
-/// The converter owns a [`CharsetDecoder`] for the source charset and a
-/// [`CharsetEncoder`] for the target charset. A decoded character may be kept
-/// pending between calls when the target output buffer is full. During
-/// [`Transcoder::finish`], the converter only drains internally retained output.
-/// Callers remain responsible for handling any incomplete input tail before
-/// finishing the logical stream.
+/// The converter owns the source and target charset codecs plus the same
+/// decode/encode policy hooks used by [`crate::CharsetDecoder`] and
+/// [`crate::CharsetEncoder`].
+/// A decoded character may be kept pending inside the common buffered convert
+/// engine when the target output buffer is full. During [`Transcoder::finish`],
+/// the converter drains internally retained output and finishes the composed
+/// decode/encode policy hooks. Callers remain responsible for handling any
+/// incomplete input tail before finishing the logical stream.
 ///
 /// # Type Parameters
 ///
@@ -47,10 +52,7 @@ use crate::{
 ///     Utf8Codec,
 /// };
 ///
-/// let mut converter = CharsetConverter::new(
-///     CharsetDecoder::new(Utf8Codec),
-///     CharsetEncoder::new(Utf16U16Codec),
-/// );
+/// let mut converter = CharsetConverter::from_codecs(Utf8Codec, Utf16U16Codec);
 /// let mut output = [0_u16; 2];
 ///
 /// let progress = converter
@@ -69,7 +71,7 @@ where
     E: CharsetEncodeProbe,
 {
     /// Common buffered converter engine.
-    engine: BufferedConvertEngine<CharsetDecoder<D>, CharsetEncoder<E>, CharsetConvertHooks, D::Unit>,
+    engine: BufferedConvertEngine<D, E, CharsetConvertHooks, D::Unit, char>,
 }
 
 impl<D, E> CharsetConverter<D, E>
@@ -90,69 +92,43 @@ where
     #[must_use]
     #[inline]
     pub fn from_codecs(source: D, target: E) -> Self {
-        Self::new(CharsetDecoder::new(source), CharsetEncoder::new(target))
-    }
-
-    /// Creates a charset converter from a decoder and an encoder.
-    ///
-    /// # Parameters
-    ///
-    /// - `decoder`: Charset decoder configured for the source charset.
-    /// - `encoder`: Charset encoder configured for the target charset.
-    ///
-    /// # Returns
-    ///
-    /// Returns a converter that composes the supplied decoder and encoder.
-    #[must_use]
-    #[inline(always)]
-    pub fn new(decoder: CharsetDecoder<D>, encoder: CharsetEncoder<E>) -> Self {
         Self {
-            engine: BufferedConvertEngine::new(decoder, encoder, CharsetConvertHooks::new()),
+            engine: BufferedConvertEngine::new(source, target, CharsetConvertHooks::default()),
         }
     }
 
-    /// Returns the source decoder.
+    /// Creates a charset converter from raw codecs and explicit policies.
+    ///
+    /// # Parameters
+    ///
+    /// - `source`: Source charset codec.
+    /// - `target`: Target charset codec.
+    /// - `decode_policy`: Malformed source-input policy.
+    /// - `encode_policy`: Unmappable target-output policy.
     ///
     /// # Returns
     ///
-    /// Returns a shared reference to the configured decoder.
-    #[must_use]
-    #[inline(always)]
-    pub const fn decoder(&self) -> &CharsetDecoder<D> {
-        self.engine.decoder()
-    }
-
-    /// Returns the target encoder.
+    /// Returns a converter configured with the supplied policies.
     ///
-    /// # Returns
+    /// # Errors
     ///
-    /// Returns a shared reference to the configured encoder.
-    #[must_use]
-    #[inline(always)]
-    pub const fn encoder(&self) -> &CharsetEncoder<E> {
-        self.engine.encoder()
-    }
-
-    /// Returns a mutable source decoder.
-    ///
-    /// # Returns
-    ///
-    /// Returns a mutable reference to the configured decoder.
-    #[must_use]
-    #[inline(always)]
-    pub fn decoder_mut(&mut self) -> &mut CharsetDecoder<D> {
-        self.engine.decoder_mut()
-    }
-
-    /// Returns a mutable target encoder.
-    ///
-    /// # Returns
-    ///
-    /// Returns a mutable reference to the configured encoder.
-    #[must_use]
-    #[inline(always)]
-    pub fn encoder_mut(&mut self) -> &mut CharsetEncoder<E> {
-        self.engine.encoder_mut()
+    /// Returns an error when `encode_policy` uses replacement and the target
+    /// codec cannot encode the replacement character.
+    #[inline]
+    pub fn from_codecs_with_policies(
+        source: D,
+        target: E,
+        decode_policy: CharsetDecodePolicy,
+        encode_policy: CharsetEncodePolicy,
+    ) -> Result<Self, CharsetEncodeError> {
+        let _ = CharsetEncoder::<E>::create_hooks(&target, encode_policy)?;
+        Ok(Self {
+            engine: BufferedConvertEngine::new(
+                source,
+                target,
+                CharsetConvertHooks::with_policies(decode_policy, encode_policy),
+            ),
+        })
     }
 }
 
@@ -165,20 +141,20 @@ where
 
     /// Returns the target-side upper bound for converted output units.
     #[inline(always)]
-    fn max_output_len(&self, input_len: usize) -> Option<usize> {
-        self.engine.max_output_len::<char, E::Unit>(input_len)
+    fn max_output_len(&self, input_len: usize) -> Result<usize, CapacityError> {
+        self.engine.max_output_len::<E::Unit>(input_len)
     }
 
     /// Returns the maximum target units needed to finalize pending conversion state.
     #[inline(always)]
-    fn max_finish_output_len(&self) -> Option<usize> {
-        self.engine.max_finish_output_len::<char, E::Unit>()
+    fn max_finish_output_len(&self) -> Result<usize, CapacityError> {
+        self.engine.max_finish_output_len::<E::Unit>()
     }
 
     /// Clears any pending decoded character.
     #[inline(always)]
     fn reset(&mut self) {
-        self.engine.reset::<char, E::Unit>();
+        self.engine.reset::<E::Unit>();
     }
 
     /// Converts source units to target units through the configured decoder and encoder.
@@ -196,10 +172,10 @@ where
         output_index: usize,
     ) -> Result<TranscodeProgress, Self::Error> {
         self.engine
-            .transcode::<char, E::Unit>(input, input_index, output, output_index)
+            .transcode::<E::Unit>(input, input_index, output, output_index)
     }
 
-    /// Finalizes pending decoded characters and source decoder state.
+    /// Finalizes internally retained decoded characters and policy hook state.
     ///
     /// # Parameters
     ///
@@ -208,17 +184,16 @@ where
     ///
     /// # Returns
     ///
-    /// Returns completed progress when no pending state exists. Returns
-    /// `NeedOutput` when pending output cannot be flushed due to missing target
-    /// capacity.
+    /// Returns completed progress when no finish output remains. Returns
+    /// `NeedOutput` when pending or final output cannot be flushed due to
+    /// missing target capacity.
     ///
     /// # Errors
     ///
-    /// Returns `CharsetConvertError::Decode` when the source decoder rejects
-    /// incomplete EOF input. Returns `CharsetConvertError::Encode` when encoding
-    /// pending decoded characters violates target charset policy.
+    /// Returns `CharsetConvertError::Encode` when encoding pending or final
+    /// decoded characters violates target charset policy.
     fn finish(&mut self, output: &mut [E::Unit], output_index: usize) -> Result<TranscodeProgress, Self::Error> {
-        self.engine.finish::<char, E::Unit>(output, output_index)
+        self.engine.finish::<E::Unit>(output, output_index)
     }
 }
 

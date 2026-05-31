@@ -1,23 +1,21 @@
+use qubit_codec::BufferedConverter;
 use qubit_codec_text::{
-    BufferedConverter,
     Charset,
     CharsetCodec,
     CharsetConvertError,
     CharsetConverter,
     CharsetDecodeError,
     CharsetDecodeErrorKind,
+    CharsetDecodePolicy,
     CharsetDecodeResult,
-    CharsetDecoder,
     CharsetEncodeError,
     CharsetEncodeErrorKind,
+    CharsetEncodePolicy,
     CharsetEncodeProbe,
     CharsetEncodeResult,
-    CharsetEncoder,
     Codec,
-    MalformedAction,
     TranscodeStatus,
     Transcoder,
-    UnmappableAction,
     Utf8Codec,
     Utf16U16Codec,
 };
@@ -85,6 +83,59 @@ unsafe impl Codec<char, u8> for AsciiBytesCodec {
     }
 }
 
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+struct ReplacementFallbackCodec;
+
+impl CharsetCodec for ReplacementFallbackCodec {
+    type Unit = u8;
+
+    fn charset(&self) -> Charset {
+        Charset::ASCII
+    }
+}
+
+impl CharsetEncodeProbe for ReplacementFallbackCodec {
+    fn encode_len(&self, ch: char, index: usize) -> CharsetEncodeResult<usize> {
+        if ch == '\u{fffd}' {
+            let kind = CharsetEncodeErrorKind::UnmappableCharacter { value: ch as u32 };
+            return Err(CharsetEncodeError::new(Charset::ASCII, kind, index));
+        }
+        if ch == '?' || ch.is_ascii() {
+            return Ok(1);
+        }
+        let kind = CharsetEncodeErrorKind::UnmappableCharacter { value: ch as u32 };
+        Err(CharsetEncodeError::new(Charset::ASCII, kind, index))
+    }
+}
+
+unsafe impl Codec<char, u8> for ReplacementFallbackCodec {
+    type DecodeError = CharsetDecodeError;
+    type EncodeError = CharsetEncodeError;
+
+    fn min_units_per_value(&self) -> core::num::NonZeroUsize {
+        core::num::NonZeroUsize::MIN
+    }
+
+    fn max_units_per_value(&self) -> core::num::NonZeroUsize {
+        core::num::NonZeroUsize::MIN
+    }
+
+    unsafe fn decode_unchecked(
+        &self,
+        input: &[u8],
+        index: usize,
+    ) -> CharsetDecodeResult<(char, core::num::NonZeroUsize)> {
+        unsafe { AsciiBytesCodec.decode_unchecked(input, index) }
+    }
+
+    unsafe fn encode_unchecked(&self, value: &char, output: &mut [u8], index: usize) -> CharsetEncodeResult<usize> {
+        let required = self.encode_len(*value, index)?;
+        debug_assert!(index + required <= output.len());
+        output[index] = *value as u8;
+        Ok(required)
+    }
+}
+
 #[test]
 fn test_charset_converter_is_buffered_converter() {
     fn assert_buffered_converter<T: BufferedConverter<u8, u16>>() {}
@@ -94,20 +145,10 @@ fn test_charset_converter_is_buffered_converter() {
 
 #[test]
 fn test_charset_converter_exposes_configuration_and_bounds() {
-    let decoder = CharsetDecoder::new(Utf8Codec);
-    let encoder = CharsetEncoder::new(Utf16U16Codec);
-    let mut converter = CharsetConverter::new(decoder, encoder);
+    let mut converter = CharsetConverter::from_codecs(Utf8Codec, Utf16U16Codec);
 
-    assert_eq!(Charset::UTF_8, converter.decoder().codec().charset());
-    assert_eq!(Charset::UTF_16, converter.encoder().codec().charset());
-    assert_eq!(Some(6), converter.max_output_len(3));
-    assert_eq!(Some(0), converter.max_finish_output_len());
-
-    converter.decoder_mut().set_malformed_action(MalformedAction::Ignore);
-    converter.encoder_mut().set_unmappable_action(UnmappableAction::Ignore);
-
-    assert_eq!(MalformedAction::Ignore, converter.decoder().malformed_action());
-    assert_eq!(UnmappableAction::Ignore, converter.encoder().unmappable_action());
+    assert_eq!(Ok(6), converter.max_output_len(3));
+    assert_eq!(Ok(0), converter.max_finish_output_len());
 
     converter.reset();
 }
@@ -125,7 +166,7 @@ fn test_charset_converter_from_codecs_converts_available_ascii_without_finish() 
     assert_eq!(4, progress.read());
     assert_eq!(4, progress.written());
     assert_eq!(['A' as u16, 'B' as u16, 'C' as u16, 'D' as u16], output);
-    assert_eq!(Some(0), converter.max_finish_output_len());
+    assert_eq!(Ok(0), converter.max_finish_output_len());
 
     let finish = converter.finish(&mut output, 0).expect("finish has no buffered tail");
     assert_eq!(TranscodeStatus::Complete, finish.status());
@@ -154,9 +195,7 @@ fn test_charset_converter_drains_decoder_need_output_batches() {
 
 #[test]
 fn test_charset_converter_reports_invalid_input_index() {
-    let decoder = CharsetDecoder::new(Utf8Codec);
-    let encoder = CharsetEncoder::new(Utf16U16Codec);
-    let mut converter = CharsetConverter::new(decoder, encoder);
+    let mut converter = CharsetConverter::from_codecs(Utf8Codec, Utf16U16Codec);
     let input = b"A";
     let mut output = [0_u16; 1];
 
@@ -179,9 +218,7 @@ fn test_charset_converter_reports_invalid_input_index() {
 
 #[test]
 fn test_charset_converter_keeps_pending_character_when_output_is_full() {
-    let decoder = CharsetDecoder::new(Utf8Codec);
-    let encoder = CharsetEncoder::new(Utf16U16Codec);
-    let mut converter = CharsetConverter::new(decoder, encoder);
+    let mut converter = CharsetConverter::from_codecs(Utf8Codec, Utf16U16Codec);
     let mut empty_output = [];
 
     let progress = converter
@@ -191,8 +228,8 @@ fn test_charset_converter_keeps_pending_character_when_output_is_full() {
     assert!(matches!(progress.status(), TranscodeStatus::NeedOutput { .. }));
     assert_eq!(1, progress.read());
     assert_eq!(0, progress.written());
-    assert_eq!(Some(2), converter.max_finish_output_len());
-    assert_eq!(Some(8), converter.max_output_len(3));
+    assert_eq!(Ok(2), converter.max_finish_output_len());
+    assert_eq!(Ok(8), converter.max_output_len(3));
 
     let progress = converter
         .transcode(b"", 0, &mut empty_output, 0)
@@ -284,7 +321,7 @@ fn test_charset_converter_finish_writes_starting_pending_character() {
 
 #[test]
 fn test_charset_converter_resets_pending_state() {
-    let mut converter = CharsetConverter::new(CharsetDecoder::new(Utf8Codec), CharsetEncoder::new(Utf16U16Codec));
+    let mut converter = CharsetConverter::from_codecs(Utf8Codec, Utf16U16Codec);
     let mut empty_output = [];
     converter
         .transcode(b"ABCD", 0, &mut empty_output, 0)
@@ -305,9 +342,7 @@ fn test_charset_converter_resets_pending_state() {
 
 #[test]
 fn test_charset_converter_finish_does_not_finalize_incomplete_source_input() {
-    let decoder = CharsetDecoder::new(Utf8Codec);
-    let encoder = CharsetEncoder::new(Utf16U16Codec);
-    let mut converter = CharsetConverter::new(decoder, encoder);
+    let mut converter = CharsetConverter::from_codecs(Utf8Codec, Utf16U16Codec);
     let mut output = [0_u16; 1];
 
     let progress = converter
@@ -317,7 +352,7 @@ fn test_charset_converter_finish_does_not_finalize_incomplete_source_input() {
     assert!(matches!(progress.status(), TranscodeStatus::NeedInput { .. }));
     assert_eq!(0, progress.read());
     assert_eq!(0, progress.written());
-    assert_eq!(Some(0), converter.max_finish_output_len());
+    assert_eq!(Ok(0), converter.max_finish_output_len());
 
     let finish = converter
         .finish(&mut output, 0)
@@ -327,14 +362,12 @@ fn test_charset_converter_finish_does_not_finalize_incomplete_source_input() {
     assert_eq!(0, finish.read());
     assert_eq!(0, finish.written());
     assert_eq!(0, output[0]);
-    assert_eq!(Some(0), converter.max_finish_output_len());
+    assert_eq!(Ok(0), converter.max_finish_output_len());
 }
 
 #[test]
 fn test_charset_converter_finish_has_no_output_for_incomplete_source_input() {
-    let decoder = CharsetDecoder::new(Utf8Codec);
-    let encoder = CharsetEncoder::new(Utf16U16Codec);
-    let mut converter = CharsetConverter::new(decoder, encoder);
+    let mut converter = CharsetConverter::from_codecs(Utf8Codec, Utf16U16Codec);
     let mut output = [];
 
     let progress = converter
@@ -342,7 +375,7 @@ fn test_charset_converter_finish_has_no_output_for_incomplete_source_input() {
         .expect("partial source sequence needs more input");
 
     assert!(matches!(progress.status(), TranscodeStatus::NeedInput { .. }));
-    assert_eq!(Some(0), converter.max_finish_output_len());
+    assert_eq!(Ok(0), converter.max_finish_output_len());
 
     let finish = converter
         .finish(&mut output, 0)
@@ -351,15 +384,18 @@ fn test_charset_converter_finish_has_no_output_for_incomplete_source_input() {
     assert_eq!(TranscodeStatus::Complete, finish.status());
     assert_eq!(0, finish.read());
     assert_eq!(0, finish.written());
-    assert_eq!(Some(0), converter.max_finish_output_len());
+    assert_eq!(Ok(0), converter.max_finish_output_len());
 }
 
 #[test]
 fn test_charset_converter_finish_does_not_report_incomplete_source_input() {
-    let mut decoder = CharsetDecoder::new(Utf8Codec);
-    decoder.set_malformed_action(MalformedAction::Report);
-    let encoder = CharsetEncoder::new(Utf16U16Codec);
-    let mut converter = CharsetConverter::new(decoder, encoder);
+    let mut converter = CharsetConverter::from_codecs_with_policies(
+        Utf8Codec,
+        Utf16U16Codec,
+        CharsetDecodePolicy::report(),
+        CharsetEncodePolicy::default(),
+    )
+    .expect("default target policy should be encodable");
     let mut output = [0_u16; 1];
 
     let progress = converter
@@ -367,7 +403,7 @@ fn test_charset_converter_finish_does_not_report_incomplete_source_input() {
         .expect("partial source sequence needs more input");
 
     assert!(matches!(progress.status(), TranscodeStatus::NeedInput { .. }));
-    assert_eq!(Some(0), converter.max_finish_output_len());
+    assert_eq!(Ok(0), converter.max_finish_output_len());
 
     let finish = converter
         .finish(&mut output, 0)
@@ -379,10 +415,13 @@ fn test_charset_converter_finish_does_not_report_incomplete_source_input() {
 
 #[test]
 fn test_charset_converter_propagates_decode_and_encode_errors() {
-    let mut decoder = CharsetDecoder::new(Utf8Codec);
-    decoder.set_malformed_action(MalformedAction::Report);
-    let encoder = CharsetEncoder::new(Utf16U16Codec);
-    let mut converter = CharsetConverter::new(decoder, encoder);
+    let mut converter = CharsetConverter::from_codecs_with_policies(
+        Utf8Codec,
+        Utf16U16Codec,
+        CharsetDecodePolicy::report(),
+        CharsetEncodePolicy::default(),
+    )
+    .expect("default target policy should be encodable");
     let mut output = [0_u16; 1];
 
     let error = converter
@@ -390,10 +429,13 @@ fn test_charset_converter_propagates_decode_and_encode_errors() {
         .expect_err("malformed source input is reported");
     assert!(matches!(error, CharsetConvertError::Decode(_)));
 
-    let decoder = CharsetDecoder::new(Utf8Codec);
-    let mut encoder = CharsetEncoder::new(AsciiBytesCodec);
-    encoder.set_unmappable_action(UnmappableAction::Report);
-    let mut converter = CharsetConverter::new(decoder, encoder);
+    let mut converter = CharsetConverter::from_codecs_with_policies(
+        Utf8Codec,
+        AsciiBytesCodec,
+        CharsetDecodePolicy::default(),
+        CharsetEncodePolicy::report(),
+    )
+    .expect("report target policy should be constructible");
     let mut ascii_output = [0_u8; 1];
 
     let error = converter
@@ -403,10 +445,23 @@ fn test_charset_converter_propagates_decode_and_encode_errors() {
 }
 
 #[test]
+fn test_charset_converter_falls_back_to_question_mark_when_default_replacement_is_unencodable() {
+    let mut converter = CharsetConverter::from_codecs(Utf8Codec, ReplacementFallbackCodec);
+    let mut output = [0_u8; 1];
+
+    let progress = converter
+        .transcode("中".as_bytes(), 0, &mut output, 0)
+        .expect("fallback replacement should be encodable");
+
+    assert_eq!(TranscodeStatus::Complete, progress.status());
+    assert_eq!(3, progress.read());
+    assert_eq!(1, progress.written());
+    assert_eq!(b'?', output[0]);
+}
+
+#[test]
 fn test_charset_converter_converts_available_utf8_to_ascii_without_finish() {
-    let decoder = CharsetDecoder::new(Utf8Codec);
-    let encoder = CharsetEncoder::new(AsciiBytesCodec);
-    let mut converter = CharsetConverter::new(decoder, encoder);
+    let mut converter = CharsetConverter::from_codecs(Utf8Codec, AsciiBytesCodec);
     let mut output = [0_u8; 4];
 
     let progress = converter

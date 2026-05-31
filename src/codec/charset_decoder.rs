@@ -7,21 +7,24 @@
  *    Licensed under the Apache License, Version 2.0.
  *
  ******************************************************************************/
-use crate::{
+use qubit_codec::{
+    BufferedDecodeEngine,
     BufferedDecoder,
-    CharsetDecodeError,
-    CharsetDecodeErrorKind,
+    CapacityError,
+    DecodeErrorFactory,
     TranscodeProgress,
     Transcoder,
 };
-use qubit_codec::{
-    BufferedDecodeEngine,
-    DecodeErrorFactory,
+
+use crate::{
+    CharsetDecodeError,
+    CharsetDecodeErrorKind,
 };
 
 use super::{
     charset_codec::CharsetCodec,
     charset_decode_hooks::CharsetDecodeHooks,
+    charset_decode_policy::CharsetDecodePolicy,
     malformed_action::MalformedAction,
 };
 
@@ -32,8 +35,8 @@ use super::{
 /// The decoder asks the wrapped codec whether one value can be decoded from the
 /// currently available units. If the codec reports a valid incomplete prefix,
 /// the tail is left in the caller-provided input slice and
-/// [`TranscodeStatus::NeedInput`] is returned. Callers must handle incomplete
-/// EOF tails before calling [`Transcoder::finish`].
+/// [`crate::TranscodeStatus::NeedInput`] is returned. Callers must handle
+/// incomplete EOF tails before calling [`Transcoder::finish`].
 ///
 /// # Type Parameters
 ///
@@ -44,8 +47,10 @@ pub struct CharsetDecoder<C>
 where
     C: CharsetCodec,
 {
-    /// Common buffered decoding engine.
+    /// Common buffered decode engine.
     engine: BufferedDecodeEngine<C, CharsetDecodeHooks, C::Unit>,
+    /// Public malformed-input policy metadata.
+    policy: CharsetDecodePolicy,
 }
 
 impl<C> DecodeErrorFactory<C> for CharsetDecodeError
@@ -64,9 +69,6 @@ impl<C> CharsetDecoder<C>
 where
     C: CharsetCodec,
 {
-    /// Default replacement character used when malformed input is replaced.
-    pub const DEFAULT_REPLACEMENT: char = '\u{fffd}';
-
     /// Creates a decoder with default replacement policy.
     ///
     /// # Parameters
@@ -79,53 +81,28 @@ where
     /// and whose replacement character is `U+FFFD`.
     #[must_use]
     #[inline(always)]
-    pub const fn new(codec: C) -> Self {
-        Self {
-            engine: BufferedDecodeEngine::new(
-                codec,
-                CharsetDecodeHooks::new(MalformedAction::Replace, Self::DEFAULT_REPLACEMENT),
-            ),
-        }
+    pub fn new(codec: C) -> Self {
+        Self::with_policy(codec, CharsetDecodePolicy::default())
     }
 
-    /// Creates a decoder with a custom replacement character.
-    ///
-    /// This method performs no codec-level validation because malformed-input
-    /// replacement for decoding writes directly to the output `char` buffer.
+    /// Creates a decoder with an explicit malformed-input policy.
     ///
     /// # Parameters
     ///
-    /// - `replacement`: Replacement character for malformed sequences.
+    /// - `codec`: Low-level charset codec used to decode input units.
+    /// - `policy`: Malformed-input policy used by the decoder.
     ///
     /// # Returns
     ///
-    /// Returns a new decoder configured with the provided replacement.
-    #[inline(always)]
-    pub fn with_replacement(mut self, replacement: char) -> Self {
-        self.engine.hooks_mut().replacement = replacement;
-        self
-    }
-
-    /// Returns the wrapped low-level codec.
-    ///
-    /// # Returns
-    ///
-    /// Returns a shared reference to the configured codec.
+    /// Returns a decoder configured with `policy`.
     #[must_use]
     #[inline(always)]
-    pub const fn codec(&self) -> &C {
-        self.engine.codec()
-    }
-
-    /// Returns a mutable reference to the wrapped codec.
-    ///
-    /// # Returns
-    ///
-    /// Returns a mutable reference to the configured codec.
-    #[must_use]
-    #[inline(always)]
-    pub fn codec_mut(&mut self) -> &mut C {
-        self.engine.codec_mut()
+    pub fn with_policy(codec: C, policy: CharsetDecodePolicy) -> Self {
+        let hooks = CharsetDecodeHooks::from_policy(policy);
+        Self {
+            engine: BufferedDecodeEngine::new(codec, hooks),
+            policy,
+        }
     }
 
     /// Returns the configured malformed-input action.
@@ -136,17 +113,7 @@ where
     #[must_use]
     #[inline(always)]
     pub const fn malformed_action(&self) -> MalformedAction {
-        self.engine.hooks().malformed_action
-    }
-
-    /// Sets the malformed-input action.
-    ///
-    /// # Parameters
-    ///
-    /// - `action`: New policy for malformed input units.
-    #[inline(always)]
-    pub fn set_malformed_action(&mut self, action: MalformedAction) {
-        self.engine.hooks_mut().malformed_action = action;
+        self.policy.malformed_action()
     }
 
     /// Returns the configured replacement character.
@@ -157,17 +124,7 @@ where
     #[must_use]
     #[inline(always)]
     pub const fn replacement(&self) -> char {
-        self.engine.hooks().replacement
-    }
-
-    /// Sets the replacement character.
-    ///
-    /// # Parameters
-    ///
-    /// - `replacement`: New replacement character used by replace policy.
-    #[inline(always)]
-    pub fn set_replacement(&mut self, replacement: char) {
-        self.engine.hooks_mut().replacement = replacement;
+        self.policy.replacement()
     }
 }
 
@@ -181,14 +138,14 @@ where
 
     /// Returns the maximum number of characters decoded from `input_len` units.
     #[inline(always)]
-    fn max_output_len(&self, input_len: usize) -> Option<usize> {
+    fn max_output_len(&self, input_len: usize) -> Result<usize, CapacityError> {
         self.engine.max_output_len::<char>(input_len)
     }
 
     /// Returns the maximum number of characters emitted by finishing internal state.
     #[inline(always)]
-    fn max_finish_output_len(&self) -> Option<usize> {
-        self.engine.max_finish_output_len::<char>()
+    fn max_finish_output_len(&self) -> Result<usize, CapacityError> {
+        Ok(self.engine.max_finish_output_len::<char>())
     }
 
     /// Clears hook-owned state while keeping decoder policy.

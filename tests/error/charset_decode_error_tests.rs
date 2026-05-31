@@ -1,3 +1,7 @@
+use qubit_codec::{
+    DecodeErrorInfo,
+    DecodeFailure,
+};
 use qubit_codec_text::{
     Charset,
     CharsetDecodeError,
@@ -68,4 +72,50 @@ fn test_charset_decode_error_exposes_context() {
         "UTF-8 decoding error at index 3: The input unit index is outside the input buffer.",
         invalid_index.to_string(),
     );
+}
+
+#[test]
+fn test_charset_decode_error_exposes_consumption_and_failure_metadata() {
+    let malformed = CharsetDecodeError::new(
+        Charset::UTF_8,
+        CharsetDecodeErrorKind::MalformedSequence { value: Some(0x80) },
+        4,
+    )
+    .with_consumed(2);
+    assert_eq!(Some(2), malformed.consumed());
+    assert_eq!(Some(0x80), malformed.value());
+    assert_eq!(DecodeFailure::Invalid { consumed: 2 }, malformed.failure());
+
+    let invalid_code_point = CharsetDecodeError::new(
+        Charset::UTF_32,
+        CharsetDecodeErrorKind::InvalidCodePoint { value: 0x110000 },
+        1,
+    );
+    assert_eq!(Some(1), invalid_code_point.consumed());
+    assert_eq!(DecodeFailure::Invalid { consumed: 1 }, invalid_code_point.failure());
+
+    let incomplete = CharsetDecodeError::new(
+        Charset::UTF_16,
+        CharsetDecodeErrorKind::IncompleteSequence {
+            required: 4,
+            available: 1,
+        },
+        0,
+    );
+    assert_eq!(None, incomplete.consumed());
+    assert_eq!(
+        DecodeFailure::Incomplete {
+            required_total: 4,
+            available: 1,
+        },
+        incomplete.failure(),
+    );
+
+    let invalid_index = CharsetDecodeError::new(
+        Charset::UTF_8,
+        CharsetDecodeErrorKind::InvalidInputIndex { input_len: 1 },
+        3,
+    );
+    assert_eq!(None, invalid_index.consumed());
+    assert_eq!(DecodeFailure::Invalid { consumed: 0 }, invalid_index.failure());
 }

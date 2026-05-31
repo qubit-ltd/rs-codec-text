@@ -11,7 +11,6 @@ use crate::{
     CharsetCodec,
     CharsetDecodeError,
     CharsetDecodeErrorKind,
-    CharsetDecoder,
     CharsetEncodeError,
 };
 use qubit_codec::ConvertErrorFactory;
@@ -28,14 +27,14 @@ pub enum CharsetConvertError {
     Encode(#[from] CharsetEncodeError),
 }
 
-impl<D> ConvertErrorFactory<CharsetDecoder<D>> for CharsetConvertError
+impl<D> ConvertErrorFactory<D> for CharsetConvertError
 where
     D: CharsetCodec,
 {
     /// Creates an input-index error for a charset converter.
     #[inline(always)]
-    fn invalid_input_index(decoder: &CharsetDecoder<D>, index: usize, input_len: usize) -> Self {
+    fn invalid_input_index(decoder: &D, index: usize, input_len: usize) -> Self {
         let kind = CharsetDecodeErrorKind::InvalidInputIndex { input_len };
-        Self::Decode(CharsetDecodeError::new(decoder.codec().charset(), kind, index))
+        Self::Decode(CharsetDecodeError::new(decoder.charset(), kind, index))
     }
 }

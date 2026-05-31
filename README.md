@@ -21,11 +21,9 @@ below ordinary `str`, `String`, and `char` APIs. It provides:
 - Policy-aware `CharsetDecoder`, `CharsetEncoder`, and `CharsetConverter`
   wrappers.
 - Typed decode/encode/convert errors with precise buffer indices.
-- `CodecValueEncoder`, `CodecBufferedEncoder`, `CodecBufferedDecoder`,
-  `BufferedEncodeEngine`, `BufferedDecodeEngine`, `BufferedEncodeHooks`,
-  `BufferedDecodeHooks`, `EncodePlan`, `BufferedEncoder`, `BufferedDecoder`,
-  `BufferedConverter`, `Transcoder`, `TranscodeProgress`, `TranscodeStatus`,
-  and `ByteOrder` re-exported from `qubit-codec`.
+- Essential `qubit-codec` primitives re-exported for callers:
+  `Codec`, `Transcoder`, `TranscodeProgress`, `TranscodeStatus`, `CapacityError`,
+  and `ByteOrder`.
 
 This crate intentionally stays below `std::io` reader/writer adapters,
 automatic charset detection, normalization, segmentation, collation, display
@@ -90,9 +88,9 @@ width, and locale-aware text behavior.
 qubit-codec-text = "0.1"
 ```
 
-`qubit-codec` is the core runtime dependency. The core buffer-level traits and
-codec-backed encoder adapters used by this public API are re-exported by
-`qubit-codec-text`.
+`qubit-codec` is the core runtime dependency. This crate re-exports only the
+core traits and status types that are part of normal text-codec calls; import
+generic engines, hooks, and adapters directly from `qubit-codec`.
 
 ## Quick Start
 

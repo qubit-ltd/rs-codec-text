@@ -19,11 +19,8 @@ Qubit Text Codec 是一个低层编解码核心，服务于那些需要在 Rust 
 - ASCII、ISO-8859-1、UTF-8、UTF-16、UTF-32 的缓冲区级 codec。
 - 带策略的 `CharsetDecoder`、`CharsetEncoder` 和 `CharsetConverter`。
 - 带精确缓冲区下标的强类型 decode / encode / convert 错误。
-- 从 `qubit-codec` 重导出的 `CodecValueEncoder`、`CodecBufferedEncoder`、
-  `CodecBufferedDecoder`、`BufferedEncodeEngine`、`BufferedDecodeEngine`、
-  `BufferedEncodeHooks`、`BufferedDecodeHooks`、`EncodePlan`、`BufferedEncoder`、
-  `BufferedDecoder`、`BufferedConverter`、`Transcoder`、`TranscodeProgress`、
-  `TranscodeStatus` 和 `ByteOrder`。
+- 面向调用方重导出的必要 `qubit-codec` 原语：`Codec`、`Transcoder`、
+  `TranscodeProgress`、`TranscodeStatus`、`CapacityError` 和 `ByteOrder`。
 
 本库刻意停留在 `std::io` 读写适配器、自动 charset 检测、规范化、切分、
 排序、显示宽度和区域相关文本行为之下。
@@ -79,8 +76,9 @@ Qubit Text Codec 是一个低层编解码核心，服务于那些需要在 Rust 
 qubit-codec-text = "0.1"
 ```
 
-`qubit-codec` 是核心运行时依赖。公开 API 使用的核心缓冲区级 trait 已经由
-`qubit-codec-text` 重导出。
+`qubit-codec` 是核心运行时依赖。本库只重导出普通 text-codec 调用需要的
+core trait 和状态类型；通用 engine、hook、adapter 请直接从 `qubit-codec`
+引入。
 
 ## 快速开始
 

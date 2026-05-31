@@ -9,6 +9,7 @@
  ******************************************************************************/
 use qubit_codec::{
     BufferedDecodeHooks,
+    CapacityError,
     DecodeAction,
     DecodeContext,
 };
@@ -17,6 +18,7 @@ use crate::CharsetDecodeError;
 
 use super::{
     charset_codec::CharsetCodec,
+    charset_decode_policy::CharsetDecodePolicy,
     malformed_action::MalformedAction,
 };
 
@@ -48,6 +50,13 @@ impl CharsetDecodeHooks {
             replacement,
         }
     }
+
+    /// Creates charset decode hooks from a public policy.
+    #[must_use]
+    #[inline(always)]
+    pub(super) const fn from_policy(policy: CharsetDecodePolicy) -> Self {
+        Self::new(policy.malformed_action(), policy.replacement())
+    }
 }
 
 impl<C> BufferedDecodeHooks<C, C::Unit, char> for CharsetDecodeHooks
@@ -58,8 +67,8 @@ where
 
     /// Returns the maximum number of characters decoded from `input_len` units.
     #[inline(always)]
-    fn max_output_len(&self, _codec: &C, input_len: usize) -> Option<usize> {
-        Some(input_len)
+    fn max_output_len(&self, _codec: &C, input_len: usize) -> Result<usize, CapacityError> {
+        Ok(input_len)
     }
 
     /// Handles a charset decode failure during `transcode`.
@@ -77,7 +86,7 @@ where
             });
         }
         if error.kind().is_malformed_input() {
-            let consumed = error.policy_consumed(context);
+            let consumed = error.consumed().unwrap_or(1).max(1).min(context.available);
             return match self.malformed_action {
                 MalformedAction::Report => Err(error),
                 MalformedAction::Ignore => Ok(DecodeAction::Skip { consumed }),
