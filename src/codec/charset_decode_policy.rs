@@ -24,7 +24,6 @@ impl CharsetDecodePolicy {
 
     /// Creates a malformed-input policy.
     #[must_use]
-    #[inline(always)]
     pub const fn new(malformed_action: MalformedAction, replacement: char) -> Self {
         Self {
             malformed_action,
@@ -34,49 +33,42 @@ impl CharsetDecodePolicy {
 
     /// Creates a replacement policy.
     #[must_use]
-    #[inline(always)]
     pub const fn replace(replacement: char) -> Self {
         Self::new(MalformedAction::Replace, replacement)
     }
 
     /// Creates an ignore policy with the default replacement retained for metadata.
     #[must_use]
-    #[inline(always)]
     pub const fn ignore() -> Self {
         Self::ignore_with_replacement(Self::DEFAULT_REPLACEMENT)
     }
 
     /// Creates an ignore policy with explicit replacement metadata.
     #[must_use]
-    #[inline(always)]
     pub const fn ignore_with_replacement(replacement: char) -> Self {
         Self::new(MalformedAction::Ignore, replacement)
     }
 
     /// Creates a report policy with the default replacement retained for metadata.
     #[must_use]
-    #[inline(always)]
     pub const fn report() -> Self {
         Self::new(MalformedAction::Report, Self::DEFAULT_REPLACEMENT)
     }
 
     /// Returns the malformed-input action.
     #[must_use]
-    #[inline(always)]
     pub const fn malformed_action(self) -> MalformedAction {
         self.malformed_action
     }
 
     /// Returns the replacement character.
     #[must_use]
-    #[inline(always)]
     pub const fn replacement(self) -> char {
         self.replacement
     }
 }
 
 impl Default for CharsetDecodePolicy {
-    #[inline(always)]
     fn default() -> Self {
         Self::replace(Self::DEFAULT_REPLACEMENT)
     }

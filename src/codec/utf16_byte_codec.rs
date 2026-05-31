@@ -149,7 +149,7 @@ unsafe impl Codec<char, u8> for Utf16ByteCodec {
         unsafe { core::num::NonZeroUsize::new_unchecked(Utf16::MAX_BYTES_PER_CHAR) }
     }
 
-    #[inline]
+    #[inline(always)]
     unsafe fn decode_unchecked(
         &self,
         input: &[u8],
@@ -160,7 +160,7 @@ unsafe impl Codec<char, u8> for Utf16ByteCodec {
         Ok((ch, consumed))
     }
 
-    #[inline]
+    #[inline(always)]
     unsafe fn encode_unchecked(&self, ch: &char, output: &mut [u8], index: usize) -> CharsetEncodeResult<usize> {
         let written = utf16::encode_bytes_char(*ch, output, self.byte_order, index)?;
         debug_assert_eq!(written, ch.len_utf16() * 2);

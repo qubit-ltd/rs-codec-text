@@ -43,7 +43,6 @@ impl CharsetDecodeHooks {
     ///
     /// Returns hooks carrying the supplied policy.
     #[must_use]
-    #[inline(always)]
     pub(super) const fn new(malformed_action: MalformedAction, replacement: char) -> Self {
         Self {
             malformed_action,
@@ -53,7 +52,6 @@ impl CharsetDecodeHooks {
 
     /// Creates charset decode hooks from a public policy.
     #[must_use]
-    #[inline(always)]
     pub(super) const fn from_policy(policy: CharsetDecodePolicy) -> Self {
         Self::new(policy.malformed_action(), policy.replacement())
     }
@@ -66,13 +64,11 @@ where
     type Error = CharsetDecodeError;
 
     /// Returns the maximum number of characters decoded from `input_len` units.
-    #[inline(always)]
     fn max_output_len(&self, _codec: &C, input_len: usize) -> Result<usize, CapacityError> {
         Ok(input_len)
     }
 
     /// Handles a charset decode failure during `transcode`.
-    #[inline]
     fn handle_decode_error(
         &mut self,
         _codec: &C,

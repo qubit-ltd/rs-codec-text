@@ -50,7 +50,6 @@ impl CharsetEncodeError {
     /// # Returns
     ///
     /// Returns an encoding error carrying the supplied context.
-    #[inline(always)]
     pub const fn new(charset: Charset, kind: CharsetEncodeErrorKind, index: usize) -> Self {
         Self { charset, kind, index }
     }
@@ -61,7 +60,6 @@ impl CharsetEncodeError {
     ///
     /// Returns `Some(required)` for [`CharsetEncodeErrorKind::BufferTooSmall`],
     /// otherwise `None`.
-    #[inline(always)]
     pub const fn required(self) -> Option<usize> {
         self.kind.required()
     }
@@ -72,7 +70,6 @@ impl CharsetEncodeError {
     ///
     /// Returns `Some(available)` for [`CharsetEncodeErrorKind::BufferTooSmall`],
     /// otherwise `None`.
-    #[inline(always)]
     pub const fn available(self) -> Option<usize> {
         self.kind.available()
     }
@@ -82,7 +79,6 @@ impl CharsetEncodeError {
     /// # Returns
     ///
     /// Returns the stored [`Charset`].
-    #[inline(always)]
     pub const fn charset(self) -> Charset {
         self.charset
     }
@@ -92,7 +88,6 @@ impl CharsetEncodeError {
     /// # Returns
     ///
     /// Returns the stored [`CharsetEncodeErrorKind`].
-    #[inline(always)]
     pub const fn kind(self) -> CharsetEncodeErrorKind {
         self.kind
     }
@@ -102,7 +97,6 @@ impl CharsetEncodeError {
     /// # Returns
     ///
     /// Returns the stored index.
-    #[inline(always)]
     pub const fn index(self) -> usize {
         self.index
     }
@@ -113,7 +107,6 @@ impl CharsetEncodeError {
     ///
     /// Returns `Some(value)` when the error kind carries a raw code point or
     /// character value, or `None` for kinds without an associated value.
-    #[inline(always)]
     pub const fn value(self) -> Option<u32> {
         self.kind.value()
     }
@@ -127,7 +120,6 @@ impl CharsetEncodeError {
     /// # Returns
     ///
     /// Returns a copy of this error with its index shifted by `base`.
-    #[inline(always)]
     pub const fn offset_by(self, base: usize) -> Self {
         Self {
             charset: self.charset,

@@ -87,7 +87,6 @@ impl Charset {
     /// # Returns
     ///
     /// Returns a charset descriptor carrying the supplied metadata.
-    #[inline(always)]
     pub const fn new(id: &'static str, name: &'static str, aliases: &'static [&'static str]) -> Self {
         Self { id, name, aliases }
     }
@@ -97,7 +96,6 @@ impl Charset {
     /// # Returns
     ///
     /// Returns the identifier used for equality and hashing.
-    #[inline(always)]
     pub const fn id(self) -> &'static str {
         self.id
     }
@@ -107,7 +105,6 @@ impl Charset {
     /// # Returns
     ///
     /// Returns the display name stored in this descriptor.
-    #[inline(always)]
     pub const fn name(self) -> &'static str {
         self.name
     }
@@ -117,7 +114,6 @@ impl Charset {
     /// # Returns
     ///
     /// Returns the static alias list stored in this descriptor.
-    #[inline(always)]
     pub const fn aliases(self) -> &'static [&'static str] {
         self.aliases
     }
@@ -132,7 +128,6 @@ impl Charset {
     ///
     /// Returns [`Self::UTF_16LE`] for little-endian byte order and
     /// [`Self::UTF_16BE`] for big-endian byte order.
-    #[inline(always)]
     pub const fn from_utf16_byte_order(byte_order: ByteOrder) -> Self {
         match byte_order {
             ByteOrder::LittleEndian => Self::UTF_16LE,
@@ -150,7 +145,6 @@ impl Charset {
     ///
     /// Returns [`Self::UTF_32LE`] for little-endian byte order and
     /// [`Self::UTF_32BE`] for big-endian byte order.
-    #[inline(always)]
     pub const fn from_utf32_byte_order(byte_order: ByteOrder) -> Self {
         match byte_order {
             ByteOrder::LittleEndian => Self::UTF_32LE,
@@ -164,7 +158,6 @@ impl Charset {
     ///
     /// Returns `Some(ByteOrder)` for fixed-endian UTF-16 and UTF-32 charsets.
     /// Returns `None` for UTF-8 and generic UTF-16/UTF-32 charsets.
-    #[inline(always)]
     pub fn byte_order(self) -> Option<ByteOrder> {
         if self == Self::UTF_16LE || self == Self::UTF_32LE {
             Some(ByteOrder::LittleEndian)
@@ -186,7 +179,6 @@ impl Charset {
     ///
     /// Returns `true` when `label` matches the identifier, display name, or one of
     /// the aliases using ASCII case-insensitive comparison.
-    #[inline]
     pub fn matches_label(self, label: &str) -> bool {
         if label.eq_ignore_ascii_case(self.id) || label.eq_ignore_ascii_case(self.name) {
             return true;

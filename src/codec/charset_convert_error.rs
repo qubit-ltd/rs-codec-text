@@ -32,7 +32,6 @@ where
     D: CharsetCodec,
 {
     /// Creates an input-index error for a charset converter.
-    #[inline(always)]
     fn invalid_input_index(decoder: &D, index: usize, input_len: usize) -> Self {
         let kind = CharsetDecodeErrorKind::InvalidInputIndex { input_len };
         Self::Decode(CharsetDecodeError::new(decoder.charset(), kind, index))

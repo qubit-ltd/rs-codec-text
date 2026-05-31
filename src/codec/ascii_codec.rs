@@ -94,7 +94,7 @@ unsafe impl Codec<char, u8> for AsciiCodec {
         core::num::NonZeroUsize::MIN
     }
 
-    #[inline]
+    #[inline(always)]
     unsafe fn decode_unchecked(
         &self,
         input: &[u8],
@@ -123,7 +123,7 @@ unsafe impl Codec<char, u8> for AsciiCodec {
         Ok((value as char, core::num::NonZeroUsize::MIN))
     }
 
-    #[inline]
+    #[inline(always)]
     unsafe fn encode_unchecked(&self, ch: &char, output: &mut [u8], index: usize) -> CharsetEncodeResult<usize> {
         debug_assert!(index < output.len());
 

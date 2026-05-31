@@ -47,7 +47,6 @@ impl<Unit> CharsetEncodeHooks<Unit> {
     ///
     /// Returns hooks configured with an empty replacement-unit cache.
     #[must_use]
-    #[inline(always)]
     pub(super) const fn new(unmappable_action: UnmappableAction, replacement: char) -> Self {
         Self {
             unmappable_action,
@@ -75,7 +74,6 @@ where
     /// # Errors
     ///
     /// Returns [`CharsetEncodeError`] when the output buffer is too small.
-    #[inline]
     fn write_replacement(&self, output: &mut [Unit], output_index: usize) -> CharsetEncodeResult<usize> {
         if self.replacement_units.is_empty() {
             return Ok(0);

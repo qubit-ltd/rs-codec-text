@@ -114,7 +114,7 @@ unsafe impl Codec<char, u16> for Utf16U16Codec {
         unsafe { core::num::NonZeroUsize::new_unchecked(Utf16::MAX_UNITS_PER_CHAR) }
     }
 
-    #[inline]
+    #[inline(always)]
     unsafe fn decode_unchecked(
         &self,
         input: &[u16],
@@ -125,7 +125,7 @@ unsafe impl Codec<char, u16> for Utf16U16Codec {
         Ok((ch, consumed))
     }
 
-    #[inline]
+    #[inline(always)]
     unsafe fn encode_unchecked(&self, ch: &char, output: &mut [u16], index: usize) -> CharsetEncodeResult<usize> {
         let written = utf16::encode_units_char(*ch, output, index)?;
         debug_assert_eq!(written, ch.len_utf16());

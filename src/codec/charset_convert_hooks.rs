@@ -42,7 +42,6 @@ pub(super) struct CharsetConvertHooks {
 impl CharsetConvertHooks {
     /// Creates charset converter hooks with explicit policies.
     #[must_use]
-    #[inline(always)]
     pub(super) const fn with_policies(decode_policy: CharsetDecodePolicy, encode_policy: CharsetEncodePolicy) -> Self {
         Self {
             decode_policy,
@@ -54,7 +53,6 @@ impl CharsetConvertHooks {
 
 impl Default for CharsetConvertHooks {
     /// Creates default charset converter hooks.
-    #[inline(always)]
     fn default() -> Self {
         Self {
             decode_policy: CharsetDecodePolicy::replace(CharsetDecodePolicy::DEFAULT_REPLACEMENT),
@@ -84,13 +82,11 @@ where
         CharsetEncodeHooks<E::Unit>: BufferedEncodeHooks<E, char, Output, Error = Self::EncodeError<Output>>;
 
     /// Creates default charset decode hooks.
-    #[inline(always)]
     fn create_decode_hooks(&self, _decoder: &D, _encoder: &E) -> Self::DecodeHooks {
         CharsetDecodeHooks::from_policy(self.decode_policy)
     }
 
     /// Creates default charset encode hooks.
-    #[inline]
     fn create_encode_hooks(&self, _decoder: &D, encoder: &E) -> Self::EncodeHooks {
         match CharsetEncoder::<E>::create_hooks(encoder, self.encode_policy) {
             Ok((hooks, _)) => hooks,
@@ -108,7 +104,6 @@ where
     }
 
     /// Maps decoder errors into converter decode errors.
-    #[inline(always)]
     fn map_decode_error<Output>(&self, error: crate::CharsetDecodeError) -> Self::Error<Output>
     where
         E: Codec<char, Output>,
@@ -119,7 +114,6 @@ where
     }
 
     /// Maps encoder errors into converter encode errors.
-    #[inline(always)]
     fn map_encode_error<Output>(&self, error: Self::EncodeError<Output>) -> Self::Error<Output>
     where
         E: Codec<char, Output>,

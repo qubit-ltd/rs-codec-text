@@ -90,7 +90,6 @@ where
     ///
     /// Returns a converter with default decoder and encoder policies.
     #[must_use]
-    #[inline]
     pub fn from_codecs(source: D, target: E) -> Self {
         Self {
             engine: BufferedConvertEngine::new(source, target, CharsetConvertHooks::default()),
@@ -114,7 +113,6 @@ where
     ///
     /// Returns an error when `encode_policy` uses replacement and the target
     /// codec cannot encode the replacement character.
-    #[inline]
     pub fn from_codecs_with_policies(
         source: D,
         target: E,
@@ -140,19 +138,16 @@ where
     type Error = CharsetConvertError;
 
     /// Returns the target-side upper bound for converted output units.
-    #[inline(always)]
     fn max_output_len(&self, input_len: usize) -> Result<usize, CapacityError> {
         self.engine.max_output_len::<E::Unit>(input_len)
     }
 
     /// Returns the maximum target units needed to finalize pending conversion state.
-    #[inline(always)]
     fn max_finish_output_len(&self) -> Result<usize, CapacityError> {
         self.engine.max_finish_output_len::<E::Unit>()
     }
 
     /// Clears any pending decoded character.
-    #[inline(always)]
     fn reset(&mut self) {
         self.engine.reset::<E::Unit>();
     }

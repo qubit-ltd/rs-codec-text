@@ -43,6 +43,7 @@ use crate::{
 ///   continuation bytes are invalid for UTF-8.
 /// * `CharsetDecodeErrorKind::IncompleteSequence` when EOF appears before the
 ///   complete UTF-8 sequence is available.
+#[inline]
 pub(crate) fn decode_prefix(input: &[u8], index: usize) -> CharsetDecodeResult<(char, core::num::NonZeroUsize)> {
     if index > input.len() {
         let kind = CharsetDecodeErrorKind::InvalidInputIndex { input_len: input.len() };
@@ -106,6 +107,7 @@ pub(crate) fn decode_prefix(input: &[u8], index: usize) -> CharsetDecodeResult<(
 ///
 /// * `CharsetEncodeErrorKind::BufferTooSmall` if the destination does not have
 ///   enough space starting from `index`.
+#[inline]
 pub(crate) fn encode_char(ch: char, output: &mut [u8], index: usize) -> CharsetEncodeResult<usize> {
     if index > output.len() {
         let kind = CharsetEncodeErrorKind::BufferTooSmall {
@@ -144,6 +146,7 @@ pub(crate) fn encode_char(ch: char, output: &mut [u8], index: usize) -> CharsetE
 ///
 /// * `CharsetDecodeErrorKind::MalformedSequence` when the second byte is not a
 ///   valid UTF-8 continuation byte.
+#[inline(always)]
 pub(crate) fn decode_two(input: &[u8], index: usize) -> CharsetDecodeResult<u32> {
     let second = input[index + 1];
     if !Utf8::is_continuation_byte(second) {
@@ -169,6 +172,7 @@ pub(crate) fn decode_two(input: &[u8], index: usize) -> CharsetDecodeResult<u32>
 ///
 /// `Ok(())` if currently available bytes are structurally valid, otherwise a
 /// decoding error describing the first malformed position.
+#[inline]
 pub(crate) fn validate_partial(input: &[u8], index: usize) -> CharsetDecodeResult<()> {
     if input.len() >= index + 2 && !is_valid_second_byte(input[index], input[index + 1]) {
         let kind = CharsetDecodeErrorKind::MalformedSequence {
@@ -196,6 +200,7 @@ pub(crate) fn validate_partial(input: &[u8], index: usize) -> CharsetDecodeResul
 ///
 /// `true` when the pair `(first, second)` is valid for UTF-8 sequence decoding,
 /// otherwise `false`.
+#[inline(always)]
 pub(crate) fn is_valid_second_byte(first: u8, second: u8) -> bool {
     match first {
         0xc2..=0xdf => Utf8::is_continuation_byte(second),
@@ -224,6 +229,7 @@ pub(crate) fn is_valid_second_byte(first: u8, second: u8) -> bool {
 ///
 /// * `CharsetDecodeErrorKind::MalformedSequence` when the second or third byte
 ///   is invalid.
+#[inline(always)]
 pub(crate) fn decode_three(input: &[u8], index: usize) -> CharsetDecodeResult<u32> {
     let first = input[index];
     let second = input[index + 1];
@@ -258,6 +264,7 @@ pub(crate) fn decode_three(input: &[u8], index: usize) -> CharsetDecodeResult<u3
 ///
 /// * `CharsetDecodeErrorKind::MalformedSequence` when any continuation byte is
 ///   invalid.
+#[inline(always)]
 pub(crate) fn decode_four(input: &[u8], index: usize) -> CharsetDecodeResult<u32> {
     let first = input[index];
     let second = input[index + 1];

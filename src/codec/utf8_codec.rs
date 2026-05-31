@@ -110,7 +110,7 @@ unsafe impl Codec<char, u8> for Utf8Codec {
         unsafe { core::num::NonZeroUsize::new_unchecked(Utf8::MAX_UNITS_PER_CHAR) }
     }
 
-    #[inline]
+    #[inline(always)]
     unsafe fn decode_unchecked(
         &self,
         input: &[u8],
@@ -121,7 +121,7 @@ unsafe impl Codec<char, u8> for Utf8Codec {
         Ok((ch, consumed))
     }
 
-    #[inline]
+    #[inline(always)]
     unsafe fn encode_unchecked(&self, ch: &char, output: &mut [u8], index: usize) -> CharsetEncodeResult<usize> {
         let written = utf8::encode_char(*ch, output, index)?;
         debug_assert_eq!(written, Utf8::byte_len(*ch));

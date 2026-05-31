@@ -52,6 +52,7 @@ use crate::{
 ///
 /// This function does not panic for invalid UTF-16 input because invalid input
 /// is surfaced as `CharsetDecodeError`.
+#[inline]
 pub(crate) fn decode_units_prefix(input: &[u16], index: usize) -> CharsetDecodeResult<(char, core::num::NonZeroUsize)> {
     if index > input.len() {
         let kind = CharsetDecodeErrorKind::InvalidInputIndex { input_len: input.len() };
@@ -116,6 +117,7 @@ pub(crate) fn decode_units_prefix(input: &[u16], index: usize) -> CharsetDecodeR
 ///
 /// * `CharsetEncodeErrorKind::BufferTooSmall` when insufficient room exists
 ///   from `index`.
+#[inline]
 pub(crate) fn encode_units_char(ch: char, output: &mut [u16], index: usize) -> CharsetEncodeResult<usize> {
     if index > output.len() {
         let kind = CharsetEncodeErrorKind::BufferTooSmall {
@@ -168,6 +170,7 @@ pub(crate) fn encode_units_char(ch: char, output: &mut [u16], index: usize) -> C
 ///   sequences or malformed surrogate usage.
 /// * `CharsetDecodeErrorKind::IncompleteSequence` when EOF appears before a
 ///   complete UTF-16 unit or surrogate pair is available.
+#[inline]
 pub(crate) fn decode_bytes_prefix(
     input: &[u8],
     index: usize,
@@ -234,6 +237,7 @@ pub(crate) fn decode_bytes_prefix(
 ///
 /// * `CharsetEncodeErrorKind::BufferTooSmall` when output bytes from `index`
 ///   are insufficient.
+#[inline]
 pub(crate) fn encode_bytes_char(
     ch: char,
     output: &mut [u8],
@@ -278,6 +282,7 @@ pub(crate) fn encode_bytes_char(
 /// # Returns
 ///
 /// Returns the decoded UTF-16 unit.
+#[inline(always)]
 fn read_ordered_u16(input: &[u8], index: usize, byte_order: ByteOrder) -> u16 {
     let bytes = [input[index], input[index + 1]];
     match byte_order {
@@ -295,6 +300,7 @@ fn read_ordered_u16(input: &[u8], index: usize, byte_order: ByteOrder) -> u16 {
 ///   writable from this offset.
 /// - `unit`: UTF-16 unit to write.
 /// - `byte_order`: Byte order used to serialize the unit.
+#[inline(always)]
 fn write_ordered_u16(output: &mut [u8], index: usize, unit: u16, byte_order: ByteOrder) {
     let bytes = match byte_order {
         ByteOrder::BigEndian => unit.to_be_bytes(),
