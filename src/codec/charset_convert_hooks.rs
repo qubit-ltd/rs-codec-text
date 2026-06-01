@@ -9,11 +9,7 @@
  ******************************************************************************/
 //! Policy hooks used by charset converters.
 
-use qubit_codec::{
-    BufferedConvertHooks,
-    BufferedEncodeHooks,
-    Codec,
-};
+use qubit_codec::BufferedConvertHooks;
 
 use crate::{
     CharsetDecodeError,
@@ -66,33 +62,25 @@ impl Default for CharsetConvertHooks {
     }
 }
 
-impl<D, E> BufferedConvertHooks<D, E, D::Unit, char> for CharsetConvertHooks
+impl<D, E> BufferedConvertHooks<D, E, D::Unit, char, E::Unit> for CharsetConvertHooks
 where
     D: CharsetCodec,
     E: CharsetEncodeProbe,
 {
+    type DecodeError = CharsetDecodeError;
     type DecodeHooks = CharsetDecodeHooks;
+    type EncodeError = CharsetEncodeError;
     type EncodeHooks = CharsetEncodeHooks<E::Unit>;
-    type EncodeError<Output>
-        = CharsetEncodeError
-    where
-        E: Codec<char, Output>,
-        Output: Copy;
-    type Error<Output>
-        = CharsetConvertError
-    where
-        E: Codec<char, Output>,
-        Output: Copy,
-        CharsetEncodeHooks<E::Unit>: BufferedEncodeHooks<E, char, Output, Error = Self::EncodeError<Output>>;
+    type Error = CharsetConvertError;
 
     /// Creates default charset decode hooks.
-    fn create_decode_hooks(&self, _decoder: &D, _encoder: &E) -> Self::DecodeHooks {
+    fn create_decode_hooks(&self, _decode_codec: &D, _encode_codec: &E) -> Self::DecodeHooks {
         CharsetDecodeHooks::from_policy(self.decode_policy)
     }
 
     /// Creates default charset encode hooks.
-    fn create_encode_hooks(&self, _decoder: &D, encoder: &E) -> Self::EncodeHooks {
-        match CharsetEncoder::<E>::create_hooks(encoder, self.encode_policy) {
+    fn create_encode_hooks(&self, _decode_codec: &D, encode_codec: &E) -> Self::EncodeHooks {
+        match CharsetEncoder::<E>::create_hooks(encode_codec, self.encode_policy) {
             Ok((hooks, _)) => hooks,
             Err(_default_error) => {
                 assert!(
@@ -100,7 +88,7 @@ where
                     "explicit charset converter policies must be prevalidated before building hooks"
                 );
                 let fallback_policy = CharsetEncodePolicy::replace(CharsetEncodePolicy::DEFAULT_FALLBACK_REPLACEMENT);
-                CharsetEncoder::<E>::create_hooks(encoder, fallback_policy)
+                CharsetEncoder::<E>::create_hooks(encode_codec, fallback_policy)
                     .map(|(hooks, _)| hooks)
                     .expect("default converter fallback replacement should be encodable")
             }
@@ -108,33 +96,18 @@ where
     }
 
     /// Maps decoder errors into converter decode errors.
-    fn map_decode_error<Output>(&self, error: crate::CharsetDecodeError) -> Self::Error<Output>
-    where
-        E: Codec<char, Output>,
-        Output: Copy,
-        CharsetEncodeHooks<E::Unit>: BufferedEncodeHooks<E, char, Output, Error = Self::EncodeError<Output>>,
-    {
+    fn map_decode_error(&self, error: Self::DecodeError) -> Self::Error {
         CharsetConvertError::Decode(error)
     }
 
     /// Maps encoder errors into converter encode errors.
-    fn map_encode_error<Output>(&self, error: Self::EncodeError<Output>) -> Self::Error<Output>
-    where
-        E: Codec<char, Output>,
-        Output: Copy,
-        CharsetEncodeHooks<E::Unit>: BufferedEncodeHooks<E, char, Output, Error = Self::EncodeError<Output>>,
-    {
+    fn map_encode_error(&self, error: Self::EncodeError) -> Self::Error {
         CharsetConvertError::Encode(error)
     }
 
     /// Creates an input-index error using the source charset.
-    fn invalid_input_index<Output>(&self, decoder: &D, index: usize, input_len: usize) -> Self::Error<Output>
-    where
-        E: Codec<char, Output>,
-        Output: Copy,
-        CharsetEncodeHooks<E::Unit>: BufferedEncodeHooks<E, char, Output, Error = Self::EncodeError<Output>>,
-    {
+    fn invalid_input_index(&self, decode_codec: &D, index: usize, input_len: usize) -> Self::Error {
         let kind = CharsetDecodeErrorKind::InvalidInputIndex { input_len };
-        CharsetConvertError::Decode(CharsetDecodeError::new(decoder.charset(), kind, index))
+        CharsetConvertError::Decode(CharsetDecodeError::new(decode_codec.charset(), kind, index))
     }
 }

@@ -71,7 +71,7 @@ where
     E: CharsetEncodeProbe,
 {
     /// Common buffered converter engine.
-    engine: BufferedConvertEngine<D, E, CharsetConvertHooks, D::Unit, char>,
+    engine: BufferedConvertEngine<D, E, CharsetConvertHooks, D::Unit, char, E::Unit>,
 }
 
 impl<D, E> CharsetConverter<D, E>
@@ -139,17 +139,17 @@ where
 
     /// Returns the target-side upper bound for converted output units.
     fn max_output_len(&self, input_len: usize) -> Result<usize, CapacityError> {
-        self.engine.max_output_len::<E::Unit>(input_len)
+        self.engine.max_output_len(input_len)
     }
 
     /// Returns the maximum target units needed to finalize pending conversion state.
     fn max_finish_output_len(&self) -> Result<usize, CapacityError> {
-        self.engine.max_finish_output_len::<E::Unit>()
+        self.engine.max_finish_output_len()
     }
 
     /// Clears any pending decoded character.
     fn reset(&mut self) {
-        self.engine.reset::<E::Unit>();
+        self.engine.reset();
     }
 
     /// Converts source units to target units through the configured decoder and encoder.
@@ -166,8 +166,7 @@ where
         output: &mut [E::Unit],
         output_index: usize,
     ) -> Result<TranscodeProgress, Self::Error> {
-        self.engine
-            .transcode::<E::Unit>(input, input_index, output, output_index)
+        self.engine.transcode(input, input_index, output, output_index)
     }
 
     /// Finalizes internally retained decoded characters and policy hook state.
@@ -188,7 +187,7 @@ where
     /// Returns `CharsetConvertError::Encode` when encoding pending or final
     /// decoded characters violates target charset policy.
     fn finish(&mut self, output: &mut [E::Unit], output_index: usize) -> Result<TranscodeProgress, Self::Error> {
-        self.engine.finish::<E::Unit>(output, output_index)
+        self.engine.finish(output, output_index)
     }
 }
 
