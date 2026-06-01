@@ -11,15 +11,11 @@ use qubit_codec::{
     BufferedDecodeEngine,
     BufferedDecoder,
     CapacityError,
-    DecodeErrorFactory,
     TranscodeProgress,
     Transcoder,
 };
 
-use crate::{
-    CharsetDecodeError,
-    CharsetDecodeErrorKind,
-};
+use crate::CharsetDecodeError;
 
 use super::{
     charset_codec::CharsetCodec,
@@ -51,17 +47,6 @@ where
     engine: BufferedDecodeEngine<C, CharsetDecodeHooks, C::Unit>,
     /// Public malformed-input policy metadata.
     policy: CharsetDecodePolicy,
-}
-
-impl<C> DecodeErrorFactory<C> for CharsetDecodeError
-where
-    C: CharsetCodec,
-{
-    /// Creates an input-index error using the charset from `codec`.
-    fn invalid_input_index(codec: &C, index: usize, input_len: usize) -> Self {
-        let kind = CharsetDecodeErrorKind::InvalidInputIndex { input_len };
-        Self::new(codec.charset(), kind, index)
-    }
 }
 
 impl<C> CharsetDecoder<C>
