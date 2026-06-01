@@ -1,7 +1,3 @@
-use qubit_codec::{
-    DecodeErrorInfo,
-    DecodeFailure,
-};
 use qubit_codec_text::{
     Charset,
     CharsetDecodeError,
@@ -75,7 +71,7 @@ fn test_charset_decode_error_exposes_context() {
 }
 
 #[test]
-fn test_charset_decode_error_exposes_consumption_and_failure_metadata() {
+fn test_charset_decode_error_exposes_consumption_and_incomplete_details() {
     let malformed = CharsetDecodeError::new(
         Charset::UTF_8,
         CharsetDecodeErrorKind::MalformedSequence { value: Some(0x80) },
@@ -84,7 +80,6 @@ fn test_charset_decode_error_exposes_consumption_and_failure_metadata() {
     .with_consumed(2);
     assert_eq!(Some(2), malformed.consumed());
     assert_eq!(Some(0x80), malformed.value());
-    assert_eq!(DecodeFailure::Invalid { consumed: 2 }, malformed.failure());
 
     let invalid_code_point = CharsetDecodeError::new(
         Charset::UTF_32,
@@ -92,7 +87,6 @@ fn test_charset_decode_error_exposes_consumption_and_failure_metadata() {
         1,
     );
     assert_eq!(Some(1), invalid_code_point.consumed());
-    assert_eq!(DecodeFailure::Invalid { consumed: 1 }, invalid_code_point.failure());
 
     let incomplete = CharsetDecodeError::new(
         Charset::UTF_16,
@@ -103,13 +97,8 @@ fn test_charset_decode_error_exposes_consumption_and_failure_metadata() {
         0,
     );
     assert_eq!(None, incomplete.consumed());
-    assert_eq!(
-        DecodeFailure::Incomplete {
-            required_total: 4,
-            available: 1,
-        },
-        incomplete.failure(),
-    );
+    assert_eq!(Some(4), incomplete.required());
+    assert_eq!(Some(1), incomplete.available());
 
     let invalid_index = CharsetDecodeError::new(
         Charset::UTF_8,
@@ -117,5 +106,5 @@ fn test_charset_decode_error_exposes_consumption_and_failure_metadata() {
         3,
     );
     assert_eq!(None, invalid_index.consumed());
-    assert_eq!(DecodeFailure::Invalid { consumed: 0 }, invalid_index.failure());
+    assert_eq!(Some(1), invalid_index.input_len());
 }

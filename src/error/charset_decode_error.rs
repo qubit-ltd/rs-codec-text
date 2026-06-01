@@ -10,15 +10,8 @@
 use core::fmt;
 use std::error::Error;
 
-use qubit_codec::{
-    DecodeErrorFactory,
-    DecodeErrorInfo,
-    DecodeFailure,
-};
-
 use crate::{
     Charset,
-    CharsetCodec,
     CharsetDecodeErrorKind,
 };
 
@@ -188,35 +181,6 @@ impl CharsetDecodeError {
             index: self.index + base,
             consumed: self.consumed,
         }
-    }
-}
-
-impl DecodeErrorInfo for CharsetDecodeError {
-    /// Returns buffered-decode metadata for this charset error.
-    fn failure(&self) -> DecodeFailure {
-        match self.kind {
-            CharsetDecodeErrorKind::IncompleteSequence { required, available } => DecodeFailure::Incomplete {
-                required_total: required,
-                available,
-            },
-            CharsetDecodeErrorKind::MalformedSequence { .. } | CharsetDecodeErrorKind::InvalidCodePoint { .. } => {
-                DecodeFailure::Invalid {
-                    consumed: self.consumed.max(1),
-                }
-            }
-            CharsetDecodeErrorKind::InvalidInputIndex { .. } => DecodeFailure::Invalid { consumed: 0 },
-        }
-    }
-}
-
-impl<C> DecodeErrorFactory<C> for CharsetDecodeError
-where
-    C: CharsetCodec,
-{
-    /// Creates an input-index error using the charset from `codec`.
-    fn invalid_input_index(codec: &C, index: usize, input_len: usize) -> Self {
-        let kind = CharsetDecodeErrorKind::InvalidInputIndex { input_len };
-        Self::new(codec.charset(), kind, index)
     }
 }
 

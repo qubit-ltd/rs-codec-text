@@ -16,7 +16,10 @@ use qubit_codec::{
     DecodeContext,
 };
 
-use crate::CharsetDecodeError;
+use crate::{
+    CharsetDecodeError,
+    CharsetDecodeErrorKind,
+};
 
 use super::{
     charset_codec::CharsetCodec,
@@ -112,5 +115,11 @@ where
             };
         }
         Err(error)
+    }
+
+    /// Creates an invalid input index error for the charset decoder.
+    fn invalid_input_index(&mut self, codec: &C, index: usize, input_len: usize) -> Self::Error {
+        let kind = CharsetDecodeErrorKind::InvalidInputIndex { input_len };
+        CharsetDecodeError::new(codec.charset(), kind, index)
     }
 }
