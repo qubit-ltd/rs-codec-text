@@ -7,6 +7,8 @@
  *    Licensed under the Apache License, Version 2.0.
  *
  ******************************************************************************/
+use core::num::NonZeroUsize;
+
 use qubit_codec::{
     BufferedDecodeHooks,
     CapacityError,
@@ -55,6 +57,23 @@ impl CharsetDecodeHooks {
     pub(super) const fn from_policy(policy: CharsetDecodePolicy) -> Self {
         Self::new(policy.malformed_action(), policy.replacement())
     }
+
+    /// Returns a non-zero consumed-unit count bounded by visible input.
+    ///
+    /// # Parameters
+    ///
+    /// - `reported`: Units reported by the charset decode error.
+    /// - `available`: Units visible at the malformed input boundary.
+    ///
+    /// # Returns
+    ///
+    /// Returns a non-zero consumed-unit count.
+    #[must_use]
+    #[inline(always)]
+    fn malformed_consumed(reported: Option<usize>, available: usize) -> NonZeroUsize {
+        let consumed = reported.unwrap_or(1).min(available).max(1);
+        NonZeroUsize::new(consumed).expect("malformed input consumption is non-zero")
+    }
 }
 
 impl<C> BufferedDecodeHooks<C, C::Unit, char> for CharsetDecodeHooks
@@ -82,7 +101,7 @@ where
             });
         }
         if error.kind().is_malformed_input() {
-            let consumed = error.consumed().unwrap_or(1).max(1).min(context.available);
+            let consumed = CharsetDecodeHooks::malformed_consumed(error.consumed(), context.available);
             return match self.malformed_action {
                 MalformedAction::Report => Err(error),
                 MalformedAction::Ignore => Ok(DecodeAction::Skip { consumed }),
