@@ -15,7 +15,11 @@ use qubit_codec::{
     Codec,
 };
 
-use crate::CharsetEncodeError;
+use crate::{
+    CharsetDecodeError,
+    CharsetDecodeErrorKind,
+    CharsetEncodeError,
+};
 
 use super::{
     charset_codec::CharsetCodec,
@@ -121,5 +125,16 @@ where
         CharsetEncodeHooks<E::Unit>: BufferedEncodeHooks<E, char, Output, Error = Self::EncodeError<Output>>,
     {
         CharsetConvertError::Encode(error)
+    }
+
+    /// Creates an input-index error using the source charset.
+    fn invalid_input_index<Output>(&self, decoder: &D, index: usize, input_len: usize) -> Self::Error<Output>
+    where
+        E: Codec<char, Output>,
+        Output: Copy,
+        CharsetEncodeHooks<E::Unit>: BufferedEncodeHooks<E, char, Output, Error = Self::EncodeError<Output>>,
+    {
+        let kind = CharsetDecodeErrorKind::InvalidInputIndex { input_len };
+        CharsetConvertError::Decode(CharsetDecodeError::new(decoder.charset(), kind, index))
     }
 }

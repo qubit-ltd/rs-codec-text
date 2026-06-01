@@ -1,3 +1,5 @@
+use core::num::NonZeroUsize;
+
 use qubit_codec::BufferedConverter;
 use qubit_codec_text::{
     Charset,
@@ -289,7 +291,7 @@ fn test_charset_converter_finish_delegates_to_target_encoder() {
     assert_eq!(
         TranscodeStatus::NeedOutput {
             output_index: 1,
-            additional: 1,
+            additional: NonZeroUsize::MIN,
             available: 0,
         },
         finish.status(),
