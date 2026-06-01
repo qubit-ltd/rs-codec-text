@@ -134,6 +134,12 @@ where
             CharsetEncodePlan::Ignore => Ok(0),
         }
     }
+
+    /// Creates an input-index error using the charset from `codec`.
+    fn invalid_input_index(&mut self, codec: &C, index: usize, input_len: usize) -> Self::Error {
+        let kind = CharsetEncodeErrorKind::InvalidInputIndex { input_len };
+        CharsetEncodeError::new(codec.charset(), kind, index)
+    }
 }
 
 /// Encodes a replacement character for charset encode hooks.

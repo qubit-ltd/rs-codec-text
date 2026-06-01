@@ -13,18 +13,13 @@ use qubit_codec::{
     BufferedEncodeEngine,
     BufferedEncoder,
     CapacityError,
-    EncodeErrorFactory,
     TranscodeProgress,
     Transcoder,
 };
 
-use crate::{
-    CharsetEncodeError,
-    CharsetEncodeErrorKind,
-};
+use crate::CharsetEncodeError;
 
 use super::{
-    charset_codec::CharsetCodec,
     charset_encode_hooks::{
         CharsetEncodeHooks,
         encode_replacement,
@@ -33,17 +28,6 @@ use super::{
     charset_encode_probe::CharsetEncodeProbe,
     unmappable_action::UnmappableAction,
 };
-
-impl<C> EncodeErrorFactory<C> for CharsetEncodeError
-where
-    C: CharsetCodec,
-{
-    /// Creates an input-index error using the charset from `codec`.
-    fn invalid_input_index(codec: &C, index: usize, input_len: usize) -> Self {
-        let kind = CharsetEncodeErrorKind::InvalidInputIndex { input_len };
-        Self::new(codec.charset(), kind, index)
-    }
-}
 
 /// Converts Unicode scalar values into units of one charset.
 ///
