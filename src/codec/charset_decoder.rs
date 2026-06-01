@@ -44,7 +44,7 @@ where
     C: CharsetCodec,
 {
     /// Common buffered decode engine.
-    engine: BufferedDecodeEngine<C, CharsetDecodeHooks, C::Unit>,
+    engine: BufferedDecodeEngine<C, CharsetDecodeHooks, C::Unit, char>,
     /// Public malformed-input policy metadata.
     policy: CharsetDecodePolicy,
 }
@@ -118,17 +118,17 @@ where
 
     /// Returns the maximum number of characters decoded from `input_len` units.
     fn max_output_len(&self, input_len: usize) -> Result<usize, CapacityError> {
-        self.engine.max_output_len::<char>(input_len)
+        self.engine.max_output_len(input_len)
     }
 
     /// Returns the maximum number of characters emitted by finishing internal state.
     fn max_finish_output_len(&self) -> Result<usize, CapacityError> {
-        Ok(self.engine.max_finish_output_len::<char>())
+        Ok(self.engine.max_finish_output_len())
     }
 
     /// Clears hook-owned state while keeping decoder policy.
     fn reset(&mut self) {
-        self.engine.reset::<char>();
+        self.engine.reset();
     }
 
     /// Decodes source units into Unicode scalar values while applying malformed policy.
@@ -139,11 +139,11 @@ where
         output: &mut [char],
         output_index: usize,
     ) -> Result<TranscodeProgress, Self::Error> {
-        self.engine.transcode::<char>(input, input_index, output, output_index)
+        self.engine.transcode(input, input_index, output, output_index)
     }
 
     /// Finishes decoder-owned final output after EOF.
     fn finish(&mut self, output: &mut [char], output_index: usize) -> Result<TranscodeProgress, Self::Error> {
-        self.engine.finish::<char>(output, output_index)
+        self.engine.finish(output, output_index)
     }
 }

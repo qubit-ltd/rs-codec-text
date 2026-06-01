@@ -45,7 +45,7 @@ where
     C: CharsetEncodeProbe,
 {
     /// Common buffered encode engine.
-    engine: BufferedEncodeEngine<C, CharsetEncodeHooks<C::Unit>>,
+    engine: BufferedEncodeEngine<C, CharsetEncodeHooks<C::Unit>, char, C::Unit>,
     /// Public unmappable-input policy metadata.
     policy: CharsetEncodePolicy,
     /// Number of cached units used by replacement policy.
@@ -166,17 +166,17 @@ where
 
     /// Returns the maximum number of target units needed for `input_len` characters.
     fn max_output_len(&self, input_len: usize) -> Result<usize, CapacityError> {
-        self.engine.max_output_len::<char, C::Unit>(input_len)
+        self.engine.max_output_len(input_len)
     }
 
     /// Returns the maximum target units emitted by finishing internal state.
     fn max_finish_output_len(&self) -> Result<usize, CapacityError> {
-        Ok(self.engine.max_finish_output_len::<char, C::Unit>())
+        Ok(self.engine.max_finish_output_len())
     }
 
     /// Clears hook-owned state while keeping encoder policy.
     fn reset(&mut self) {
-        self.engine.reset::<char, C::Unit>();
+        self.engine.reset();
     }
 
     /// Encodes characters into the target charset while applying unmappable policy.
@@ -187,13 +187,12 @@ where
         output: &mut [C::Unit],
         output_index: usize,
     ) -> Result<TranscodeProgress, Self::Error> {
-        self.engine
-            .transcode::<char, C::Unit>(input, input_index, output, output_index)
+        self.engine.transcode(input, input_index, output, output_index)
     }
 
     /// Finishes encoder-owned final output after EOF.
     fn finish(&mut self, output: &mut [C::Unit], output_index: usize) -> Result<TranscodeProgress, Self::Error> {
-        self.engine.finish::<char, C::Unit>(output, output_index)
+        self.engine.finish(output, output_index)
     }
 }
 
