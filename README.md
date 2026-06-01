@@ -154,7 +154,7 @@ assert_eq!("😀".as_bytes(), &output[..progress.written()]);
 |------|---------|
 | `CharsetDecoder<C>` | Stateful buffer decoder implementing `BufferedDecoder<C::Unit, char>` and reusing `BufferedDecodeEngine` for decode iteration and progress reporting |
 | `CharsetEncoder<C>` | Stateful buffer encoder implementing `BufferedEncoder<char, C::Unit>` and reusing `BufferedEncodeEngine` for its buffered loop |
-| `CharsetEncodePlan` | Plan payload used by `CharsetEncoder`'s internal encode hooks |
+| `CharsetEncodeAction` | Plan action used by `CharsetEncoder`'s internal encode hooks |
 | `CharsetConverter<D, E>` | Decode and encode between two charset codecs, implementing `BufferedConverter<D::Unit, E::Unit>` |
 | `MalformedAction` | Policy for malformed input |
 | `UnmappableAction` | Policy for unencodable output characters |

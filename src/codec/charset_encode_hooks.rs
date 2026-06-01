@@ -9,6 +9,7 @@
  ******************************************************************************/
 use qubit_codec::{
     BufferedEncodeHooks,
+    EncodeContext,
     EncodePlan,
 };
 
@@ -19,7 +20,7 @@ use crate::{
 };
 
 use super::{
-    charset_encode_plan::CharsetEncodePlan,
+    charset_encode_action::CharsetEncodeAction,
     charset_encode_probe::CharsetEncodeProbe,
     unmappable_action::UnmappableAction,
 };
@@ -89,7 +90,7 @@ where
     C: CharsetEncodeProbe,
 {
     type Error = CharsetEncodeError;
-    type PlanPayload = CharsetEncodePlan;
+    type PlanAction = CharsetEncodeAction;
 
     /// Prepares a charset-specific encoding plan.
     #[inline]
@@ -98,16 +99,16 @@ where
         codec: &C,
         ch: &char,
         input_index: usize,
-    ) -> Result<EncodePlan<Self::PlanPayload>, Self::Error> {
+    ) -> Result<EncodePlan<Self::PlanAction>, Self::Error> {
         match codec.encode_len(*ch, input_index) {
-            Ok(max_output_units) => Ok(EncodePlan::new(max_output_units, CharsetEncodePlan::Original)),
+            Ok(max_output_units) => Ok(EncodePlan::new(max_output_units, CharsetEncodeAction::WriteOriginal)),
             Err(error) if matches!(error.kind(), CharsetEncodeErrorKind::UnmappableCharacter { .. }) => {
                 match self.unmappable_action {
                     UnmappableAction::Report => Err(error),
-                    UnmappableAction::Ignore => Ok(EncodePlan::new(0, CharsetEncodePlan::Ignore)),
+                    UnmappableAction::Ignore => Ok(EncodePlan::new(0, CharsetEncodeAction::Skip)),
                     UnmappableAction::Replace => Ok(EncodePlan::new(
                         self.replacement_units.len(),
-                        CharsetEncodePlan::Replacement,
+                        CharsetEncodeAction::WriteReplacement,
                     )),
                 }
             }
@@ -120,18 +121,16 @@ where
     unsafe fn write_encode(
         &mut self,
         codec: &C,
-        ch: &char,
-        _input_index: usize,
-        plan_payload: Self::PlanPayload,
-        output: &mut [C::Unit],
-        output_index: usize,
+        context: EncodeContext<'_, char, C::Unit, Self::PlanAction>,
     ) -> Result<usize, Self::Error> {
-        match plan_payload {
+        match context.plan_action {
             // SAFETY: The engine checked the exact capacity requested by
             // `prepare_encode`.
-            CharsetEncodePlan::Original => unsafe { codec.encode_unchecked(ch, output, output_index) },
-            CharsetEncodePlan::Replacement => self.write_replacement(output, output_index),
-            CharsetEncodePlan::Ignore => Ok(0),
+            CharsetEncodeAction::WriteOriginal => unsafe {
+                codec.encode_unchecked(context.input_value, context.output, context.output_index)
+            },
+            CharsetEncodeAction::WriteReplacement => self.write_replacement(context.output, context.output_index),
+            CharsetEncodeAction::Skip => Ok(0),
         }
     }
 

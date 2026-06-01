@@ -37,7 +37,7 @@ pub use codec::{
     CharsetConverter,
     CharsetDecodePolicy,
     CharsetDecoder,
-    CharsetEncodePlan,
+    CharsetEncodeAction,
     CharsetEncodePolicy,
     CharsetEncodeProbe,
     CharsetEncoder,

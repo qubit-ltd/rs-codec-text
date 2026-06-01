@@ -7,22 +7,22 @@
  *    Licensed under the Apache License, Version 2.0.
  *
  ******************************************************************************/
-//! Encoding plans used by charset encoders.
+//! Encoding actions used by charset encoders.
 
-/// Write plan used by [`crate::CharsetEncoder`].
+/// Write action used by [`crate::CharsetEncoder`].
 ///
-/// This plan is produced by the charset encoder's internal
+/// This action is produced by the charset encoder's internal
 /// [`qubit_codec::BufferedEncodeHooks`] implementation. Normal callers usually
 /// interact with [`crate::CharsetEncoder`] through [`crate::Transcoder`] instead
-/// of constructing plans directly.
+/// of constructing actions directly.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-pub enum CharsetEncodePlan {
+pub enum CharsetEncodeAction {
     /// Encode the original input character.
-    Original,
+    WriteOriginal,
 
     /// Copy cached replacement units.
-    Replacement,
+    WriteReplacement,
 
     /// Consume the input character without writing output.
-    Ignore,
+    Skip,
 }

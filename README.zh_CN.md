@@ -142,7 +142,7 @@ assert_eq!("😀".as_bytes(), &output[..progress.written()]);
 |------|------|
 | `CharsetDecoder<C>` | 实现 `BufferedDecoder<C::Unit, char>` 的有状态缓冲区 decoder，并复用 `BufferedDecodeEngine` 处理解码迭代和 progress 报告 |
 | `CharsetEncoder<C>` | 实现 `BufferedEncoder<char, C::Unit>` 的有状态缓冲区 encoder，并复用 `BufferedEncodeEngine` 的公共循环 |
-| `CharsetEncodePlan` | `CharsetEncoder` 内部 encode hooks 使用的计划 payload |
+| `CharsetEncodeAction` | `CharsetEncoder` 内部 encode hooks 使用的计划动作 |
 | `CharsetConverter<D, E>` | 在两个 charset codec 之间 decode + encode，并实现 `BufferedConverter<D::Unit, E::Unit>` |
 | `MalformedAction` | Malformed input 处理策略 |
 | `UnmappableAction` | 无法编码输出字符的处理策略 |
