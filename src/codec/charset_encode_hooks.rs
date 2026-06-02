@@ -7,6 +7,8 @@
  *    Licensed under the Apache License, Version 2.0.
  *
  ******************************************************************************/
+use core::fmt;
+
 use qubit_codec::{
     BufferedEncodeHooks,
     EncodeContext,
@@ -26,7 +28,7 @@ use super::{
 };
 
 /// Unmappable-input policy hooks used by [`super::CharsetEncoder`].
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone)]
 pub(super) struct CharsetEncodeHooks<Unit> {
     /// Action used for unmappable input characters.
     pub(super) unmappable_action: UnmappableAction,
@@ -34,6 +36,28 @@ pub(super) struct CharsetEncodeHooks<Unit> {
     pub(super) replacement: char,
     /// Pre-encoded units for the configured replacement character.
     pub(super) replacement_units: Vec<Unit>,
+}
+
+impl<Unit> fmt::Debug for CharsetEncodeHooks<Unit> {
+    /// Formats hooks without requiring cached units to implement [`fmt::Debug`].
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("CharsetEncodeHooks")
+            .field("unmappable_action", &self.unmappable_action)
+            .field("replacement", &self.replacement)
+            .field("replacement_units_len", &self.replacement_units.len())
+            .finish()
+    }
+}
+
+impl<Unit> Eq for CharsetEncodeHooks<Unit> {}
+
+impl<Unit> PartialEq for CharsetEncodeHooks<Unit> {
+    /// Compares policy-visible hook state without requiring unit equality.
+    fn eq(&self, other: &Self) -> bool {
+        self.unmappable_action == other.unmappable_action
+            && self.replacement == other.replacement
+            && self.replacement_units.len() == other.replacement_units.len()
+    }
 }
 
 impl<Unit> CharsetEncodeHooks<Unit> {
@@ -85,7 +109,7 @@ where
     }
 }
 
-impl<C> BufferedEncodeHooks<C, char, C::Unit> for CharsetEncodeHooks<C::Unit>
+impl<C> BufferedEncodeHooks<C> for CharsetEncodeHooks<C::Unit>
 where
     C: CharsetEncodeProbe,
 {
@@ -145,6 +169,7 @@ where
 pub(super) fn encode_replacement<C>(codec: &C, ch: char) -> CharsetEncodeResult<Vec<C::Unit>>
 where
     C: CharsetEncodeProbe,
+    C::Unit: Default,
 {
     let required = codec.encode_len(ch, 0)?;
     let mut output = vec![C::Unit::default(); required];

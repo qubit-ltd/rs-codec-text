@@ -16,7 +16,7 @@ where
 {
     fn assert_core_codec<C>()
     where
-        C: Codec<char, u8>,
+        C: Codec<Value = char, Unit = u8>,
     {
     }
 

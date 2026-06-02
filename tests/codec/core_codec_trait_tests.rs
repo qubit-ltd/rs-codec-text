@@ -38,9 +38,9 @@ fn test_core_codec_trait_reports_text_codec_unit_bounds() {
 
 fn assert_u8_codec<C>(codec: C, value: char, expected: &[u8])
 where
-    C: Codec<char, u8>,
-    <C as Codec<char, u8>>::DecodeError: core::fmt::Debug,
-    <C as Codec<char, u8>>::EncodeError: core::fmt::Debug,
+    C: Codec<Value = char, Unit = u8>,
+    C::DecodeError: core::fmt::Debug,
+    C::EncodeError: core::fmt::Debug,
 {
     let mut output = [0_u8; 4];
     let written = unsafe {

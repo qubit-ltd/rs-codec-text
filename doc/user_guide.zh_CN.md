@@ -65,7 +65,7 @@ use qubit_codec_text::{
 | --- | --- | --- |
 | 命名空间辅助工具 | `Ascii`、`Unicode`、`Utf8`、`Utf16`、`Utf32` | 常量、分类、长度和 BOM 辅助函数。 |
 | Charset 元数据 | `Charset`、`UnicodeBom`、`ByteOrder` | 稳定 charset 身份、别名、固定字节序和 BOM 元数据。 |
-| 低层 codec | `Codec<char, Unit>`、内置 codec 结构体 | 从调用方缓冲区解码或编码一个完整 Unicode 标量值。 |
+| 低层 codec | `Codec<Value = char>`、内置 codec 结构体 | 从调用方缓冲区解码或编码一个完整 Unicode 标量值。 |
 | 文本 codec 元数据 | `CharsetCodec`、`CharsetEncodeProbe` | 为低层 codec 实现附加 charset 元数据和精确编码长度探测。 |
 | 策略包装器 | `CharsetDecoder`、`CharsetEncoder` | 在批量转换时应用 malformed / unmappable 策略；分别实现 `BufferedDecoder` / `BufferedEncoder`。`CharsetDecoder` 复用 core 的 `BufferedDecodeEngine` 循环，`CharsetEncoder` 复用 core 的 `BufferedEncodeEngine` 循环。 |
 | Charset 转换 | `CharsetConverter` | 先把源单元解码成 `char`，再编码成目标单元；实现 `BufferedConverter`。 |
@@ -166,8 +166,8 @@ BOM。BOM 处理由调用方负责。
 
 ## 低层 Codec
 
-内置 text codec 结构体实现了领域无关的 `qubit_codec::Codec<char, Unit>`
-trait。这个 trait 是最低层单值契约：`decode_unchecked` 从调用方输入单元中解码
+内置 text codec 结构体实现了领域无关的 `qubit_codec::Codec` trait，其中
+`Value = char`。这个 trait 是最低层单值契约：`decode_unchecked` 从调用方输入单元中解码
 一个 Unicode 标量值，`encode_unchecked` 把一个 Unicode 标量值写入调用方输出单元。
 
 `CharsetCodec` 与这个 unsafe trait 处于同一低层，只增加 `charset()` 元数据和
@@ -269,7 +269,7 @@ assert_eq!("é".as_bytes(), &output[..written]);
 调用方负责。调用方处理完不完整尾部后，再调用 `finish()` 刷新内部暂存输出。
 
 内部实现上，`CharsetDecoder` 把 malformed-input 策略保存在 decode hooks 中，并转发给
-`BufferedDecodeEngine<C, H, C::Unit>`。engine 负责重复调用 `decode_unchecked`、
+`BufferedDecodeEngine<C, H>`。engine 负责重复调用 `decode_unchecked`、
 输出容量 progress 和状态报告；输入缓冲区填充由调用方负责。
 
 ## 带策略的解码
@@ -555,7 +555,7 @@ assert_eq!(&[0x3d, 0xd8, 0x00, 0xde], &output[..written]);
 在下游 crate 中新增 charset 时：
 
 1. 定义 codec 类型。
-2. 实现 `qubit_codec::Codec<char, Unit>`，负责完整值的 decode / encode。
+2. 实现 `qubit_codec::Codec`，其中 `Value = char`，负责完整值的 decode / encode。
 3. 实现 `CharsetCodec`，提供 charset 元数据。
 4. 从 `charset()` 返回稳定的 `Charset` 描述对象。
 5. 在 `Codec::max_units_per_value()` 实现中返回单个标量值最多需要的非零存储单元数。

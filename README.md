@@ -144,7 +144,7 @@ assert_eq!("😀".as_bytes(), &output[..progress.written()]);
 | `Utf8Codec` | UTF-8 byte encoding and decoding |
 | `Utf16ByteCodec` / `Utf32ByteCodec` | Explicit-byte-order Unicode byte codecs |
 | `Utf16U16Codec` / `Utf32U32Codec` | Unit-oriented Unicode codecs |
-| `Codec<char, Unit>` | Lowest-level complete-value codec trait re-exported from `qubit-codec` |
+| `Codec<Value = char>` | Lowest-level complete-value codec trait re-exported from `qubit-codec` |
 | `CharsetCodec` | Charset metadata attached to low-level text codec implementations |
 | `CharsetEncodeProbe` | Exact per-character output sizing and mappability probe |
 

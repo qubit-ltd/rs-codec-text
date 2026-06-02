@@ -44,7 +44,7 @@ where
     C: CharsetCodec,
 {
     /// Common buffered decode engine.
-    engine: BufferedDecodeEngine<C, CharsetDecodeHooks, C::Unit, char>,
+    engine: BufferedDecodeEngine<C, CharsetDecodeHooks>,
     /// Public malformed-input policy metadata.
     policy: CharsetDecodePolicy,
 }

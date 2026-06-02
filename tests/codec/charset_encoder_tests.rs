@@ -23,7 +23,9 @@ use std::{
 
 macro_rules! impl_test_codec {
     ($ty:ty, $max_units:expr) => {
-        unsafe impl Codec<char, u8> for $ty {
+        unsafe impl Codec for $ty {
+            type Value = char;
+            type Unit = u8;
             type DecodeError = CharsetDecodeError;
             type EncodeError = CharsetEncodeError;
 
@@ -65,8 +67,6 @@ macro_rules! impl_test_codec {
 struct AsciiBytesCodec;
 
 impl CharsetCodec for AsciiBytesCodec {
-    type Unit = u8;
-
     fn charset(&self) -> Charset {
         Charset::ASCII
     }
@@ -95,8 +95,6 @@ fn test_charset_encoder_is_buffered_encoder() {
 struct InvalidBangCodec;
 
 impl CharsetCodec for InvalidBangCodec {
-    type Unit = u8;
-
     fn charset(&self) -> Charset {
         Charset::ASCII
     }
@@ -118,8 +116,6 @@ impl_test_codec!(InvalidBangCodec, 1);
 struct FailingReplacementWriteCodec;
 
 impl CharsetCodec for FailingReplacementWriteCodec {
-    type Unit = u8;
-
     fn charset(&self) -> Charset {
         Charset::ASCII
     }
@@ -138,7 +134,9 @@ impl CharsetEncodeProbe for FailingReplacementWriteCodec {
     }
 }
 
-unsafe impl Codec<char, u8> for FailingReplacementWriteCodec {
+unsafe impl Codec for FailingReplacementWriteCodec {
+    type Value = char;
+    type Unit = u8;
     type DecodeError = CharsetDecodeError;
     type EncodeError = CharsetEncodeError;
 
@@ -169,8 +167,6 @@ unsafe impl Codec<char, u8> for FailingReplacementWriteCodec {
 struct ReplacementFallbackCodec;
 
 impl CharsetCodec for ReplacementFallbackCodec {
-    type Unit = u8;
-
     fn charset(&self) -> Charset {
         Charset::ASCII
     }
@@ -199,8 +195,6 @@ impl_test_codec!(ReplacementFallbackCodec, 1);
 struct ReplacementAllUnencodableCodec;
 
 impl CharsetCodec for ReplacementAllUnencodableCodec {
-    type Unit = u8;
-
     fn charset(&self) -> Charset {
         Charset::ASCII
     }
@@ -224,8 +218,6 @@ struct CountingAsciiEncoderCodec {
 }
 
 impl CharsetCodec for CountingAsciiEncoderCodec {
-    type Unit = u8;
-
     fn charset(&self) -> Charset {
         Charset::ASCII
     }
@@ -243,7 +235,9 @@ impl CharsetEncodeProbe for CountingAsciiEncoderCodec {
     }
 }
 
-unsafe impl Codec<char, u8> for CountingAsciiEncoderCodec {
+unsafe impl Codec for CountingAsciiEncoderCodec {
+    type Value = char;
+    type Unit = u8;
     type DecodeError = CharsetDecodeError;
     type EncodeError = CharsetEncodeError;
 
@@ -275,8 +269,6 @@ unsafe impl Codec<char, u8> for CountingAsciiEncoderCodec {
 struct ZeroLengthReplacementCodec;
 
 impl CharsetCodec for ZeroLengthReplacementCodec {
-    type Unit = u8;
-
     fn charset(&self) -> Charset {
         Charset::ASCII
     }

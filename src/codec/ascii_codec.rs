@@ -42,8 +42,6 @@ impl AsciiCodec {
 }
 
 impl CharsetCodec for AsciiCodec {
-    type Unit = u8;
-
     /// Returns the charset descriptor for this codec.
     ///
     /// # Returns
@@ -80,7 +78,9 @@ impl CharsetEncodeProbe for AsciiCodec {
     }
 }
 
-unsafe impl Codec<char, u8> for AsciiCodec {
+unsafe impl Codec for AsciiCodec {
+    type Value = char;
+    type Unit = u8;
     type DecodeError = CharsetDecodeError;
     type EncodeError = CharsetEncodeError;
 

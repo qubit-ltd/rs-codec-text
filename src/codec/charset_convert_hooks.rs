@@ -62,10 +62,11 @@ impl Default for CharsetConvertHooks {
     }
 }
 
-impl<D, E> BufferedConvertHooks<D, E, D::Unit, char, E::Unit> for CharsetConvertHooks
+impl<D, E> BufferedConvertHooks<D, E> for CharsetConvertHooks
 where
     D: CharsetCodec,
     E: CharsetEncodeProbe,
+    E::Unit: Default,
 {
     type DecodeError = CharsetDecodeError;
     type DecodeHooks = CharsetDecodeHooks;

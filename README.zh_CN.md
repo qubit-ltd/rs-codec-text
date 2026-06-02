@@ -132,7 +132,7 @@ assert_eq!("😀".as_bytes(), &output[..progress.written()]);
 | `Utf8Codec` | UTF-8 byte 编码和解码 |
 | `Utf16ByteCodec` / `Utf32ByteCodec` | 显式字节序的 Unicode byte codec |
 | `Utf16U16Codec` / `Utf32U32Codec` | Unit-oriented Unicode codec |
-| `Codec<char, Unit>` | 从 `qubit-codec` 重导出的最低层完整值 codec trait |
+| `Codec<Value = char>` | 从 `qubit-codec` 重导出的最低层完整值 codec trait |
 | `CharsetCodec` | 附加在低层文本 codec 实现上的 charset 元数据 |
 | `CharsetEncodeProbe` | 单字符输出长度和可映射性探测 |
 

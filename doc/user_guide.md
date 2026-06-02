@@ -72,7 +72,7 @@ The crate is split into a few small layers.
 | --- | --- | --- |
 | Namespace helpers | `Ascii`, `Unicode`, `Utf8`, `Utf16`, `Utf32` | Constants, classification, sizing, and BOM helper functions. |
 | Charset metadata | `Charset`, `UnicodeBom`, `ByteOrder` | Stable charset identity, aliases, fixed byte order, and BOM metadata. |
-| Low-level codecs | `Codec<char, Unit>`, built-in codec structs | Decode or encode one complete Unicode scalar value from/to caller-owned buffers. |
+| Low-level codecs | `Codec<Value = char>`, built-in codec structs | Decode or encode one complete Unicode scalar value from/to caller-owned buffers. |
 | Text codec metadata | `CharsetCodec`, `CharsetEncodeProbe` | Attach charset metadata and exact encode sizing to low-level codec implementations. |
 | Policy wrappers | `CharsetDecoder`, `CharsetEncoder` | Apply malformed/unmappable policy while converting many units; implement `BufferedDecoder` / `BufferedEncoder`. `CharsetDecoder` reuses the core `BufferedDecodeEngine` loop, and `CharsetEncoder` reuses the core `BufferedEncodeEngine` loop. |
 | Charset conversion | `CharsetConverter` | Decode source units to `char`, then encode them to target units; implements `BufferedConverter`. |
@@ -178,7 +178,7 @@ detect, skip, or emit BOM bytes automatically. The caller owns BOM handling.
 ## Low-Level Codecs
 
 The built-in text codec structs implement the domain-neutral
-`qubit_codec::Codec<char, Unit>` trait. That trait is the lowest-level
+`qubit_codec::Codec` trait with `Value = char`. That trait is the lowest-level
 single-value contract: `decode_unchecked` decodes one Unicode scalar value from
 caller-owned input units, and `encode_unchecked` writes one Unicode scalar value
 to caller-owned output units.
@@ -289,7 +289,7 @@ The caller owns tail preservation, refill, and EOF policy. After the caller has
 handled any incomplete tail, `finish()` only drains internally retained output.
 
 Internally, `CharsetDecoder` stores malformed-input policy in decode hooks and
-delegates to `BufferedDecodeEngine<C, H, C::Unit>`. The engine owns repeated
+delegates to `BufferedDecodeEngine<C, H>`. The engine owns repeated
 `decode_unchecked` calls, output-capacity progress, and status reporting, while
 input-buffer refill stays with the caller.
 
@@ -589,7 +589,7 @@ callers usually interact with them through `CharsetCodec`, `CharsetEncoder`, or
 To add another charset in a downstream crate:
 
 1. Define a codec type.
-2. Implement `qubit_codec::Codec<char, Unit>` for complete-value decode and
+2. Implement `qubit_codec::Codec` with `Value = char` for complete-value decode and
    encode.
 3. Implement `CharsetCodec` for charset metadata.
 4. Return a stable `Charset` descriptor from `charset()`.

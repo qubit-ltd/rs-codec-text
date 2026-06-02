@@ -22,14 +22,14 @@ use qubit_codec_text::{
 struct InvalidInputErrorCodec;
 
 impl CharsetCodec for InvalidInputErrorCodec {
-    type Unit = u8;
-
     fn charset(&self) -> Charset {
         Charset::ASCII
     }
 }
 
-unsafe impl Codec<char, u8> for InvalidInputErrorCodec {
+unsafe impl Codec for InvalidInputErrorCodec {
+    type Value = char;
+    type Unit = u8;
     type DecodeError = CharsetDecodeError;
     type EncodeError = CharsetEncodeError;
 
@@ -67,14 +67,14 @@ fn test_charset_decoder_is_buffered_decoder() {
 struct PendingInvalidInputErrorCodec;
 
 impl CharsetCodec for PendingInvalidInputErrorCodec {
-    type Unit = u8;
-
     fn charset(&self) -> Charset {
         Charset::ASCII
     }
 }
 
-unsafe impl Codec<char, u8> for PendingInvalidInputErrorCodec {
+unsafe impl Codec for PendingInvalidInputErrorCodec {
+    type Value = char;
+    type Unit = u8;
     type DecodeError = CharsetDecodeError;
     type EncodeError = CharsetEncodeError;
 

@@ -26,8 +26,6 @@ use qubit_codec_text::{
 struct AsciiBytesCodec;
 
 impl CharsetCodec for AsciiBytesCodec {
-    type Unit = u8;
-
     fn charset(&self) -> Charset {
         Charset::ASCII
     }
@@ -43,7 +41,9 @@ impl CharsetEncodeProbe for AsciiBytesCodec {
     }
 }
 
-unsafe impl Codec<char, u8> for AsciiBytesCodec {
+unsafe impl Codec for AsciiBytesCodec {
+    type Value = char;
+    type Unit = u8;
     type DecodeError = CharsetDecodeError;
     type EncodeError = CharsetEncodeError;
 
@@ -89,8 +89,6 @@ unsafe impl Codec<char, u8> for AsciiBytesCodec {
 struct ReplacementFallbackCodec;
 
 impl CharsetCodec for ReplacementFallbackCodec {
-    type Unit = u8;
-
     fn charset(&self) -> Charset {
         Charset::ASCII
     }
@@ -110,7 +108,9 @@ impl CharsetEncodeProbe for ReplacementFallbackCodec {
     }
 }
 
-unsafe impl Codec<char, u8> for ReplacementFallbackCodec {
+unsafe impl Codec for ReplacementFallbackCodec {
+    type Value = char;
+    type Unit = u8;
     type DecodeError = CharsetDecodeError;
     type EncodeError = CharsetEncodeError;
 

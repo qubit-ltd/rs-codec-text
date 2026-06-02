@@ -41,8 +41,6 @@ impl Latin1Codec {
 }
 
 impl CharsetCodec for Latin1Codec {
-    type Unit = u8;
-
     /// Returns the charset descriptor for this codec.
     ///
     /// # Returns
@@ -81,7 +79,9 @@ impl CharsetEncodeProbe for Latin1Codec {
     }
 }
 
-unsafe impl Codec<char, u8> for Latin1Codec {
+unsafe impl Codec for Latin1Codec {
+    type Value = char;
+    type Unit = u8;
     type DecodeError = CharsetDecodeError;
     type EncodeError = CharsetEncodeError;
 

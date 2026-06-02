@@ -69,8 +69,6 @@ impl Utf32U32Codec {
 }
 
 impl CharsetCodec for Utf32U32Codec {
-    type Unit = u32;
-
     /// Returns UTF-32 charset descriptor.
     ///
     /// # Returns
@@ -99,7 +97,9 @@ impl CharsetEncodeProbe for Utf32U32Codec {
     }
 }
 
-unsafe impl Codec<char, u32> for Utf32U32Codec {
+unsafe impl Codec for Utf32U32Codec {
+    type Value = char;
+    type Unit = u32;
     type DecodeError = CharsetDecodeError;
     type EncodeError = CharsetEncodeError;
 

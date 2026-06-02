@@ -69,8 +69,6 @@ impl Utf16U16Codec {
 }
 
 impl CharsetCodec for Utf16U16Codec {
-    type Unit = u16;
-
     /// Returns UTF-16 charset descriptor.
     ///
     /// # Returns
@@ -99,7 +97,9 @@ impl CharsetEncodeProbe for Utf16U16Codec {
     }
 }
 
-unsafe impl Codec<char, u16> for Utf16U16Codec {
+unsafe impl Codec for Utf16U16Codec {
+    type Value = char;
+    type Unit = u16;
     type DecodeError = CharsetDecodeError;
     type EncodeError = CharsetEncodeError;
 

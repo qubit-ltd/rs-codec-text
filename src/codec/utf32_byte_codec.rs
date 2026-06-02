@@ -102,8 +102,6 @@ impl Utf32ByteCodec {
 }
 
 impl CharsetCodec for Utf32ByteCodec {
-    type Unit = u8;
-
     /// Returns the fixed-endian UTF-32 charset for the configured byte order.
     ///
     /// # Returns
@@ -133,7 +131,9 @@ impl CharsetEncodeProbe for Utf32ByteCodec {
     }
 }
 
-unsafe impl Codec<char, u8> for Utf32ByteCodec {
+unsafe impl Codec for Utf32ByteCodec {
+    type Value = char;
+    type Unit = u8;
     type DecodeError = CharsetDecodeError;
     type EncodeError = CharsetEncodeError;
 

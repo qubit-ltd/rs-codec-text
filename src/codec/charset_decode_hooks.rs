@@ -79,7 +79,7 @@ impl CharsetDecodeHooks {
     }
 }
 
-impl<C> BufferedDecodeHooks<C, C::Unit, char> for CharsetDecodeHooks
+impl<C> BufferedDecodeHooks<C> for CharsetDecodeHooks
 where
     C: CharsetCodec,
 {

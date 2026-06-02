@@ -65,8 +65,6 @@ impl Utf8Codec {
 }
 
 impl CharsetCodec for Utf8Codec {
-    type Unit = u8;
-
     /// Returns UTF-8 charset descriptor.
     ///
     /// # Returns
@@ -95,7 +93,9 @@ impl CharsetEncodeProbe for Utf8Codec {
     }
 }
 
-unsafe impl Codec<char, u8> for Utf8Codec {
+unsafe impl Codec for Utf8Codec {
+    type Value = char;
+    type Unit = u8;
     type DecodeError = CharsetDecodeError;
     type EncodeError = CharsetEncodeError;
 

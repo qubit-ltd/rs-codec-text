@@ -45,7 +45,7 @@ where
     C: CharsetEncodeProbe,
 {
     /// Common buffered encode engine.
-    engine: BufferedEncodeEngine<C, CharsetEncodeHooks<C::Unit>, char, C::Unit>,
+    engine: BufferedEncodeEngine<C, CharsetEncodeHooks<C::Unit>>,
     /// Public unmappable-input policy metadata.
     policy: CharsetEncodePolicy,
     /// Number of cached units used by replacement policy.
@@ -80,7 +80,10 @@ where
     /// [`crate::CharsetCodec`] implementations, this indicates a broken codec
     /// invariant rather than recoverable input data.
     #[must_use]
-    pub fn new(codec: C) -> Self {
+    pub fn new(codec: C) -> Self
+    where
+        C::Unit: Default,
+    {
         let policy = CharsetEncodePolicy::default();
         match Self::create_hooks(&codec, policy) {
             Ok((hooks, replacement_units_len)) => Self {
@@ -113,7 +116,10 @@ where
     ///
     /// Returns an error when `policy` uses replacement and the replacement
     /// character cannot be encoded by `codec`.
-    pub fn with_policy(codec: C, policy: CharsetEncodePolicy) -> Result<Self, CharsetEncodeError> {
+    pub fn with_policy(codec: C, policy: CharsetEncodePolicy) -> Result<Self, CharsetEncodeError>
+    where
+        C::Unit: Default,
+    {
         let (hooks, replacement_units_len) = Self::create_hooks(&codec, policy)?;
         Ok(Self {
             engine: BufferedEncodeEngine::new(codec, hooks),
@@ -146,7 +152,10 @@ where
     pub(super) fn create_hooks(
         codec: &C,
         policy: CharsetEncodePolicy,
-    ) -> Result<(CharsetEncodeHooks<C::Unit>, usize), CharsetEncodeError> {
+    ) -> Result<(CharsetEncodeHooks<C::Unit>, usize), CharsetEncodeError>
+    where
+        C::Unit: Default,
+    {
         let mut hooks = CharsetEncodeHooks::new(policy.unmappable_action(), policy.replacement());
         if policy.unmappable_action() != UnmappableAction::Replace {
             return Ok((hooks, 0));

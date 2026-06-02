@@ -69,15 +69,17 @@ pub struct CharsetConverter<D, E>
 where
     D: CharsetCodec,
     E: CharsetEncodeProbe,
+    E::Unit: Default,
 {
     /// Common buffered converter engine.
-    engine: BufferedConvertEngine<D, E, CharsetConvertHooks, D::Unit, char, E::Unit>,
+    engine: BufferedConvertEngine<D, E, CharsetConvertHooks>,
 }
 
 impl<D, E> CharsetConverter<D, E>
 where
     D: CharsetCodec,
     E: CharsetEncodeProbe,
+    E::Unit: Default,
 {
     /// Creates a charset converter from raw source and target codecs.
     ///
@@ -134,6 +136,7 @@ impl<D, E> Transcoder<D::Unit, E::Unit> for CharsetConverter<D, E>
 where
     D: CharsetCodec,
     E: CharsetEncodeProbe,
+    E::Unit: Default,
 {
     type Error = CharsetConvertError;
 
@@ -195,5 +198,6 @@ impl<D, E> BufferedConverter<D::Unit, E::Unit> for CharsetConverter<D, E>
 where
     D: CharsetCodec,
     E: CharsetEncodeProbe,
+    E::Unit: Default,
 {
 }
