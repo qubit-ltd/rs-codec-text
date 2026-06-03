@@ -96,9 +96,11 @@ where
     ///
     /// Returns the number of output units written for the replacement.
     ///
-    /// # Errors
+    /// # Panics
     ///
-    /// Returns [`CharsetEncodeError`] when the output buffer is too small.
+    /// Panics if the cached replacement units do not fit in `output` from
+    /// `output_index`. The buffered encode engine prevents that by calling this
+    /// method only after the replacement plan's capacity has been checked.
     fn write_replacement(&self, output: &mut [Unit], output_index: usize) -> CharsetEncodeResult<usize> {
         if self.replacement_units.is_empty() {
             return Ok(0);
@@ -145,9 +147,10 @@ where
     unsafe fn write_encode(
         &mut self,
         codec: &C,
-        context: EncodeContext<'_, char, C::Unit, Self::PlanAction>,
+        context: EncodeContext<'_, char, C::Unit>,
+        plan: EncodePlan<Self::PlanAction>,
     ) -> Result<usize, Self::Error> {
-        match context.plan_action {
+        match plan.action {
             // SAFETY: The engine checked the exact capacity requested by
             // `prepare_encode`.
             CharsetEncodeAction::WriteOriginal => unsafe {
