@@ -21,6 +21,7 @@ use qubit_codec::{
     BufferedConvertEngine,
     BufferedConverter,
     CapacityError,
+    FinishError,
     TranscodeProgress,
     Transcoder,
 };
@@ -181,15 +182,14 @@ where
     ///
     /// # Returns
     ///
-    /// Returns completed progress when no finish output remains. Returns
-    /// `NeedOutput` when pending or final output cannot be flushed due to
-    /// missing target capacity.
+    /// Returns the number of target units written during finalization.
     ///
     /// # Errors
     ///
-    /// Returns `CharsetConvertError::Encode` when encoding pending or final
-    /// decoded characters violates target charset policy.
-    fn finish(&mut self, output: &mut [E::Unit], output_index: usize) -> Result<TranscodeProgress, Self::Error> {
+    /// Returns [`FinishError`] when `output_index` is invalid, when output
+    /// capacity is insufficient, or when encoding pending or final decoded
+    /// characters violates target charset policy.
+    fn finish(&mut self, output: &mut [E::Unit], output_index: usize) -> Result<usize, FinishError<Self::Error>> {
         self.engine.finish(output, output_index)
     }
 }

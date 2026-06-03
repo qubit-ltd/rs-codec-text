@@ -168,9 +168,8 @@ fn test_charset_decoder_leaves_incomplete_input_to_caller_across_chunks() {
     assert_eq!(2, progress.written());
     assert_eq!(['中', '!'], output);
 
-    let finish = decoder.finish(&mut output, 0).expect("finish has no pending tail");
-    assert_eq!(TranscodeStatus::Complete, finish.status());
-    assert_eq!(0, finish.written());
+    let written = decoder.finish(&mut output, 0).expect("finish has no pending tail");
+    assert_eq!(0, written);
 }
 
 #[test]
@@ -220,11 +219,8 @@ fn test_charset_decoder_decodes_short_ascii_without_waiting_for_finish() {
     assert_eq!(['A', 'B'], output);
     assert_eq!(Ok(0), decoder.max_finish_output_len());
 
-    let finish = decoder.finish(&mut output, 0).expect("EOF has no buffered ASCII tail");
-
-    assert_eq!(TranscodeStatus::Complete, finish.status());
-    assert_eq!(0, finish.read());
-    assert_eq!(0, finish.written());
+    let written = decoder.finish(&mut output, 0).expect("EOF has no buffered ASCII tail");
+    assert_eq!(0, written);
     assert_eq!(Ok(0), decoder.max_finish_output_len());
 }
 
@@ -242,8 +238,8 @@ fn test_charset_decoder_decodes_all_available_ascii_units() {
     assert_eq!(4, progress.written());
     assert_eq!(['A', 'B', 'C', 'D'], output);
 
-    let finish = decoder.finish(&mut output, 0).expect("finish has no buffered tail");
-    assert_eq!(0, finish.written());
+    let written = decoder.finish(&mut output, 0).expect("finish has no buffered tail");
+    assert_eq!(0, written);
 }
 
 #[test]
@@ -325,13 +321,10 @@ fn test_charset_decoder_finish_does_not_replace_incomplete_input() {
     assert_eq!(0, progress.read());
     assert_eq!(Ok(0), decoder.max_finish_output_len());
 
-    let finish = decoder
+    let written = decoder
         .finish(&mut output, 0)
         .expect("finish does not process caller-owned incomplete input");
-
-    assert_eq!(TranscodeStatus::Complete, finish.status());
-    assert_eq!(0, finish.read());
-    assert_eq!(0, finish.written());
+    assert_eq!(0, written);
     assert_eq!('\0', output[0]);
     assert_eq!(Ok(0), decoder.max_finish_output_len());
 }
@@ -341,13 +334,10 @@ fn test_charset_decoder_finish_without_pending_input_is_complete() {
     let mut decoder = CharsetDecoder::new(Utf8Codec);
     let mut output = ['\0'; 1];
 
-    let finish = decoder
+    let written = decoder
         .finish(&mut output, 0)
         .expect("finish without pending input is complete");
-
-    assert_eq!(TranscodeStatus::Complete, finish.status());
-    assert_eq!(0, finish.read());
-    assert_eq!(0, finish.written());
+    assert_eq!(0, written);
     assert_eq!(Ok(0), decoder.max_finish_output_len());
 }
 
@@ -362,13 +352,10 @@ fn test_charset_decoder_finish_ignores_output_capacity_for_caller_owned_tail() {
 
     assert!(matches!(progress.status(), TranscodeStatus::NeedInput { .. }));
 
-    let finish = decoder
+    let written = decoder
         .finish(&mut output, 0)
         .expect("finish has no decoder-owned replacement output");
-
-    assert_eq!(TranscodeStatus::Complete, finish.status());
-    assert_eq!(0, finish.read());
-    assert_eq!(0, finish.written());
+    assert_eq!(0, written);
     assert_eq!(Ok(0), decoder.max_finish_output_len());
 }
 
@@ -384,13 +371,10 @@ fn test_charset_decoder_finish_ignores_incomplete_input() {
     assert!(matches!(progress.status(), TranscodeStatus::NeedInput { .. }));
     assert_eq!(Ok(0), decoder.max_finish_output_len());
 
-    let finish = decoder
+    let written = decoder
         .finish(&mut output, 0)
         .expect("ignore policy drops incomplete EOF input");
-
-    assert_eq!(TranscodeStatus::Complete, finish.status());
-    assert_eq!(0, finish.read());
-    assert_eq!(0, finish.written());
+    assert_eq!(0, written);
     assert_eq!(Ok(0), decoder.max_finish_output_len());
 }
 
@@ -406,12 +390,10 @@ fn test_charset_decoder_finish_does_not_report_incomplete_input() {
     assert!(matches!(progress.status(), TranscodeStatus::NeedInput { .. }));
     assert_eq!(Ok(0), decoder.max_finish_output_len());
 
-    let finish = decoder
+    let written = decoder
         .finish(&mut output, 0)
         .expect("finish does not process caller-owned incomplete input");
-
-    assert_eq!(TranscodeStatus::Complete, finish.status());
-    assert_eq!(0, finish.written());
+    assert_eq!(0, written);
 }
 
 #[test]
@@ -427,12 +409,10 @@ fn test_charset_decoder_reset_clears_incomplete_input() {
     assert_eq!(Ok(0), decoder.max_finish_output_len());
 
     decoder.reset();
-    let finish = decoder
+    let written = decoder
         .finish(&mut output, 0)
         .expect("reset removes pending incomplete input");
-
-    assert_eq!(TranscodeStatus::Complete, finish.status());
-    assert_eq!(0, finish.written());
+    assert_eq!(0, written);
     assert_eq!(Ok(0), decoder.max_finish_output_len());
 }
 
@@ -463,11 +443,10 @@ fn test_charset_decoder_finish_ignores_caller_owned_incomplete_error() {
         .expect("first unit is caller-owned incomplete input");
     assert!(matches!(progress.status(), TranscodeStatus::NeedInput { .. }));
 
-    let finish = decoder
+    let written = decoder
         .finish(&mut output, 0)
         .expect("finish does not process caller-owned incomplete input");
-    assert_eq!(TranscodeStatus::Complete, finish.status());
-    assert_eq!(0, finish.written());
+    assert_eq!(0, written);
 }
 
 #[test]

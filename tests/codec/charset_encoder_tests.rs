@@ -1,4 +1,7 @@
-use qubit_codec::BufferedEncoder;
+use qubit_codec::{
+    BufferedEncoder,
+    FinishError,
+};
 use qubit_codec_text::{
     Charset,
     CharsetCodec,
@@ -383,12 +386,16 @@ fn test_charset_encoder_reports_invalid_indices_and_capacity() {
     assert_eq!(0, progress.read());
     assert_eq!(0, progress.written());
 
-    let progress = encoder
+    let error = encoder
         .finish(&mut output, beyond_output)
-        .expect("finish output index beyond output slice needs more output");
-    assert!(matches!(progress.status(), TranscodeStatus::NeedOutput { .. }));
-    assert_eq!(0, progress.read());
-    assert_eq!(0, progress.written());
+        .expect_err("finish output index beyond output slice should be rejected");
+    assert_eq!(
+        FinishError::InvalidOutputIndex {
+            index: beyond_output,
+            len: output.len(),
+        },
+        error,
+    );
 
     let progress = encoder
         .transcode(&input, 0, &mut output, 0)

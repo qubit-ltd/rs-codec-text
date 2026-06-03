@@ -11,6 +11,7 @@ use qubit_codec::{
     BufferedDecodeEngine,
     BufferedDecoder,
     CapacityError,
+    FinishError,
     TranscodeProgress,
     Transcoder,
 };
@@ -143,7 +144,7 @@ where
     }
 
     /// Finishes decoder-owned final output after EOF.
-    fn finish(&mut self, output: &mut [char], output_index: usize) -> Result<TranscodeProgress, Self::Error> {
+    fn finish(&mut self, output: &mut [char], output_index: usize) -> Result<usize, FinishError<Self::Error>> {
         self.engine.finish(output, output_index)
     }
 }

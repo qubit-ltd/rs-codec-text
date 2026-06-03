@@ -1,6 +1,7 @@
-use core::num::NonZeroUsize;
-
-use qubit_codec::BufferedConverter;
+use qubit_codec::{
+    BufferedConverter,
+    FinishError,
+};
 use qubit_codec_text::{
     Charset,
     CharsetCodec,
@@ -170,9 +171,8 @@ fn test_charset_converter_from_codecs_converts_available_ascii_without_finish() 
     assert_eq!(['A' as u16, 'B' as u16, 'C' as u16, 'D' as u16], output);
     assert_eq!(Ok(0), converter.max_finish_output_len());
 
-    let finish = converter.finish(&mut output, 0).expect("finish has no buffered tail");
-    assert_eq!(TranscodeStatus::Complete, finish.status());
-    assert_eq!(0, finish.written());
+    let written = converter.finish(&mut output, 0).expect("finish has no buffered tail");
+    assert_eq!(0, written);
 }
 
 #[test]
@@ -271,12 +271,17 @@ fn test_charset_converter_finish_reports_need_output_for_starting_pending_charac
     assert_eq!(1, progress.read());
     assert_eq!(0, progress.written());
 
-    let finish = converter
+    let error = converter
         .finish(&mut empty_output, 0)
-        .expect("pending character still needs output at finish");
-    assert!(matches!(finish.status(), TranscodeStatus::NeedOutput { .. }));
-    assert_eq!(0, finish.read());
-    assert_eq!(0, finish.written());
+        .expect_err("pending character still needs output at finish");
+    assert_eq!(
+        FinishError::InsufficientOutput {
+            output_index: 0,
+            required: 2,
+            available: 0,
+        },
+        error,
+    );
 }
 
 #[test]
@@ -284,20 +289,10 @@ fn test_charset_converter_finish_delegates_to_target_encoder() {
     let mut converter = CharsetConverter::from_codecs(Utf8Codec, Utf16U16Codec);
     let mut output = [];
 
-    let finish = converter
+    let error = converter
         .finish(&mut output, 1)
-        .expect("target encoder reports out-of-range output index");
-
-    assert_eq!(
-        TranscodeStatus::NeedOutput {
-            output_index: 1,
-            additional: NonZeroUsize::MIN,
-            available: 0,
-        },
-        finish.status(),
-    );
-    assert_eq!(0, finish.read());
-    assert_eq!(0, finish.written());
+        .expect_err("target encoder reports out-of-range output index");
+    assert_eq!(FinishError::InvalidOutputIndex { index: 1, len: 0 }, error);
 }
 
 #[test]
@@ -311,13 +306,10 @@ fn test_charset_converter_finish_writes_starting_pending_character() {
     assert!(matches!(progress.status(), TranscodeStatus::NeedOutput { .. }));
 
     let mut output = [0_u16; 4];
-    let finish = converter
+    let written = converter
         .finish(&mut output, 0)
         .expect("pending character is written during finish");
-
-    assert_eq!(TranscodeStatus::Complete, finish.status());
-    assert_eq!(0, finish.read());
-    assert_eq!(1, finish.written());
+    assert_eq!(1, written);
     assert_eq!('A' as u16, output[0]);
 }
 
@@ -356,13 +348,10 @@ fn test_charset_converter_finish_does_not_finalize_incomplete_source_input() {
     assert_eq!(0, progress.written());
     assert_eq!(Ok(0), converter.max_finish_output_len());
 
-    let finish = converter
+    let written = converter
         .finish(&mut output, 0)
         .expect("finish does not process caller-owned incomplete source input");
-
-    assert_eq!(TranscodeStatus::Complete, finish.status());
-    assert_eq!(0, finish.read());
-    assert_eq!(0, finish.written());
+    assert_eq!(0, written);
     assert_eq!(0, output[0]);
     assert_eq!(Ok(0), converter.max_finish_output_len());
 }
@@ -379,13 +368,10 @@ fn test_charset_converter_finish_has_no_output_for_incomplete_source_input() {
     assert!(matches!(progress.status(), TranscodeStatus::NeedInput { .. }));
     assert_eq!(Ok(0), converter.max_finish_output_len());
 
-    let finish = converter
+    let written = converter
         .finish(&mut output, 0)
         .expect("finish has no decoder-owned replacement output");
-
-    assert_eq!(TranscodeStatus::Complete, finish.status());
-    assert_eq!(0, finish.read());
-    assert_eq!(0, finish.written());
+    assert_eq!(0, written);
     assert_eq!(Ok(0), converter.max_finish_output_len());
 }
 
@@ -407,12 +393,10 @@ fn test_charset_converter_finish_does_not_report_incomplete_source_input() {
     assert!(matches!(progress.status(), TranscodeStatus::NeedInput { .. }));
     assert_eq!(Ok(0), converter.max_finish_output_len());
 
-    let finish = converter
+    let written = converter
         .finish(&mut output, 0)
         .expect("finish does not process caller-owned incomplete source input");
-
-    assert_eq!(TranscodeStatus::Complete, finish.status());
-    assert_eq!(0, finish.written());
+    assert_eq!(0, written);
 }
 
 #[test]
