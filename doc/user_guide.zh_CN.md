@@ -122,6 +122,9 @@ const GBK: Charset = Charset::new("gbk", "GBK", &["cp936"]);
 assert!(GBK.matches_label("CP936"));
 ```
 
+`Charset::from_label` 会在匹配内置 charset 标签前裁剪首尾 ASCII 空白。
+`Charset::matches_label` 则直接比较调用方传入的 label，只做 ASCII 大小写不敏感比较。
+
 内置描述对象：
 
 | Charset | 含义 |
@@ -173,7 +176,9 @@ BOM。BOM 处理由调用方负责。
 
 `CharsetCodec` 与这个 unsafe trait 处于同一低层，只增加 `charset()` 元数据和
 存储 `Unit` 类型。`CharsetEncodeProbe` 增加 `encode_len()`，encoder 用它提前
-校验可映射性，并在调用 unsafe `encode_unchecked` 前计算精确输出单元数。
+校验可映射性，并在调用 unsafe `encode_unchecked` 前计算精确输出单元数。对同一个
+codec 状态、字符和输出下标，`encode_len()` 成功返回的长度必须等于输出容量充足时
+`encode_unchecked()` 实际写出的单元数。
 
 通过 `decode_unchecked` 解码时，调用方必须在调用前从当前输入下标开始提供
 至少 `codec.min_units_per_value()` 个可读单元。调用方通常应尽量提供到
@@ -381,17 +386,18 @@ assert_eq!(0, error.index());
 assert_eq!(Some('é' as u32), error.value());
 ```
 
-`CharsetEncoder::new` 会提前验证替换字符并缓存其编码宽度。它先尝试 `U+FFFD`，
-再回退到 `?`。只有当传入的 codec 连这两个替换字符都无法编码时才会 panic。
-内置 codec 不会触发这个分支；对自定义 codec 来说，这个 panic 表示 codec 不变量
-被破坏，而不是可恢复文本输入错误。
+`CharsetEncoder::new` 会用 `encode_len()` 提前验证替换字符并记录其编码宽度。
+它先尝试 `U+FFFD`，再回退到 `?`。只有当传入的 codec 连这两个替换字符都无法编码时
+才会 panic。内置 codec 不会触发这个分支；对自定义 codec 来说，这个 panic 表示
+codec 不变量被破坏，而不是可恢复文本输入错误。真正写出 replacement 时仍会调用
+`encode_unchecked()`，因此该写入过程中出现的非策略类 codec 错误会在转码时暴露。
 
 内部实现上，`CharsetEncoder` 把 unmappable-input 策略保存在 encode hooks 中，并转发给
 `BufferedEncodeEngine<C, H>`。engine 负责输入迭代、输出容量检查和
 `TranscodeProgress` 构造；hooks 提供 original、replacement 或 ignored 字符对应的
 charset-specific 计划。
 
-需要自定义替换字符时，可使用 `with_policy` 提前验证：
+需要自定义替换字符时，可使用 `with_policy` 通过 `encode_len()` 提前验证：
 
 ```rust
 use qubit_codec_text::{
@@ -440,6 +446,9 @@ assert_eq!(['A' as u16, '中' as u16], output);
 如果目标输出缓冲区已满，converter 最多保留一个已解码但尚未写出的 pending 字符。
 之后可以用更大的输出缓冲区再次调用 `transcode`，或在调用方处理完不完整源尾部后调用
 `finish` 刷出 pending 输出。
+
+使用显式 policy 构造 converter 时，目标端 replacement 会被验证一次，并把验证后得到的
+encode hooks 交给内部 `BufferedConvertEngine` 复用。
 
 `CharsetConvertError` 会区分源端解码失败和目标端编码失败：
 
@@ -580,7 +589,10 @@ assert_eq!(&[0x3d, 0xd8, 0x00, 0xde], &output[..written]);
 
 - 输出容量不足时返回 `BufferTooSmall`。
 - charset 无法表示某个标量值时返回 `UnmappableCharacter`。
-- `encode_len` 必须返回同一个字符随后由 `encode_unchecked` 写出的精确单元数。
+- 输出容量充足时，`encode_len` 必须返回同一个字符随后由 `encode_unchecked`
+  写出的精确单元数。
+- 对同一个 codec 状态、字符和输出下标，`encode_len` 与 `encode_unchecked`
+  必须在可映射性判断上保持一致。
 - 如果希望 codec 能和 `CharsetEncoder::new` 一起使用，应保证替换字符 `?`
   可以编码。
 

@@ -132,6 +132,10 @@ const GBK: Charset = Charset::new("gbk", "GBK", &["cp936"]);
 assert!(GBK.matches_label("CP936"));
 ```
 
+`Charset::from_label` trims leading and trailing ASCII whitespace before it
+matches built-in charset labels. `Charset::matches_label` compares the label it
+receives directly, using ASCII case-insensitive comparison.
+
 Built-in descriptors:
 
 | Charset | Meaning |
@@ -187,7 +191,10 @@ to caller-owned output units.
 `CharsetCodec` stays at this same low-level layer. It adds only `charset()`
 metadata and the storage `Unit` type. `CharsetEncodeProbe` adds `encode_len()`,
 which is used by encoders to validate mappability and compute the exact output
-unit count before calling unsafe `encode_unchecked`.
+unit count before calling unsafe `encode_unchecked`. For the same codec state,
+character, and output index, a successful `encode_len()` result must equal the
+number of units that `encode_unchecked()` writes when enough output capacity is
+available.
 
 For decoding through `decode_unchecked`, callers must provide at least
 `codec.min_units_per_value()` readable units from the current input index before
@@ -404,18 +411,21 @@ assert_eq!(0, error.index());
 assert_eq!(Some('é' as u32), error.value());
 ```
 
-`CharsetEncoder::new` validates the replacement character and caches its encoded
-width. It first tries `U+FFFD`, then falls back to `?`. It panics only if the
-supplied codec cannot encode either replacement. Built-in codecs do not trigger
-this; for a custom codec, that panic indicates a broken codec invariant rather
-than recoverable text input.
+`CharsetEncoder::new` validates the replacement character with `encode_len()` and
+records its encoded width. It first tries `U+FFFD`, then falls back to `?`. It
+panics only if the supplied codec cannot encode either replacement. Built-in
+codecs do not trigger this; for a custom codec, that panic indicates a broken
+codec invariant rather than recoverable text input. Replacement output is still
+written through `encode_unchecked()`, so non-policy codec errors from that write
+are surfaced during transcoding.
 
 Internally, `CharsetEncoder` stores unmappable-input policy in encode hooks and
 delegates to `BufferedEncodeEngine<C, H>`. The engine owns input iteration,
 output capacity checks, and `TranscodeProgress` construction; the hooks supply
 the charset-specific plan for original, replacement, or ignored characters.
 
-Use `with_policy` to validate a custom replacement character up front:
+Use `with_policy` to validate a custom replacement character up front with
+`encode_len()`:
 
 ```rust
 use qubit_codec_text::{
@@ -464,6 +474,10 @@ assert_eq!(['A' as u16, '中' as u16], output);
 Converters keep at most one pending decoded character when target output is
 full. Call `transcode` again with more output space, or call `finish` after the
 caller has handled any incomplete source tail to drain pending output.
+
+When constructing a converter with explicit policies, the target replacement is
+validated once and the resulting encode hooks are reused by the internal
+`BufferedConvertEngine`.
 
 `CharsetConvertError` distinguishes source decode failures from target encode
 failures:
@@ -621,7 +635,9 @@ Important `encode_unchecked` and `encode_len` expectations:
 - Return `UnmappableCharacter` when the charset cannot represent the scalar
   value.
 - `encode_len` must return the exact number of units that `encode_unchecked`
-  will write for the same character.
+  will write for the same character when enough output capacity is available.
+- `encode_len` and `encode_unchecked` must agree on mappability for the same
+  codec state, character, and output index.
 - Keep replacement `?` encodable if the codec is meant to work with
   `CharsetEncoder::new`.
 
