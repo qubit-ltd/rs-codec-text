@@ -16,13 +16,15 @@ use qubit_codec::{
     TranscodeProgress,
 };
 
-use crate::CharsetDecodeError;
+use crate::{
+    CharsetCodec,
+    CharsetDecodeError,
+    MalformedAction,
+};
 
 use super::{
-    charset_codec::CharsetCodec,
     charset_decode_hooks::CharsetDecodeHooks,
     charset_decode_policy::CharsetDecodePolicy,
-    malformed_action::MalformedAction,
 };
 
 /// Converts units of one charset into Unicode scalar values.

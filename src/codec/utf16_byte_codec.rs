@@ -7,7 +7,7 @@
  *    Licensed under the Apache License, Version 2.0.
  *
  ******************************************************************************/
-use super::inner::utf16;
+use super::utf16;
 
 use crate::{
     ByteOrder,

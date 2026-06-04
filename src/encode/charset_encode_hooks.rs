@@ -22,17 +22,17 @@ use crate::{
     CharsetEncodeError,
     CharsetEncodeErrorKind,
     CharsetEncodeResult,
+    UnmappableAction,
 };
 
 use super::{
     charset_encode_action::CharsetEncodeAction,
     charset_encode_probe::CharsetEncodeProbe,
-    unmappable_action::UnmappableAction,
 };
 
 /// Unmappable-input policy hooks used by [`super::CharsetEncoder`].
 #[derive(Clone)]
-pub(super) struct CharsetEncodeHooks<Unit> {
+pub(crate) struct CharsetEncodeHooks<Unit> {
     /// Action used for unmappable input characters.
     pub(super) unmappable_action: UnmappableAction,
     /// Replacement character used by [`UnmappableAction::Replace`].
@@ -77,7 +77,7 @@ impl<Unit> CharsetEncodeHooks<Unit> {
     ///
     /// Returns hooks configured with no replacement output units.
     #[must_use]
-    pub(super) const fn new(unmappable_action: UnmappableAction, replacement: char) -> Self {
+    pub(crate) const fn new(unmappable_action: UnmappableAction, replacement: char) -> Self {
         Self {
             unmappable_action,
             replacement,
@@ -91,7 +91,7 @@ impl<Unit> CharsetEncodeHooks<Unit> {
     /// # Parameters
     ///
     /// - `replacement_units_len`: Number of target units used by the replacement.
-    pub(super) const fn set_replacement_units_len(&mut self, replacement_units_len: usize) {
+    pub(crate) const fn set_replacement_units_len(&mut self, replacement_units_len: usize) {
         self.replacement_units_len = replacement_units_len;
     }
 }

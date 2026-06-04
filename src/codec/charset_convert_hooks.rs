@@ -14,41 +14,47 @@ use qubit_codec::BufferedConvertHooks;
 use crate::{
     CharsetDecodeError,
     CharsetDecodeErrorKind,
+    CharsetDecodeHooks,
+    CharsetDecodePolicy,
     CharsetEncodeError,
+    CharsetEncodeHooks,
+    CharsetEncodePolicy,
+    CharsetEncodeProbe,
 };
 
 use super::{
     charset_codec::CharsetCodec,
     charset_convert_error::CharsetConvertError,
-    charset_decode_hooks::CharsetDecodeHooks,
-    charset_decode_policy::CharsetDecodePolicy,
-    charset_encode_hooks::CharsetEncodeHooks,
-    charset_encode_policy::CharsetEncodePolicy,
-    charset_encode_probe::CharsetEncodeProbe,
-    charset_encoder::CharsetEncoder,
 };
 
 /// Policy hooks for [`super::CharsetConverter`].
-#[derive(Clone, Debug, Eq, Hash, PartialEq)]
-pub(super) struct CharsetConvertHooks {
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(super) struct CharsetConvertHooks<Unit> {
     /// Malformed source-input policy.
     decode_policy: CharsetDecodePolicy,
     /// Unmappable target-output policy.
     encode_policy: CharsetEncodePolicy,
+    /// Prevalidated target-side encode hooks.
+    encode_hooks: CharsetEncodeHooks<Unit>,
 }
 
-impl CharsetConvertHooks {
+impl<Unit> CharsetConvertHooks<Unit> {
     /// Creates charset converter hooks with explicit policies.
     #[must_use]
-    pub(super) const fn with_policies(decode_policy: CharsetDecodePolicy, encode_policy: CharsetEncodePolicy) -> Self {
+    pub(super) const fn with_policies(
+        decode_policy: CharsetDecodePolicy,
+        encode_policy: CharsetEncodePolicy,
+        encode_hooks: CharsetEncodeHooks<Unit>,
+    ) -> Self {
         Self {
             decode_policy,
             encode_policy,
+            encode_hooks,
         }
     }
 }
 
-impl<D, E> BufferedConvertHooks<D, E> for CharsetConvertHooks
+impl<D, E> BufferedConvertHooks<D, E> for CharsetConvertHooks<E::Unit>
 where
     D: CharsetCodec,
     E: CharsetEncodeProbe,
@@ -64,11 +70,9 @@ where
         CharsetDecodeHooks::from_policy(self.decode_policy)
     }
 
-    /// Creates default charset encode hooks.
-    fn create_encode_hooks(&self, _decode_codec: &D, encode_codec: &E) -> Self::EncodeHooks {
-        CharsetEncoder::<E>::create_hooks(encode_codec, self.encode_policy)
-            .map(|(hooks, _)| hooks)
-            .expect("charset converter encode policy should be prevalidated before building hooks")
+    /// Returns the prevalidated charset encode hooks.
+    fn create_encode_hooks(&self, _decode_codec: &D, _encode_codec: &E) -> Self::EncodeHooks {
+        self.encode_hooks.clone()
     }
 
     /// Maps decoder errors into converter decode errors.

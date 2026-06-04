@@ -39,6 +39,14 @@ name = "codec"
 path = "tests/codec/mod.rs"
 
 [[test]]
+name = "decode"
+path = "tests/decode/mod.rs"
+
+[[test]]
+name = "encode"
+path = "tests/encode/mod.rs"
+
+[[test]]
 name = "charset"
 path = "tests/charset/mod.rs"
 

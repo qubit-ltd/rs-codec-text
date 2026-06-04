@@ -19,6 +19,8 @@
 
 mod charset;
 mod codec;
+mod decode;
+mod encode;
 mod encoding;
 mod error;
 
@@ -35,11 +37,6 @@ pub use codec::{
     CharsetCodec,
     CharsetConvertError,
     CharsetConverter,
-    CharsetDecodePolicy,
-    CharsetDecoder,
-    CharsetEncodePolicy,
-    CharsetEncodeProbe,
-    CharsetEncoder,
     Latin1Codec,
     MalformedAction,
     UnmappableAction,
@@ -50,6 +47,17 @@ pub use codec::{
     Utf16U16Codec,
     Utf32ByteCodec,
     Utf32U32Codec,
+};
+pub(crate) use decode::CharsetDecodeHooks;
+pub use decode::{
+    CharsetDecodePolicy,
+    CharsetDecoder,
+};
+pub(crate) use encode::CharsetEncodeHooks;
+pub use encode::{
+    CharsetEncodePolicy,
+    CharsetEncodeProbe,
+    CharsetEncoder,
 };
 pub use encoding::{
     Charset,

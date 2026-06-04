@@ -7,28 +7,26 @@
  *    Licensed under the Apache License, Version 2.0.
  *
  ******************************************************************************/
-use super::unmappable_action::UnmappableAction;
+use crate::MalformedAction;
 
-/// Unmappable-input policy used by charset encoders and converters.
+/// Malformed-input policy used by charset decoders and converters.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-pub struct CharsetEncodePolicy {
-    /// Action used for unmappable input characters.
-    unmappable_action: UnmappableAction,
-    /// Replacement character used by [`UnmappableAction::Replace`].
+pub struct CharsetDecodePolicy {
+    /// Action used for malformed input units.
+    malformed_action: MalformedAction,
+    /// Replacement character used by [`MalformedAction::Replace`].
     replacement: char,
 }
 
-impl CharsetEncodePolicy {
-    /// Default replacement character used when unmappable input is replaced.
+impl CharsetDecodePolicy {
+    /// Default replacement character used when malformed input is replaced.
     pub const DEFAULT_REPLACEMENT: char = '\u{fffd}';
-    /// Fallback replacement used when the default replacement is unmappable.
-    pub const DEFAULT_FALLBACK_REPLACEMENT: char = '?';
 
-    /// Creates an unmappable-input policy.
+    /// Creates a malformed-input policy.
     #[must_use]
-    pub const fn new(unmappable_action: UnmappableAction, replacement: char) -> Self {
+    pub const fn new(malformed_action: MalformedAction, replacement: char) -> Self {
         Self {
-            unmappable_action,
+            malformed_action,
             replacement,
         }
     }
@@ -36,7 +34,7 @@ impl CharsetEncodePolicy {
     /// Creates a replacement policy.
     #[must_use]
     pub const fn replace(replacement: char) -> Self {
-        Self::new(UnmappableAction::Replace, replacement)
+        Self::new(MalformedAction::Replace, replacement)
     }
 
     /// Creates an ignore policy with the default replacement retained for metadata.
@@ -48,19 +46,19 @@ impl CharsetEncodePolicy {
     /// Creates an ignore policy with explicit replacement metadata.
     #[must_use]
     pub const fn ignore_with_replacement(replacement: char) -> Self {
-        Self::new(UnmappableAction::Ignore, replacement)
+        Self::new(MalformedAction::Ignore, replacement)
     }
 
     /// Creates a report policy with the default replacement retained for metadata.
     #[must_use]
     pub const fn report() -> Self {
-        Self::new(UnmappableAction::Report, Self::DEFAULT_REPLACEMENT)
+        Self::new(MalformedAction::Report, Self::DEFAULT_REPLACEMENT)
     }
 
-    /// Returns the unmappable-input action.
+    /// Returns the malformed-input action.
     #[must_use]
-    pub const fn unmappable_action(self) -> UnmappableAction {
-        self.unmappable_action
+    pub const fn malformed_action(self) -> MalformedAction {
+        self.malformed_action
     }
 
     /// Returns the replacement character.
@@ -70,7 +68,7 @@ impl CharsetEncodePolicy {
     }
 }
 
-impl Default for CharsetEncodePolicy {
+impl Default for CharsetDecodePolicy {
     fn default() -> Self {
         Self::replace(Self::DEFAULT_REPLACEMENT)
     }

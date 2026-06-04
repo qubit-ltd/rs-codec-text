@@ -7,7 +7,7 @@
  *    Licensed under the Apache License, Version 2.0.
  *
  ******************************************************************************/
-use super::inner::utf8;
+use super::utf8;
 use crate::{
     Charset,
     CharsetCodec,

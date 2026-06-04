@@ -17,19 +17,17 @@ use qubit_codec::{
 };
 
 use crate::{
+    CharsetCodec,
     CharsetDecodeError,
     CharsetDecodeErrorKind,
+    MalformedAction,
 };
 
-use super::{
-    charset_codec::CharsetCodec,
-    charset_decode_policy::CharsetDecodePolicy,
-    malformed_action::MalformedAction,
-};
+use super::charset_decode_policy::CharsetDecodePolicy;
 
 /// Malformed-input policy hooks used by [`super::CharsetDecoder`].
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-pub(super) struct CharsetDecodeHooks {
+pub(crate) struct CharsetDecodeHooks {
     /// Action used for malformed input units.
     pub(super) malformed_action: MalformedAction,
     /// Replacement character used by [`MalformedAction::Replace`].
@@ -48,7 +46,7 @@ impl CharsetDecodeHooks {
     ///
     /// Returns hooks carrying the supplied policy.
     #[must_use]
-    pub(super) const fn new(malformed_action: MalformedAction, replacement: char) -> Self {
+    pub(crate) const fn new(malformed_action: MalformedAction, replacement: char) -> Self {
         Self {
             malformed_action,
             replacement,
@@ -57,7 +55,7 @@ impl CharsetDecodeHooks {
 
     /// Creates charset decode hooks from a public policy.
     #[must_use]
-    pub(super) const fn from_policy(policy: CharsetDecodePolicy) -> Self {
+    pub(crate) const fn from_policy(policy: CharsetDecodePolicy) -> Self {
         Self::new(policy.malformed_action(), policy.replacement())
     }
 

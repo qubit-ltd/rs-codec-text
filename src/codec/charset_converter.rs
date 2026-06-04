@@ -11,16 +11,17 @@ use super::{
     charset_codec::CharsetCodec,
     charset_convert_error::CharsetConvertError,
     charset_convert_hooks::CharsetConvertHooks,
-    charset_decode_policy::CharsetDecodePolicy,
-    charset_encode_policy::CharsetEncodePolicy,
-    charset_encode_probe::CharsetEncodeProbe,
-    charset_encoder::CharsetEncoder,
-    malformed_action::MalformedAction,
-    unmappable_action::UnmappableAction,
 };
 use crate::{
+    CharsetDecodePolicy,
     CharsetEncodeError,
     CharsetEncodeErrorKind,
+    CharsetEncodeHooks,
+    CharsetEncodePolicy,
+    CharsetEncodeProbe,
+    CharsetEncoder,
+    MalformedAction,
+    UnmappableAction,
 };
 use qubit_codec::{
     BufferedConvertEngine,
@@ -77,7 +78,7 @@ where
     E: CharsetEncodeProbe,
 {
     /// Common buffered converter engine.
-    engine: BufferedConvertEngine<D, E, CharsetConvertHooks>,
+    engine: BufferedConvertEngine<D, E, CharsetConvertHooks<E::Unit>>,
     /// Public malformed-input policy metadata.
     decode_policy: CharsetDecodePolicy,
     /// Public unmappable-input policy metadata.
@@ -109,12 +110,12 @@ where
     #[must_use]
     pub fn from_codecs(source: D, target: E) -> Self {
         let decode_policy = CharsetDecodePolicy::default();
-        let encode_policy = Self::default_encode_policy(&target);
+        let (encode_policy, encode_hooks) = Self::default_encode_policy(&target);
         Self {
             engine: BufferedConvertEngine::new(
                 source,
                 target,
-                CharsetConvertHooks::with_policies(decode_policy, encode_policy),
+                CharsetConvertHooks::with_policies(decode_policy, encode_policy, encode_hooks),
             ),
             decode_policy,
             encode_policy,
@@ -144,12 +145,12 @@ where
         decode_policy: CharsetDecodePolicy,
         encode_policy: CharsetEncodePolicy,
     ) -> Result<Self, CharsetEncodeError> {
-        let _ = CharsetEncoder::<E>::create_hooks(&target, encode_policy)?;
+        let (encode_hooks, _) = CharsetEncoder::<E>::create_hooks(&target, encode_policy)?;
         Ok(Self {
             engine: BufferedConvertEngine::new(
                 source,
                 target,
-                CharsetConvertHooks::with_policies(decode_policy, encode_policy),
+                CharsetConvertHooks::with_policies(decode_policy, encode_policy, encode_hooks),
             ),
             decode_policy,
             encode_policy,
@@ -222,25 +223,27 @@ where
     ///
     /// Panics when neither the default replacement nor the fallback replacement can
     /// be encoded by `target`.
-    fn default_encode_policy(target: &E) -> CharsetEncodePolicy {
+    fn default_encode_policy(target: &E) -> (CharsetEncodePolicy, CharsetEncodeHooks<E::Unit>) {
         let default_policy = CharsetEncodePolicy::default();
-        if CharsetEncoder::<E>::create_hooks(target, default_policy).is_ok() {
-            return default_policy;
+        match CharsetEncoder::<E>::create_hooks(target, default_policy) {
+            Ok((hooks, _)) => (default_policy, hooks),
+            Err(_) => {
+                let fallback_policy = CharsetEncodePolicy::replace(CharsetEncodePolicy::DEFAULT_FALLBACK_REPLACEMENT);
+                if let Ok((hooks, _)) = CharsetEncoder::<E>::create_hooks(target, fallback_policy) {
+                    return (fallback_policy, hooks);
+                }
+                let kind = CharsetEncodeErrorKind::UnmappableCharacter {
+                    value: CharsetEncodePolicy::DEFAULT_FALLBACK_REPLACEMENT as u32,
+                };
+                panic!(
+                    "cannot initialize CharsetConverter target for {:?}: neither {:?} nor {:?} is encodable ({})",
+                    target.charset(),
+                    CharsetEncodePolicy::DEFAULT_REPLACEMENT,
+                    CharsetEncodePolicy::DEFAULT_FALLBACK_REPLACEMENT,
+                    CharsetEncodeError::new(target.charset(), kind, 0),
+                );
+            }
         }
-        let fallback_policy = CharsetEncodePolicy::replace(CharsetEncodePolicy::DEFAULT_FALLBACK_REPLACEMENT);
-        if CharsetEncoder::<E>::create_hooks(target, fallback_policy).is_ok() {
-            return fallback_policy;
-        }
-        let kind = CharsetEncodeErrorKind::UnmappableCharacter {
-            value: CharsetEncodePolicy::DEFAULT_FALLBACK_REPLACEMENT as u32,
-        };
-        panic!(
-            "cannot initialize CharsetConverter target for {:?}: neither {:?} nor {:?} is encodable ({})",
-            target.charset(),
-            CharsetEncodePolicy::DEFAULT_REPLACEMENT,
-            CharsetEncodePolicy::DEFAULT_FALLBACK_REPLACEMENT,
-            CharsetEncodeError::new(target.charset(), kind, 0),
-        );
     }
 }
 

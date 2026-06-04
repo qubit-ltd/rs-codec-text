@@ -1,3 +1,8 @@
+use std::{
+    cell::Cell,
+    rc::Rc,
+};
+
 use qubit_codec::{
     BufferedConverter,
     FinishError,
@@ -85,6 +90,57 @@ unsafe impl Codec for AsciiBytesCodec {
         debug_assert!(index + required <= output.len());
         output[index] = *value as u8;
         Ok(required)
+    }
+}
+
+#[derive(Clone, Debug)]
+struct CountingEncodeProbeCodec {
+    calls: Rc<Cell<usize>>,
+}
+
+impl CountingEncodeProbeCodec {
+    fn new(calls: Rc<Cell<usize>>) -> Self {
+        Self { calls }
+    }
+}
+
+impl CharsetCodec for CountingEncodeProbeCodec {
+    fn charset(&self) -> Charset {
+        Charset::ASCII
+    }
+}
+
+impl CharsetEncodeProbe for CountingEncodeProbeCodec {
+    fn encode_len(&self, ch: char, index: usize) -> CharsetEncodeResult<usize> {
+        self.calls.set(self.calls.get() + 1);
+        AsciiBytesCodec.encode_len(ch, index)
+    }
+}
+
+unsafe impl Codec for CountingEncodeProbeCodec {
+    type Value = char;
+    type Unit = u8;
+    type DecodeError = CharsetDecodeError;
+    type EncodeError = CharsetEncodeError;
+
+    fn min_units_per_value(&self) -> core::num::NonZeroUsize {
+        AsciiBytesCodec.min_units_per_value()
+    }
+
+    fn max_units_per_value(&self) -> core::num::NonZeroUsize {
+        AsciiBytesCodec.max_units_per_value()
+    }
+
+    unsafe fn decode_unchecked(
+        &self,
+        input: &[u8],
+        index: usize,
+    ) -> CharsetDecodeResult<(char, core::num::NonZeroUsize)> {
+        unsafe { AsciiBytesCodec.decode_unchecked(input, index) }
+    }
+
+    unsafe fn encode_unchecked(&self, value: &char, output: &mut [u8], index: usize) -> CharsetEncodeResult<usize> {
+        unsafe { AsciiBytesCodec.encode_unchecked(value, output, index) }
     }
 }
 
@@ -264,6 +320,40 @@ fn test_charset_converter_exposes_configuration_and_bounds() {
     assert_eq!(Ok(0), converter.max_finish_output_len());
 
     converter.reset();
+}
+
+#[test]
+fn test_charset_converter_with_policies_prevalidates_replacement_once() {
+    let calls = Rc::new(Cell::new(0));
+    let target = CountingEncodeProbeCodec::new(Rc::clone(&calls));
+
+    let converter = CharsetConverter::from_codecs_with_policies(
+        AsciiBytesCodec,
+        target,
+        CharsetDecodePolicy::default(),
+        CharsetEncodePolicy::replace('!'),
+    )
+    .expect("replacement is encodable");
+
+    assert_eq!(UnmappableAction::Replace, converter.unmappable_action());
+    assert_eq!(1, calls.get());
+}
+
+#[test]
+fn test_charset_converter_with_policies_rejects_unencodable_replacement() {
+    let error = CharsetConverter::from_codecs_with_policies(
+        Utf8Codec,
+        AsciiBytesCodec,
+        CharsetDecodePolicy::default(),
+        CharsetEncodePolicy::replace('中'),
+    )
+    .expect_err("unencodable target replacement should be rejected");
+
+    assert_eq!(
+        CharsetEncodeErrorKind::UnmappableCharacter { value: '中' as u32 },
+        error.kind()
+    );
+    assert_eq!(0, error.index());
 }
 
 #[test]

@@ -7,14 +7,25 @@
  *    Licensed under the Apache License, Version 2.0.
  *
  ******************************************************************************/
-use crate::CharsetEncodeResult;
-
-use super::charset_codec::CharsetCodec;
+use crate::{
+    CharsetCodec,
+    CharsetEncodeResult,
+};
 
 /// Encoding-size probe used by [`crate::CharsetEncoder`].
 ///
 /// Encoders use this trait to validate mappability and compute the exact output
 /// unit count before calling unsafe [`qubit_codec::Codec::encode_unchecked`].
+///
+/// # Implementor Contract
+///
+/// For the same codec state, input character, and output index, a successful
+/// [`Self::encode_len`] call must return exactly the number of units that
+/// [`qubit_codec::Codec::encode_unchecked`] will write when the caller supplies
+/// sufficient output capacity. Both methods must also agree on charset
+/// mappability: a character accepted by `encode_len` must not later be reported
+/// as unmappable by `encode_unchecked`, and a character rejected as unmappable by
+/// `encode_len` must not be encoded by `encode_unchecked`.
 pub trait CharsetEncodeProbe: CharsetCodec {
     /// Computes the number of units needed to encode one character.
     ///

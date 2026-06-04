@@ -18,7 +18,10 @@ use qubit_codec::{
     TranscodeProgress,
 };
 
-use crate::CharsetEncodeError;
+use crate::{
+    CharsetEncodeError,
+    UnmappableAction,
+};
 
 use super::{
     charset_encode_hooks::{
@@ -27,7 +30,6 @@ use super::{
     },
     charset_encode_policy::CharsetEncodePolicy,
     charset_encode_probe::CharsetEncodeProbe,
-    unmappable_action::UnmappableAction,
 };
 
 /// Converts Unicode scalar values into units of one charset.
@@ -144,7 +146,7 @@ where
     }
 
     /// Creates encode hooks for `policy`.
-    pub(super) fn create_hooks(
+    pub(crate) fn create_hooks(
         codec: &C,
         policy: CharsetEncodePolicy,
     ) -> Result<(CharsetEncodeHooks<C::Unit>, usize), CharsetEncodeError> {
