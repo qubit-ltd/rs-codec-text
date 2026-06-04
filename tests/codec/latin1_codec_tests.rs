@@ -2,12 +2,18 @@ use qubit_codec_text::{
     Charset,
     CharsetCodec,
     CharsetDecodeErrorKind,
+    CharsetDecodeResult,
     CharsetEncodeErrorKind,
     CharsetEncodeProbe,
+    CharsetEncodeResult,
     Codec,
     Latin1Codec,
     Unicode,
 };
+
+type DecodedCharResult = CharsetDecodeResult<(char, core::num::NonZeroUsize)>;
+type DecodeFn = unsafe fn(&Latin1Codec, &[u8], usize) -> DecodedCharResult;
+type EncodeFn = unsafe fn(&Latin1Codec, &char, &mut [u8], usize) -> CharsetEncodeResult<usize>;
 
 #[test]
 fn test_latin1_codec_exposes_identity_and_limits() {
@@ -73,4 +79,41 @@ fn test_latin1_codec_reports_errors_for_invalid_indices_and_unmappable_character
         CharsetEncodeErrorKind::UnmappableCharacter { .. },
     ));
     assert_eq!(Some('\u{0100}' as u32), error.value());
+
+    let error = unsafe { codec.encode_unchecked(&'A', &mut [], 0) }.expect_err("empty output should fail");
+    assert_eq!(
+        CharsetEncodeErrorKind::BufferTooSmall {
+            required: 1,
+            available: 0,
+        },
+        error.kind()
+    );
+}
+
+#[test]
+fn test_latin1_codec_direct_function_items_cover_trait_methods() {
+    let codec = Latin1Codec;
+    let inherent_charset: fn(Latin1Codec) -> Charset = Latin1Codec::charset;
+    let trait_charset: fn(&Latin1Codec) -> Charset = <Latin1Codec as CharsetCodec>::charset;
+    let min_units: fn(&Latin1Codec) -> core::num::NonZeroUsize = <Latin1Codec as Codec>::min_units_per_value;
+    let max_units: fn(&Latin1Codec) -> core::num::NonZeroUsize = <Latin1Codec as Codec>::max_units_per_value;
+    let encode_len: fn(&Latin1Codec, char, usize) -> CharsetEncodeResult<usize> =
+        <Latin1Codec as CharsetEncodeProbe>::encode_len;
+    let decode: DecodeFn = <Latin1Codec as Codec>::decode_unchecked;
+    let encode: EncodeFn = <Latin1Codec as Codec>::encode_unchecked;
+
+    assert_eq!(Charset::ISO_8859_1, inherent_charset(codec));
+    assert_eq!(Charset::ISO_8859_1, trait_charset(&codec));
+    assert_eq!(1, min_units(&codec).get());
+    assert_eq!(1, max_units(&codec).get());
+    assert_eq!(1, encode_len(&codec, '\u{00ff}', 0).expect("Latin-1 is mappable"));
+
+    let (decoded, consumed) = unsafe { decode(&codec, &[0xff], 0) }.expect("decode Latin-1");
+    assert_eq!(('\u{00ff}', 1), (decoded, consumed.get()));
+    let mut output = [0_u8; 1];
+    assert_eq!(
+        1,
+        unsafe { encode(&codec, &'\u{00ff}', &mut output, 0) }.expect("encode Latin-1")
+    );
+    assert_eq!(0xff, output[0]);
 }

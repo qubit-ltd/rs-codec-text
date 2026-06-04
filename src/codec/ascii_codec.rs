@@ -35,7 +35,7 @@ impl AsciiCodec {
     ///
     /// Returns [`Charset::ASCII`].
     #[must_use]
-    #[inline(always)]
+    #[inline]
     pub const fn charset(self) -> Charset {
         Charset::ASCII
     }
@@ -47,7 +47,7 @@ impl CharsetCodec for AsciiCodec {
     /// # Returns
     ///
     /// Returns [`Charset::ASCII`].
-    #[inline(always)]
+    #[inline]
     fn charset(&self) -> Charset {
         Charset::ASCII
     }
@@ -68,7 +68,9 @@ impl CharsetEncodeProbe for AsciiCodec {
     /// # Errors
     ///
     /// * `CharsetEncodeErrorKind::UnmappableCharacter` if `ch` is not ASCII.
-    #[inline(always)]
+    /// * `CharsetEncodeErrorKind::BufferTooSmall` if no output byte can be
+    ///   written at `index`.
+    #[inline]
     fn encode_len(&self, ch: char, index: usize) -> CharsetEncodeResult<usize> {
         if ch > Ascii::MAX_CHAR {
             let kind = CharsetEncodeErrorKind::UnmappableCharacter { value: ch as u32 };
@@ -84,17 +86,17 @@ unsafe impl Codec for AsciiCodec {
     type DecodeError = CharsetDecodeError;
     type EncodeError = CharsetEncodeError;
 
-    #[inline(always)]
+    #[inline]
     fn min_units_per_value(&self) -> core::num::NonZeroUsize {
         core::num::NonZeroUsize::MIN
     }
 
-    #[inline(always)]
+    #[inline]
     fn max_units_per_value(&self) -> core::num::NonZeroUsize {
         core::num::NonZeroUsize::MIN
     }
 
-    #[inline(always)]
+    #[inline]
     unsafe fn decode_unchecked(
         &self,
         input: &[u8],
@@ -125,10 +127,15 @@ unsafe impl Codec for AsciiCodec {
 
     #[inline(always)]
     unsafe fn encode_unchecked(&self, ch: &char, output: &mut [u8], index: usize) -> CharsetEncodeResult<usize> {
-        debug_assert!(index < output.len());
-
         if *ch > Ascii::MAX_CHAR {
             let kind = CharsetEncodeErrorKind::UnmappableCharacter { value: *ch as u32 };
+            return Err(CharsetEncodeError::new(Charset::ASCII, kind, index));
+        }
+        if index >= output.len() {
+            let kind = CharsetEncodeErrorKind::BufferTooSmall {
+                required: index.saturating_add(1),
+                available: 0,
+            };
             return Err(CharsetEncodeError::new(Charset::ASCII, kind, index));
         }
         output[index] = *ch as u8;

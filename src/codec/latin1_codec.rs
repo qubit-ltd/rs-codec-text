@@ -34,7 +34,7 @@ impl Latin1Codec {
     ///
     /// Returns [`Charset::ISO_8859_1`].
     #[must_use]
-    #[inline(always)]
+    #[inline]
     pub const fn charset(self) -> Charset {
         Charset::ISO_8859_1
     }
@@ -46,7 +46,7 @@ impl CharsetCodec for Latin1Codec {
     /// # Returns
     ///
     /// Returns [`Charset::ISO_8859_1`].
-    #[inline(always)]
+    #[inline]
     fn charset(&self) -> Charset {
         Charset::ISO_8859_1
     }
@@ -67,7 +67,9 @@ impl CharsetEncodeProbe for Latin1Codec {
     /// # Errors
     ///
     /// * `CharsetEncodeErrorKind::UnmappableCharacter` if `ch` > `U+00FF`.
-    #[inline(always)]
+    /// * `CharsetEncodeErrorKind::BufferTooSmall` if no output byte can be
+    ///   written at `index`.
+    #[inline]
     fn encode_len(&self, ch: char, index: usize) -> CharsetEncodeResult<usize> {
         let value = ch as u32;
         if value > Unicode::LATIN1_MAX {
@@ -85,17 +87,17 @@ unsafe impl Codec for Latin1Codec {
     type DecodeError = CharsetDecodeError;
     type EncodeError = CharsetEncodeError;
 
-    #[inline(always)]
+    #[inline]
     fn min_units_per_value(&self) -> core::num::NonZeroUsize {
         core::num::NonZeroUsize::MIN
     }
 
-    #[inline(always)]
+    #[inline]
     fn max_units_per_value(&self) -> core::num::NonZeroUsize {
         core::num::NonZeroUsize::MIN
     }
 
-    #[inline(always)]
+    #[inline]
     unsafe fn decode_unchecked(
         &self,
         input: &[u8],
@@ -123,11 +125,16 @@ unsafe impl Codec for Latin1Codec {
 
     #[inline(always)]
     unsafe fn encode_unchecked(&self, ch: &char, output: &mut [u8], index: usize) -> CharsetEncodeResult<usize> {
-        debug_assert!(index < output.len());
-
         let value = *ch as u32;
         if value > Unicode::LATIN1_MAX {
             let kind = CharsetEncodeErrorKind::UnmappableCharacter { value };
+            return Err(CharsetEncodeError::new(Charset::ISO_8859_1, kind, index));
+        }
+        if index >= output.len() {
+            let kind = CharsetEncodeErrorKind::BufferTooSmall {
+                required: index.saturating_add(1),
+                available: 0,
+            };
             return Err(CharsetEncodeError::new(Charset::ISO_8859_1, kind, index));
         }
         output[index] = value as u8;
