@@ -10,10 +10,10 @@
 use qubit_codec::{
     BufferedDecodeEngine,
     BufferedDecoder,
+    BufferedTranscoder,
     CapacityError,
     FinishError,
     TranscodeProgress,
-    Transcoder,
 };
 
 use crate::CharsetDecodeError;
@@ -33,7 +33,7 @@ use super::{
 /// currently available units. If the codec reports a valid incomplete prefix,
 /// the tail is left in the caller-provided input slice and
 /// [`crate::TranscodeStatus::NeedInput`] is returned. Callers must handle
-/// incomplete EOF tails before calling [`Transcoder::finish`].
+/// incomplete EOF tails before calling [`BufferedTranscoder::finish`].
 ///
 /// # Type Parameters
 ///
@@ -111,7 +111,7 @@ where
 
 impl<C> BufferedDecoder<C::Unit, char> for CharsetDecoder<C> where C: CharsetCodec {}
 
-impl<C> Transcoder<C::Unit, char> for CharsetDecoder<C>
+impl<C> BufferedTranscoder<C::Unit, char> for CharsetDecoder<C>
 where
     C: CharsetCodec,
 {

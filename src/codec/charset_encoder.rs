@@ -12,10 +12,10 @@ use core::fmt;
 use qubit_codec::{
     BufferedEncodeEngine,
     BufferedEncoder,
+    BufferedTranscoder,
     CapacityError,
     FinishError,
     TranscodeProgress,
-    Transcoder,
 };
 
 use crate::CharsetEncodeError;
@@ -23,7 +23,7 @@ use crate::CharsetEncodeError;
 use super::{
     charset_encode_hooks::{
         CharsetEncodeHooks,
-        encode_replacement,
+        replacement_len,
     },
     charset_encode_policy::CharsetEncodePolicy,
     charset_encode_probe::CharsetEncodeProbe,
@@ -49,7 +49,7 @@ where
     engine: BufferedEncodeEngine<C, CharsetEncodeHooks<C::Unit>>,
     /// Public unmappable-input policy metadata.
     policy: CharsetEncodePolicy,
-    /// Number of cached units used by replacement policy.
+    /// Number of units used by replacement policy.
     replacement_units_len: usize,
 }
 
@@ -81,10 +81,7 @@ where
     /// [`crate::CharsetCodec`] implementations, this indicates a broken codec
     /// invariant rather than recoverable input data.
     #[must_use]
-    pub fn new(codec: C) -> Self
-    where
-        C::Unit: Default,
-    {
+    pub fn new(codec: C) -> Self {
         let policy = CharsetEncodePolicy::default();
         match Self::create_hooks(&codec, policy) {
             Ok((hooks, replacement_units_len)) => Self {
@@ -117,10 +114,7 @@ where
     ///
     /// Returns an error when `policy` uses replacement and the replacement
     /// character cannot be encoded by `codec`.
-    pub fn with_policy(codec: C, policy: CharsetEncodePolicy) -> Result<Self, CharsetEncodeError>
-    where
-        C::Unit: Default,
-    {
+    pub fn with_policy(codec: C, policy: CharsetEncodePolicy) -> Result<Self, CharsetEncodeError> {
         let (hooks, replacement_units_len) = Self::create_hooks(&codec, policy)?;
         Ok(Self {
             engine: BufferedEncodeEngine::new(codec, hooks),
@@ -153,22 +147,18 @@ where
     pub(super) fn create_hooks(
         codec: &C,
         policy: CharsetEncodePolicy,
-    ) -> Result<(CharsetEncodeHooks<C::Unit>, usize), CharsetEncodeError>
-    where
-        C::Unit: Default,
-    {
+    ) -> Result<(CharsetEncodeHooks<C::Unit>, usize), CharsetEncodeError> {
         let mut hooks = CharsetEncodeHooks::new(policy.unmappable_action(), policy.replacement());
         if policy.unmappable_action() != UnmappableAction::Replace {
             return Ok((hooks, 0));
         }
-        let replacement_units = encode_replacement(codec, policy.replacement())?;
-        let replacement_units_len = replacement_units.len();
-        hooks.replacement_units = replacement_units;
+        let replacement_units_len = replacement_len(codec, policy.replacement())?;
+        hooks.set_replacement_units_len(replacement_units_len);
         Ok((hooks, replacement_units_len))
     }
 }
 
-impl<C> Transcoder<char, C::Unit> for CharsetEncoder<C>
+impl<C> BufferedTranscoder<char, C::Unit> for CharsetEncoder<C>
 where
     C: CharsetEncodeProbe,
 {
@@ -214,7 +204,7 @@ impl<C> PartialEq for CharsetEncoder<C>
 where
     C: CharsetEncodeProbe + PartialEq,
 {
-    /// Compares encoder configuration without leaking cached-unit trait bounds.
+    /// Compares encoder configuration without leaking unit trait bounds.
     fn eq(&self, other: &Self) -> bool {
         self.engine == other.engine && self.policy == other.policy
     }
@@ -224,7 +214,7 @@ impl<C> fmt::Debug for CharsetEncoder<C>
 where
     C: CharsetEncodeProbe + fmt::Debug,
 {
-    /// Formats the encoder without exposing additional bounds for cached units.
+    /// Formats the encoder without exposing additional bounds for unit values.
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("CharsetEncoder")
             .field("engine", &self.engine)

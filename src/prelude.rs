@@ -12,6 +12,7 @@
 pub use crate::{
     Ascii,
     AsciiCodec,
+    BufferedTranscoder,
     ByteOrder,
     CapacityError,
     Charset,
@@ -34,7 +35,6 @@ pub use crate::{
     MalformedAction,
     TranscodeProgress,
     TranscodeStatus,
-    Transcoder,
     Unicode,
     UnicodeBom,
     UnmappableAction,

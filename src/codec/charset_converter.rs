@@ -15,15 +15,20 @@ use super::{
     charset_encode_policy::CharsetEncodePolicy,
     charset_encode_probe::CharsetEncodeProbe,
     charset_encoder::CharsetEncoder,
+    malformed_action::MalformedAction,
+    unmappable_action::UnmappableAction,
 };
-use crate::CharsetEncodeError;
+use crate::{
+    CharsetEncodeError,
+    CharsetEncodeErrorKind,
+};
 use qubit_codec::{
     BufferedConvertEngine,
     BufferedConverter,
+    BufferedTranscoder,
     CapacityError,
     FinishError,
     TranscodeProgress,
-    Transcoder,
 };
 
 /// Converts units encoded with one charset into units encoded with another charset.
@@ -32,7 +37,7 @@ use qubit_codec::{
 /// decode/encode policy hooks used by [`crate::CharsetDecoder`] and
 /// [`crate::CharsetEncoder`].
 /// A decoded character may be kept pending inside the common buffered convert
-/// engine when the target output buffer is full. During [`Transcoder::finish`],
+/// engine when the target output buffer is full. During [`BufferedTranscoder::finish`],
 /// the converter drains internally retained output and finishes the composed
 /// decode/encode policy hooks. Callers remain responsible for handling any
 /// incomplete input tail before finishing the logical stream.
@@ -48,7 +53,7 @@ use qubit_codec::{
 ///     CharsetDecoder,
 ///     CharsetEncoder,
 ///     TranscodeStatus,
-///     Transcoder,
+///     BufferedTranscoder,
 ///     Utf16U16Codec,
 ///     Utf8Codec,
 /// };
@@ -70,17 +75,19 @@ pub struct CharsetConverter<D, E>
 where
     D: CharsetCodec,
     E: CharsetEncodeProbe,
-    E::Unit: Default,
 {
     /// Common buffered converter engine.
     engine: BufferedConvertEngine<D, E, CharsetConvertHooks>,
+    /// Public malformed-input policy metadata.
+    decode_policy: CharsetDecodePolicy,
+    /// Public unmappable-input policy metadata.
+    encode_policy: CharsetEncodePolicy,
 }
 
 impl<D, E> CharsetConverter<D, E>
 where
     D: CharsetCodec,
     E: CharsetEncodeProbe,
-    E::Unit: Default,
 {
     /// Creates a charset converter from raw source and target codecs.
     ///
@@ -94,8 +101,16 @@ where
     /// Returns a converter with default decoder and encoder policies.
     #[must_use]
     pub fn from_codecs(source: D, target: E) -> Self {
+        let decode_policy = CharsetDecodePolicy::default();
+        let encode_policy = Self::default_encode_policy(&target);
         Self {
-            engine: BufferedConvertEngine::new(source, target, CharsetConvertHooks::default()),
+            engine: BufferedConvertEngine::new(
+                source,
+                target,
+                CharsetConvertHooks::with_policies(decode_policy, encode_policy),
+            ),
+            decode_policy,
+            encode_policy,
         }
     }
 
@@ -129,15 +144,103 @@ where
                 target,
                 CharsetConvertHooks::with_policies(decode_policy, encode_policy),
             ),
+            decode_policy,
+            encode_policy,
         })
+    }
+
+    /// Returns the configured malformed source-input policy.
+    ///
+    /// # Returns
+    ///
+    /// Returns the decoder policy used by this converter.
+    #[must_use]
+    pub const fn decode_policy(&self) -> CharsetDecodePolicy {
+        self.decode_policy
+    }
+
+    /// Returns the configured unmappable target-output policy.
+    ///
+    /// # Returns
+    ///
+    /// Returns the encoder policy used by this converter.
+    #[must_use]
+    pub const fn encode_policy(&self) -> CharsetEncodePolicy {
+        self.encode_policy
+    }
+
+    /// Returns the configured malformed-input action.
+    ///
+    /// # Returns
+    ///
+    /// Returns the action used when source input is malformed.
+    #[must_use]
+    pub const fn malformed_action(&self) -> MalformedAction {
+        self.decode_policy.malformed_action()
+    }
+
+    /// Returns the configured source replacement character.
+    ///
+    /// # Returns
+    ///
+    /// Returns the character emitted when malformed source input is replaced.
+    #[must_use]
+    pub const fn decode_replacement(&self) -> char {
+        self.decode_policy.replacement()
+    }
+
+    /// Returns the configured unmappable-character action.
+    ///
+    /// # Returns
+    ///
+    /// Returns the action used when the target charset cannot represent a character.
+    #[must_use]
+    pub const fn unmappable_action(&self) -> UnmappableAction {
+        self.encode_policy.unmappable_action()
+    }
+
+    /// Returns the configured target replacement character.
+    ///
+    /// # Returns
+    ///
+    /// Returns the character encoded when unmappable target input is replaced.
+    #[must_use]
+    pub const fn replacement(&self) -> char {
+        self.encode_policy.replacement()
+    }
+
+    /// Returns the default encode policy that can be represented by `target`.
+    ///
+    /// # Panics
+    ///
+    /// Panics when neither the default replacement nor the fallback replacement can
+    /// be encoded by `target`.
+    fn default_encode_policy(target: &E) -> CharsetEncodePolicy {
+        let default_policy = CharsetEncodePolicy::default();
+        if CharsetEncoder::<E>::create_hooks(target, default_policy).is_ok() {
+            return default_policy;
+        }
+        let fallback_policy = CharsetEncodePolicy::replace(CharsetEncodePolicy::DEFAULT_FALLBACK_REPLACEMENT);
+        if CharsetEncoder::<E>::create_hooks(target, fallback_policy).is_ok() {
+            return fallback_policy;
+        }
+        let kind = CharsetEncodeErrorKind::UnmappableCharacter {
+            value: CharsetEncodePolicy::DEFAULT_FALLBACK_REPLACEMENT as u32,
+        };
+        panic!(
+            "cannot initialize CharsetConverter target for {:?}: neither {:?} nor {:?} is encodable ({})",
+            target.charset(),
+            CharsetEncodePolicy::DEFAULT_REPLACEMENT,
+            CharsetEncodePolicy::DEFAULT_FALLBACK_REPLACEMENT,
+            CharsetEncodeError::new(target.charset(), kind, 0),
+        );
     }
 }
 
-impl<D, E> Transcoder<D::Unit, E::Unit> for CharsetConverter<D, E>
+impl<D, E> BufferedTranscoder<D::Unit, E::Unit> for CharsetConverter<D, E>
 where
     D: CharsetCodec,
     E: CharsetEncodeProbe,
-    E::Unit: Default,
 {
     type Error = CharsetConvertError;
 
@@ -198,6 +301,5 @@ impl<D, E> BufferedConverter<D::Unit, E::Unit> for CharsetConverter<D, E>
 where
     D: CharsetCodec,
     E: CharsetEncodeProbe,
-    E::Unit: Default,
 {
 }

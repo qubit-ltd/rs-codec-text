@@ -22,7 +22,7 @@ below ordinary `str`, `String`, and `char` APIs. It provides:
   wrappers.
 - Typed decode/encode/convert errors with precise buffer indices.
 - Essential `qubit-codec` primitives re-exported for callers:
-  `Codec`, `Transcoder`, `TranscodeProgress`, `TranscodeStatus`, `CapacityError`,
+  `Codec`, `BufferedTranscoder`, `TranscodeProgress`, `TranscodeStatus`, `CapacityError`,
   and `ByteOrder`.
 
 This crate intentionally stays below `std::io` reader/writer adapters,
@@ -99,7 +99,7 @@ use qubit_codec_text::{
     CharsetEncoder,
     Codec,
     TranscodeStatus,
-    Transcoder,
+    BufferedTranscoder,
     UnicodeBom,
     Utf8,
     Utf8Codec,
@@ -154,7 +154,6 @@ assert_eq!("😀".as_bytes(), &output[..progress.written()]);
 |------|---------|
 | `CharsetDecoder<C>` | Stateful buffer decoder implementing `BufferedDecoder<C::Unit, char>` and reusing `BufferedDecodeEngine` for decode iteration and progress reporting |
 | `CharsetEncoder<C>` | Stateful buffer encoder implementing `BufferedEncoder<char, C::Unit>` and reusing `BufferedEncodeEngine` for its buffered loop |
-| `CharsetEncodeAction` | Plan action used by `CharsetEncoder`'s internal encode hooks |
 | `CharsetConverter<D, E>` | Decode and encode between two charset codecs, implementing `BufferedConverter<D::Unit, E::Unit>` |
 | `MalformedAction` | Policy for malformed input |
 | `UnmappableAction` | Policy for unencodable output characters |
@@ -181,7 +180,7 @@ capacity progress, and status reporting.
 `CharsetEncoder` stores its unmappable policy in encode hooks and reuses
 `BufferedEncodeEngine` for input iteration and output capacity checks while
 still applying text-specific replacement, ignore, and report policy. It reports
-`NeedOutput` through the shared `Transcoder` progress model so callers can
+`NeedOutput` through the shared `BufferedTranscoder` progress model so callers can
 control allocation and buffer reuse.
 
 ## Testing & Code Coverage

@@ -3,6 +3,7 @@ use qubit_codec::{
     FinishError,
 };
 use qubit_codec_text::{
+    BufferedTranscoder,
     Charset,
     CharsetCodec,
     CharsetDecodeError,
@@ -16,7 +17,6 @@ use qubit_codec_text::{
     CharsetEncoder,
     Codec,
     TranscodeStatus,
-    Transcoder,
     UnmappableAction,
 };
 use std::{
@@ -86,6 +86,64 @@ impl CharsetEncodeProbe for AsciiBytesCodec {
 }
 
 impl_test_codec!(AsciiBytesCodec, 1);
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct NonDefaultUnit(u8);
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct NonDefaultUnitCodec;
+
+impl CharsetCodec for NonDefaultUnitCodec {
+    fn charset(&self) -> Charset {
+        Charset::ASCII
+    }
+}
+
+impl CharsetEncodeProbe for NonDefaultUnitCodec {
+    fn encode_len(&self, ch: char, index: usize) -> CharsetEncodeResult<usize> {
+        if !ch.is_ascii() {
+            let kind = CharsetEncodeErrorKind::UnmappableCharacter { value: ch as u32 };
+            return Err(CharsetEncodeError::new(Charset::ASCII, kind, index));
+        }
+        Ok(1)
+    }
+}
+
+unsafe impl Codec for NonDefaultUnitCodec {
+    type Value = char;
+    type Unit = NonDefaultUnit;
+    type DecodeError = CharsetDecodeError;
+    type EncodeError = CharsetEncodeError;
+
+    fn min_units_per_value(&self) -> core::num::NonZeroUsize {
+        core::num::NonZeroUsize::MIN
+    }
+
+    fn max_units_per_value(&self) -> core::num::NonZeroUsize {
+        core::num::NonZeroUsize::MIN
+    }
+
+    unsafe fn decode_unchecked(
+        &self,
+        _input: &[NonDefaultUnit],
+        index: usize,
+    ) -> CharsetDecodeResult<(char, core::num::NonZeroUsize)> {
+        let kind = CharsetDecodeErrorKind::MalformedSequence { value: None };
+        Err(CharsetDecodeError::new(Charset::ASCII, kind, index))
+    }
+
+    unsafe fn encode_unchecked(
+        &self,
+        value: &char,
+        output: &mut [NonDefaultUnit],
+        index: usize,
+    ) -> CharsetEncodeResult<usize> {
+        let required = self.encode_len(*value, index)?;
+        debug_assert!(index + required <= output.len());
+        output[index] = NonDefaultUnit(*value as u8);
+        Ok(required)
+    }
+}
 
 #[test]
 fn test_charset_encoder_is_buffered_encoder() {
@@ -410,6 +468,22 @@ fn test_charset_encoder_reports_invalid_indices_and_capacity() {
 }
 
 #[test]
+fn test_charset_encoder_report_policy_does_not_require_default_unit() {
+    let mut encoder = CharsetEncoder::with_policy(NonDefaultUnitCodec, CharsetEncodePolicy::report())
+        .expect("report policy should not pre-encode replacement units");
+    let mut output = [NonDefaultUnit(0)];
+
+    let progress = encoder
+        .transcode(&['A'], 0, &mut output, 0)
+        .expect("ASCII character should encode");
+
+    assert_eq!(TranscodeStatus::Complete, progress.status());
+    assert_eq!(1, progress.read());
+    assert_eq!(1, progress.written());
+    assert_eq!(NonDefaultUnit(b'A'), output[0]);
+}
+
+#[test]
 fn test_charset_encoder_reports_unmappable_replacement() {
     let input = ['中'];
     let mut output = [0_u8; 1];
@@ -448,8 +522,13 @@ fn test_charset_encoder_propagates_non_policy_encoding_errors() {
 
 #[test]
 fn test_charset_encoder_with_policy_reports_replacement_write_errors() {
-    let error = CharsetEncoder::with_policy(FailingReplacementWriteCodec, CharsetEncodePolicy::replace('!'))
-        .expect_err("replacement encoding should surface encode_unchecked failures");
+    let mut encoder = CharsetEncoder::with_policy(FailingReplacementWriteCodec, CharsetEncodePolicy::replace('!'))
+        .expect("replacement sizing should be accepted");
+    let mut output = [0_u8; 1];
+
+    let error = encoder
+        .transcode(&['中'], 0, &mut output, 0)
+        .expect_err("replacement writing should surface encode_unchecked failures");
 
     assert_eq!(
         CharsetEncodeErrorKind::InvalidCodePoint { value: '!' as u32 },
@@ -499,7 +578,7 @@ fn test_charset_encoder_with_policy_rejects_unencodable_replacement_immediately(
 }
 
 #[test]
-fn test_charset_encoder_replacement_encoding_is_cached() {
+fn test_charset_encoder_replacement_width_is_prevalidated() {
     let encode_calls = Rc::new(Cell::new(0));
     let mut encoder = CharsetEncoder::with_policy(
         CountingAsciiEncoderCodec {

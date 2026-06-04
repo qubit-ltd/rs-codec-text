@@ -7,7 +7,10 @@
  *    Licensed under the Apache License, Version 2.0.
  *
  ******************************************************************************/
-use core::fmt;
+use core::{
+    fmt,
+    marker::PhantomData,
+};
 
 use qubit_codec::{
     BufferedEncodeHooks,
@@ -34,17 +37,19 @@ pub(super) struct CharsetEncodeHooks<Unit> {
     pub(super) unmappable_action: UnmappableAction,
     /// Replacement character used by [`UnmappableAction::Replace`].
     pub(super) replacement: char,
-    /// Pre-encoded units for the configured replacement character.
-    pub(super) replacement_units: Vec<Unit>,
+    /// Number of units needed for the configured replacement character.
+    pub(super) replacement_units_len: usize,
+    /// Unit marker keeping hook identity tied to the concrete output unit type.
+    unit: PhantomData<fn() -> Unit>,
 }
 
 impl<Unit> fmt::Debug for CharsetEncodeHooks<Unit> {
-    /// Formats hooks without requiring cached units to implement [`fmt::Debug`].
+    /// Formats hooks without requiring unit values to implement [`fmt::Debug`].
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("CharsetEncodeHooks")
             .field("unmappable_action", &self.unmappable_action)
             .field("replacement", &self.replacement)
-            .field("replacement_units_len", &self.replacement_units.len())
+            .field("replacement_units_len", &self.replacement_units_len)
             .finish()
     }
 }
@@ -56,12 +61,12 @@ impl<Unit> PartialEq for CharsetEncodeHooks<Unit> {
     fn eq(&self, other: &Self) -> bool {
         self.unmappable_action == other.unmappable_action
             && self.replacement == other.replacement
-            && self.replacement_units.len() == other.replacement_units.len()
+            && self.replacement_units_len == other.replacement_units_len
     }
 }
 
 impl<Unit> CharsetEncodeHooks<Unit> {
-    /// Creates charset encode hooks without cached replacement units.
+    /// Creates charset encode hooks without replacement output units.
     ///
     /// # Parameters
     ///
@@ -70,44 +75,24 @@ impl<Unit> CharsetEncodeHooks<Unit> {
     ///
     /// # Returns
     ///
-    /// Returns hooks configured with an empty replacement-unit cache.
+    /// Returns hooks configured with no replacement output units.
     #[must_use]
     pub(super) const fn new(unmappable_action: UnmappableAction, replacement: char) -> Self {
         Self {
             unmappable_action,
             replacement,
-            replacement_units: Vec::new(),
+            replacement_units_len: 0,
+            unit: PhantomData,
         }
     }
-}
 
-impl<Unit> CharsetEncodeHooks<Unit>
-where
-    Unit: Copy,
-{
-    /// Writes the cached replacement units into the target output slice.
+    /// Records the replacement output width.
     ///
     /// # Parameters
     ///
-    /// - `output`: Complete target output slice.
-    /// - `output_index`: Absolute output index where replacement writing starts.
-    ///
-    /// # Returns
-    ///
-    /// Returns the number of output units written for the replacement.
-    ///
-    /// # Panics
-    ///
-    /// Panics if the cached replacement units do not fit in `output` from
-    /// `output_index`. The buffered encode engine prevents that by calling this
-    /// method only after the replacement plan's capacity has been checked.
-    fn write_replacement(&self, output: &mut [Unit], output_index: usize) -> CharsetEncodeResult<usize> {
-        if self.replacement_units.is_empty() {
-            return Ok(0);
-        }
-        let end = output_index + self.replacement_units.len();
-        output[output_index..end].copy_from_slice(&self.replacement_units[..]);
-        Ok(self.replacement_units.len())
+    /// - `replacement_units_len`: Number of target units used by the replacement.
+    pub(super) const fn set_replacement_units_len(&mut self, replacement_units_len: usize) {
+        self.replacement_units_len = replacement_units_len;
     }
 }
 
@@ -133,7 +118,7 @@ where
                     UnmappableAction::Report => Err(error),
                     UnmappableAction::Ignore => Ok(EncodePlan::new(0, CharsetEncodeAction::Skip)),
                     UnmappableAction::Replace => Ok(EncodePlan::new(
-                        self.replacement_units.len(),
+                        self.replacement_units_len,
                         CharsetEncodeAction::WriteReplacement,
                     )),
                 }
@@ -156,7 +141,11 @@ where
             CharsetEncodeAction::WriteOriginal => unsafe {
                 codec.encode_unchecked(context.input_value, context.output, context.output_index)
             },
-            CharsetEncodeAction::WriteReplacement => self.write_replacement(context.output, context.output_index),
+            // SAFETY: The engine checked the replacement capacity reported by
+            // `prepare_encode`.
+            CharsetEncodeAction::WriteReplacement => unsafe {
+                codec.encode_unchecked(&self.replacement, context.output, context.output_index)
+            },
             CharsetEncodeAction::Skip => Ok(0),
         }
     }
@@ -174,18 +163,10 @@ where
     }
 }
 
-/// Encodes a replacement character for charset encode hooks.
-pub(super) fn encode_replacement<C>(codec: &C, ch: char) -> CharsetEncodeResult<Vec<C::Unit>>
+/// Returns the encoded width of a replacement character.
+pub(super) fn replacement_len<C>(codec: &C, ch: char) -> CharsetEncodeResult<usize>
 where
     C: CharsetEncodeProbe,
-    C::Unit: Default,
 {
-    let required = codec.encode_len(ch, 0)?;
-    let mut output = vec![C::Unit::default(); required];
-    // SAFETY: CharsetEncodeProbe reports the exact output width accepted by
-    // charset codec implementations.
-    let written = unsafe { codec.encode_unchecked(&ch, output.as_mut_slice(), 0) }?;
-    debug_assert!(written <= required);
-    output.truncate(written);
-    Ok(output)
+    codec.encode_len(ch, 0)
 }

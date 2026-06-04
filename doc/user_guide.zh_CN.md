@@ -19,7 +19,7 @@
 - UTF-8、UTF-16、UTF-32 命名空间辅助函数，用于长度计算和 BOM 检测。
 - ASCII、ISO-8859-1、UTF-8、UTF-16、UTF-32 的缓冲区级 codec。
 - 带策略的 decoder、encoder 和 converter，支持 replace、ignore、report。
-- `Charset`、`UnicodeBom`、`ByteOrder`、`Codec`、`Transcoder`、强类型
+- `Charset`、`UnicodeBom`、`ByteOrder`、`Codec`、`BufferedTranscoder`、强类型
   编解码错误，以及带策略的 wrapper，便于构建更高层适配器。自定义
   buffered adapter 需要直接从 `qubit-codec` 引入 core engine 和 hook。
 
@@ -52,7 +52,7 @@ use qubit_codec_text::{
     CharsetCodec,
     CharsetDecoder,
     CharsetEncoder,
-    Transcoder,
+    BufferedTranscoder,
     Utf8Codec,
 };
 ```
@@ -69,7 +69,7 @@ use qubit_codec_text::{
 | 文本 codec 元数据 | `CharsetCodec`、`CharsetEncodeProbe` | 为低层 codec 实现附加 charset 元数据和精确编码长度探测。 |
 | 策略包装器 | `CharsetDecoder`、`CharsetEncoder` | 在批量转换时应用 malformed / unmappable 策略；分别实现 `BufferedDecoder` / `BufferedEncoder`。`CharsetDecoder` 复用 core 的 `BufferedDecodeEngine` 循环，`CharsetEncoder` 复用 core 的 `BufferedEncodeEngine` 循环。 |
 | Charset 转换 | `CharsetConverter` | 先把源单元解码成 `char`，再编码成目标单元；实现 `BufferedConverter`。 |
-| 进度 API | `Transcoder`、`TranscodeProgress`、`TranscodeStatus` | 报告部分进度、输入不足和输出回压。 |
+| 进度 API | `BufferedTranscoder`、`TranscodeProgress`、`TranscodeStatus` | 报告部分进度、输入不足和输出回压。 |
 | 错误类型 | `CharsetDecodeError`、`CharsetEncodeError`、`CharsetConvertError` | 保留 charset、错误种类、绝对下标和可选原始值。 |
 
 所有 codec 操作都面向缓冲区。调用方传入完整输入 slice、完整输出 slice 和绝对
@@ -116,6 +116,7 @@ use qubit_codec_text::Charset;
 assert_eq!("utf-8", Charset::UTF_8.id());
 assert_eq!("UTF-8", Charset::UTF_8.name());
 assert!(Charset::UTF_8.matches_label("utf8"));
+assert_eq!(Some(Charset::UTF_8), Charset::from_label("utf8"));
 
 const GBK: Charset = Charset::new("gbk", "GBK", &["cp936"]);
 assert!(GBK.matches_label("CP936"));
@@ -285,7 +286,7 @@ assert_eq!("é".as_bytes(), &output[..written]);
 ```rust
 use qubit_codec_text::{
     CharsetDecoder,
-    Transcoder,
+    BufferedTranscoder,
     TranscodeStatus,
     Utf8Codec,
 };
@@ -309,7 +310,7 @@ assert_eq!(['A', 'é'], output);
 use qubit_codec_text::{
     CharsetDecoder,
     CharsetDecodePolicy,
-    Transcoder,
+    BufferedTranscoder,
     Utf8Codec,
 };
 
@@ -340,7 +341,7 @@ codec 满足这个契约。
 ```rust
 use qubit_codec_text::{
     CharsetEncoder,
-    Transcoder,
+    BufferedTranscoder,
     TranscodeStatus,
     Utf8Codec,
     Utf8,
@@ -367,7 +368,7 @@ use qubit_codec_text::{
     AsciiCodec,
     CharsetEncodePolicy,
     CharsetEncoder,
-    Transcoder,
+    BufferedTranscoder,
 };
 
 let mut encoder = CharsetEncoder::with_policy(AsciiCodec, CharsetEncodePolicy::report())
@@ -380,10 +381,10 @@ assert_eq!(0, error.index());
 assert_eq!(Some('é' as u32), error.value());
 ```
 
-`CharsetEncoder::new` 会缓存替换字符。它先尝试 `U+FFFD`，再回退到 `?`。
-只有当传入的 codec 连这两个替换字符都无法编码时才会 panic。内置 codec 不会触发
-这个分支；对自定义 codec 来说，这个 panic 表示 codec 不变量被破坏，而不是可恢复
-文本输入错误。
+`CharsetEncoder::new` 会提前验证替换字符并缓存其编码宽度。它先尝试 `U+FFFD`，
+再回退到 `?`。只有当传入的 codec 连这两个替换字符都无法编码时才会 panic。
+内置 codec 不会触发这个分支；对自定义 codec 来说，这个 panic 表示 codec 不变量
+被破坏，而不是可恢复文本输入错误。
 
 内部实现上，`CharsetEncoder` 把 unmappable-input 策略保存在 encode hooks 中，并转发给
 `BufferedEncodeEngine<C, H>`。engine 负责输入迭代、输出容量检查和
@@ -412,7 +413,7 @@ assert_eq!('?', encoder.replacement());
 ```rust
 use qubit_codec_text::{
     CharsetConverter,
-    Transcoder,
+    BufferedTranscoder,
     TranscodeStatus,
     Utf8Codec,
     Utf16U16Codec,
@@ -424,14 +425,14 @@ let mut output = [0_u16; 2];
 let progress = converter
     .transcode("A中".as_bytes(), 0, &mut output, 0)
     .expect("valid UTF-8 input and enough UTF-16 output");
-assert!(matches!(progress.status(), TranscodeStatus::NeedInput { .. }));
-assert_eq!(4, progress.read());
-assert_eq!(1, progress.written());
-
-let progress = converter
-    .finish(&mut output, progress.written())
-    .expect("closed tail converts successfully");
 assert_eq!(TranscodeStatus::Complete, progress.status());
+assert_eq!(4, progress.read());
+assert_eq!(2, progress.written());
+
+let written = converter
+    .finish(&mut output, progress.written())
+    .expect("finish has no buffered tail");
+assert_eq!(0, written);
 assert_eq!(['A' as u16, '中' as u16], output);
 
 ```
@@ -446,7 +447,7 @@ assert_eq!(['A' as u16, '中' as u16], output);
 use qubit_codec_text::{
     CharsetConvertError,
     CharsetConverter,
-    Transcoder,
+    BufferedTranscoder,
     Utf8Codec,
     Utf16U16Codec,
 };
@@ -463,7 +464,7 @@ assert!(matches!(error, CharsetConvertError::Decode(_)));
 
 ## 进度与缓冲
 
-`Transcoder<Input, Output>` 从 `qubit-codec` 重导出。它表示把一个逻辑输入流转换为一个逻辑输出流。
+`BufferedTranscoder<Input, Output>` 从 `qubit-codec` 重导出。它表示把一个逻辑输入流转换为一个逻辑输出流。
 对每段可用输入调用 `transcode()`，到达 EOF 后调用 `finish()`，并在它返回 `NeedOutput`
 时继续提供输出空间。复用同一个实例处理下一个逻辑流前，应先调用 `reset()`。它有四个核心方法：
 

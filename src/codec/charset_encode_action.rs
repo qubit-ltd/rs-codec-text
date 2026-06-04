@@ -13,14 +13,14 @@
 ///
 /// This action is produced by the charset encoder's internal
 /// [`qubit_codec::BufferedEncodeHooks`] implementation. Normal callers usually
-/// interact with [`crate::CharsetEncoder`] through [`crate::Transcoder`] instead
+/// interact with [`crate::CharsetEncoder`] through [`crate::BufferedTranscoder`] instead
 /// of constructing actions directly.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum CharsetEncodeAction {
     /// Encode the original input character.
     WriteOriginal,
 
-    /// Copy cached replacement units.
+    /// Encode the configured replacement character.
     WriteReplacement,
 
     /// Consume the input character without writing output.

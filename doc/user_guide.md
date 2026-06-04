@@ -23,7 +23,7 @@ Use this crate when you need:
 - Buffer-level codecs for ASCII, ISO-8859-1, UTF-8, UTF-16, and UTF-32.
 - Policy-aware decoders, encoders, and converters with replace, ignore, and
   report modes.
-- `Charset`, `UnicodeBom`, `ByteOrder`, `Codec`, `Transcoder`, typed
+- `Charset`, `UnicodeBom`, `ByteOrder`, `Codec`, `BufferedTranscoder`, typed
   encode/decode errors, and policy-aware wrappers for building higher-level
   adapters. Custom buffered adapters should import core engines and hooks
   directly from `qubit-codec`.
@@ -59,7 +59,7 @@ use qubit_codec_text::{
     CharsetCodec,
     CharsetDecoder,
     CharsetEncoder,
-    Transcoder,
+    BufferedTranscoder,
     Utf8Codec,
 };
 ```
@@ -76,7 +76,7 @@ The crate is split into a few small layers.
 | Text codec metadata | `CharsetCodec`, `CharsetEncodeProbe` | Attach charset metadata and exact encode sizing to low-level codec implementations. |
 | Policy wrappers | `CharsetDecoder`, `CharsetEncoder` | Apply malformed/unmappable policy while converting many units; implement `BufferedDecoder` / `BufferedEncoder`. `CharsetDecoder` reuses the core `BufferedDecodeEngine` loop, and `CharsetEncoder` reuses the core `BufferedEncodeEngine` loop. |
 | Charset conversion | `CharsetConverter` | Decode source units to `char`, then encode them to target units; implements `BufferedConverter`. |
-| Progress API | `Transcoder`, `TranscodeProgress`, `TranscodeStatus` | Report partial progress, input starvation, and output backpressure. |
+| Progress API | `BufferedTranscoder`, `TranscodeProgress`, `TranscodeStatus` | Report partial progress, input starvation, and output backpressure. |
 | Errors | `CharsetDecodeError`, `CharsetEncodeError`, `CharsetConvertError` | Preserve charset, kind, absolute index, and optional raw value. |
 
 All codec operations are buffer-oriented. Callers pass a complete input slice,
@@ -126,6 +126,7 @@ use qubit_codec_text::Charset;
 assert_eq!("utf-8", Charset::UTF_8.id());
 assert_eq!("UTF-8", Charset::UTF_8.name());
 assert!(Charset::UTF_8.matches_label("utf8"));
+assert_eq!(Some(Charset::UTF_8), Charset::from_label("utf8"));
 
 const GBK: Charset = Charset::new("gbk", "GBK", &["cp936"]);
 assert!(GBK.matches_label("CP936"));
@@ -307,7 +308,7 @@ input-buffer refill stays with the caller.
 ```rust
 use qubit_codec_text::{
     CharsetDecoder,
-    Transcoder,
+    BufferedTranscoder,
     TranscodeStatus,
     Utf8Codec,
 };
@@ -331,7 +332,7 @@ For strict validation:
 use qubit_codec_text::{
     CharsetDecoder,
     CharsetDecodePolicy,
-    Transcoder,
+    BufferedTranscoder,
     Utf8Codec,
 };
 
@@ -363,7 +364,7 @@ than were provided. Built-in codecs satisfy that contract.
 ```rust
 use qubit_codec_text::{
     CharsetEncoder,
-    Transcoder,
+    BufferedTranscoder,
     TranscodeStatus,
     Utf8Codec,
     Utf8,
@@ -390,7 +391,7 @@ use qubit_codec_text::{
     AsciiCodec,
     CharsetEncoder,
     CharsetEncodePolicy,
-    Transcoder,
+    BufferedTranscoder,
 };
 
 let mut encoder = CharsetEncoder::with_policy(AsciiCodec, CharsetEncodePolicy::report())
@@ -403,11 +404,11 @@ assert_eq!(0, error.index());
 assert_eq!(Some('é' as u32), error.value());
 ```
 
-`CharsetEncoder::new` caches the replacement character. It first tries
-`U+FFFD`, then falls back to `?`. It panics only if the supplied codec cannot
-encode either replacement. Built-in codecs do not trigger this; for a custom
-codec, that panic indicates a broken codec invariant rather than recoverable
-text input.
+`CharsetEncoder::new` validates the replacement character and caches its encoded
+width. It first tries `U+FFFD`, then falls back to `?`. It panics only if the
+supplied codec cannot encode either replacement. Built-in codecs do not trigger
+this; for a custom codec, that panic indicates a broken codec invariant rather
+than recoverable text input.
 
 Internally, `CharsetEncoder` stores unmappable-input policy in encode hooks and
 delegates to `BufferedEncodeEngine<C, H>`. The engine owns input iteration,
@@ -436,7 +437,7 @@ uses `char` values as the intermediate representation.
 ```rust
 use qubit_codec_text::{
     CharsetConverter,
-    Transcoder,
+    BufferedTranscoder,
     TranscodeStatus,
     Utf8Codec,
     Utf16U16Codec,
@@ -448,14 +449,14 @@ let mut output = [0_u16; 2];
 let progress = converter
     .transcode("A中".as_bytes(), 0, &mut output, 0)
     .expect("valid UTF-8 input and enough UTF-16 output");
-assert!(matches!(progress.status(), TranscodeStatus::NeedInput { .. }));
-assert_eq!(4, progress.read());
-assert_eq!(1, progress.written());
-
-let progress = converter
-    .finish(&mut output, progress.written())
-    .expect("closed tail converts successfully");
 assert_eq!(TranscodeStatus::Complete, progress.status());
+assert_eq!(4, progress.read());
+assert_eq!(2, progress.written());
+
+let written = converter
+    .finish(&mut output, progress.written())
+    .expect("finish has no buffered tail");
+assert_eq!(0, written);
 assert_eq!(['A' as u16, '中' as u16], output);
 
 ```
@@ -471,7 +472,7 @@ failures:
 use qubit_codec_text::{
     CharsetConvertError,
     CharsetConverter,
-    Transcoder,
+    BufferedTranscoder,
     Utf8Codec,
     Utf16U16Codec,
 };
@@ -488,7 +489,7 @@ assert!(matches!(error, CharsetConvertError::Decode(_)));
 
 ## Progress and Buffering
 
-`Transcoder<Input, Output>` is re-exported from `qubit-codec`. It models one
+`BufferedTranscoder<Input, Output>` is re-exported from `qubit-codec`. It models one
 logical input stream converted into one logical output stream. Call
 `transcode()` for each available segment, then call `finish()` after EOF and
 continue while it reports `NeedOutput`. Call `reset()` before reusing the same

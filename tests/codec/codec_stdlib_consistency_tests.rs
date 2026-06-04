@@ -1,10 +1,10 @@
 use qubit_codec_text::{
+    BufferedTranscoder,
     ByteOrder,
     CharsetDecodeErrorKind,
     CharsetEncoder,
     Codec,
     TranscodeStatus,
-    Transcoder,
     Utf8Codec,
     Utf16ByteCodec,
     Utf16U16Codec,

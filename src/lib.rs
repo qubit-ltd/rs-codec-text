@@ -37,7 +37,6 @@ pub use codec::{
     CharsetConverter,
     CharsetDecodePolicy,
     CharsetDecoder,
-    CharsetEncodeAction,
     CharsetEncodePolicy,
     CharsetEncodeProbe,
     CharsetEncoder,
@@ -65,10 +64,10 @@ pub use error::{
     CharsetEncodeResult,
 };
 pub use qubit_codec::{
+    BufferedTranscoder,
     ByteOrder,
     CapacityError,
     Codec,
     TranscodeProgress,
     TranscodeStatus,
-    Transcoder,
 };

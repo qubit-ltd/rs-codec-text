@@ -35,8 +35,6 @@ pub(super) struct CharsetConvertHooks {
     decode_policy: CharsetDecodePolicy,
     /// Unmappable target-output policy.
     encode_policy: CharsetEncodePolicy,
-    /// Whether default replacement initialization may fall back to `?`.
-    allow_default_fallback: bool,
 }
 
 impl CharsetConvertHooks {
@@ -46,18 +44,6 @@ impl CharsetConvertHooks {
         Self {
             decode_policy,
             encode_policy,
-            allow_default_fallback: false,
-        }
-    }
-}
-
-impl Default for CharsetConvertHooks {
-    /// Creates default charset converter hooks.
-    fn default() -> Self {
-        Self {
-            decode_policy: CharsetDecodePolicy::replace(CharsetDecodePolicy::DEFAULT_REPLACEMENT),
-            encode_policy: CharsetEncodePolicy::replace(CharsetEncodePolicy::DEFAULT_REPLACEMENT),
-            allow_default_fallback: true,
         }
     }
 }
@@ -66,7 +52,6 @@ impl<D, E> BufferedConvertHooks<D, E> for CharsetConvertHooks
 where
     D: CharsetCodec,
     E: CharsetEncodeProbe,
-    E::Unit: Default,
 {
     type DecodeError = CharsetDecodeError;
     type DecodeHooks = CharsetDecodeHooks;
@@ -81,19 +66,9 @@ where
 
     /// Creates default charset encode hooks.
     fn create_encode_hooks(&self, _decode_codec: &D, encode_codec: &E) -> Self::EncodeHooks {
-        match CharsetEncoder::<E>::create_hooks(encode_codec, self.encode_policy) {
-            Ok((hooks, _)) => hooks,
-            Err(_default_error) => {
-                assert!(
-                    self.allow_default_fallback,
-                    "explicit charset converter policies must be prevalidated before building hooks"
-                );
-                let fallback_policy = CharsetEncodePolicy::replace(CharsetEncodePolicy::DEFAULT_FALLBACK_REPLACEMENT);
-                CharsetEncoder::<E>::create_hooks(encode_codec, fallback_policy)
-                    .map(|(hooks, _)| hooks)
-                    .expect("default converter fallback replacement should be encodable")
-            }
-        }
+        CharsetEncoder::<E>::create_hooks(encode_codec, self.encode_policy)
+            .map(|(hooks, _)| hooks)
+            .expect("charset converter encode policy should be prevalidated before building hooks")
     }
 
     /// Maps decoder errors into converter decode errors.

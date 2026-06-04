@@ -1,12 +1,12 @@
 use qubit_codec_text::prelude::{
     Ascii,
+    BufferedTranscoder,
     ByteOrder,
     Charset,
     CharsetDecoder,
     CharsetEncoder,
     Codec,
     TranscodeStatus,
-    Transcoder,
     Unicode,
     UnicodeBom,
     Utf8,

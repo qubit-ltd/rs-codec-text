@@ -36,7 +36,6 @@ pub use charset_convert_error::CharsetConvertError;
 pub use charset_converter::CharsetConverter;
 pub use charset_decode_policy::CharsetDecodePolicy;
 pub use charset_decoder::CharsetDecoder;
-pub use charset_encode_action::CharsetEncodeAction;
 pub use charset_encode_policy::CharsetEncodePolicy;
 pub use charset_encode_probe::CharsetEncodeProbe;
 pub use charset_encoder::CharsetEncoder;

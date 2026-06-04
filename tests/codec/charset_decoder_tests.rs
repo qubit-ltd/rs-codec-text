@@ -1,5 +1,6 @@
 use qubit_codec::BufferedDecoder;
 use qubit_codec_text::{
+    BufferedTranscoder,
     Charset,
     CharsetCodec,
     CharsetDecodeError,
@@ -13,7 +14,6 @@ use qubit_codec_text::{
     Codec,
     MalformedAction,
     TranscodeStatus,
-    Transcoder,
     Utf8Codec,
     Utf32U32Codec,
 };

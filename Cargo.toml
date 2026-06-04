@@ -47,7 +47,7 @@ name = "encoding"
 path = "tests/encoding/mod.rs"
 
 [dependencies]
-qubit-codec = { version = "0.6", path = "../rs-codec" }
+qubit-codec = "0.5"
 thiserror = "2.0"
 
 [lints.rust]
