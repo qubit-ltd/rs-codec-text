@@ -79,7 +79,7 @@ pub(crate) fn decode_units_prefix(input: &[u32], index: usize) -> CharsetDecodeR
 ///
 /// * `CharsetEncodeErrorKind::BufferTooSmall` when no unit can be written at
 ///   `index`.
-#[inline(always)]
+#[inline]
 pub(crate) fn encode_units_char(ch: char, output: &mut [u32], index: usize) -> CharsetEncodeResult<usize> {
     if index >= output.len() {
         let kind = CharsetEncodeErrorKind::BufferTooSmall {
@@ -200,7 +200,7 @@ pub(crate) fn encode_bytes_char(
 /// # Returns
 ///
 /// Returns the decoded UTF-32 unit.
-#[inline(always)]
+#[inline]
 fn read_ordered_u32(input: &[u8], index: usize, byte_order: ByteOrder) -> u32 {
     let bytes = [input[index], input[index + 1], input[index + 2], input[index + 3]];
     match byte_order {
@@ -218,7 +218,7 @@ fn read_ordered_u32(input: &[u8], index: usize, byte_order: ByteOrder) -> u32 {
 ///   writable from this offset.
 /// - `unit`: UTF-32 unit to write.
 /// - `byte_order`: Byte order used to serialize the unit.
-#[inline(always)]
+#[inline]
 fn write_ordered_u32(output: &mut [u8], index: usize, unit: u32, byte_order: ByteOrder) {
     let bytes = match byte_order {
         ByteOrder::BigEndian => unit.to_be_bytes(),

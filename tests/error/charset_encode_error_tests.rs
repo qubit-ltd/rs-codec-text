@@ -58,4 +58,8 @@ fn test_charset_encode_error_exposes_context() {
     assert_eq!(Some(0), invalid_index.kind().input_len());
     assert_eq!(8, invalid_index.index());
     assert_eq!(None, invalid_index.value());
+
+    let kind = CharsetEncodeErrorKind::InvalidOutputIndex { output_len: 2 };
+    let invalid_output = CharsetEncodeError::new(Charset::UTF_8, kind, 4);
+    assert_eq!(Some(2), invalid_output.output_len());
 }

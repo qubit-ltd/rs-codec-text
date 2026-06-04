@@ -58,7 +58,7 @@ impl Utf8Codec {
     ///
     /// Returns [`Charset::UTF_8`].
     #[must_use]
-    #[inline(always)]
+    #[inline]
     pub const fn charset(self) -> Charset {
         Charset::UTF_8
     }
@@ -70,7 +70,7 @@ impl CharsetCodec for Utf8Codec {
     /// # Returns
     ///
     /// Returns [`Charset::UTF_8`].
-    #[inline(always)]
+    #[inline]
     fn charset(&self) -> Charset {
         Charset::UTF_8
     }
@@ -87,7 +87,7 @@ impl CharsetEncodeProbe for Utf8Codec {
     /// # Returns
     ///
     /// `Ok(usize)` with required encoded bytes (`1..=4`).
-    #[inline(always)]
+    #[inline]
     fn encode_len(&self, ch: char, _index: usize) -> CharsetEncodeResult<usize> {
         Ok(Utf8::byte_len(ch))
     }
@@ -99,18 +99,18 @@ unsafe impl Codec for Utf8Codec {
     type DecodeError = CharsetDecodeError;
     type EncodeError = CharsetEncodeError;
 
-    #[inline(always)]
+    #[inline]
     fn min_units_per_value(&self) -> core::num::NonZeroUsize {
         core::num::NonZeroUsize::MIN
     }
 
-    #[inline(always)]
+    #[inline]
     fn max_units_per_value(&self) -> core::num::NonZeroUsize {
         // SAFETY: UTF-8 encodes every scalar value as at least one byte.
         unsafe { core::num::NonZeroUsize::new_unchecked(Utf8::MAX_UNITS_PER_CHAR) }
     }
 
-    #[inline(always)]
+    #[inline]
     unsafe fn decode_unchecked(
         &self,
         input: &[u8],
@@ -121,7 +121,6 @@ unsafe impl Codec for Utf8Codec {
         Ok((ch, consumed))
     }
 
-    #[inline(always)]
     unsafe fn encode_unchecked(&self, ch: &char, output: &mut [u8], index: usize) -> CharsetEncodeResult<usize> {
         let written = utf8::encode_char(*ch, output, index)?;
         debug_assert_eq!(written, Utf8::byte_len(*ch));

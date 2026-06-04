@@ -2,11 +2,17 @@ use qubit_codec_text::{
     Charset,
     CharsetCodec,
     CharsetDecodeErrorKind,
+    CharsetDecodeResult,
     CharsetEncodeProbe,
+    CharsetEncodeResult,
     Codec,
     Utf16,
     Utf16U16Codec,
 };
+
+type DecodedCharResult = CharsetDecodeResult<(char, core::num::NonZeroUsize)>;
+type DecodeFn = unsafe fn(&Utf16U16Codec, &[u16], usize) -> DecodedCharResult;
+type EncodeFn = unsafe fn(&Utf16U16Codec, &char, &mut [u16], usize) -> CharsetEncodeResult<usize>;
 
 #[test]
 fn test_utf16_u16_codec_exposes_encoder_and_decoder_contracts() {
@@ -90,4 +96,31 @@ fn test_utf16_u16_codec_encodes_bmp_and_supplementary_scalars() {
     let error = unsafe { codec.encode_unchecked(&'A', &mut [], 1) }.expect_err("output index outside slice");
     assert_eq!(Some(2), error.required());
     assert_eq!(Some(0), error.available());
+}
+
+#[test]
+fn test_utf16_u16_codec_direct_function_items_cover_trait_methods() {
+    let codec = Utf16U16Codec;
+    let inherent_charset: fn(Utf16U16Codec) -> Charset = Utf16U16Codec::charset;
+    let trait_charset: fn(&Utf16U16Codec) -> Charset = <Utf16U16Codec as CharsetCodec>::charset;
+    let min_units: fn(&Utf16U16Codec) -> core::num::NonZeroUsize = <Utf16U16Codec as Codec>::min_units_per_value;
+    let max_units: fn(&Utf16U16Codec) -> core::num::NonZeroUsize = <Utf16U16Codec as Codec>::max_units_per_value;
+    let encode_len: fn(&Utf16U16Codec, char, usize) -> CharsetEncodeResult<usize> =
+        <Utf16U16Codec as CharsetEncodeProbe>::encode_len;
+    let decode: DecodeFn = <Utf16U16Codec as Codec>::decode_unchecked;
+    let encode: EncodeFn = <Utf16U16Codec as Codec>::encode_unchecked;
+
+    assert_eq!(Charset::UTF_16, inherent_charset(codec));
+    assert_eq!(Charset::UTF_16, trait_charset(&codec));
+    assert_eq!(1, min_units(&codec).get());
+    assert_eq!(Utf16::MAX_UNITS_PER_CHAR, max_units(&codec).get());
+    assert_eq!(2, encode_len(&codec, '😀', 0).expect("UTF-16 pair length"));
+
+    let mut output = [0_u16; Utf16::MAX_UNITS_PER_CHAR];
+    assert_eq!(
+        2,
+        unsafe { encode(&codec, &'😀', &mut output, 0) }.expect("encode pair")
+    );
+    let (decoded, consumed) = unsafe { decode(&codec, &output, 0) }.expect("decode pair");
+    assert_eq!(('😀', 2), (decoded, consumed.get()));
 }

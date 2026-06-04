@@ -62,7 +62,7 @@ impl Utf32U32Codec {
     ///
     /// Returns [`Charset::UTF_32`].
     #[must_use]
-    #[inline(always)]
+    #[inline]
     pub const fn charset(self) -> Charset {
         Charset::UTF_32
     }
@@ -74,7 +74,7 @@ impl CharsetCodec for Utf32U32Codec {
     /// # Returns
     ///
     /// Returns [`Charset::UTF_32`].
-    #[inline(always)]
+    #[inline]
     fn charset(&self) -> Charset {
         Charset::UTF_32
     }
@@ -91,7 +91,7 @@ impl CharsetEncodeProbe for Utf32U32Codec {
     /// # Returns
     ///
     /// Always returns `Ok(1)`.
-    #[inline(always)]
+    #[inline]
     fn encode_len(&self, _ch: char, _index: usize) -> CharsetEncodeResult<usize> {
         Ok(Utf32::MAX_UNITS_PER_CHAR)
     }
@@ -103,17 +103,17 @@ unsafe impl Codec for Utf32U32Codec {
     type DecodeError = CharsetDecodeError;
     type EncodeError = CharsetEncodeError;
 
-    #[inline(always)]
+    #[inline]
     fn min_units_per_value(&self) -> core::num::NonZeroUsize {
         core::num::NonZeroUsize::MIN
     }
 
-    #[inline(always)]
+    #[inline]
     fn max_units_per_value(&self) -> core::num::NonZeroUsize {
         core::num::NonZeroUsize::MIN
     }
 
-    #[inline(always)]
+    #[inline]
     unsafe fn decode_unchecked(
         &self,
         input: &[u32],
@@ -124,7 +124,6 @@ unsafe impl Codec for Utf32U32Codec {
         Ok((ch, consumed))
     }
 
-    #[inline(always)]
     unsafe fn encode_unchecked(&self, ch: &char, output: &mut [u32], index: usize) -> CharsetEncodeResult<usize> {
         let written = utf32::encode_units_char(*ch, output, index)?;
         debug_assert_eq!(written, Utf32::MAX_UNITS_PER_CHAR);

@@ -3,11 +3,17 @@ use qubit_codec_text::{
     Charset,
     CharsetCodec,
     CharsetDecodeErrorKind,
+    CharsetDecodeResult,
     CharsetEncodeProbe,
+    CharsetEncodeResult,
     Codec,
     Utf16,
     Utf16ByteCodec,
 };
+
+type DecodedCharResult = CharsetDecodeResult<(char, core::num::NonZeroUsize)>;
+type DecodeFn = unsafe fn(&Utf16ByteCodec, &[u8], usize) -> DecodedCharResult;
+type EncodeFn = unsafe fn(&Utf16ByteCodec, &char, &mut [u8], usize) -> CharsetEncodeResult<usize>;
 
 #[test]
 fn test_utf16_byte_codec_exposes_encoder_and_decoder_contracts() {
@@ -105,4 +111,34 @@ fn test_utf16_byte_codec_encodes_bmp_and_supplementary_scalars() {
     let error = unsafe { codec.encode_unchecked(&'A', &mut [], 1) }.expect_err("output index outside slice");
     assert_eq!(Some(3), error.required());
     assert_eq!(Some(0), error.available());
+}
+
+#[test]
+fn test_utf16_byte_codec_direct_function_items_cover_trait_methods() {
+    let codec = Utf16ByteCodec::new(ByteOrder::BigEndian);
+    let new_fn: fn(ByteOrder) -> Utf16ByteCodec = Utf16ByteCodec::new;
+    let byte_order: fn(Utf16ByteCodec) -> ByteOrder = Utf16ByteCodec::byte_order;
+    let inherent_charset: fn(Utf16ByteCodec) -> Charset = Utf16ByteCodec::charset;
+    let trait_charset: fn(&Utf16ByteCodec) -> Charset = <Utf16ByteCodec as CharsetCodec>::charset;
+    let min_units: fn(&Utf16ByteCodec) -> core::num::NonZeroUsize = <Utf16ByteCodec as Codec>::min_units_per_value;
+    let max_units: fn(&Utf16ByteCodec) -> core::num::NonZeroUsize = <Utf16ByteCodec as Codec>::max_units_per_value;
+    let encode_len: fn(&Utf16ByteCodec, char, usize) -> CharsetEncodeResult<usize> =
+        <Utf16ByteCodec as CharsetEncodeProbe>::encode_len;
+    let decode: DecodeFn = <Utf16ByteCodec as Codec>::decode_unchecked;
+    let encode: EncodeFn = std::hint::black_box(<Utf16ByteCodec as Codec>::encode_unchecked);
+
+    assert_eq!(ByteOrder::LittleEndian, byte_order(new_fn(ByteOrder::LittleEndian)));
+    assert_eq!(Charset::UTF_16BE, inherent_charset(codec));
+    assert_eq!(Charset::UTF_16BE, trait_charset(&codec));
+    assert_eq!(2, min_units(&codec).get());
+    assert_eq!(Utf16::MAX_BYTES_PER_CHAR, max_units(&codec).get());
+    assert_eq!(4, encode_len(&codec, '😀', 0).expect("UTF-16 byte pair length"));
+
+    let mut output = [0_u8; Utf16::MAX_BYTES_PER_CHAR];
+    assert_eq!(
+        4,
+        unsafe { encode(&codec, &'😀', &mut output, 0) }.expect("encode pair bytes")
+    );
+    let (decoded, consumed) = unsafe { decode(&codec, &output, 0) }.expect("decode pair bytes");
+    assert_eq!(('😀', 4), (decoded, consumed.get()));
 }

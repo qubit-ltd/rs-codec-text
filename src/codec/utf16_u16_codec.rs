@@ -62,7 +62,7 @@ impl Utf16U16Codec {
     ///
     /// Returns [`Charset::UTF_16`].
     #[must_use]
-    #[inline(always)]
+    #[inline]
     pub const fn charset(self) -> Charset {
         Charset::UTF_16
     }
@@ -74,7 +74,7 @@ impl CharsetCodec for Utf16U16Codec {
     /// # Returns
     ///
     /// Returns [`Charset::UTF_16`].
-    #[inline(always)]
+    #[inline]
     fn charset(&self) -> Charset {
         Charset::UTF_16
     }
@@ -91,7 +91,7 @@ impl CharsetEncodeProbe for Utf16U16Codec {
     /// # Returns
     ///
     /// `Ok(usize)` with the required UTF-16 units (`1` or `2`).
-    #[inline(always)]
+    #[inline]
     fn encode_len(&self, ch: char, _index: usize) -> CharsetEncodeResult<usize> {
         Ok(Utf16::unit_len(ch))
     }
@@ -103,18 +103,18 @@ unsafe impl Codec for Utf16U16Codec {
     type DecodeError = CharsetDecodeError;
     type EncodeError = CharsetEncodeError;
 
-    #[inline(always)]
+    #[inline]
     fn min_units_per_value(&self) -> core::num::NonZeroUsize {
         core::num::NonZeroUsize::MIN
     }
 
-    #[inline(always)]
+    #[inline]
     fn max_units_per_value(&self) -> core::num::NonZeroUsize {
         // SAFETY: UTF-16 encodes every scalar value as at least one unit.
         unsafe { core::num::NonZeroUsize::new_unchecked(Utf16::MAX_UNITS_PER_CHAR) }
     }
 
-    #[inline(always)]
+    #[inline]
     unsafe fn decode_unchecked(
         &self,
         input: &[u16],

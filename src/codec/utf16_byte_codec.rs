@@ -72,7 +72,7 @@ impl Utf16ByteCodec {
     ///
     /// Returns a UTF-16 byte codec.
     #[must_use]
-    #[inline(always)]
+    #[inline]
     pub const fn new(byte_order: ByteOrder) -> Self {
         Self { byte_order }
     }
@@ -83,7 +83,7 @@ impl Utf16ByteCodec {
     ///
     /// Returns the byte order used by this codec.
     #[must_use]
-    #[inline(always)]
+    #[inline]
     pub const fn byte_order(self) -> ByteOrder {
         self.byte_order
     }
@@ -95,7 +95,7 @@ impl Utf16ByteCodec {
     /// Returns [`Charset::UTF_16LE`] or [`Charset::UTF_16BE`] according to this
     /// codec's configured byte order.
     #[must_use]
-    #[inline(always)]
+    #[inline]
     pub const fn charset(self) -> Charset {
         Charset::from_utf16_byte_order(self.byte_order)
     }
@@ -108,7 +108,7 @@ impl CharsetCodec for Utf16ByteCodec {
     ///
     /// Returns [`Charset::UTF_16BE`] when configured with
     /// `ByteOrder::BigEndian`, otherwise [`Charset::UTF_16LE`].
-    #[inline(always)]
+    #[inline]
     fn charset(&self) -> Charset {
         Charset::from_utf16_byte_order(self.byte_order)
     }
@@ -125,7 +125,7 @@ impl CharsetEncodeProbe for Utf16ByteCodec {
     /// # Returns
     ///
     /// `Ok(usize)` with the required bytes (`2` for BMP and `4` for supplementary).
-    #[inline(always)]
+    #[inline]
     fn encode_len(&self, ch: char, _index: usize) -> CharsetEncodeResult<usize> {
         Ok(Utf16::unit_len(ch) * 2)
     }
@@ -137,13 +137,13 @@ unsafe impl Codec for Utf16ByteCodec {
     type DecodeError = CharsetDecodeError;
     type EncodeError = CharsetEncodeError;
 
-    #[inline(always)]
+    #[inline]
     fn min_units_per_value(&self) -> core::num::NonZeroUsize {
         // SAFETY: 2 is non-zero.
         unsafe { core::num::NonZeroUsize::new_unchecked(2) }
     }
 
-    #[inline(always)]
+    #[inline]
     fn max_units_per_value(&self) -> core::num::NonZeroUsize {
         // SAFETY: UTF-16 byte encoding uses at least one two-byte unit.
         unsafe { core::num::NonZeroUsize::new_unchecked(Utf16::MAX_BYTES_PER_CHAR) }
@@ -160,7 +160,6 @@ unsafe impl Codec for Utf16ByteCodec {
         Ok((ch, consumed))
     }
 
-    #[inline(always)]
     unsafe fn encode_unchecked(&self, ch: &char, output: &mut [u8], index: usize) -> CharsetEncodeResult<usize> {
         let written = utf16::encode_bytes_char(*ch, output, self.byte_order, index)?;
         debug_assert_eq!(written, ch.len_utf16() * 2);

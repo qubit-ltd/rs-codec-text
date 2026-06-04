@@ -2,11 +2,17 @@ use qubit_codec_text::{
     Charset,
     CharsetCodec,
     CharsetDecodeErrorKind,
+    CharsetDecodeResult,
     CharsetEncodeProbe,
+    CharsetEncodeResult,
     Codec,
     Utf8,
     Utf8Codec,
 };
+
+type DecodedCharResult = CharsetDecodeResult<(char, core::num::NonZeroUsize)>;
+type DecodeFn = unsafe fn(&Utf8Codec, &[u8], usize) -> DecodedCharResult;
+type EncodeFn = unsafe fn(&Utf8Codec, &char, &mut [u8], usize) -> CharsetEncodeResult<usize>;
 
 #[test]
 fn test_utf8_codec_exposes_encoder_and_decoder_contracts() {
@@ -130,4 +136,34 @@ fn test_utf8_codec_encodes_all_lengths() {
     let error = unsafe { codec.encode_unchecked(&'A', &mut [], 1) }.expect_err("output index outside slice");
     assert_eq!(Some(2), error.required());
     assert_eq!(Some(0), error.available());
+}
+
+#[test]
+fn test_utf8_codec_direct_function_items_cover_trait_methods() {
+    let codec = Utf8Codec;
+    let inherent_charset: fn(Utf8Codec) -> Charset = Utf8Codec::charset;
+    let trait_charset: fn(&Utf8Codec) -> Charset = <Utf8Codec as CharsetCodec>::charset;
+    let min_units: fn(&Utf8Codec) -> core::num::NonZeroUsize = <Utf8Codec as Codec>::min_units_per_value;
+    let max_units: fn(&Utf8Codec) -> core::num::NonZeroUsize = <Utf8Codec as Codec>::max_units_per_value;
+    let encode_len: fn(&Utf8Codec, char, usize) -> CharsetEncodeResult<usize> =
+        <Utf8Codec as CharsetEncodeProbe>::encode_len;
+    let decode: DecodeFn = <Utf8Codec as Codec>::decode_unchecked;
+    let encode: EncodeFn = std::hint::black_box(<Utf8Codec as Codec>::encode_unchecked);
+
+    assert_eq!(Charset::UTF_8, inherent_charset(codec));
+    assert_eq!(Charset::UTF_8, trait_charset(&codec));
+    assert_eq!(1, min_units(&codec).get());
+    assert_eq!(Utf8::MAX_UNITS_PER_CHAR, max_units(&codec).get());
+    assert_eq!(
+        4,
+        encode_len(&codec, '😀', 0).expect("UTF-8 encodes supplementary scalar")
+    );
+
+    let mut output = [0_u8; Utf8::MAX_BYTES_PER_CHAR];
+    assert_eq!(
+        4,
+        unsafe { encode(&codec, &'😀', &mut output, 0) }.expect("encode UTF-8")
+    );
+    let (decoded, consumed) = unsafe { decode(&codec, &output, 0) }.expect("decode UTF-8");
+    assert_eq!(('😀', 4), (decoded, consumed.get()));
 }

@@ -68,6 +68,10 @@ fn test_charset_decode_error_exposes_context() {
         "UTF-8 decoding error at index 3: The input unit index is outside the input buffer.",
         invalid_index.to_string(),
     );
+
+    let kind = CharsetDecodeErrorKind::InvalidOutputIndex { output_len: 2 };
+    let invalid_output = CharsetDecodeError::new(Charset::UTF_8, kind, 4);
+    assert_eq!(Some(2), invalid_output.output_len());
 }
 
 #[test]
