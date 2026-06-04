@@ -1,17 +1,3 @@
-pub use qubit_codec_text::{
-    Charset,
-    CharsetDecodeError,
-    CharsetDecodeErrorKind,
-    CharsetDecodeResult,
-    CharsetEncodeError,
-    CharsetEncodeErrorKind,
-    CharsetEncodeResult,
-    Unicode,
-    Utf8,
-    Utf16,
-    Utf32,
-};
-
 mod ascii_codec_tests;
 mod charset_codec_tests;
 mod charset_convert_error_tests;
