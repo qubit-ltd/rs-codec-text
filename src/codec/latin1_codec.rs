@@ -67,8 +67,6 @@ impl CharsetEncodeProbe for Latin1Codec {
     /// # Errors
     ///
     /// * `CharsetEncodeErrorKind::UnmappableCharacter` if `ch` > `U+00FF`.
-    /// * `CharsetEncodeErrorKind::BufferTooSmall` if no output byte can be
-    ///   written at `index`.
     #[inline]
     fn encode_len(&self, ch: char, index: usize) -> CharsetEncodeResult<usize> {
         let value = ch as u32;

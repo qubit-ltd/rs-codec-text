@@ -68,8 +68,6 @@ impl CharsetEncodeProbe for AsciiCodec {
     /// # Errors
     ///
     /// * `CharsetEncodeErrorKind::UnmappableCharacter` if `ch` is not ASCII.
-    /// * `CharsetEncodeErrorKind::BufferTooSmall` if no output byte can be
-    ///   written at `index`.
     #[inline]
     fn encode_len(&self, ch: char, index: usize) -> CharsetEncodeResult<usize> {
         if ch > Ascii::MAX_CHAR {

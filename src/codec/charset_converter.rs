@@ -98,7 +98,14 @@ where
     ///
     /// # Returns
     ///
-    /// Returns a converter with default decoder and encoder policies.
+    /// Returns a converter with the default decoder policy and the target
+    /// encoder policy that can be represented by `target`. The encoder policy
+    /// first tries [`CharsetEncodePolicy::DEFAULT_REPLACEMENT`] and falls back
+    /// to [`CharsetEncodePolicy::DEFAULT_FALLBACK_REPLACEMENT`] when needed.
+    ///
+    /// # Panics
+    ///
+    /// Panics when neither default replacement can be encoded by `target`.
     #[must_use]
     pub fn from_codecs(source: D, target: E) -> Self {
         let decode_policy = CharsetDecodePolicy::default();
