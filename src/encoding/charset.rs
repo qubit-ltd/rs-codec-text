@@ -115,8 +115,10 @@ impl Charset {
     ///
     /// Returns `Some(Charset)` when `label` names one of this crate's built-in
     /// charsets, or `None` when no built-in charset matches. Custom descriptors
-    /// created with [`Self::new`] are not part of this lookup.
+    /// created with [`Self::new`] are not part of this lookup. Leading and
+    /// trailing ASCII whitespace is ignored before matching.
     pub fn from_label(label: &str) -> Option<Self> {
+        let label = label.trim_ascii();
         Self::BUILTINS
             .iter()
             .copied()

@@ -79,6 +79,12 @@ fn test_charset_from_label_finds_builtin_charsets() {
 }
 
 #[test]
+fn test_charset_from_label_trims_ascii_whitespace() {
+    assert_eq!(Some(Charset::UTF_8), Charset::from_label(" \tUTF-8\r\n"));
+    assert_eq!(Some(Charset::ASCII), Charset::from_label("\nUS-ASCII "));
+}
+
+#[test]
 fn test_charset_exposes_fixed_byte_order_helpers() {
     assert_eq!(
         Charset::UTF_16LE,
