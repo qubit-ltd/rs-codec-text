@@ -138,6 +138,16 @@ impl CharsetDecodeError {
         self.kind.input_len()
     }
 
+    /// Returns output length for this decoding error, if reported.
+    ///
+    /// # Returns
+    ///
+    /// Returns `Some(output_len)` for [`CharsetDecodeErrorKind::InvalidOutputIndex`],
+    /// otherwise `None`.
+    pub const fn output_len(self) -> Option<usize> {
+        self.kind.output_len()
+    }
+
     /// Returns the raw value associated with this error.
     ///
     /// # Returns
@@ -159,9 +169,9 @@ impl CharsetDecodeError {
             CharsetDecodeErrorKind::MalformedSequence { .. } | CharsetDecodeErrorKind::InvalidCodePoint { .. } => {
                 Some(self.consumed)
             }
-            CharsetDecodeErrorKind::IncompleteSequence { .. } | CharsetDecodeErrorKind::InvalidInputIndex { .. } => {
-                None
-            }
+            CharsetDecodeErrorKind::IncompleteSequence { .. }
+            | CharsetDecodeErrorKind::InvalidInputIndex { .. }
+            | CharsetDecodeErrorKind::InvalidOutputIndex { .. } => None,
         }
     }
 

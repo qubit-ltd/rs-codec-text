@@ -379,12 +379,16 @@ fn test_charset_encoder_reports_invalid_indices_and_capacity() {
     assert_eq!(input.len() + 1, error.index());
 
     let beyond_output = output.len() + 1;
-    let progress = encoder
+    let error = encoder
         .transcode(&input, 0, &mut output, beyond_output)
-        .expect("output index beyond output slice needs more output");
-    assert!(matches!(progress.status(), TranscodeStatus::NeedOutput { .. }));
-    assert_eq!(0, progress.read());
-    assert_eq!(0, progress.written());
+        .expect_err("output index outside output slice should be rejected");
+    assert_eq!(
+        CharsetEncodeErrorKind::InvalidOutputIndex {
+            output_len: output.len(),
+        },
+        error.kind()
+    );
+    assert_eq!(beyond_output, error.index());
 
     let error = encoder
         .finish(&mut output, beyond_output)

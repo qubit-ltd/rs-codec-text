@@ -166,6 +166,12 @@ where
         let kind = CharsetEncodeErrorKind::InvalidInputIndex { input_len };
         CharsetEncodeError::new(codec.charset(), kind, index)
     }
+
+    /// Creates an output-index error using the charset from `codec`.
+    fn invalid_output_index(&mut self, codec: &C, index: usize, output_len: usize) -> Self::Error {
+        let kind = CharsetEncodeErrorKind::InvalidOutputIndex { output_len };
+        CharsetEncodeError::new(codec.charset(), kind, index)
+    }
 }
 
 /// Encodes a replacement character for charset encode hooks.

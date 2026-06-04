@@ -122,4 +122,10 @@ where
         let kind = CharsetDecodeErrorKind::InvalidInputIndex { input_len };
         CharsetDecodeError::new(codec.charset(), kind, index)
     }
+
+    /// Creates an invalid output index error for the charset decoder.
+    fn invalid_output_index(&mut self, codec: &C, index: usize, output_len: usize) -> Self::Error {
+        let kind = CharsetDecodeErrorKind::InvalidOutputIndex { output_len };
+        CharsetDecodeError::new(codec.charset(), kind, index)
+    }
 }

@@ -293,12 +293,16 @@ fn test_charset_decoder_reports_invalid_indices_capacity_and_need_input() {
     assert_eq!(input.len() + 1, error.index());
 
     let beyond_output = output.len() + 1;
-    let progress = decoder
+    let error = decoder
         .transcode(input, 0, &mut output, beyond_output)
-        .expect("output index beyond output slice needs more output");
-    assert!(matches!(progress.status(), TranscodeStatus::NeedOutput { .. }));
-    assert_eq!(0, progress.read());
-    assert_eq!(0, progress.written());
+        .expect_err("output index outside output slice should be rejected");
+    assert_eq!(
+        CharsetDecodeErrorKind::InvalidOutputIndex {
+            output_len: output.len(),
+        },
+        error.kind()
+    );
+    assert_eq!(beyond_output, error.index());
 
     let progress = decoder
         .transcode(&[0xe4], 0, &mut output, 0)

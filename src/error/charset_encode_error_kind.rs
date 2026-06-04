@@ -26,6 +26,13 @@ pub enum CharsetEncodeErrorKind {
         input_len: usize,
     },
 
+    /// The requested output unit index is outside the output buffer.
+    #[error("The output unit index is outside the output buffer.")]
+    InvalidOutputIndex {
+        /// Length of the output provided to the codec call.
+        output_len: usize,
+    },
+
     /// The character cannot be represented by the target encoding.
     #[error("The character cannot be represented by the target encoding.")]
     UnmappableCharacter {
@@ -56,7 +63,7 @@ impl CharsetEncodeErrorKind {
         match self {
             Self::InvalidCodePoint { value, .. } => Some(value),
             Self::UnmappableCharacter { value, .. } => Some(value),
-            Self::BufferTooSmall { .. } | Self::InvalidInputIndex { .. } => None,
+            Self::BufferTooSmall { .. } | Self::InvalidInputIndex { .. } | Self::InvalidOutputIndex { .. } => None,
         }
     }
 
@@ -70,7 +77,10 @@ impl CharsetEncodeErrorKind {
     pub const fn required(self) -> Option<usize> {
         match self {
             Self::BufferTooSmall { required, .. } => Some(required),
-            Self::InvalidInputIndex { .. } | Self::InvalidCodePoint { .. } | Self::UnmappableCharacter { .. } => None,
+            Self::InvalidInputIndex { .. }
+            | Self::InvalidOutputIndex { .. }
+            | Self::InvalidCodePoint { .. }
+            | Self::UnmappableCharacter { .. } => None,
         }
     }
 
@@ -85,7 +95,10 @@ impl CharsetEncodeErrorKind {
     pub const fn available(self) -> Option<usize> {
         match self {
             Self::BufferTooSmall { available, .. } => Some(available),
-            Self::InvalidInputIndex { .. } | Self::InvalidCodePoint { .. } | Self::UnmappableCharacter { .. } => None,
+            Self::InvalidInputIndex { .. }
+            | Self::InvalidOutputIndex { .. }
+            | Self::InvalidCodePoint { .. }
+            | Self::UnmappableCharacter { .. } => None,
         }
     }
 
@@ -99,7 +112,27 @@ impl CharsetEncodeErrorKind {
     pub const fn input_len(self) -> Option<usize> {
         match self {
             Self::InvalidInputIndex { input_len } => Some(input_len),
-            Self::InvalidCodePoint { .. } | Self::UnmappableCharacter { .. } | Self::BufferTooSmall { .. } => None,
+            Self::InvalidCodePoint { .. }
+            | Self::UnmappableCharacter { .. }
+            | Self::BufferTooSmall { .. }
+            | Self::InvalidOutputIndex { .. } => None,
+        }
+    }
+
+    /// Returns the output length when this error comes from an invalid output index.
+    ///
+    /// # Returns
+    ///
+    /// - `Some(output_len)` for [`Self::InvalidOutputIndex`];
+    /// - `None` for other variants.
+    #[must_use]
+    pub const fn output_len(self) -> Option<usize> {
+        match self {
+            Self::InvalidOutputIndex { output_len } => Some(output_len),
+            Self::InvalidCodePoint { .. }
+            | Self::InvalidInputIndex { .. }
+            | Self::UnmappableCharacter { .. }
+            | Self::BufferTooSmall { .. } => None,
         }
     }
 }

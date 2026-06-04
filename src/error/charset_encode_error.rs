@@ -74,6 +74,16 @@ impl CharsetEncodeError {
         self.kind.available()
     }
 
+    /// Returns output length for this encoding error, if reported.
+    ///
+    /// # Returns
+    ///
+    /// Returns `Some(output_len)` for [`CharsetEncodeErrorKind::InvalidOutputIndex`],
+    /// otherwise `None`.
+    pub const fn output_len(self) -> Option<usize> {
+        self.kind.output_len()
+    }
+
     /// Returns the target charset.
     ///
     /// # Returns

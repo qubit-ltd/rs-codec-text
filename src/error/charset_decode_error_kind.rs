@@ -26,6 +26,13 @@ pub enum CharsetDecodeErrorKind {
         input_len: usize,
     },
 
+    /// The requested output character index is outside the output buffer.
+    #[error("The output character index is outside the output buffer.")]
+    InvalidOutputIndex {
+        /// Length of the output provided to the codec call.
+        output_len: usize,
+    },
+
     /// The closed input ended before a complete character was available.
     #[error("The encoded text sequence is incomplete (required {required} units, available {available} units).")]
     IncompleteSequence {
@@ -55,7 +62,10 @@ impl CharsetDecodeErrorKind {
     pub const fn required(self) -> Option<usize> {
         match self {
             Self::IncompleteSequence { required, .. } => Some(required),
-            Self::MalformedSequence { .. } | Self::InvalidInputIndex { .. } | Self::InvalidCodePoint { .. } => None,
+            Self::MalformedSequence { .. }
+            | Self::InvalidInputIndex { .. }
+            | Self::InvalidOutputIndex { .. }
+            | Self::InvalidCodePoint { .. } => None,
         }
     }
 
@@ -70,7 +80,10 @@ impl CharsetDecodeErrorKind {
     pub const fn available(self) -> Option<usize> {
         match self {
             Self::IncompleteSequence { available, .. } => Some(available),
-            Self::MalformedSequence { .. } | Self::InvalidInputIndex { .. } | Self::InvalidCodePoint { .. } => None,
+            Self::MalformedSequence { .. }
+            | Self::InvalidInputIndex { .. }
+            | Self::InvalidOutputIndex { .. }
+            | Self::InvalidCodePoint { .. } => None,
         }
     }
 
@@ -87,7 +100,7 @@ impl CharsetDecodeErrorKind {
         match self {
             Self::MalformedSequence { value } => value,
             Self::InvalidCodePoint { value } => Some(value),
-            Self::IncompleteSequence { .. } | Self::InvalidInputIndex { .. } => None,
+            Self::IncompleteSequence { .. } | Self::InvalidInputIndex { .. } | Self::InvalidOutputIndex { .. } => None,
         }
     }
 
@@ -101,7 +114,27 @@ impl CharsetDecodeErrorKind {
     pub const fn input_len(self) -> Option<usize> {
         match self {
             Self::InvalidInputIndex { input_len } => Some(input_len),
-            Self::MalformedSequence { .. } | Self::IncompleteSequence { .. } | Self::InvalidCodePoint { .. } => None,
+            Self::MalformedSequence { .. }
+            | Self::IncompleteSequence { .. }
+            | Self::InvalidOutputIndex { .. }
+            | Self::InvalidCodePoint { .. } => None,
+        }
+    }
+
+    /// Returns the output length when this error comes from an invalid output index.
+    ///
+    /// # Returns
+    ///
+    /// - `Some(output_len)` for [`Self::InvalidOutputIndex`];
+    /// - `None` for other variants.
+    #[must_use]
+    pub const fn output_len(self) -> Option<usize> {
+        match self {
+            Self::InvalidOutputIndex { output_len } => Some(output_len),
+            Self::MalformedSequence { .. }
+            | Self::InvalidInputIndex { .. }
+            | Self::IncompleteSequence { .. }
+            | Self::InvalidCodePoint { .. } => None,
         }
     }
 
@@ -125,7 +158,10 @@ impl CharsetDecodeErrorKind {
     pub const fn incomplete(self) -> Option<(usize, usize)> {
         match self {
             Self::IncompleteSequence { required, available } => Some((required, available)),
-            Self::MalformedSequence { .. } | Self::InvalidInputIndex { .. } | Self::InvalidCodePoint { .. } => None,
+            Self::MalformedSequence { .. }
+            | Self::InvalidInputIndex { .. }
+            | Self::InvalidOutputIndex { .. }
+            | Self::InvalidCodePoint { .. } => None,
         }
     }
 
