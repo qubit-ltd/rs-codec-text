@@ -67,6 +67,18 @@ fn test_charset_matches_labels() {
 }
 
 #[test]
+fn test_charset_from_label_finds_builtin_charsets() {
+    assert_eq!(Some(Charset::ASCII), Charset::from_label("US-ASCII"));
+    assert_eq!(Some(Charset::ISO_8859_1), Charset::from_label("latin1"));
+    assert_eq!(Some(Charset::UTF_8), Charset::from_label("utf8"));
+    assert_eq!(Some(Charset::UTF_16LE), Charset::from_label("utf16_le"));
+    assert_eq!(Some(Charset::UTF_16BE), Charset::from_label("UTF-16BE"));
+    assert_eq!(Some(Charset::UTF_32LE), Charset::from_label("utf32le"));
+    assert_eq!(Some(Charset::UTF_32BE), Charset::from_label("UTF_32_BE"));
+    assert_eq!(None, Charset::from_label("gbk"));
+}
+
+#[test]
 fn test_charset_exposes_fixed_byte_order_helpers() {
     assert_eq!(
         Charset::UTF_16LE,

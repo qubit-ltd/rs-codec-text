@@ -76,6 +76,19 @@ impl Charset {
     /// UTF-32 text serialized in big-endian byte order.
     pub const UTF_32BE: Self = Self::new("utf-32be", "UTF-32BE", &["utf32be", "utf32_be", "utf_32_be"]);
 
+    /// Built-in charsets known by this crate.
+    pub const BUILTINS: &'static [Self] = &[
+        Self::ASCII,
+        Self::ISO_8859_1,
+        Self::UTF_8,
+        Self::UTF_16,
+        Self::UTF_16LE,
+        Self::UTF_16BE,
+        Self::UTF_32,
+        Self::UTF_32LE,
+        Self::UTF_32BE,
+    ];
+
     /// Creates a charset descriptor.
     ///
     /// # Parameters
@@ -89,6 +102,25 @@ impl Charset {
     /// Returns a charset descriptor carrying the supplied metadata.
     pub const fn new(id: &'static str, name: &'static str, aliases: &'static [&'static str]) -> Self {
         Self { id, name, aliases }
+    }
+
+    /// Finds a built-in charset by label.
+    ///
+    /// # Parameters
+    ///
+    /// - `label`: Charset label to match against built-in identifiers, names, and
+    ///   aliases.
+    ///
+    /// # Returns
+    ///
+    /// Returns `Some(Charset)` when `label` names one of this crate's built-in
+    /// charsets, or `None` when no built-in charset matches. Custom descriptors
+    /// created with [`Self::new`] are not part of this lookup.
+    pub fn from_label(label: &str) -> Option<Self> {
+        Self::BUILTINS
+            .iter()
+            .copied()
+            .find(|charset| charset.matches_label(label))
     }
 
     /// Returns the stable normalized charset identifier.
