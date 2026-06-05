@@ -88,6 +88,16 @@ fn test_latin1_codec_reports_errors_for_invalid_indices_and_unmappable_character
         },
         error.kind()
     );
+
+    let error = unsafe { codec.encode_unchecked(&'A', &mut [], usize::MAX) }
+        .expect_err("overflowing output index should fail without panicking");
+    assert_eq!(
+        CharsetEncodeErrorKind::BufferTooSmall {
+            required: usize::MAX,
+            available: 0,
+        },
+        error.kind()
+    );
 }
 
 #[test]

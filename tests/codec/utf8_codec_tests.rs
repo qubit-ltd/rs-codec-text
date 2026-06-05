@@ -136,6 +136,11 @@ fn test_utf8_codec_encodes_all_lengths() {
     let error = unsafe { codec.encode_unchecked(&'A', &mut [], 1) }.expect_err("output index outside slice");
     assert_eq!(Some(2), error.required());
     assert_eq!(Some(0), error.available());
+
+    let error = unsafe { codec.encode_unchecked(&'A', &mut [], usize::MAX) }
+        .expect_err("overflowing output index should fail without panicking");
+    assert_eq!(Some(usize::MAX), error.required());
+    assert_eq!(Some(0), error.available());
 }
 
 #[test]

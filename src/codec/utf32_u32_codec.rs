@@ -198,11 +198,19 @@ fn decode_units_prefix(input: &[u32], index: usize) -> CharsetDecodeResult<(char
 fn encode_units_char(ch: char, output: &mut [u32], index: usize) -> CharsetEncodeResult<usize> {
     if index >= output.len() {
         let kind = CharsetEncodeErrorKind::BufferTooSmall {
-            required: index + 1,
+            required: required_index(index, 1),
             available: 0,
         };
         return Err(CharsetEncodeError::new(Charset::UTF_32, kind, index));
     }
     output[index] = ch as u32;
     Ok(1)
+}
+
+#[inline(always)]
+const fn required_index(index: usize, required_units: usize) -> usize {
+    match index.checked_add(required_units) {
+        Some(required) => required,
+        None => usize::MAX,
+    }
 }

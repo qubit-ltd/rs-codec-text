@@ -83,6 +83,16 @@ fn test_ascii_codec_encodes_ascii_and_reports_limits_and_unmappable_chars() {
         },
         error.kind()
     );
+
+    let error = unsafe { codec.encode_unchecked(&'A', &mut [], usize::MAX) }
+        .expect_err("overflowing output index should fail without panicking");
+    assert_eq!(
+        CharsetEncodeErrorKind::BufferTooSmall {
+            required: usize::MAX,
+            available: 0,
+        },
+        error.kind()
+    );
 }
 
 #[test]

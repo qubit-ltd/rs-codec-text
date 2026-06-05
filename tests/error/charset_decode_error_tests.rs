@@ -75,6 +75,17 @@ fn test_charset_decode_error_exposes_context() {
 }
 
 #[test]
+fn test_charset_decode_error_offset_saturates_on_overflow() {
+    let error = CharsetDecodeError::new(
+        Charset::UTF_8,
+        CharsetDecodeErrorKind::MalformedSequence { value: None },
+        usize::MAX - 1,
+    );
+
+    assert_eq!(usize::MAX, error.offset_by(2).index());
+}
+
+#[test]
 fn test_charset_decode_error_exposes_consumption_and_incomplete_details() {
     let malformed = CharsetDecodeError::new(
         Charset::UTF_8,

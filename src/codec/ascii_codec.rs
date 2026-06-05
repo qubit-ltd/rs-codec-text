@@ -131,12 +131,20 @@ unsafe impl Codec for AsciiCodec {
         }
         if index >= output.len() {
             let kind = CharsetEncodeErrorKind::BufferTooSmall {
-                required: index.saturating_add(1),
+                required: required_index(index, 1),
                 available: 0,
             };
             return Err(CharsetEncodeError::new(Charset::ASCII, kind, index));
         }
         output[index] = *ch as u8;
         Ok(1)
+    }
+}
+
+#[inline(always)]
+const fn required_index(index: usize, required_units: usize) -> usize {
+    match index.checked_add(required_units) {
+        Some(required) => required,
+        None => usize::MAX,
     }
 }

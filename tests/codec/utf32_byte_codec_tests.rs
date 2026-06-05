@@ -47,6 +47,11 @@ fn test_utf32_byte_codec_encodes_and_decodes_bytes() {
     let error = unsafe { codec.encode_unchecked(&'A', &mut [], 1) }.expect_err("output index outside slice");
     assert_eq!(Some(5), error.required());
     assert_eq!(Some(0), error.available());
+
+    let error = unsafe { codec.encode_unchecked(&'A', &mut [], usize::MAX) }
+        .expect_err("overflowing output index should fail without panicking");
+    assert_eq!(Some(usize::MAX), error.required());
+    assert_eq!(Some(0), error.available());
 }
 
 #[test]

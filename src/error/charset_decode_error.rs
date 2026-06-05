@@ -195,12 +195,18 @@ impl CharsetDecodeError {
     /// # Returns
     ///
     /// Returns a copy of this error with its index shifted by `base`.
+    ///
+    /// If the shifted index cannot be represented, it is saturated to
+    /// [`usize::MAX`].
     #[inline(always)]
     pub const fn offset_by(self, base: usize) -> Self {
         Self {
             charset: self.charset,
             kind: self.kind,
-            index: self.index + base,
+            index: match self.index.checked_add(base) {
+                Some(index) => index,
+                None => usize::MAX,
+            },
             consumed: self.consumed,
         }
     }

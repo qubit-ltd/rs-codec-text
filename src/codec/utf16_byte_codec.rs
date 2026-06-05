@@ -227,7 +227,7 @@ fn decode_bytes_prefix(
                 let kind = CharsetDecodeErrorKind::MalformedSequence {
                     value: Some(second as u32),
                 };
-                Err(CharsetDecodeError::new(charset, kind, index + 2).with_consumed(4))
+                Err(CharsetDecodeError::new(charset, kind, required_index(index, 2)).with_consumed(4))
             }
         }
     } else if Utf16::is_low_surrogate(first) {
@@ -264,7 +264,7 @@ fn encode_bytes_char(ch: char, output: &mut [u8], byte_order: ByteOrder, index: 
     let charset = Charset::from_utf16_byte_order(byte_order);
     if index > output.len() {
         let kind = CharsetEncodeErrorKind::BufferTooSmall {
-            required: index + 2,
+            required: required_index(index, 2),
             available: 0,
         };
         return Err(CharsetEncodeError::new(charset, kind, index));
@@ -273,7 +273,7 @@ fn encode_bytes_char(ch: char, output: &mut [u8], byte_order: ByteOrder, index: 
     let available = output.len() - index;
     if available < required {
         let kind = CharsetEncodeErrorKind::BufferTooSmall {
-            required: index + required,
+            required: required_index(index, required),
             available,
         };
         return Err(CharsetEncodeError::new(charset, kind, index));
@@ -288,6 +288,14 @@ fn encode_bytes_char(ch: char, output: &mut [u8], byte_order: ByteOrder, index: 
         write_ordered_u16(output, index + 2, low, byte_order);
     }
     Ok(required)
+}
+
+#[inline(always)]
+const fn required_index(index: usize, required_units: usize) -> usize {
+    match index.checked_add(required_units) {
+        Some(required) => required,
+        None => usize::MAX,
+    }
 }
 
 /// Reads one endian-aware `u16` value from an already checked byte slice.

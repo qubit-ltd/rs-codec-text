@@ -243,7 +243,7 @@ fn encode_bytes_char(ch: char, output: &mut [u8], byte_order: ByteOrder, index: 
     let charset = Charset::from_utf32_byte_order(byte_order);
     if index > output.len() {
         let kind = CharsetEncodeErrorKind::BufferTooSmall {
-            required: index + 4,
+            required: required_index(index, 4),
             available: 0,
         };
         return Err(CharsetEncodeError::new(charset, kind, index));
@@ -252,13 +252,21 @@ fn encode_bytes_char(ch: char, output: &mut [u8], byte_order: ByteOrder, index: 
     let available = output.len() - index;
     if available < required {
         let kind = CharsetEncodeErrorKind::BufferTooSmall {
-            required: index + required,
+            required: required_index(index, required),
             available,
         };
         return Err(CharsetEncodeError::new(charset, kind, index));
     }
     write_ordered_u32(output, index, ch as u32, byte_order);
     Ok(4)
+}
+
+#[inline(always)]
+const fn required_index(index: usize, required_units: usize) -> usize {
+    match index.checked_add(required_units) {
+        Some(required) => required,
+        None => usize::MAX,
+    }
 }
 
 /// Reads one endian-aware `u32` value from an already checked byte slice.

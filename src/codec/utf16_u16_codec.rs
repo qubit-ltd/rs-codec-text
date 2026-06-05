@@ -183,7 +183,7 @@ fn decode_units_prefix(input: &[u16], index: usize) -> CharsetDecodeResult<(char
     }
     let first = input[index];
     if Utf16::is_high_surrogate(first) {
-        if input.len() < index + 2 {
+        if !has_units(input.len(), index, 2) {
             let kind = CharsetDecodeErrorKind::IncompleteSequence {
                 required: 2,
                 available: input.len() - index,
@@ -200,7 +200,7 @@ fn decode_units_prefix(input: &[u16], index: usize) -> CharsetDecodeResult<(char
                 let kind = CharsetDecodeErrorKind::MalformedSequence {
                     value: Some(second as u32),
                 };
-                Err(CharsetDecodeError::new(Charset::UTF_16, kind, index + 1).with_consumed(2))
+                Err(CharsetDecodeError::new(Charset::UTF_16, kind, required_index(index, 1)).with_consumed(2))
             }
         }
     } else if Utf16::is_low_surrogate(first) {
@@ -237,7 +237,7 @@ fn decode_units_prefix(input: &[u16], index: usize) -> CharsetDecodeResult<(char
 fn encode_units_char(ch: char, output: &mut [u16], index: usize) -> CharsetEncodeResult<usize> {
     if index > output.len() {
         let kind = CharsetEncodeErrorKind::BufferTooSmall {
-            required: index + 1,
+            required: required_index(index, 1),
             available: 0,
         };
         return Err(CharsetEncodeError::new(Charset::UTF_16, kind, index));
@@ -246,7 +246,7 @@ fn encode_units_char(ch: char, output: &mut [u16], index: usize) -> CharsetEncod
     let available = output.len() - index;
     if available < length {
         let kind = CharsetEncodeErrorKind::BufferTooSmall {
-            required: index + length,
+            required: required_index(index, length),
             available,
         };
         return Err(CharsetEncodeError::new(Charset::UTF_16, kind, index));
@@ -259,4 +259,20 @@ fn encode_units_char(ch: char, output: &mut [u16], index: usize) -> CharsetEncod
         output[index + 1] = Utf16::low_surrogate(code_point).expect("supplementary scalar has low surrogate");
     }
     Ok(length)
+}
+
+#[inline(always)]
+const fn has_units(len: usize, index: usize, required_units: usize) -> bool {
+    match index.checked_add(required_units) {
+        Some(end) => len >= end,
+        None => false,
+    }
+}
+
+#[inline(always)]
+const fn required_index(index: usize, required_units: usize) -> usize {
+    match index.checked_add(required_units) {
+        Some(required) => required,
+        None => usize::MAX,
+    }
 }

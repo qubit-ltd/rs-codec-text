@@ -179,7 +179,7 @@ fn decode_prefix(input: &[u8], index: usize) -> CharsetDecodeResult<(char, core:
             return Err(CharsetDecodeError::new(Charset::UTF_8, kind, index));
         }
     };
-    if input.len() < index + length {
+    if !has_units(input.len(), index, length) {
         validate_partial(input, index)?;
         let kind = CharsetDecodeErrorKind::IncompleteSequence {
             required: length,
@@ -224,7 +224,7 @@ fn decode_prefix(input: &[u8], index: usize) -> CharsetDecodeResult<(char, core:
 fn encode_char(ch: char, output: &mut [u8], index: usize) -> CharsetEncodeResult<usize> {
     if index > output.len() {
         let kind = CharsetEncodeErrorKind::BufferTooSmall {
-            required: index + 1,
+            required: required_index(index, 1),
             available: 0,
         };
         return Err(CharsetEncodeError::new(Charset::UTF_8, kind, index));
@@ -233,7 +233,7 @@ fn encode_char(ch: char, output: &mut [u8], index: usize) -> CharsetEncodeResult
     let available = output.len() - index;
     if available < length {
         let kind = CharsetEncodeErrorKind::BufferTooSmall {
-            required: index + length,
+            required: required_index(index, length),
             available,
         };
         return Err(CharsetEncodeError::new(Charset::UTF_8, kind, index));
@@ -242,6 +242,22 @@ fn encode_char(ch: char, output: &mut [u8], index: usize) -> CharsetEncodeResult
     let encoded = ch.encode_utf8(&mut scratch);
     output[index..index + length].copy_from_slice(encoded.as_bytes());
     Ok(length)
+}
+
+#[inline(always)]
+const fn has_units(len: usize, index: usize, required_units: usize) -> bool {
+    match index.checked_add(required_units) {
+        Some(end) => len >= end,
+        None => false,
+    }
+}
+
+#[inline(always)]
+const fn required_index(index: usize, required_units: usize) -> usize {
+    match index.checked_add(required_units) {
+        Some(required) => required,
+        None => usize::MAX,
+    }
 }
 
 /// Decodes a two-byte UTF-8 sequence starting at `index`.
@@ -266,7 +282,7 @@ fn decode_two(input: &[u8], index: usize) -> CharsetDecodeResult<u32> {
         let kind = CharsetDecodeErrorKind::MalformedSequence {
             value: Some(second as u32),
         };
-        return Err(CharsetDecodeError::new(Charset::UTF_8, kind, index + 1).with_consumed(2));
+        return Err(CharsetDecodeError::new(Charset::UTF_8, kind, required_index(index, 1)).with_consumed(2));
     }
     Ok((((input[index] & 0x1f) as u32) << 6) | ((second & 0x3f) as u32))
 }
@@ -287,17 +303,17 @@ fn decode_two(input: &[u8], index: usize) -> CharsetDecodeResult<u32> {
 /// decoding error describing the first malformed position.
 #[inline]
 fn validate_partial(input: &[u8], index: usize) -> CharsetDecodeResult<()> {
-    if input.len() >= index + 2 && !is_valid_second_byte(input[index], input[index + 1]) {
+    if has_units(input.len(), index, 2) && !is_valid_second_byte(input[index], input[index + 1]) {
         let kind = CharsetDecodeErrorKind::MalformedSequence {
             value: Some(input[index + 1] as u32),
         };
-        return Err(CharsetDecodeError::new(Charset::UTF_8, kind, index + 1).with_consumed(2));
+        return Err(CharsetDecodeError::new(Charset::UTF_8, kind, required_index(index, 1)).with_consumed(2));
     }
-    if input.len() >= index + 3 && !Utf8::is_continuation_byte(input[index + 2]) {
+    if has_units(input.len(), index, 3) && !Utf8::is_continuation_byte(input[index + 2]) {
         let kind = CharsetDecodeErrorKind::MalformedSequence {
             value: Some(input[index + 2] as u32),
         };
-        return Err(CharsetDecodeError::new(Charset::UTF_8, kind, index + 2).with_consumed(3));
+        return Err(CharsetDecodeError::new(Charset::UTF_8, kind, required_index(index, 2)).with_consumed(3));
     }
     Ok(())
 }
@@ -351,13 +367,13 @@ fn decode_three(input: &[u8], index: usize) -> CharsetDecodeResult<u32> {
         let kind = CharsetDecodeErrorKind::MalformedSequence {
             value: Some(second as u32),
         };
-        return Err(CharsetDecodeError::new(Charset::UTF_8, kind, index + 1).with_consumed(2));
+        return Err(CharsetDecodeError::new(Charset::UTF_8, kind, required_index(index, 1)).with_consumed(2));
     }
     if !Utf8::is_continuation_byte(third) {
         let kind = CharsetDecodeErrorKind::MalformedSequence {
             value: Some(third as u32),
         };
-        return Err(CharsetDecodeError::new(Charset::UTF_8, kind, index + 2).with_consumed(3));
+        return Err(CharsetDecodeError::new(Charset::UTF_8, kind, required_index(index, 2)).with_consumed(3));
     }
     Ok((((first & 0x0f) as u32) << 12) | (((second & 0x3f) as u32) << 6) | ((third & 0x3f) as u32))
 }
@@ -387,19 +403,19 @@ fn decode_four(input: &[u8], index: usize) -> CharsetDecodeResult<u32> {
         let kind = CharsetDecodeErrorKind::MalformedSequence {
             value: Some(second as u32),
         };
-        return Err(CharsetDecodeError::new(Charset::UTF_8, kind, index + 1).with_consumed(2));
+        return Err(CharsetDecodeError::new(Charset::UTF_8, kind, required_index(index, 1)).with_consumed(2));
     }
     if !Utf8::is_continuation_byte(third) {
         let kind = CharsetDecodeErrorKind::MalformedSequence {
             value: Some(third as u32),
         };
-        return Err(CharsetDecodeError::new(Charset::UTF_8, kind, index + 2).with_consumed(3));
+        return Err(CharsetDecodeError::new(Charset::UTF_8, kind, required_index(index, 2)).with_consumed(3));
     }
     if !Utf8::is_continuation_byte(fourth) {
         let kind = CharsetDecodeErrorKind::MalformedSequence {
             value: Some(fourth as u32),
         };
-        return Err(CharsetDecodeError::new(Charset::UTF_8, kind, index + 3).with_consumed(4));
+        return Err(CharsetDecodeError::new(Charset::UTF_8, kind, required_index(index, 3)).with_consumed(4));
     }
     Ok((((first & 0x07) as u32) << 18)
         | (((second & 0x3f) as u32) << 12)

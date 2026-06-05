@@ -43,6 +43,11 @@ fn test_utf32_u32_codec_encodes_and_decodes_units() {
     let error = unsafe { codec.encode_unchecked(&'A', &mut [], 0) }.expect_err("UTF-32 needs one unit");
     assert_eq!(Some(1), error.required());
     assert_eq!(Some(0), error.available());
+
+    let error = unsafe { codec.encode_unchecked(&'A', &mut [], usize::MAX) }
+        .expect_err("overflowing output index should fail without panicking");
+    assert_eq!(Some(usize::MAX), error.required());
+    assert_eq!(Some(0), error.available());
 }
 
 #[test]

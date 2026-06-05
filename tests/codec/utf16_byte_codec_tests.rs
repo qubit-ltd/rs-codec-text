@@ -111,6 +111,11 @@ fn test_utf16_byte_codec_encodes_bmp_and_supplementary_scalars() {
     let error = unsafe { codec.encode_unchecked(&'A', &mut [], 1) }.expect_err("output index outside slice");
     assert_eq!(Some(3), error.required());
     assert_eq!(Some(0), error.available());
+
+    let error = unsafe { codec.encode_unchecked(&'A', &mut [], usize::MAX) }
+        .expect_err("overflowing output index should fail without panicking");
+    assert_eq!(Some(usize::MAX), error.required());
+    assert_eq!(Some(0), error.available());
 }
 
 #[test]

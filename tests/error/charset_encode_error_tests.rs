@@ -63,3 +63,14 @@ fn test_charset_encode_error_exposes_context() {
     let invalid_output = CharsetEncodeError::new(Charset::UTF_8, kind, 4);
     assert_eq!(Some(2), invalid_output.output_len());
 }
+
+#[test]
+fn test_charset_encode_error_offset_saturates_on_overflow() {
+    let kind = CharsetEncodeErrorKind::BufferTooSmall {
+        required: 1,
+        available: 0,
+    };
+    let error = CharsetEncodeError::new(Charset::UTF_8, kind, usize::MAX - 1);
+
+    assert_eq!(usize::MAX, error.offset_by(2).index());
+}
