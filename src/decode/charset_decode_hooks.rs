@@ -46,6 +46,7 @@ impl CharsetDecodeHooks {
     ///
     /// Returns hooks carrying the supplied policy.
     #[must_use]
+    #[inline(always)]
     pub(crate) const fn new(malformed_action: MalformedAction, replacement: char) -> Self {
         Self {
             malformed_action,
@@ -55,6 +56,7 @@ impl CharsetDecodeHooks {
 
     /// Creates charset decode hooks from a public policy.
     #[must_use]
+    #[inline(always)]
     pub(crate) const fn from_policy(policy: CharsetDecodePolicy) -> Self {
         Self::new(policy.malformed_action(), policy.replacement())
     }
@@ -70,7 +72,7 @@ impl CharsetDecodeHooks {
     ///
     /// Returns a non-zero consumed-unit count.
     #[must_use]
-    #[inline(always)]
+    #[inline]
     fn malformed_consumed(reported: Option<usize>, available: usize) -> NonZeroUsize {
         let consumed = reported.unwrap_or(1).min(available).max(1);
         NonZeroUsize::new(consumed).expect("malformed input consumption is non-zero")
@@ -84,6 +86,7 @@ where
     type Error = CharsetDecodeError;
 
     /// Returns the maximum number of characters decoded from `input_len` units.
+    #[inline(always)]
     fn max_output_len(&self, _codec: &C, input_len: usize) -> Result<usize, CapacityError> {
         Ok(input_len)
     }
@@ -116,12 +119,14 @@ where
     }
 
     /// Creates an invalid input index error for the charset decoder.
+    #[inline]
     fn invalid_input_index(&mut self, codec: &C, index: usize, input_len: usize) -> Self::Error {
         let kind = CharsetDecodeErrorKind::InvalidInputIndex { input_len };
         CharsetDecodeError::new(codec.charset(), kind, index)
     }
 
     /// Creates an invalid output index error for the charset decoder.
+    #[inline]
     fn invalid_output_index(&mut self, codec: &C, index: usize, output_len: usize) -> Self::Error {
         let kind = CharsetDecodeErrorKind::InvalidOutputIndex { output_len };
         CharsetDecodeError::new(codec.charset(), kind, index)

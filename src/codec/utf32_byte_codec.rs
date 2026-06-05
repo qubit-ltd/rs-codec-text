@@ -73,7 +73,7 @@ impl Utf32ByteCodec {
     ///
     /// Returns a UTF-32 byte codec.
     #[must_use]
-    #[inline]
+    #[inline(always)]
     pub const fn new(byte_order: ByteOrder) -> Self {
         Self { byte_order }
     }
@@ -84,7 +84,7 @@ impl Utf32ByteCodec {
     ///
     /// Returns the byte order used by this codec.
     #[must_use]
-    #[inline]
+    #[inline(always)]
     pub const fn byte_order(self) -> ByteOrder {
         self.byte_order
     }
@@ -96,7 +96,7 @@ impl Utf32ByteCodec {
     /// Returns [`Charset::UTF_32LE`] or [`Charset::UTF_32BE`] according to this
     /// codec's configured byte order.
     #[must_use]
-    #[inline]
+    #[inline(always)]
     pub const fn charset(self) -> Charset {
         Charset::from_utf32_byte_order(self.byte_order)
     }
@@ -109,7 +109,7 @@ impl CharsetCodec for Utf32ByteCodec {
     ///
     /// Returns [`Charset::UTF_32BE`] when configured with
     /// `ByteOrder::BigEndian`, otherwise [`Charset::UTF_32LE`].
-    #[inline]
+    #[inline(always)]
     fn charset(&self) -> Charset {
         Charset::from_utf32_byte_order(self.byte_order)
     }
@@ -126,7 +126,7 @@ impl CharsetEncodeProbe for Utf32ByteCodec {
     /// # Returns
     ///
     /// Always returns `Ok(4)`.
-    #[inline]
+    #[inline(always)]
     fn encode_len(&self, _ch: char, _index: usize) -> CharsetEncodeResult<usize> {
         Ok(Utf32::MAX_BYTES_PER_CHAR)
     }
@@ -138,13 +138,13 @@ unsafe impl Codec for Utf32ByteCodec {
     type DecodeError = CharsetDecodeError;
     type EncodeError = CharsetEncodeError;
 
-    #[inline]
+    #[inline(always)]
     fn min_units_per_value(&self) -> core::num::NonZeroUsize {
         // SAFETY: 4 is non-zero.
         unsafe { core::num::NonZeroUsize::new_unchecked(4) }
     }
 
-    #[inline]
+    #[inline(always)]
     fn max_units_per_value(&self) -> core::num::NonZeroUsize {
         // SAFETY: UTF-32 byte encoding always uses four bytes.
         unsafe { core::num::NonZeroUsize::new_unchecked(Utf32::MAX_BYTES_PER_CHAR) }
@@ -273,7 +273,7 @@ fn encode_bytes_char(ch: char, output: &mut [u8], byte_order: ByteOrder, index: 
 /// # Returns
 ///
 /// Returns the decoded UTF-32 unit.
-#[inline]
+#[inline(always)]
 fn read_ordered_u32(input: &[u8], index: usize, byte_order: ByteOrder) -> u32 {
     let bytes = [input[index], input[index + 1], input[index + 2], input[index + 3]];
     match byte_order {
@@ -291,7 +291,7 @@ fn read_ordered_u32(input: &[u8], index: usize, byte_order: ByteOrder) -> u32 {
 ///   writable from this offset.
 /// - `unit`: UTF-32 unit to write.
 /// - `byte_order`: Byte order used to serialize the unit.
-#[inline]
+#[inline(always)]
 fn write_ordered_u32(output: &mut [u8], index: usize, unit: u32, byte_order: ByteOrder) {
     let bytes = match byte_order {
         ByteOrder::BigEndian => unit.to_be_bytes(),

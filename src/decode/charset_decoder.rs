@@ -67,6 +67,7 @@ where
     /// Returns a decoder whose malformed action is [`MalformedAction::Replace`]
     /// and whose replacement character is `U+FFFD`.
     #[must_use]
+    #[inline(always)]
     pub fn new(codec: C) -> Self {
         Self::with_policy(codec, CharsetDecodePolicy::default())
     }
@@ -82,6 +83,7 @@ where
     ///
     /// Returns a decoder configured with `policy`.
     #[must_use]
+    #[inline]
     pub fn with_policy(codec: C, policy: CharsetDecodePolicy) -> Self {
         let hooks = CharsetDecodeHooks::from_policy(policy);
         Self {
@@ -96,6 +98,7 @@ where
     ///
     /// Returns the action used when source input is malformed.
     #[must_use]
+    #[inline(always)]
     pub const fn malformed_action(&self) -> MalformedAction {
         self.policy.malformed_action()
     }
@@ -106,6 +109,7 @@ where
     ///
     /// Returns the character emitted when [`MalformedAction::Replace`] is used.
     #[must_use]
+    #[inline(always)]
     pub const fn replacement(&self) -> char {
         self.policy.replacement()
     }
@@ -120,21 +124,25 @@ where
     type Error = CharsetDecodeError;
 
     /// Returns the maximum number of characters decoded from `input_len` units.
+    #[inline(always)]
     fn max_output_len(&self, input_len: usize) -> Result<usize, CapacityError> {
         self.engine.max_output_len(input_len)
     }
 
     /// Returns the maximum number of characters emitted by finishing internal state.
+    #[inline(always)]
     fn max_finish_output_len(&self) -> Result<usize, CapacityError> {
         Ok(self.engine.max_finish_output_len())
     }
 
     /// Clears hook-owned state while keeping decoder policy.
+    #[inline(always)]
     fn reset(&mut self) {
         self.engine.reset();
     }
 
     /// Decodes source units into Unicode scalar values while applying malformed policy.
+    #[inline(always)]
     fn transcode(
         &mut self,
         input: &[C::Unit],
@@ -146,6 +154,7 @@ where
     }
 
     /// Finishes decoder-owned final output after EOF.
+    #[inline(always)]
     fn finish(&mut self, output: &mut [char], output_index: usize) -> Result<usize, FinishError<Self::Error>> {
         self.engine.finish(output, output_index)
     }

@@ -1229,7 +1229,6 @@ impl Ascii {
     ///
     /// Returns the folded ASCII replacement as a `String`. If `ch` has no
     /// folding mapping, the returned string contains `ch` unchanged.
-    #[inline(always)]
     #[must_use]
     pub fn fold_to_string(ch: char) -> String {
         let mut buffer = ['\0'; Self::MAX_FOLDING_COUNT];

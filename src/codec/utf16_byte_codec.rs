@@ -73,7 +73,7 @@ impl Utf16ByteCodec {
     ///
     /// Returns a UTF-16 byte codec.
     #[must_use]
-    #[inline]
+    #[inline(always)]
     pub const fn new(byte_order: ByteOrder) -> Self {
         Self { byte_order }
     }
@@ -84,7 +84,7 @@ impl Utf16ByteCodec {
     ///
     /// Returns the byte order used by this codec.
     #[must_use]
-    #[inline]
+    #[inline(always)]
     pub const fn byte_order(self) -> ByteOrder {
         self.byte_order
     }
@@ -96,7 +96,7 @@ impl Utf16ByteCodec {
     /// Returns [`Charset::UTF_16LE`] or [`Charset::UTF_16BE`] according to this
     /// codec's configured byte order.
     #[must_use]
-    #[inline]
+    #[inline(always)]
     pub const fn charset(self) -> Charset {
         Charset::from_utf16_byte_order(self.byte_order)
     }
@@ -109,7 +109,7 @@ impl CharsetCodec for Utf16ByteCodec {
     ///
     /// Returns [`Charset::UTF_16BE`] when configured with
     /// `ByteOrder::BigEndian`, otherwise [`Charset::UTF_16LE`].
-    #[inline]
+    #[inline(always)]
     fn charset(&self) -> Charset {
         Charset::from_utf16_byte_order(self.byte_order)
     }
@@ -126,7 +126,7 @@ impl CharsetEncodeProbe for Utf16ByteCodec {
     /// # Returns
     ///
     /// `Ok(usize)` with the required bytes (`2` for BMP and `4` for supplementary).
-    #[inline]
+    #[inline(always)]
     fn encode_len(&self, ch: char, _index: usize) -> CharsetEncodeResult<usize> {
         Ok(Utf16::unit_len(ch) * 2)
     }
@@ -138,13 +138,13 @@ unsafe impl Codec for Utf16ByteCodec {
     type DecodeError = CharsetDecodeError;
     type EncodeError = CharsetEncodeError;
 
-    #[inline]
+    #[inline(always)]
     fn min_units_per_value(&self) -> core::num::NonZeroUsize {
         // SAFETY: 2 is non-zero.
         unsafe { core::num::NonZeroUsize::new_unchecked(2) }
     }
 
-    #[inline]
+    #[inline(always)]
     fn max_units_per_value(&self) -> core::num::NonZeroUsize {
         // SAFETY: UTF-16 byte encoding uses at least one two-byte unit.
         unsafe { core::num::NonZeroUsize::new_unchecked(Utf16::MAX_BYTES_PER_CHAR) }

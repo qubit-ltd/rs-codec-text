@@ -34,7 +34,7 @@ impl Latin1Codec {
     ///
     /// Returns [`Charset::ISO_8859_1`].
     #[must_use]
-    #[inline]
+    #[inline(always)]
     pub const fn charset(self) -> Charset {
         Charset::ISO_8859_1
     }
@@ -46,7 +46,7 @@ impl CharsetCodec for Latin1Codec {
     /// # Returns
     ///
     /// Returns [`Charset::ISO_8859_1`].
-    #[inline]
+    #[inline(always)]
     fn charset(&self) -> Charset {
         Charset::ISO_8859_1
     }
@@ -85,12 +85,12 @@ unsafe impl Codec for Latin1Codec {
     type DecodeError = CharsetDecodeError;
     type EncodeError = CharsetEncodeError;
 
-    #[inline]
+    #[inline(always)]
     fn min_units_per_value(&self) -> core::num::NonZeroUsize {
         core::num::NonZeroUsize::MIN
     }
 
-    #[inline]
+    #[inline(always)]
     fn max_units_per_value(&self) -> core::num::NonZeroUsize {
         core::num::NonZeroUsize::MIN
     }
@@ -121,7 +121,7 @@ unsafe impl Codec for Latin1Codec {
         ))
     }
 
-    #[inline(always)]
+    #[inline]
     unsafe fn encode_unchecked(&self, ch: &char, output: &mut [u8], index: usize) -> CharsetEncodeResult<usize> {
         let value = *ch as u32;
         if value > Unicode::LATIN1_MAX {

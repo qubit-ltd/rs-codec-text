@@ -163,6 +163,7 @@ where
     ///
     /// Returns the decoder policy used by this converter.
     #[must_use]
+    #[inline(always)]
     pub const fn decode_policy(&self) -> CharsetDecodePolicy {
         self.decode_policy
     }
@@ -173,6 +174,7 @@ where
     ///
     /// Returns the encoder policy used by this converter.
     #[must_use]
+    #[inline(always)]
     pub const fn encode_policy(&self) -> CharsetEncodePolicy {
         self.encode_policy
     }
@@ -183,6 +185,7 @@ where
     ///
     /// Returns the action used when source input is malformed.
     #[must_use]
+    #[inline(always)]
     pub const fn malformed_action(&self) -> MalformedAction {
         self.decode_policy.malformed_action()
     }
@@ -193,6 +196,7 @@ where
     ///
     /// Returns the character emitted when malformed source input is replaced.
     #[must_use]
+    #[inline(always)]
     pub const fn decode_replacement(&self) -> char {
         self.decode_policy.replacement()
     }
@@ -203,6 +207,7 @@ where
     ///
     /// Returns the action used when the target charset cannot represent a character.
     #[must_use]
+    #[inline(always)]
     pub const fn unmappable_action(&self) -> UnmappableAction {
         self.encode_policy.unmappable_action()
     }
@@ -213,6 +218,7 @@ where
     ///
     /// Returns the character encoded when unmappable target input is replaced.
     #[must_use]
+    #[inline(always)]
     pub const fn replacement(&self) -> char {
         self.encode_policy.replacement()
     }
@@ -255,16 +261,19 @@ where
     type Error = CharsetConvertError;
 
     /// Returns the target-side upper bound for converted output units.
+    #[inline(always)]
     fn max_output_len(&self, input_len: usize) -> Result<usize, CapacityError> {
         self.engine.max_output_len(input_len)
     }
 
     /// Returns the maximum target units needed to finalize pending conversion state.
+    #[inline(always)]
     fn max_finish_output_len(&self) -> Result<usize, CapacityError> {
         self.engine.max_finish_output_len()
     }
 
     /// Clears any pending decoded character.
+    #[inline(always)]
     fn reset(&mut self) {
         self.engine.reset();
     }
@@ -276,6 +285,7 @@ where
     /// Returns [`CharsetConvertError::Decode`] when `input_index` is outside
     /// the source input buffer or source decoding fails. Returns
     /// [`CharsetConvertError::Encode`] when target encoding fails.
+    #[inline(always)]
     fn transcode(
         &mut self,
         input: &[D::Unit],
@@ -302,6 +312,7 @@ where
     /// Returns [`FinishError`] when `output_index` is invalid, when output
     /// capacity is insufficient, or when encoding pending or final decoded
     /// characters violates target charset policy.
+    #[inline(always)]
     fn finish(&mut self, output: &mut [E::Unit], output_index: usize) -> Result<usize, FinishError<Self::Error>> {
         self.engine.finish(output, output_index)
     }

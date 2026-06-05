@@ -60,6 +60,7 @@ impl Utf32 {
     /// # Returns
     ///
     /// Returns `Some(ByteOrder)` for UTF-32 BOM prefixes, or `None` otherwise.
+    #[inline]
     pub fn detect_bom(bytes: &[u8]) -> Option<ByteOrder> {
         match UnicodeBom::detect(bytes) {
             Some(UnicodeBom::Utf32BigEndian) => Some(ByteOrder::BigEndian),

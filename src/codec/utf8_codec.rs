@@ -60,7 +60,7 @@ impl Utf8Codec {
     ///
     /// Returns [`Charset::UTF_8`].
     #[must_use]
-    #[inline]
+    #[inline(always)]
     pub const fn charset(self) -> Charset {
         Charset::UTF_8
     }
@@ -72,7 +72,7 @@ impl CharsetCodec for Utf8Codec {
     /// # Returns
     ///
     /// Returns [`Charset::UTF_8`].
-    #[inline]
+    #[inline(always)]
     fn charset(&self) -> Charset {
         Charset::UTF_8
     }
@@ -89,7 +89,7 @@ impl CharsetEncodeProbe for Utf8Codec {
     /// # Returns
     ///
     /// `Ok(usize)` with required encoded bytes (`1..=4`).
-    #[inline]
+    #[inline(always)]
     fn encode_len(&self, ch: char, _index: usize) -> CharsetEncodeResult<usize> {
         Ok(Utf8::byte_len(ch))
     }
@@ -101,18 +101,18 @@ unsafe impl Codec for Utf8Codec {
     type DecodeError = CharsetDecodeError;
     type EncodeError = CharsetEncodeError;
 
-    #[inline]
+    #[inline(always)]
     fn min_units_per_value(&self) -> core::num::NonZeroUsize {
         core::num::NonZeroUsize::MIN
     }
 
-    #[inline]
+    #[inline(always)]
     fn max_units_per_value(&self) -> core::num::NonZeroUsize {
         // SAFETY: UTF-8 encodes every scalar value as at least one byte.
         unsafe { core::num::NonZeroUsize::new_unchecked(Utf8::MAX_UNITS_PER_CHAR) }
     }
 
-    #[inline]
+    #[inline(always)]
     unsafe fn decode_unchecked(
         &self,
         input: &[u8],
@@ -313,7 +313,7 @@ fn validate_partial(input: &[u8], index: usize) -> CharsetDecodeResult<()> {
 ///
 /// `true` when the pair `(first, second)` is valid for UTF-8 sequence decoding,
 /// otherwise `false`.
-#[inline]
+#[inline(always)]
 fn is_valid_second_byte(first: u8, second: u8) -> bool {
     match first {
         0xc2..=0xdf => Utf8::is_continuation_byte(second),

@@ -58,6 +58,7 @@ impl<Unit> Eq for CharsetEncodeHooks<Unit> {}
 
 impl<Unit> PartialEq for CharsetEncodeHooks<Unit> {
     /// Compares policy-visible hook state without requiring unit equality.
+    #[inline(always)]
     fn eq(&self, other: &Self) -> bool {
         self.unmappable_action == other.unmappable_action
             && self.replacement == other.replacement
@@ -77,6 +78,7 @@ impl<Unit> CharsetEncodeHooks<Unit> {
     ///
     /// Returns hooks configured with no replacement output units.
     #[must_use]
+    #[inline(always)]
     pub(crate) const fn new(unmappable_action: UnmappableAction, replacement: char) -> Self {
         Self {
             unmappable_action,
@@ -91,6 +93,7 @@ impl<Unit> CharsetEncodeHooks<Unit> {
     /// # Parameters
     ///
     /// - `replacement_units_len`: Number of target units used by the replacement.
+    #[inline(always)]
     pub(crate) const fn set_replacement_units_len(&mut self, replacement_units_len: usize) {
         self.replacement_units_len = replacement_units_len;
     }
@@ -151,12 +154,14 @@ where
     }
 
     /// Creates an input-index error using the charset from `codec`.
+    #[inline]
     fn invalid_input_index(&mut self, codec: &C, index: usize, input_len: usize) -> Self::Error {
         let kind = CharsetEncodeErrorKind::InvalidInputIndex { input_len };
         CharsetEncodeError::new(codec.charset(), kind, index)
     }
 
     /// Creates an output-index error using the charset from `codec`.
+    #[inline]
     fn invalid_output_index(&mut self, codec: &C, index: usize, output_len: usize) -> Self::Error {
         let kind = CharsetEncodeErrorKind::InvalidOutputIndex { output_len };
         CharsetEncodeError::new(codec.charset(), kind, index)
@@ -164,6 +169,7 @@ where
 }
 
 /// Returns the encoded width of a replacement character.
+#[inline(always)]
 pub(super) fn replacement_len<C>(codec: &C, ch: char) -> CharsetEncodeResult<usize>
 where
     C: CharsetEncodeProbe,

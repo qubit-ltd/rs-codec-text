@@ -35,7 +35,7 @@ impl AsciiCodec {
     ///
     /// Returns [`Charset::ASCII`].
     #[must_use]
-    #[inline]
+    #[inline(always)]
     pub const fn charset(self) -> Charset {
         Charset::ASCII
     }
@@ -47,7 +47,7 @@ impl CharsetCodec for AsciiCodec {
     /// # Returns
     ///
     /// Returns [`Charset::ASCII`].
-    #[inline]
+    #[inline(always)]
     fn charset(&self) -> Charset {
         Charset::ASCII
     }
@@ -84,12 +84,12 @@ unsafe impl Codec for AsciiCodec {
     type DecodeError = CharsetDecodeError;
     type EncodeError = CharsetEncodeError;
 
-    #[inline]
+    #[inline(always)]
     fn min_units_per_value(&self) -> core::num::NonZeroUsize {
         core::num::NonZeroUsize::MIN
     }
 
-    #[inline]
+    #[inline(always)]
     fn max_units_per_value(&self) -> core::num::NonZeroUsize {
         core::num::NonZeroUsize::MIN
     }
@@ -123,7 +123,7 @@ unsafe impl Codec for AsciiCodec {
         Ok((value as char, core::num::NonZeroUsize::MIN))
     }
 
-    #[inline(always)]
+    #[inline]
     unsafe fn encode_unchecked(&self, ch: &char, output: &mut [u8], index: usize) -> CharsetEncodeResult<usize> {
         if *ch > Ascii::MAX_CHAR {
             let kind = CharsetEncodeErrorKind::UnmappableCharacter { value: *ch as u32 };

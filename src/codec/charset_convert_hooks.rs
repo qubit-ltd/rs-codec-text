@@ -41,6 +41,7 @@ pub(super) struct CharsetConvertHooks<Unit> {
 impl<Unit> CharsetConvertHooks<Unit> {
     /// Creates charset converter hooks with explicit policies.
     #[must_use]
+    #[inline(always)]
     pub(super) const fn with_policies(
         decode_policy: CharsetDecodePolicy,
         encode_policy: CharsetEncodePolicy,
@@ -66,26 +67,31 @@ where
     type Error = CharsetConvertError;
 
     /// Creates default charset decode hooks.
+    #[inline(always)]
     fn create_decode_hooks(&self, _decode_codec: &D, _encode_codec: &E) -> Self::DecodeHooks {
         CharsetDecodeHooks::from_policy(self.decode_policy)
     }
 
     /// Returns the prevalidated charset encode hooks.
+    #[inline(always)]
     fn create_encode_hooks(&self, _decode_codec: &D, _encode_codec: &E) -> Self::EncodeHooks {
         self.encode_hooks.clone()
     }
 
     /// Maps decoder errors into converter decode errors.
+    #[inline(always)]
     fn map_decode_error(&self, error: Self::DecodeError) -> Self::Error {
         CharsetConvertError::Decode(error)
     }
 
     /// Maps encoder errors into converter encode errors.
+    #[inline(always)]
     fn map_encode_error(&self, error: Self::EncodeError) -> Self::Error {
         CharsetConvertError::Encode(error)
     }
 
     /// Creates an input-index error using the source charset.
+    #[inline]
     fn invalid_input_index(&self, decode_codec: &D, index: usize, input_len: usize) -> Self::Error {
         let kind = CharsetDecodeErrorKind::InvalidInputIndex { input_len };
         CharsetConvertError::Decode(CharsetDecodeError::new(decode_codec.charset(), kind, index))
