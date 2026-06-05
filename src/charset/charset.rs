@@ -130,6 +130,7 @@ impl Charset {
     /// # Returns
     ///
     /// Returns the identifier used for equality and hashing.
+    #[inline(always)]
     pub const fn id(self) -> &'static str {
         self.id
     }
