@@ -50,10 +50,6 @@ path = "tests/encode/mod.rs"
 name = "charset"
 path = "tests/charset/mod.rs"
 
-[[test]]
-name = "encoding"
-path = "tests/encoding/mod.rs"
-
 [dependencies]
 thiserror = "2.0"
 qubit-codec = "0.5"

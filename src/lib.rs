@@ -21,13 +21,14 @@ mod charset;
 mod codec;
 mod decode;
 mod encode;
-mod encoding;
 mod error;
 
 pub mod prelude;
 pub use charset::{
     Ascii,
+    Charset,
     Unicode,
+    UnicodeBom,
     Utf8,
     Utf16,
     Utf32,
@@ -58,10 +59,6 @@ pub use encode::{
     CharsetEncodePolicy,
     CharsetEncodeProbe,
     CharsetEncoder,
-};
-pub use encoding::{
-    Charset,
-    UnicodeBom,
 };
 pub use error::{
     CharsetDecodeError,
