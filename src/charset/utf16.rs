@@ -198,7 +198,6 @@ impl Utf16 {
     /// # Returns
     ///
     /// Returns `Some(ByteOrder)` for UTF-16 BOM prefixes, or `None` otherwise.
-    #[inline(always)]
     pub fn detect_bom(bytes: &[u8]) -> Option<ByteOrder> {
         match UnicodeBom::detect(bytes) {
             Some(UnicodeBom::Utf16BigEndian) => Some(ByteOrder::BigEndian),

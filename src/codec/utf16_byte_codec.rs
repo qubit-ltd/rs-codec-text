@@ -161,6 +161,7 @@ unsafe impl Codec for Utf16ByteCodec {
         Ok((ch, consumed))
     }
 
+    #[inline(always)]
     unsafe fn encode_unchecked(&self, ch: &char, output: &mut [u8], index: usize) -> CharsetEncodeResult<usize> {
         let written = encode_bytes_char(*ch, output, self.byte_order, index)?;
         debug_assert_eq!(written, ch.len_utf16() * 2);

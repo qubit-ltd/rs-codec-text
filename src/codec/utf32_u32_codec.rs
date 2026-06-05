@@ -126,6 +126,7 @@ unsafe impl Codec for Utf32U32Codec {
         Ok((ch, consumed))
     }
 
+    #[inline(always)]
     unsafe fn encode_unchecked(&self, ch: &char, output: &mut [u32], index: usize) -> CharsetEncodeResult<usize> {
         let written = encode_units_char(*ch, output, index)?;
         debug_assert_eq!(written, Utf32::MAX_UNITS_PER_CHAR);

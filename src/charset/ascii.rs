@@ -1196,7 +1196,6 @@ impl Ascii {
     ///
     /// Panics if `result` has fewer than [`Self::MAX_FOLDING_COUNT`] writable slots
     /// after `offset`.
-    #[inline(always)]
     pub fn fold(ch: char, result: &mut [char], offset: usize) -> usize {
         assert!(
             result.len().saturating_sub(offset) >= Self::MAX_FOLDING_COUNT,
