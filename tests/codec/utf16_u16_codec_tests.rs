@@ -60,6 +60,16 @@ fn test_utf16_u16_codec_decodes_bmp_and_reports_closed_tail_or_malformed_units()
     assert_eq!(CharsetDecodeErrorKind::InvalidInputIndex { input_len: 0 }, error.kind());
     assert_eq!(1, error.index());
 
+    let error = unsafe { codec.decode_unchecked(&[], 0) }.expect_err("empty closed input should be incomplete");
+    assert_eq!(
+        CharsetDecodeErrorKind::IncompleteSequence {
+            required: 1,
+            available: 0,
+        },
+        error.kind()
+    );
+    assert_eq!(0, error.index());
+
     let error = unsafe { codec.decode_unchecked(&[0xd83d, 'A' as u16], 0) }
         .expect_err("high surrogate followed by non-low-surrogate should fail");
     assert_eq!(

@@ -15,13 +15,10 @@ mod charset_converter;
 mod latin1_codec;
 mod malformed_action;
 mod unmappable_action;
-mod utf16;
 mod utf16_byte_codec;
 mod utf16_u16_codec;
-mod utf32;
 mod utf32_byte_codec;
 mod utf32_u32_codec;
-mod utf8;
 mod utf8_codec;
 
 pub use ascii_codec::AsciiCodec;
