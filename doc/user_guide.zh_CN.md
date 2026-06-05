@@ -91,7 +91,7 @@ use qubit_codec_text::{
 
 assert!(Ascii::is_letter_byte(b'A'));
 assert_eq!(b'a', Ascii::byte_to_lowercase(b'A'));
-assert_eq!(Some(10), Ascii::char_to_digit('A', 16));
+assert_eq!(Some(10), Ascii::char_to_hex_digit('A'));
 
 assert!(Unicode::is_scalar_value('中' as u32));
 assert_eq!(Some(0), Unicode::plane('A' as u32));
