@@ -7,7 +7,12 @@ use qubit_codec_text::{
 #[test]
 fn test_unicode_bom_exposes_bytes_lengths_orders_and_charsets() {
     let boms = [
-        (UnicodeBom::Utf8, &[0xef, 0xbb, 0xbf][..], Charset::UTF_8, None),
+        (
+            UnicodeBom::Utf8,
+            &[0xef, 0xbb, 0xbf][..],
+            Charset::UTF_8,
+            None,
+        ),
         (
             UnicodeBom::Utf16BigEndian,
             &[0xfe, 0xff][..],

@@ -42,7 +42,9 @@ impl CharsetCodec for AsciiBytesCodec {
 impl CharsetEncodeProbe for AsciiBytesCodec {
     fn encode_len(&self, ch: char, index: usize) -> CharsetEncodeResult<usize> {
         if !ch.is_ascii() {
-            let kind = CharsetEncodeErrorKind::UnmappableCharacter { value: ch as u32 };
+            let kind = CharsetEncodeErrorKind::UnmappableCharacter {
+                value: ch as u32,
+            };
             return Err(CharsetEncodeError::new(Charset::ASCII, kind, index));
         }
         Ok(1)
@@ -85,7 +87,12 @@ unsafe impl Codec for AsciiBytesCodec {
         Ok((value as char, core::num::NonZeroUsize::MIN))
     }
 
-    unsafe fn encode_unchecked(&self, value: &char, output: &mut [u8], index: usize) -> CharsetEncodeResult<usize> {
+    unsafe fn encode_unchecked(
+        &self,
+        value: &char,
+        output: &mut [u8],
+        index: usize,
+    ) -> CharsetEncodeResult<usize> {
         let required = self.encode_len(*value, index)?;
         debug_assert!(index + required <= output.len());
         output[index] = *value as u8;
@@ -139,7 +146,12 @@ unsafe impl Codec for CountingEncodeProbeCodec {
         unsafe { AsciiBytesCodec.decode_unchecked(input, index) }
     }
 
-    unsafe fn encode_unchecked(&self, value: &char, output: &mut [u8], index: usize) -> CharsetEncodeResult<usize> {
+    unsafe fn encode_unchecked(
+        &self,
+        value: &char,
+        output: &mut [u8],
+        index: usize,
+    ) -> CharsetEncodeResult<usize> {
         unsafe { AsciiBytesCodec.encode_unchecked(value, output, index) }
     }
 }
@@ -159,7 +171,9 @@ impl CharsetCodec for NonDefaultUnitCodec {
 impl CharsetEncodeProbe for NonDefaultUnitCodec {
     fn encode_len(&self, ch: char, index: usize) -> CharsetEncodeResult<usize> {
         if !ch.is_ascii() {
-            let kind = CharsetEncodeErrorKind::UnmappableCharacter { value: ch as u32 };
+            let kind = CharsetEncodeErrorKind::UnmappableCharacter {
+                value: ch as u32,
+            };
             return Err(CharsetEncodeError::new(Charset::ASCII, kind, index));
         }
         Ok(1)
@@ -222,7 +236,8 @@ impl CharsetCodec for RejectingEncodeCodec {
 
 impl CharsetEncodeProbe for RejectingEncodeCodec {
     fn encode_len(&self, ch: char, index: usize) -> CharsetEncodeResult<usize> {
-        let kind = CharsetEncodeErrorKind::UnmappableCharacter { value: ch as u32 };
+        let kind =
+            CharsetEncodeErrorKind::UnmappableCharacter { value: ch as u32 };
         Err(CharsetEncodeError::new(Charset::ASCII, kind, index))
     }
 }
@@ -250,7 +265,12 @@ unsafe impl Codec for RejectingEncodeCodec {
         Err(CharsetDecodeError::new(Charset::ASCII, kind, index))
     }
 
-    unsafe fn encode_unchecked(&self, value: &char, _output: &mut [u8], index: usize) -> CharsetEncodeResult<usize> {
+    unsafe fn encode_unchecked(
+        &self,
+        value: &char,
+        _output: &mut [u8],
+        index: usize,
+    ) -> CharsetEncodeResult<usize> {
         self.encode_len(*value, index)
     }
 }
@@ -258,13 +278,16 @@ unsafe impl Codec for RejectingEncodeCodec {
 impl CharsetEncodeProbe for ReplacementFallbackCodec {
     fn encode_len(&self, ch: char, index: usize) -> CharsetEncodeResult<usize> {
         if ch == '\u{fffd}' {
-            let kind = CharsetEncodeErrorKind::UnmappableCharacter { value: ch as u32 };
+            let kind = CharsetEncodeErrorKind::UnmappableCharacter {
+                value: ch as u32,
+            };
             return Err(CharsetEncodeError::new(Charset::ASCII, kind, index));
         }
         if ch == '?' || ch.is_ascii() {
             return Ok(1);
         }
-        let kind = CharsetEncodeErrorKind::UnmappableCharacter { value: ch as u32 };
+        let kind =
+            CharsetEncodeErrorKind::UnmappableCharacter { value: ch as u32 };
         Err(CharsetEncodeError::new(Charset::ASCII, kind, index))
     }
 }
@@ -291,7 +314,12 @@ unsafe impl Codec for ReplacementFallbackCodec {
         unsafe { AsciiBytesCodec.decode_unchecked(input, index) }
     }
 
-    unsafe fn encode_unchecked(&self, value: &char, output: &mut [u8], index: usize) -> CharsetEncodeResult<usize> {
+    unsafe fn encode_unchecked(
+        &self,
+        value: &char,
+        output: &mut [u8],
+        index: usize,
+    ) -> CharsetEncodeResult<usize> {
         let required = self.encode_len(*value, index)?;
         debug_assert!(index + required <= output.len());
         output[index] = *value as u8;
@@ -313,9 +341,15 @@ fn test_charset_converter_exposes_configuration_and_bounds() {
     assert_eq!(CharsetDecodePolicy::default(), converter.decode_policy());
     assert_eq!(CharsetEncodePolicy::default(), converter.encode_policy());
     assert_eq!(MalformedAction::Replace, converter.malformed_action());
-    assert_eq!(CharsetDecodePolicy::DEFAULT_REPLACEMENT, converter.decode_replacement());
+    assert_eq!(
+        CharsetDecodePolicy::DEFAULT_REPLACEMENT,
+        converter.decode_replacement()
+    );
     assert_eq!(UnmappableAction::Replace, converter.unmappable_action());
-    assert_eq!(CharsetEncodePolicy::DEFAULT_REPLACEMENT, converter.replacement());
+    assert_eq!(
+        CharsetEncodePolicy::DEFAULT_REPLACEMENT,
+        converter.replacement()
+    );
     assert_eq!(Ok(6), converter.max_output_len(3));
     assert_eq!(Ok(0), converter.max_finish_output_len());
 
@@ -350,19 +384,26 @@ fn test_charset_converter_with_policies_rejects_unencodable_replacement() {
     .expect_err("unencodable target replacement should be rejected");
 
     assert_eq!(
-        CharsetEncodeErrorKind::UnmappableCharacter { value: '中' as u32 },
+        CharsetEncodeErrorKind::UnmappableCharacter {
+            value: '中' as u32
+        },
         error.kind()
     );
     assert_eq!(0, error.index());
 }
 
 #[test]
-fn test_charset_converter_with_explicit_policies_exposes_effective_configuration() {
+fn test_charset_converter_with_explicit_policies_exposes_effective_configuration()
+ {
     let decode_policy = CharsetDecodePolicy::replace('!');
     let encode_policy = CharsetEncodePolicy::replace('?');
-    let converter =
-        CharsetConverter::from_codecs_with_policies(Utf8Codec, AsciiBytesCodec, decode_policy, encode_policy)
-            .expect("explicit replacement policy should be encodable");
+    let converter = CharsetConverter::from_codecs_with_policies(
+        Utf8Codec,
+        AsciiBytesCodec,
+        decode_policy,
+        encode_policy,
+    )
+    .expect("explicit replacement policy should be encodable");
 
     assert_eq!(decode_policy, converter.decode_policy());
     assert_eq!(encode_policy, converter.encode_policy());
@@ -374,12 +415,14 @@ fn test_charset_converter_with_explicit_policies_exposes_effective_configuration
 
 #[test]
 #[should_panic(expected = "cannot initialize CharsetConverter target")]
-fn test_charset_converter_from_codecs_panics_when_no_default_replacement_is_encodable() {
+fn test_charset_converter_from_codecs_panics_when_no_default_replacement_is_encodable()
+ {
     let _ = CharsetConverter::from_codecs(Utf8Codec, RejectingEncodeCodec);
 }
 
 #[test]
-fn test_charset_converter_from_codecs_converts_available_ascii_without_finish() {
+fn test_charset_converter_from_codecs_converts_available_ascii_without_finish()
+{
     let mut converter = CharsetConverter::from_codecs(Utf8Codec, Utf16U16Codec);
     let mut output = [0_u16; 4];
 
@@ -393,7 +436,9 @@ fn test_charset_converter_from_codecs_converts_available_ascii_without_finish() 
     assert_eq!(['A' as u16, 'B' as u16, 'C' as u16, 'D' as u16], output);
     assert_eq!(Ok(0), converter.max_finish_output_len());
 
-    let written = converter.finish(&mut output, 0).expect("finish has no buffered tail");
+    let written = converter
+        .finish(&mut output, 0)
+        .expect("finish has no buffered tail");
     assert_eq!(0, written);
 }
 
@@ -411,7 +456,8 @@ fn test_charset_converter_drains_decoder_need_output_batches() {
     assert_eq!(9, progress.written());
     assert_eq!(
         [
-            'A' as u16, 'B' as u16, 'C' as u16, 'D' as u16, 'E' as u16, 'F' as u16, 'G' as u16, 'H' as u16, 'I' as u16,
+            'A' as u16, 'B' as u16, 'C' as u16, 'D' as u16, 'E' as u16,
+            'F' as u16, 'G' as u16, 'H' as u16, 'I' as u16,
         ],
         output,
     );
@@ -431,12 +477,16 @@ fn test_charset_converter_reports_invalid_input_index() {
         CharsetConvertError::Decode(error) => {
             assert_eq!(Charset::UTF_8, error.charset());
             assert_eq!(
-                CharsetDecodeErrorKind::InvalidInputIndex { input_len: input.len() },
+                CharsetDecodeErrorKind::InvalidInputIndex {
+                    input_len: input.len()
+                },
                 error.kind()
             );
             assert_eq!(input.len() + 1, error.index());
         }
-        CharsetConvertError::Encode(_) => panic!("invalid source index must be reported as a decode error"),
+        CharsetConvertError::Encode(_) => {
+            panic!("invalid source index must be reported as a decode error")
+        }
     }
 }
 
@@ -449,7 +499,10 @@ fn test_charset_converter_keeps_pending_character_when_output_is_full() {
         .transcode(b"ABCD", 0, &mut empty_output, 0)
         .expect("decoded character stays pending");
 
-    assert!(matches!(progress.status(), TranscodeStatus::NeedOutput { .. }));
+    assert!(matches!(
+        progress.status(),
+        TranscodeStatus::NeedOutput { .. }
+    ));
     assert_eq!(1, progress.read());
     assert_eq!(0, progress.written());
     assert_eq!(Ok(2), converter.max_finish_output_len());
@@ -458,7 +511,10 @@ fn test_charset_converter_keeps_pending_character_when_output_is_full() {
     let progress = converter
         .transcode(b"", 0, &mut empty_output, 0)
         .expect("pending character still needs output capacity");
-    assert!(matches!(progress.status(), TranscodeStatus::NeedOutput { .. }));
+    assert!(matches!(
+        progress.status(),
+        TranscodeStatus::NeedOutput { .. }
+    ));
     assert_eq!(0, progress.read());
     assert_eq!(0, progress.written());
 
@@ -482,14 +538,18 @@ fn test_charset_converter_keeps_pending_character_when_output_is_full() {
 }
 
 #[test]
-fn test_charset_converter_finish_reports_need_output_for_starting_pending_character() {
+fn test_charset_converter_finish_reports_need_output_for_starting_pending_character()
+ {
     let mut converter = CharsetConverter::from_codecs(Utf8Codec, Utf16U16Codec);
     let mut empty_output = [];
 
     let progress = converter
         .transcode(b"ABCD", 0, &mut empty_output, 0)
         .expect("decoded source character cannot be written");
-    assert!(matches!(progress.status(), TranscodeStatus::NeedOutput { .. }));
+    assert!(matches!(
+        progress.status(),
+        TranscodeStatus::NeedOutput { .. }
+    ));
     assert_eq!(1, progress.read());
     assert_eq!(0, progress.written());
 
@@ -525,7 +585,10 @@ fn test_charset_converter_finish_writes_starting_pending_character() {
     let progress = converter
         .transcode(b"ABCD", 0, &mut empty_output, 0)
         .expect("decoded source character cannot be written");
-    assert!(matches!(progress.status(), TranscodeStatus::NeedOutput { .. }));
+    assert!(matches!(
+        progress.status(),
+        TranscodeStatus::NeedOutput { .. }
+    ));
 
     let mut output = [0_u16; 4];
     let written = converter
@@ -565,7 +628,10 @@ fn test_charset_converter_finish_does_not_finalize_incomplete_source_input() {
         .transcode(&[0xe4, 0xb8], 0, &mut output, 0)
         .expect("partial source sequence needs more input");
 
-    assert!(matches!(progress.status(), TranscodeStatus::NeedInput { .. }));
+    assert!(matches!(
+        progress.status(),
+        TranscodeStatus::NeedInput { .. }
+    ));
     assert_eq!(0, progress.read());
     assert_eq!(0, progress.written());
     assert_eq!(Ok(0), converter.max_finish_output_len());
@@ -587,7 +653,10 @@ fn test_charset_converter_finish_has_no_output_for_incomplete_source_input() {
         .transcode(&[0xe4], 0, &mut output, 0)
         .expect("partial source sequence needs more input");
 
-    assert!(matches!(progress.status(), TranscodeStatus::NeedInput { .. }));
+    assert!(matches!(
+        progress.status(),
+        TranscodeStatus::NeedInput { .. }
+    ));
     assert_eq!(Ok(0), converter.max_finish_output_len());
 
     let written = converter
@@ -612,7 +681,10 @@ fn test_charset_converter_finish_does_not_report_incomplete_source_input() {
         .transcode(&[0xe4], 0, &mut output, 0)
         .expect("partial source sequence needs more input");
 
-    assert!(matches!(progress.status(), TranscodeStatus::NeedInput { .. }));
+    assert!(matches!(
+        progress.status(),
+        TranscodeStatus::NeedInput { .. }
+    ));
     assert_eq!(Ok(0), converter.max_finish_output_len());
 
     let written = converter
@@ -653,8 +725,10 @@ fn test_charset_converter_propagates_decode_and_encode_errors() {
 }
 
 #[test]
-fn test_charset_converter_falls_back_to_question_mark_when_default_replacement_is_unencodable() {
-    let mut converter = CharsetConverter::from_codecs(Utf8Codec, ReplacementFallbackCodec);
+fn test_charset_converter_falls_back_to_question_mark_when_default_replacement_is_unencodable()
+ {
+    let mut converter =
+        CharsetConverter::from_codecs(Utf8Codec, ReplacementFallbackCodec);
     let mut output = [0_u8; 1];
 
     assert_eq!(CharsetDecodePolicy::default(), converter.decode_policy());
@@ -697,7 +771,8 @@ fn test_charset_converter_report_target_policy_does_not_require_default_unit() {
 
 #[test]
 fn test_charset_converter_converts_available_utf8_to_ascii_without_finish() {
-    let mut converter = CharsetConverter::from_codecs(Utf8Codec, AsciiBytesCodec);
+    let mut converter =
+        CharsetConverter::from_codecs(Utf8Codec, AsciiBytesCodec);
     let mut output = [0_u8; 4];
 
     let progress = converter

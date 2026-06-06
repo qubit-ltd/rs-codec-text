@@ -48,9 +48,18 @@ fn test_unicode_converts_to_char_and_reports_plane() {
 
 #[test]
 fn test_unicode_bom_detects_longest_prefix_first() {
-    assert_eq!(Some(UnicodeBom::Utf8), UnicodeBom::detect(&[0xef, 0xbb, 0xbf]));
-    assert_eq!(Some(UnicodeBom::Utf16BigEndian), UnicodeBom::detect(&[0xfe, 0xff]));
-    assert_eq!(Some(UnicodeBom::Utf16LittleEndian), UnicodeBom::detect(&[0xff, 0xfe]));
+    assert_eq!(
+        Some(UnicodeBom::Utf8),
+        UnicodeBom::detect(&[0xef, 0xbb, 0xbf])
+    );
+    assert_eq!(
+        Some(UnicodeBom::Utf16BigEndian),
+        UnicodeBom::detect(&[0xfe, 0xff])
+    );
+    assert_eq!(
+        Some(UnicodeBom::Utf16LittleEndian),
+        UnicodeBom::detect(&[0xff, 0xfe])
+    );
     assert_eq!(
         Some(UnicodeBom::Utf32BigEndian),
         UnicodeBom::detect(&[0x00, 0x00, 0xfe, 0xff]),

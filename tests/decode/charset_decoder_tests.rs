@@ -50,8 +50,15 @@ unsafe impl Codec for InvalidInputErrorCodec {
         Err(CharsetDecodeError::new(Charset::ASCII, kind, index))
     }
 
-    unsafe fn encode_unchecked(&self, _value: &char, _output: &mut [u8], index: usize) -> CharsetEncodeResult<usize> {
-        let kind = CharsetEncodeErrorKind::UnmappableCharacter { value: index as u32 };
+    unsafe fn encode_unchecked(
+        &self,
+        _value: &char,
+        _output: &mut [u8],
+        index: usize,
+    ) -> CharsetEncodeResult<usize> {
+        let kind = CharsetEncodeErrorKind::UnmappableCharacter {
+            value: index as u32,
+        };
         Err(CharsetEncodeError::new(Charset::ASCII, kind, index))
     }
 }
@@ -102,8 +109,15 @@ unsafe impl Codec for PendingInvalidInputErrorCodec {
         Err(CharsetDecodeError::new(Charset::ASCII, kind, index))
     }
 
-    unsafe fn encode_unchecked(&self, _value: &char, _output: &mut [u8], index: usize) -> CharsetEncodeResult<usize> {
-        let kind = CharsetEncodeErrorKind::UnmappableCharacter { value: index as u32 };
+    unsafe fn encode_unchecked(
+        &self,
+        _value: &char,
+        _output: &mut [u8],
+        index: usize,
+    ) -> CharsetEncodeResult<usize> {
+        let kind = CharsetEncodeErrorKind::UnmappableCharacter {
+            value: index as u32,
+        };
         Err(CharsetEncodeError::new(Charset::ASCII, kind, index))
     }
 }
@@ -117,10 +131,16 @@ fn test_charset_decoder_exposes_configuration_and_bounds() {
     assert_eq!(Ok(3), decoder.max_output_len(3));
     assert_eq!(Ok(0), decoder.max_finish_output_len());
 
-    let decoder_with_replacement = CharsetDecoder::with_policy(Utf8Codec, CharsetDecodePolicy::replace('!'));
+    let decoder_with_replacement = CharsetDecoder::with_policy(
+        Utf8Codec,
+        CharsetDecodePolicy::replace('!'),
+    );
     assert_eq!('!', decoder_with_replacement.replacement());
 
-    let decoder = CharsetDecoder::with_policy(Utf8Codec, CharsetDecodePolicy::ignore_with_replacement('?'));
+    let decoder = CharsetDecoder::with_policy(
+        Utf8Codec,
+        CharsetDecodePolicy::ignore_with_replacement('?'),
+    );
 
     assert_eq!('?', decoder.replacement());
     assert_eq!(MalformedAction::Ignore, decoder.malformed_action());
@@ -135,7 +155,10 @@ fn test_charset_decoder_reports_need_output_after_partial_progress() {
         .transcode(&['A' as u32, 'B' as u32], 0, &mut output, 0)
         .expect("second scalar needs more output");
 
-    assert!(matches!(progress.status(), TranscodeStatus::NeedOutput { .. }));
+    assert!(matches!(
+        progress.status(),
+        TranscodeStatus::NeedOutput { .. }
+    ));
     assert_eq!(1, progress.read());
     assert_eq!(1, progress.written());
     assert_eq!('A', output[0]);
@@ -149,14 +172,20 @@ fn test_charset_decoder_leaves_incomplete_input_to_caller_across_chunks() {
     let progress = decoder
         .transcode(&[0xe4], 0, &mut output, 0)
         .expect("first byte needs more input");
-    assert!(matches!(progress.status(), TranscodeStatus::NeedInput { .. }));
+    assert!(matches!(
+        progress.status(),
+        TranscodeStatus::NeedInput { .. }
+    ));
     assert_eq!(0, progress.read());
     assert_eq!(0, progress.written());
 
     let progress = decoder
         .transcode(&[0xe4, 0xb8], 0, &mut output, 0)
         .expect("caller-preserved prefix still needs input");
-    assert!(matches!(progress.status(), TranscodeStatus::NeedInput { .. }));
+    assert!(matches!(
+        progress.status(),
+        TranscodeStatus::NeedInput { .. }
+    ));
     assert_eq!(0, progress.read());
     assert_eq!(0, progress.written());
 
@@ -168,7 +197,9 @@ fn test_charset_decoder_leaves_incomplete_input_to_caller_across_chunks() {
     assert_eq!(2, progress.written());
     assert_eq!(['中', '!'], output);
 
-    let written = decoder.finish(&mut output, 0).expect("finish has no pending tail");
+    let written = decoder
+        .finish(&mut output, 0)
+        .expect("finish has no pending tail");
     assert_eq!(0, written);
 }
 
@@ -185,7 +216,8 @@ fn test_charset_decoder_applies_policy_to_available_malformed_input() {
     assert_eq!(1, progress.written());
     assert_eq!(CharsetDecodePolicy::DEFAULT_REPLACEMENT, output[0]);
 
-    let mut decoder = CharsetDecoder::with_policy(Utf8Codec, CharsetDecodePolicy::ignore());
+    let mut decoder =
+        CharsetDecoder::with_policy(Utf8Codec, CharsetDecodePolicy::ignore());
     let progress = decoder
         .transcode(&[0x80], 0, &mut output, 0)
         .expect("malformed byte is ignored immediately");
@@ -193,7 +225,8 @@ fn test_charset_decoder_applies_policy_to_available_malformed_input() {
     assert_eq!(1, progress.read());
     assert_eq!(0, progress.written());
 
-    let mut decoder = CharsetDecoder::with_policy(Utf8Codec, CharsetDecodePolicy::report());
+    let mut decoder =
+        CharsetDecoder::with_policy(Utf8Codec, CharsetDecodePolicy::report());
     let error = decoder
         .transcode(&[0x80], 0, &mut output, 0)
         .expect_err("reported malformed byte should fail");
@@ -219,7 +252,9 @@ fn test_charset_decoder_decodes_short_ascii_without_waiting_for_finish() {
     assert_eq!(['A', 'B'], output);
     assert_eq!(Ok(0), decoder.max_finish_output_len());
 
-    let written = decoder.finish(&mut output, 0).expect("EOF has no buffered ASCII tail");
+    let written = decoder
+        .finish(&mut output, 0)
+        .expect("EOF has no buffered ASCII tail");
     assert_eq!(0, written);
     assert_eq!(Ok(0), decoder.max_finish_output_len());
 }
@@ -238,7 +273,9 @@ fn test_charset_decoder_decodes_all_available_ascii_units() {
     assert_eq!(4, progress.written());
     assert_eq!(['A', 'B', 'C', 'D'], output);
 
-    let written = decoder.finish(&mut output, 0).expect("finish has no buffered tail");
+    let written = decoder
+        .finish(&mut output, 0)
+        .expect("finish has no buffered tail");
     assert_eq!(0, written);
 }
 
@@ -256,7 +293,8 @@ fn test_charset_decoder_replaces_reports_and_ignores_malformed_input() {
     assert_eq!(5, progress.written());
     assert_eq!(['A', '\u{fffd}', 'B', 'C', 'D'], output);
 
-    let mut decoder = CharsetDecoder::with_policy(Utf8Codec, CharsetDecodePolicy::ignore());
+    let mut decoder =
+        CharsetDecoder::with_policy(Utf8Codec, CharsetDecodePolicy::ignore());
     let mut ignored_output = ['\0'; 4];
     let progress = decoder
         .transcode(&input, 0, &mut ignored_output, 0)
@@ -265,7 +303,8 @@ fn test_charset_decoder_replaces_reports_and_ignores_malformed_input() {
     assert_eq!(4, progress.written());
     assert_eq!(['A', 'B', 'C', 'D'], ignored_output);
 
-    let mut decoder = CharsetDecoder::with_policy(Utf8Codec, CharsetDecodePolicy::report());
+    let mut decoder =
+        CharsetDecoder::with_policy(Utf8Codec, CharsetDecodePolicy::report());
     let error = decoder
         .transcode(&input[1..], 0, &mut output, 0)
         .expect_err("report malformed input");
@@ -287,7 +326,9 @@ fn test_charset_decoder_reports_invalid_indices_capacity_and_need_input() {
         .transcode(input, input.len() + 1, &mut output, 0)
         .expect_err("input index outside input slice");
     assert_eq!(
-        CharsetDecodeErrorKind::InvalidInputIndex { input_len: input.len() },
+        CharsetDecodeErrorKind::InvalidInputIndex {
+            input_len: input.len()
+        },
         error.kind()
     );
     assert_eq!(input.len() + 1, error.index());
@@ -307,7 +348,10 @@ fn test_charset_decoder_reports_invalid_indices_capacity_and_need_input() {
     let progress = decoder
         .transcode(&[0xe4], 0, &mut output, 0)
         .expect("short prefix needs input before EOF");
-    assert!(matches!(progress.status(), TranscodeStatus::NeedInput { .. }));
+    assert!(matches!(
+        progress.status(),
+        TranscodeStatus::NeedInput { .. }
+    ));
     assert_eq!(0, progress.read());
     assert_eq!(0, progress.written());
 }
@@ -321,7 +365,10 @@ fn test_charset_decoder_finish_does_not_replace_incomplete_input() {
         .transcode(&[0xe4, 0xb8], 0, &mut output, 0)
         .expect("partial UTF-8 prefix needs input");
 
-    assert!(matches!(progress.status(), TranscodeStatus::NeedInput { .. }));
+    assert!(matches!(
+        progress.status(),
+        TranscodeStatus::NeedInput { .. }
+    ));
     assert_eq!(0, progress.read());
     assert_eq!(Ok(0), decoder.max_finish_output_len());
 
@@ -354,7 +401,10 @@ fn test_charset_decoder_finish_ignores_output_capacity_for_caller_owned_tail() {
         .transcode(&[0xe4], 0, &mut ['\0'; 1], 0)
         .expect("partial UTF-8 prefix needs input");
 
-    assert!(matches!(progress.status(), TranscodeStatus::NeedInput { .. }));
+    assert!(matches!(
+        progress.status(),
+        TranscodeStatus::NeedInput { .. }
+    ));
 
     let written = decoder
         .finish(&mut output, 0)
@@ -365,14 +415,18 @@ fn test_charset_decoder_finish_ignores_output_capacity_for_caller_owned_tail() {
 
 #[test]
 fn test_charset_decoder_finish_ignores_incomplete_input() {
-    let mut decoder = CharsetDecoder::with_policy(Utf8Codec, CharsetDecodePolicy::ignore());
+    let mut decoder =
+        CharsetDecoder::with_policy(Utf8Codec, CharsetDecodePolicy::ignore());
     let mut output = ['\0'; 1];
 
     let progress = decoder
         .transcode(&[0xe4], 0, &mut output, 0)
         .expect("partial UTF-8 prefix needs input");
 
-    assert!(matches!(progress.status(), TranscodeStatus::NeedInput { .. }));
+    assert!(matches!(
+        progress.status(),
+        TranscodeStatus::NeedInput { .. }
+    ));
     assert_eq!(Ok(0), decoder.max_finish_output_len());
 
     let written = decoder
@@ -384,14 +438,18 @@ fn test_charset_decoder_finish_ignores_incomplete_input() {
 
 #[test]
 fn test_charset_decoder_finish_does_not_report_incomplete_input() {
-    let mut decoder = CharsetDecoder::with_policy(Utf8Codec, CharsetDecodePolicy::report());
+    let mut decoder =
+        CharsetDecoder::with_policy(Utf8Codec, CharsetDecodePolicy::report());
     let mut output = ['\0'; 1];
 
     let progress = decoder
         .transcode(&[0xe4, 0xb8], 0, &mut output, 0)
         .expect("partial UTF-8 prefix needs input");
 
-    assert!(matches!(progress.status(), TranscodeStatus::NeedInput { .. }));
+    assert!(matches!(
+        progress.status(),
+        TranscodeStatus::NeedInput { .. }
+    ));
     assert_eq!(Ok(0), decoder.max_finish_output_len());
 
     let written = decoder
@@ -409,7 +467,10 @@ fn test_charset_decoder_reset_clears_incomplete_input() {
         .transcode(&[0xe4], 0, &mut output, 0)
         .expect("partial UTF-8 prefix needs input");
 
-    assert!(matches!(progress.status(), TranscodeStatus::NeedInput { .. }));
+    assert!(matches!(
+        progress.status(),
+        TranscodeStatus::NeedInput { .. }
+    ));
     assert_eq!(Ok(0), decoder.max_finish_output_len());
 
     decoder.reset();
@@ -421,31 +482,44 @@ fn test_charset_decoder_reset_clears_incomplete_input() {
 }
 
 #[test]
-fn test_charset_decoder_propagates_non_policy_errors_from_caller_preserved_input() {
+fn test_charset_decoder_propagates_non_policy_errors_from_caller_preserved_input()
+ {
     let mut decoder = CharsetDecoder::new(PendingInvalidInputErrorCodec);
     let mut output = ['\0'; 1];
 
     let progress = decoder
         .transcode(&[0], 0, &mut output, 0)
         .expect("first unit is caller-owned incomplete input");
-    assert!(matches!(progress.status(), TranscodeStatus::NeedInput { .. }));
+    assert!(matches!(
+        progress.status(),
+        TranscodeStatus::NeedInput { .. }
+    ));
 
-    let error = decoder
-        .transcode(&[0, 1], 0, &mut output, 0)
-        .expect_err("non-policy error should propagate from caller-preserved input");
-    assert!(matches!(error.kind(), CharsetDecodeErrorKind::InvalidInputIndex { .. }));
+    let error = decoder.transcode(&[0, 1], 0, &mut output, 0).expect_err(
+        "non-policy error should propagate from caller-preserved input",
+    );
+    assert!(matches!(
+        error.kind(),
+        CharsetDecodeErrorKind::InvalidInputIndex { .. }
+    ));
     assert_eq!(0, error.index());
 }
 
 #[test]
 fn test_charset_decoder_finish_ignores_caller_owned_incomplete_error() {
-    let mut decoder = CharsetDecoder::with_policy(PendingInvalidInputErrorCodec, CharsetDecodePolicy::report());
+    let mut decoder = CharsetDecoder::with_policy(
+        PendingInvalidInputErrorCodec,
+        CharsetDecodePolicy::report(),
+    );
     let mut output = ['\0'; 1];
 
     let progress = decoder
         .transcode(&[0], 0, &mut output, 0)
         .expect("first unit is caller-owned incomplete input");
-    assert!(matches!(progress.status(), TranscodeStatus::NeedInput { .. }));
+    assert!(matches!(
+        progress.status(),
+        TranscodeStatus::NeedInput { .. }
+    ));
 
     let written = decoder
         .finish(&mut output, 0)
@@ -477,6 +551,9 @@ fn test_charset_decoder_propagates_non_policy_decoding_errors() {
         .transcode(&input, 0, &mut output, 0)
         .expect_err("invalid-index error is not absorbed");
 
-    assert!(matches!(error.kind(), CharsetDecodeErrorKind::InvalidInputIndex { .. },));
+    assert!(matches!(
+        error.kind(),
+        CharsetDecodeErrorKind::InvalidInputIndex { .. },
+    ));
     assert_eq!(0, error.index());
 }

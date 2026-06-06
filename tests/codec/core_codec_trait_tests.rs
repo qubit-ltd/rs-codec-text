@@ -110,7 +110,11 @@ fn test_core_codec_trait_is_implemented_for_utf32_units() {
     assert_eq!(1, written);
     assert_eq!([0x4e2d], output);
 
-    let (decoded, consumed) = unsafe { codec.decode_unchecked(&output, 0).expect("UTF-32 unit should decode") };
+    let (decoded, consumed) = unsafe {
+        codec
+            .decode_unchecked(&output, 0)
+            .expect("UTF-32 unit should decode")
+    };
     assert_eq!('中', decoded);
     assert_eq!(1, consumed.get());
 }

@@ -37,7 +37,8 @@ macro_rules! impl_test_codec {
             }
 
             fn max_units_per_value(&self) -> core::num::NonZeroUsize {
-                core::num::NonZeroUsize::new($max_units).expect("test maximum width is non-zero")
+                core::num::NonZeroUsize::new($max_units)
+                    .expect("test maximum width is non-zero")
             }
 
             unsafe fn decode_unchecked(
@@ -45,7 +46,8 @@ macro_rules! impl_test_codec {
                 _input: &[u8],
                 index: usize,
             ) -> CharsetDecodeResult<(char, core::num::NonZeroUsize)> {
-                let kind = CharsetDecodeErrorKind::MalformedSequence { value: None };
+                let kind =
+                    CharsetDecodeErrorKind::MalformedSequence { value: None };
                 Err(CharsetDecodeError::new(self.charset(), kind, index))
             }
 
@@ -55,7 +57,9 @@ macro_rules! impl_test_codec {
                 output: &mut [u8],
                 index: usize,
             ) -> CharsetEncodeResult<usize> {
-                let required = <Self as CharsetEncodeProbe>::encode_len(self, *value, index)?;
+                let required = <Self as CharsetEncodeProbe>::encode_len(
+                    self, *value, index,
+                )?;
                 debug_assert!(index + required <= output.len());
                 if required > 0 {
                     output[index] = *value as u8;
@@ -78,7 +82,9 @@ impl CharsetCodec for AsciiBytesCodec {
 impl CharsetEncodeProbe for AsciiBytesCodec {
     fn encode_len(&self, ch: char, index: usize) -> CharsetEncodeResult<usize> {
         if !ch.is_ascii() {
-            let kind = CharsetEncodeErrorKind::UnmappableCharacter { value: ch as u32 };
+            let kind = CharsetEncodeErrorKind::UnmappableCharacter {
+                value: ch as u32,
+            };
             return Err(CharsetEncodeError::new(Charset::ASCII, kind, index));
         }
         Ok(1)
@@ -102,7 +108,9 @@ impl CharsetCodec for NonDefaultUnitCodec {
 impl CharsetEncodeProbe for NonDefaultUnitCodec {
     fn encode_len(&self, ch: char, index: usize) -> CharsetEncodeResult<usize> {
         if !ch.is_ascii() {
-            let kind = CharsetEncodeErrorKind::UnmappableCharacter { value: ch as u32 };
+            let kind = CharsetEncodeErrorKind::UnmappableCharacter {
+                value: ch as u32,
+            };
             return Err(CharsetEncodeError::new(Charset::ASCII, kind, index));
         }
         Ok(1)
@@ -164,7 +172,8 @@ impl CharsetCodec for InvalidBangCodec {
 impl CharsetEncodeProbe for InvalidBangCodec {
     fn encode_len(&self, ch: char, index: usize) -> CharsetEncodeResult<usize> {
         if ch == '!' {
-            let kind = CharsetEncodeErrorKind::InvalidCodePoint { value: ch as u32 };
+            let kind =
+                CharsetEncodeErrorKind::InvalidCodePoint { value: ch as u32 };
             return Err(CharsetEncodeError::new(Charset::ASCII, kind, index));
         }
         Ok(1)
@@ -188,7 +197,9 @@ impl CharsetEncodeProbe for FailingReplacementWriteCodec {
             return Ok(1);
         }
         if !ch.is_ascii() {
-            let kind = CharsetEncodeErrorKind::UnmappableCharacter { value: ch as u32 };
+            let kind = CharsetEncodeErrorKind::UnmappableCharacter {
+                value: ch as u32,
+            };
             return Err(CharsetEncodeError::new(Charset::ASCII, kind, index));
         }
         Ok(1)
@@ -218,8 +229,15 @@ unsafe impl Codec for FailingReplacementWriteCodec {
         Err(CharsetDecodeError::new(self.charset(), kind, index))
     }
 
-    unsafe fn encode_unchecked(&self, value: &char, _output: &mut [u8], index: usize) -> CharsetEncodeResult<usize> {
-        let kind = CharsetEncodeErrorKind::InvalidCodePoint { value: *value as u32 };
+    unsafe fn encode_unchecked(
+        &self,
+        value: &char,
+        _output: &mut [u8],
+        index: usize,
+    ) -> CharsetEncodeResult<usize> {
+        let kind = CharsetEncodeErrorKind::InvalidCodePoint {
+            value: *value as u32,
+        };
         Err(CharsetEncodeError::new(self.charset(), kind, index))
     }
 }
@@ -236,14 +254,18 @@ impl CharsetCodec for ReplacementFallbackCodec {
 impl CharsetEncodeProbe for ReplacementFallbackCodec {
     fn encode_len(&self, ch: char, index: usize) -> CharsetEncodeResult<usize> {
         if ch == '\u{fffd}' {
-            let kind = CharsetEncodeErrorKind::UnmappableCharacter { value: ch as u32 };
+            let kind = CharsetEncodeErrorKind::UnmappableCharacter {
+                value: ch as u32,
+            };
             return Err(CharsetEncodeError::new(Charset::ASCII, kind, index));
         }
         if ch == '?' {
             return Ok(1);
         }
         if !ch.is_ascii() {
-            let kind = CharsetEncodeErrorKind::UnmappableCharacter { value: ch as u32 };
+            let kind = CharsetEncodeErrorKind::UnmappableCharacter {
+                value: ch as u32,
+            };
             return Err(CharsetEncodeError::new(Charset::ASCII, kind, index));
         }
         Ok(1)
@@ -264,7 +286,9 @@ impl CharsetCodec for ReplacementAllUnencodableCodec {
 impl CharsetEncodeProbe for ReplacementAllUnencodableCodec {
     fn encode_len(&self, ch: char, index: usize) -> CharsetEncodeResult<usize> {
         if ch == '\u{fffd}' || ch == '?' || !ch.is_ascii() {
-            let kind = CharsetEncodeErrorKind::UnmappableCharacter { value: ch as u32 };
+            let kind = CharsetEncodeErrorKind::UnmappableCharacter {
+                value: ch as u32,
+            };
             return Err(CharsetEncodeError::new(Charset::ASCII, kind, index));
         }
         Ok(1)
@@ -289,7 +313,9 @@ impl CharsetEncodeProbe for CountingAsciiEncoderCodec {
         let current = self.encode_calls.get();
         self.encode_calls.set(current + 1);
         if !ch.is_ascii() {
-            let kind = CharsetEncodeErrorKind::UnmappableCharacter { value: ch as u32 };
+            let kind = CharsetEncodeErrorKind::UnmappableCharacter {
+                value: ch as u32,
+            };
             return Err(CharsetEncodeError::new(Charset::ASCII, kind, index));
         }
         Ok(1)
@@ -319,7 +345,12 @@ unsafe impl Codec for CountingAsciiEncoderCodec {
         Err(CharsetDecodeError::new(self.charset(), kind, index))
     }
 
-    unsafe fn encode_unchecked(&self, value: &char, output: &mut [u8], index: usize) -> CharsetEncodeResult<usize> {
+    unsafe fn encode_unchecked(
+        &self,
+        value: &char,
+        output: &mut [u8],
+        index: usize,
+    ) -> CharsetEncodeResult<usize> {
         debug_assert!(index < output.len());
         output[index] = *value as u8;
         Ok(1)
@@ -341,7 +372,9 @@ impl CharsetEncodeProbe for ZeroLengthReplacementCodec {
             return Ok(0);
         }
         if !ch.is_ascii() {
-            let kind = CharsetEncodeErrorKind::UnmappableCharacter { value: ch as u32 };
+            let kind = CharsetEncodeErrorKind::UnmappableCharacter {
+                value: ch as u32,
+            };
             return Err(CharsetEncodeError::new(Charset::ASCII, kind, index));
         }
         Ok(1)
@@ -360,8 +393,11 @@ fn test_charset_encoder_exposes_configuration_and_bounds() {
     assert_eq!(Ok(0), encoder.max_finish_output_len());
     encoder.reset();
 
-    let encoder = CharsetEncoder::with_policy(AsciiBytesCodec, CharsetEncodePolicy::ignore_with_replacement('*'))
-        .expect("ignored replacement policy should be constructible");
+    let encoder = CharsetEncoder::with_policy(
+        AsciiBytesCodec,
+        CharsetEncodePolicy::ignore_with_replacement('*'),
+    )
+    .expect("ignored replacement policy should be constructible");
 
     assert_eq!('*', encoder.replacement());
     assert_eq!(UnmappableAction::Ignore, encoder.unmappable_action());
@@ -382,8 +418,11 @@ fn test_charset_encoder_replaces_reports_and_ignores_unmappable_input() {
     assert_eq!(3, progress.written());
     assert_eq!(b"A?B", &output);
 
-    let mut encoder = CharsetEncoder::with_policy(AsciiBytesCodec, CharsetEncodePolicy::ignore())
-        .expect("ignore policy should be constructible");
+    let mut encoder = CharsetEncoder::with_policy(
+        AsciiBytesCodec,
+        CharsetEncodePolicy::ignore(),
+    )
+    .expect("ignore policy should be constructible");
     let mut ignored_output = [0_u8; 2];
     let progress = encoder
         .transcode(&input, 0, &mut ignored_output, 0)
@@ -394,8 +433,11 @@ fn test_charset_encoder_replaces_reports_and_ignores_unmappable_input() {
     assert_eq!(2, progress.written());
     assert_eq!(b"AB", &ignored_output);
 
-    let mut encoder = CharsetEncoder::with_policy(AsciiBytesCodec, CharsetEncodePolicy::report())
-        .expect("report policy should be constructible");
+    let mut encoder = CharsetEncoder::with_policy(
+        AsciiBytesCodec,
+        CharsetEncodePolicy::report(),
+    )
+    .expect("report policy should be constructible");
     let error = encoder
         .transcode(&input, 1, &mut output, 0)
         .expect_err("report unmappable input");
@@ -418,7 +460,10 @@ fn test_charset_encoder_reports_need_output_when_replacement_does_not_fit() {
         .transcode(&input, 0, &mut output, 0)
         .expect("small output should stop with NeedOutput");
 
-    assert!(matches!(progress.status(), TranscodeStatus::NeedOutput { .. }));
+    assert!(matches!(
+        progress.status(),
+        TranscodeStatus::NeedOutput { .. }
+    ));
     assert_eq!(1, progress.read());
     assert_eq!(1, progress.written());
     assert_eq!(b"A", &output);
@@ -433,7 +478,10 @@ fn test_charset_encoder_reports_invalid_indices_and_capacity() {
     let error = encoder
         .transcode(&input, input.len() + 1, &mut output, 0)
         .expect_err("input index is outside input slice");
-    assert_eq!(CharsetEncodeErrorKind::InvalidInputIndex { input_len: 2 }, error.kind());
+    assert_eq!(
+        CharsetEncodeErrorKind::InvalidInputIndex { input_len: 2 },
+        error.kind()
+    );
     assert_eq!(input.len() + 1, error.index());
 
     let beyond_output = output.len() + 1;
@@ -448,9 +496,9 @@ fn test_charset_encoder_reports_invalid_indices_and_capacity() {
     );
     assert_eq!(beyond_output, error.index());
 
-    let error = encoder
-        .finish(&mut output, beyond_output)
-        .expect_err("finish output index beyond output slice should be rejected");
+    let error = encoder.finish(&mut output, beyond_output).expect_err(
+        "finish output index beyond output slice should be rejected",
+    );
     assert_eq!(
         FinishError::InvalidOutputIndex {
             index: beyond_output,
@@ -462,15 +510,21 @@ fn test_charset_encoder_reports_invalid_indices_and_capacity() {
     let progress = encoder
         .transcode(&input, 0, &mut output, 0)
         .expect("normal encoding stops when output fills");
-    assert!(matches!(progress.status(), TranscodeStatus::NeedOutput { .. }));
+    assert!(matches!(
+        progress.status(),
+        TranscodeStatus::NeedOutput { .. }
+    ));
     assert_eq!(1, progress.read());
     assert_eq!(1, progress.written());
 }
 
 #[test]
 fn test_charset_encoder_report_policy_does_not_require_default_unit() {
-    let mut encoder = CharsetEncoder::with_policy(NonDefaultUnitCodec, CharsetEncodePolicy::report())
-        .expect("report policy should not pre-encode replacement units");
+    let mut encoder = CharsetEncoder::with_policy(
+        NonDefaultUnitCodec,
+        CharsetEncodePolicy::report(),
+    )
+    .expect("report policy should not pre-encode replacement units");
     let mut output = [NonDefaultUnit(0)];
 
     let progress = encoder
@@ -487,8 +541,11 @@ fn test_charset_encoder_report_policy_does_not_require_default_unit() {
 fn test_charset_encoder_reports_unmappable_replacement() {
     let input = ['中'];
     let mut output = [0_u8; 1];
-    let error = CharsetEncoder::with_policy(AsciiBytesCodec, CharsetEncodePolicy::replace('é'))
-        .expect_err("user replacement should fail when unmappable");
+    let error = CharsetEncoder::with_policy(
+        AsciiBytesCodec,
+        CharsetEncodePolicy::replace('é'),
+    )
+    .expect_err("user replacement should fail when unmappable");
 
     assert!(matches!(
         error.kind(),
@@ -516,19 +573,25 @@ fn test_charset_encoder_propagates_non_policy_encoding_errors() {
         .transcode(&input, 0, &mut output, 0)
         .expect_err("invalid code point error is not absorbed");
 
-    assert!(matches!(error.kind(), CharsetEncodeErrorKind::InvalidCodePoint { .. },));
+    assert!(matches!(
+        error.kind(),
+        CharsetEncodeErrorKind::InvalidCodePoint { .. },
+    ));
     assert_eq!(Some('!' as u32), error.value());
 }
 
 #[test]
 fn test_charset_encoder_with_policy_reports_replacement_write_errors() {
-    let mut encoder = CharsetEncoder::with_policy(FailingReplacementWriteCodec, CharsetEncodePolicy::replace('!'))
-        .expect("replacement sizing should be accepted");
+    let mut encoder = CharsetEncoder::with_policy(
+        FailingReplacementWriteCodec,
+        CharsetEncodePolicy::replace('!'),
+    )
+    .expect("replacement sizing should be accepted");
     let mut output = [0_u8; 1];
 
-    let error = encoder
-        .transcode(&['中'], 0, &mut output, 0)
-        .expect_err("replacement writing should surface encode_unchecked failures");
+    let error = encoder.transcode(&['中'], 0, &mut output, 0).expect_err(
+        "replacement writing should surface encode_unchecked failures",
+    );
 
     assert_eq!(
         CharsetEncodeErrorKind::InvalidCodePoint { value: '!' as u32 },
@@ -538,14 +601,18 @@ fn test_charset_encoder_with_policy_reports_replacement_write_errors() {
 
 #[test]
 fn test_charset_encoder_with_policy_accepts_valid_replacement() {
-    let encoder = CharsetEncoder::with_policy(AsciiBytesCodec, CharsetEncodePolicy::replace('!'))
-        .expect("replacement character should be accepted");
+    let encoder = CharsetEncoder::with_policy(
+        AsciiBytesCodec,
+        CharsetEncodePolicy::replace('!'),
+    )
+    .expect("replacement character should be accepted");
 
     assert_eq!('!', encoder.replacement());
 }
 
 #[test]
-fn test_charset_encoder_new_falls_back_to_fallback_replacement_when_default_is_not_encodable() {
+fn test_charset_encoder_new_falls_back_to_fallback_replacement_when_default_is_not_encodable()
+ {
     let mut encoder = CharsetEncoder::new(ReplacementFallbackCodec);
 
     let mut output = [0_u8; 1];
@@ -562,14 +629,19 @@ fn test_charset_encoder_new_falls_back_to_fallback_replacement_when_default_is_n
 
 #[test]
 #[should_panic]
-fn test_charset_encoder_new_panics_if_no_default_or_fallback_replacement_is_encodable() {
+fn test_charset_encoder_new_panics_if_no_default_or_fallback_replacement_is_encodable()
+ {
     let _encoder = CharsetEncoder::new(ReplacementAllUnencodableCodec);
 }
 
 #[test]
-fn test_charset_encoder_with_policy_rejects_unencodable_replacement_immediately() {
-    let error = CharsetEncoder::with_policy(AsciiBytesCodec, CharsetEncodePolicy::replace('中'))
-        .expect_err("unmappable replacement should be rejected");
+fn test_charset_encoder_with_policy_rejects_unencodable_replacement_immediately()
+ {
+    let error = CharsetEncoder::with_policy(
+        AsciiBytesCodec,
+        CharsetEncodePolicy::replace('中'),
+    )
+    .expect_err("unmappable replacement should be rejected");
 
     assert!(matches!(
         error.kind(),
@@ -615,17 +687,29 @@ fn test_charset_encoder_supports_zero_length_replacement_units() {
     assert_eq!(TranscodeStatus::Complete, progress.status());
     assert_eq!(1, progress.read());
     assert_eq!(0, progress.written());
-    assert_eq!(CharsetEncodePolicy::DEFAULT_REPLACEMENT, encoder.replacement());
+    assert_eq!(
+        CharsetEncodePolicy::DEFAULT_REPLACEMENT,
+        encoder.replacement()
+    );
 }
 
 #[test]
 fn test_charset_encoder_compares_configuration_and_formats_debug() {
-    let left = CharsetEncoder::with_policy(AsciiBytesCodec, CharsetEncodePolicy::replace('!'))
-        .expect("replacement should be encodable");
-    let right = CharsetEncoder::with_policy(AsciiBytesCodec, CharsetEncodePolicy::replace('!'))
-        .expect("replacement should be encodable");
-    let different = CharsetEncoder::with_policy(AsciiBytesCodec, CharsetEncodePolicy::ignore_with_replacement('!'))
-        .expect("replacement should be encodable");
+    let left = CharsetEncoder::with_policy(
+        AsciiBytesCodec,
+        CharsetEncodePolicy::replace('!'),
+    )
+    .expect("replacement should be encodable");
+    let right = CharsetEncoder::with_policy(
+        AsciiBytesCodec,
+        CharsetEncodePolicy::replace('!'),
+    )
+    .expect("replacement should be encodable");
+    let different = CharsetEncoder::with_policy(
+        AsciiBytesCodec,
+        CharsetEncodePolicy::ignore_with_replacement('!'),
+    )
+    .expect("replacement should be encodable");
 
     assert_eq!(left, right);
     assert_ne!(left, different);
