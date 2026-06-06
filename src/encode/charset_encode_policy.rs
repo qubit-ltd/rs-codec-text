@@ -1,12 +1,10 @@
-/*******************************************************************************
- *
- *    Copyright (c) 2026 Haixing Hu.
- *
- *    SPDX-License-Identifier: Apache-2.0
- *
- *    Licensed under the Apache License, Version 2.0.
- *
- ******************************************************************************/
+// =============================================================================
+//    Copyright (c) 2026 Haixing Hu.
+//
+//    SPDX-License-Identifier: Apache-2.0
+//
+//    Licensed under the Apache License, Version 2.0.
+// =============================================================================
 use crate::UnmappableAction;
 
 /// Unmappable-input policy used by charset encoders and converters.
@@ -27,7 +25,10 @@ impl CharsetEncodePolicy {
     /// Creates an unmappable-input policy.
     #[must_use]
     #[inline(always)]
-    pub const fn new(unmappable_action: UnmappableAction, replacement: char) -> Self {
+    pub const fn new(
+        unmappable_action: UnmappableAction,
+        replacement: char,
+    ) -> Self {
         Self {
             unmappable_action,
             replacement,
@@ -41,7 +42,8 @@ impl CharsetEncodePolicy {
         Self::new(UnmappableAction::Replace, replacement)
     }
 
-    /// Creates an ignore policy with the default replacement retained for metadata.
+    /// Creates an ignore policy with the default replacement retained for
+    /// metadata.
     #[must_use]
     #[inline(always)]
     pub const fn ignore() -> Self {
@@ -55,7 +57,8 @@ impl CharsetEncodePolicy {
         Self::new(UnmappableAction::Ignore, replacement)
     }
 
-    /// Creates a report policy with the default replacement retained for metadata.
+    /// Creates a report policy with the default replacement retained for
+    /// metadata.
     #[must_use]
     #[inline(always)]
     pub const fn report() -> Self {

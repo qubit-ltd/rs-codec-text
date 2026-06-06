@@ -1,12 +1,10 @@
-/*******************************************************************************
- *
- *    Copyright (c) 2026 Haixing Hu.
- *
- *    SPDX-License-Identifier: Apache-2.0
- *
- *    Licensed under the Apache License, Version 2.0.
- *
- ******************************************************************************/
+// =============================================================================
+//    Copyright (c) 2026 Haixing Hu.
+//
+//    SPDX-License-Identifier: Apache-2.0
+//
+//    Licensed under the Apache License, Version 2.0.
+// =============================================================================
 use super::{
     charset_codec::CharsetCodec,
     charset_convert_error::CharsetConvertError,
@@ -32,16 +30,18 @@ use qubit_codec::{
     TranscodeProgress,
 };
 
-/// Converts units encoded with one charset into units encoded with another charset.
+/// Converts units encoded with one charset into units encoded with another
+/// charset.
 ///
 /// The converter owns the source and target charset codecs plus the same
 /// decode/encode policy hooks used by [`crate::CharsetDecoder`] and
 /// [`crate::CharsetEncoder`].
 /// A decoded character may be kept pending inside the common buffered convert
-/// engine when the target output buffer is full. During [`BufferedTranscoder::finish`],
-/// the converter drains internally retained output and finishes the composed
-/// decode/encode policy hooks. Callers remain responsible for handling any
-/// incomplete input tail before finishing the logical stream.
+/// engine when the target output buffer is full. During
+/// [`BufferedTranscoder::finish`], the converter drains internally retained
+/// output and finishes the composed decode/encode policy hooks. Callers remain
+/// responsible for handling any incomplete input tail before finishing the
+/// logical stream.
 ///
 /// # Type Parameters
 ///
@@ -110,12 +110,17 @@ where
     #[must_use]
     pub fn from_codecs(source: D, target: E) -> Self {
         let decode_policy = CharsetDecodePolicy::default();
-        let (encode_policy, encode_hooks) = Self::default_encode_policy(&target);
+        let (encode_policy, encode_hooks) =
+            Self::default_encode_policy(&target);
         Self {
             engine: BufferedConvertEngine::new(
                 source,
                 target,
-                CharsetConvertHooks::with_policies(decode_policy, encode_policy, encode_hooks),
+                CharsetConvertHooks::with_policies(
+                    decode_policy,
+                    encode_policy,
+                    encode_hooks,
+                ),
             ),
             decode_policy,
             encode_policy,
@@ -145,12 +150,17 @@ where
         decode_policy: CharsetDecodePolicy,
         encode_policy: CharsetEncodePolicy,
     ) -> Result<Self, CharsetEncodeError> {
-        let (encode_hooks, _) = CharsetEncoder::<E>::create_hooks(&target, encode_policy)?;
+        let (encode_hooks, _) =
+            CharsetEncoder::<E>::create_hooks(&target, encode_policy)?;
         Ok(Self {
             engine: BufferedConvertEngine::new(
                 source,
                 target,
-                CharsetConvertHooks::with_policies(decode_policy, encode_policy, encode_hooks),
+                CharsetConvertHooks::with_policies(
+                    decode_policy,
+                    encode_policy,
+                    encode_hooks,
+                ),
             ),
             decode_policy,
             encode_policy,
@@ -205,7 +215,8 @@ where
     ///
     /// # Returns
     ///
-    /// Returns the action used when the target charset cannot represent a character.
+    /// Returns the action used when the target charset cannot represent a
+    /// character.
     #[must_use]
     #[inline(always)]
     pub const fn unmappable_action(&self) -> UnmappableAction {
@@ -227,19 +238,26 @@ where
     ///
     /// # Panics
     ///
-    /// Panics when neither the default replacement nor the fallback replacement can
-    /// be encoded by `target`.
-    fn default_encode_policy(target: &E) -> (CharsetEncodePolicy, CharsetEncodeHooks<E::Unit>) {
+    /// Panics when neither the default replacement nor the fallback replacement
+    /// can be encoded by `target`.
+    fn default_encode_policy(
+        target: &E,
+    ) -> (CharsetEncodePolicy, CharsetEncodeHooks<E::Unit>) {
         let default_policy = CharsetEncodePolicy::default();
         match CharsetEncoder::<E>::create_hooks(target, default_policy) {
             Ok((hooks, _)) => (default_policy, hooks),
             Err(_) => {
-                let fallback_policy = CharsetEncodePolicy::replace(CharsetEncodePolicy::DEFAULT_FALLBACK_REPLACEMENT);
-                if let Ok((hooks, _)) = CharsetEncoder::<E>::create_hooks(target, fallback_policy) {
+                let fallback_policy = CharsetEncodePolicy::replace(
+                    CharsetEncodePolicy::DEFAULT_FALLBACK_REPLACEMENT,
+                );
+                if let Ok((hooks, _)) =
+                    CharsetEncoder::<E>::create_hooks(target, fallback_policy)
+                {
                     return (fallback_policy, hooks);
                 }
                 let kind = CharsetEncodeErrorKind::UnmappableCharacter {
-                    value: CharsetEncodePolicy::DEFAULT_FALLBACK_REPLACEMENT as u32,
+                    value: CharsetEncodePolicy::DEFAULT_FALLBACK_REPLACEMENT
+                        as u32,
                 };
                 panic!(
                     "cannot initialize CharsetConverter target for {:?}: neither {:?} nor {:?} is encodable ({})",
@@ -266,7 +284,8 @@ where
         self.engine.max_output_len(input_len)
     }
 
-    /// Returns the maximum target units needed to finalize pending conversion state.
+    /// Returns the maximum target units needed to finalize pending conversion
+    /// state.
     #[inline(always)]
     fn max_finish_output_len(&self) -> Result<usize, CapacityError> {
         self.engine.max_finish_output_len()
@@ -278,7 +297,8 @@ where
         self.engine.reset();
     }
 
-    /// Converts source units to target units through the configured decoder and encoder.
+    /// Converts source units to target units through the configured decoder and
+    /// encoder.
     ///
     /// # Errors
     ///
@@ -293,7 +313,8 @@ where
         output: &mut [E::Unit],
         output_index: usize,
     ) -> Result<TranscodeProgress, Self::Error> {
-        self.engine.transcode(input, input_index, output, output_index)
+        self.engine
+            .transcode(input, input_index, output, output_index)
     }
 
     /// Finalizes internally retained decoded characters and policy hook state.
@@ -313,7 +334,11 @@ where
     /// capacity is insufficient, or when encoding pending or final decoded
     /// characters violates target charset policy.
     #[inline(always)]
-    fn finish(&mut self, output: &mut [E::Unit], output_index: usize) -> Result<usize, FinishError<Self::Error>> {
+    fn finish(
+        &mut self,
+        output: &mut [E::Unit],
+        output_index: usize,
+    ) -> Result<usize, FinishError<Self::Error>> {
         self.engine.finish(output, output_index)
     }
 }

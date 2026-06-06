@@ -1,12 +1,10 @@
-/*******************************************************************************
- *
- *    Copyright (c) 2026 Haixing Hu.
- *
- *    SPDX-License-Identifier: Apache-2.0
- *
- *    Licensed under the Apache License, Version 2.0.
- *
- ******************************************************************************/
+// =============================================================================
+//    Copyright (c) 2026 Haixing Hu.
+//
+//    SPDX-License-Identifier: Apache-2.0
+//
+//    Licensed under the Apache License, Version 2.0.
+// =============================================================================
 use crate::charset::ascii_folding;
 
 /// Namespace for ASCII character and code point helpers.
@@ -50,7 +48,8 @@ impl Ascii {
     pub const START_OF_TRANSMISSION_CHAR: char = '\u{0004}';
 
     /// ASCII EOT as a byte.
-    pub const START_OF_TRANSMISSION_BYTE: u8 = Self::START_OF_TRANSMISSION_CHAR as u8;
+    pub const START_OF_TRANSMISSION_BYTE: u8 =
+        Self::START_OF_TRANSMISSION_CHAR as u8;
 
     /// ASCII ENQ.
     pub const ENQUIRY_CHAR: char = '\u{0005}';
@@ -152,7 +151,8 @@ impl Ascii {
     pub const NEGATIVE_ACKNOWLEDGEMENT_CHAR: char = '\u{0015}';
 
     /// ASCII NAK as a byte.
-    pub const NEGATIVE_ACKNOWLEDGEMENT_BYTE: u8 = Self::NEGATIVE_ACKNOWLEDGEMENT_CHAR as u8;
+    pub const NEGATIVE_ACKNOWLEDGEMENT_BYTE: u8 =
+        Self::NEGATIVE_ACKNOWLEDGEMENT_CHAR as u8;
 
     /// ASCII SYN.
     pub const SYNCHRONOUS_IDLE_CHAR: char = '\u{0016}';
@@ -312,11 +312,13 @@ impl Ascii {
 
     /// All printable ASCII characters.
     pub const PRINTABLE_CHARS: [char; 95] = [
-        ' ', '!', '"', '#', '$', '%', '&', '\'', '(', ')', '*', '+', ',', '-', '.', '/', '0', '1', '2', '3', '4', '5',
-        '6', '7', '8', '9', ':', ';', '<', '=', '>', '?', '@', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K',
-        'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', '[', '\\', ']', '^', '_', '`', 'a',
-        'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w',
-        'x', 'y', 'z', '{', '|', '}', '~',
+        ' ', '!', '"', '#', '$', '%', '&', '\'', '(', ')', '*', '+', ',', '-',
+        '.', '/', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', ':', ';',
+        '<', '=', '>', '?', '@', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I',
+        'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W',
+        'X', 'Y', 'Z', '[', '\\', ']', '^', '_', '`', 'a', 'b', 'c', 'd', 'e',
+        'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's',
+        't', 'u', 'v', 'w', 'x', 'y', 'z', '{', '|', '}', '~',
     ];
 
     /// All printable ASCII characters as bytes.
@@ -325,33 +327,40 @@ impl Ascii {
 
     /// All ASCII letter characters.
     pub const LETTER_CHARS: [char; 52] = [
-        'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V',
-        'W', 'X', 'Y', 'Z', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r',
-        's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
+        'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N',
+        'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 'a', 'b',
+        'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p',
+        'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
     ];
 
     /// All ASCII letter characters as bytes.
-    pub const LETTER_BYTES: [u8; 52] = *b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+    pub const LETTER_BYTES: [u8; 52] =
+        *b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
 
     /// All ASCII letter and digit characters.
     pub const LETTER_DIGIT_CHARS: [char; 62] = [
-        '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L',
-        'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h',
-        'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
+        '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D',
+        'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R',
+        'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 'a', 'b', 'c', 'd', 'e', 'f',
+        'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't',
+        'u', 'v', 'w', 'x', 'y', 'z',
     ];
 
     /// All ASCII letter and digit characters as bytes.
-    pub const LETTER_DIGIT_BYTES: [u8; 62] = *b"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+    pub const LETTER_DIGIT_BYTES: [u8; 62] =
+        *b"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
 
     /// ASCII digit characters.
-    pub const DIGIT_CHARS: [char; 10] = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
+    pub const DIGIT_CHARS: [char; 10] =
+        ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
 
     /// ASCII digit bytes.
     pub const DIGIT_BYTES: [u8; 10] = *b"0123456789";
 
     /// Lowercase ASCII hexadecimal digit characters.
     pub const LOWERCASE_HEX_DIGIT_CHARS: [char; 16] = [
-        '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f',
+        '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd',
+        'e', 'f',
     ];
 
     /// Lowercase ASCII hexadecimal digit bytes.
@@ -359,7 +368,8 @@ impl Ascii {
 
     /// Uppercase ASCII hexadecimal digit characters.
     pub const UPPERCASE_HEX_DIGIT_CHARS: [char; 16] = [
-        '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F',
+        '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D',
+        'E', 'F',
     ];
 
     /// Uppercase ASCII hexadecimal digit bytes.
@@ -456,7 +466,11 @@ impl Ascii {
     #[inline(always)]
     #[must_use]
     pub const fn is_whitespace_code_point(ch: u32) -> bool {
-        ch == '\t' as u32 || ch == '\n' as u32 || ch == '\u{000c}' as u32 || ch == '\r' as u32 || ch == ' ' as u32
+        ch == '\t' as u32
+            || ch == '\n' as u32
+            || ch == '\u{000c}' as u32
+            || ch == '\r' as u32
+            || ch == ' ' as u32
     }
 
     /// Tests whether a byte is an ASCII letter.
@@ -501,7 +515,8 @@ impl Ascii {
     #[inline(always)]
     #[must_use]
     pub const fn is_letter_code_point(ch: u32) -> bool {
-        Self::is_uppercase_letter_code_point(ch) || Self::is_lowercase_letter_code_point(ch)
+        Self::is_uppercase_letter_code_point(ch)
+            || Self::is_lowercase_letter_code_point(ch)
     }
 
     /// Tests whether a byte is an uppercase ASCII letter.
@@ -651,7 +666,9 @@ impl Ascii {
     #[inline(always)]
     #[must_use]
     pub const fn is_hex_digit_byte(ch: u8) -> bool {
-        Self::is_digit_byte(ch) || (ch >= b'a' && ch <= b'f') || (ch >= b'A' && ch <= b'F')
+        Self::is_digit_byte(ch)
+            || (ch >= b'a' && ch <= b'f')
+            || (ch >= b'A' && ch <= b'F')
     }
 
     /// Tests whether a character is an ASCII hexadecimal digit.
@@ -666,7 +683,9 @@ impl Ascii {
     #[inline(always)]
     #[must_use]
     pub const fn is_hex_digit_char(ch: char) -> bool {
-        Self::is_digit_char(ch) || (ch >= 'a' && ch <= 'f') || (ch >= 'A' && ch <= 'F')
+        Self::is_digit_char(ch)
+            || (ch >= 'a' && ch <= 'f')
+            || (ch >= 'A' && ch <= 'F')
     }
 
     /// Tests whether a raw code point is an ASCII hexadecimal digit.
@@ -799,7 +818,8 @@ impl Ascii {
     ///
     /// # Returns
     ///
-    /// Returns `true` if `ch` is in the printable ASCII range `U+0020..=U+007E`.
+    /// Returns `true` if `ch` is in the printable ASCII range
+    /// `U+0020..=U+007E`.
     #[inline(always)]
     #[must_use]
     pub const fn is_printable_char(ch: char) -> bool {
@@ -818,7 +838,8 @@ impl Ascii {
     #[inline(always)]
     #[must_use]
     pub const fn is_printable_code_point(ch: u32) -> bool {
-        ch >= Self::MIN_PRINTABLE_CHAR as u32 && ch <= Self::MAX_PRINTABLE_CHAR as u32
+        ch >= Self::MIN_PRINTABLE_CHAR as u32
+            && ch <= Self::MAX_PRINTABLE_CHAR as u32
     }
 
     /// Tests whether a byte is an ASCII control character.
@@ -926,7 +947,8 @@ impl Ascii {
         if ch1 == ch2 {
             true
         } else {
-            Self::code_point_to_lowercase(ch1) == Self::code_point_to_lowercase(ch2)
+            Self::code_point_to_lowercase(ch1)
+                == Self::code_point_to_lowercase(ch2)
         }
     }
 
@@ -1062,7 +1084,11 @@ impl Ascii {
     #[inline(always)]
     #[must_use]
     pub const fn byte_to_digit(ch: u8) -> Option<u8> {
-        if Self::is_digit_byte(ch) { Some(ch - b'0') } else { None }
+        if Self::is_digit_byte(ch) {
+            Some(ch - b'0')
+        } else {
+            None
+        }
     }
 
     /// Converts an ASCII decimal digit character into its numeric value.
@@ -1182,20 +1208,20 @@ impl Ascii {
     /// - `ch`: The character to fold.
     /// - `result`: The caller-provided output buffer that receives the folded
     ///   characters.
-    /// - `offset`: The starting index in `result` at which folded characters are
-    ///   written.
+    /// - `offset`: The starting index in `result` at which folded characters
+    ///   are written.
     ///
     /// # Returns
     ///
     /// Returns the number of characters written to `result` starting at
     /// `offset`. ASCII characters and unmapped non-ASCII characters write one
-    /// character. Mapped characters write up to [`Self::MAX_FOLDING_COUNT`] ASCII
-    /// characters.
+    /// character. Mapped characters write up to [`Self::MAX_FOLDING_COUNT`]
+    /// ASCII characters.
     ///
     /// # Panics
     ///
-    /// Panics if `result` has fewer than [`Self::MAX_FOLDING_COUNT`] writable slots
-    /// after `offset`.
+    /// Panics if `result` has fewer than [`Self::MAX_FOLDING_COUNT`] writable
+    /// slots after `offset`.
     pub fn fold(ch: char, result: &mut [char], offset: usize) -> usize {
         assert!(
             result.len().saturating_sub(offset) >= Self::MAX_FOLDING_COUNT,
@@ -1207,7 +1233,8 @@ impl Ascii {
         }
         match ascii_folding::fold_replacement(ch) {
             Some(replacement) => {
-                for (index, replacement_char) in replacement.chars().enumerate() {
+                for (index, replacement_char) in replacement.chars().enumerate()
+                {
                     result[offset + index] = replacement_char;
                 }
                 replacement.len()

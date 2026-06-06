@@ -1,12 +1,10 @@
-/*******************************************************************************
- *
- *    Copyright (c) 2026 Haixing Hu.
- *
- *    SPDX-License-Identifier: Apache-2.0
- *
- *    Licensed under the Apache License, Version 2.0.
- *
- ******************************************************************************/
+// =============================================================================
+//    Copyright (c) 2026 Haixing Hu.
+//
+//    SPDX-License-Identifier: Apache-2.0
+//
+//    Licensed under the Apache License, Version 2.0.
+// =============================================================================
 use crate::{
     ByteOrder,
     Charset,
@@ -127,7 +125,11 @@ impl CharsetEncodeProbe for Utf32ByteCodec {
     ///
     /// Always returns `Ok(4)`.
     #[inline(always)]
-    fn encode_len(&self, _ch: char, _index: usize) -> CharsetEncodeResult<usize> {
+    fn encode_len(
+        &self,
+        _ch: char,
+        _index: usize,
+    ) -> CharsetEncodeResult<usize> {
         Ok(Utf32::MAX_BYTES_PER_CHAR)
     }
 }
@@ -147,7 +149,9 @@ unsafe impl Codec for Utf32ByteCodec {
     #[inline(always)]
     fn max_units_per_value(&self) -> core::num::NonZeroUsize {
         // SAFETY: UTF-32 byte encoding always uses four bytes.
-        unsafe { core::num::NonZeroUsize::new_unchecked(Utf32::MAX_BYTES_PER_CHAR) }
+        unsafe {
+            core::num::NonZeroUsize::new_unchecked(Utf32::MAX_BYTES_PER_CHAR)
+        }
     }
 
     #[inline(always)]
@@ -156,13 +160,19 @@ unsafe impl Codec for Utf32ByteCodec {
         input: &[u8],
         index: usize,
     ) -> CharsetDecodeResult<(char, core::num::NonZeroUsize)> {
-        let (ch, consumed) = decode_bytes_prefix(input, index, self.byte_order)?;
+        let (ch, consumed) =
+            decode_bytes_prefix(input, index, self.byte_order)?;
         debug_assert!(consumed.get() <= input.len() - index);
         Ok((ch, consumed))
     }
 
     #[inline(always)]
-    unsafe fn encode_unchecked(&self, ch: &char, output: &mut [u8], index: usize) -> CharsetEncodeResult<usize> {
+    unsafe fn encode_unchecked(
+        &self,
+        ch: &char,
+        output: &mut [u8],
+        index: usize,
+    ) -> CharsetEncodeResult<usize> {
         let written = encode_bytes_char(*ch, output, self.byte_order, index)?;
         debug_assert_eq!(written, Utf32::MAX_BYTES_PER_CHAR);
         debug_assert!(written <= output.len() - index);
@@ -200,12 +210,17 @@ fn decode_bytes_prefix(
 ) -> CharsetDecodeResult<(char, core::num::NonZeroUsize)> {
     let charset = Charset::from_utf32_byte_order(byte_order);
     if index > input.len() {
-        let kind = CharsetDecodeErrorKind::InvalidInputIndex { input_len: input.len() };
+        let kind = CharsetDecodeErrorKind::InvalidInputIndex {
+            input_len: input.len(),
+        };
         return Err(CharsetDecodeError::new(charset, kind, index));
     }
     let available = input.len() - index;
     if available < 4 {
-        let kind = CharsetDecodeErrorKind::IncompleteSequence { required: 4, available };
+        let kind = CharsetDecodeErrorKind::IncompleteSequence {
+            required: 4,
+            available,
+        };
         return Err(CharsetDecodeError::new(charset, kind, index));
     }
     let unit = read_ordered_u32(input, index, byte_order);
@@ -239,7 +254,12 @@ fn decode_bytes_prefix(
 /// * `CharsetEncodeErrorKind::BufferTooSmall` when output has fewer than four
 ///   bytes from `index`.
 #[inline]
-fn encode_bytes_char(ch: char, output: &mut [u8], byte_order: ByteOrder, index: usize) -> CharsetEncodeResult<usize> {
+fn encode_bytes_char(
+    ch: char,
+    output: &mut [u8],
+    byte_order: ByteOrder,
+    index: usize,
+) -> CharsetEncodeResult<usize> {
     let charset = Charset::from_utf32_byte_order(byte_order);
     if index > output.len() {
         let kind = CharsetEncodeErrorKind::BufferTooSmall {
@@ -283,7 +303,12 @@ const fn required_index(index: usize, required_units: usize) -> usize {
 /// Returns the decoded UTF-32 unit.
 #[inline(always)]
 fn read_ordered_u32(input: &[u8], index: usize, byte_order: ByteOrder) -> u32 {
-    let bytes = [input[index], input[index + 1], input[index + 2], input[index + 3]];
+    let bytes = [
+        input[index],
+        input[index + 1],
+        input[index + 2],
+        input[index + 3],
+    ];
     match byte_order {
         ByteOrder::BigEndian => u32::from_be_bytes(bytes),
         ByteOrder::LittleEndian => u32::from_le_bytes(bytes),
@@ -300,7 +325,12 @@ fn read_ordered_u32(input: &[u8], index: usize, byte_order: ByteOrder) -> u32 {
 /// - `unit`: UTF-32 unit to write.
 /// - `byte_order`: Byte order used to serialize the unit.
 #[inline(always)]
-fn write_ordered_u32(output: &mut [u8], index: usize, unit: u32, byte_order: ByteOrder) {
+fn write_ordered_u32(
+    output: &mut [u8],
+    index: usize,
+    unit: u32,
+    byte_order: ByteOrder,
+) {
     let bytes = match byte_order {
         ByteOrder::BigEndian => unit.to_be_bytes(),
         ByteOrder::LittleEndian => unit.to_le_bytes(),

@@ -1,12 +1,10 @@
-/*******************************************************************************
- *
- *    Copyright (c) 2026 Haixing Hu.
- *
- *    SPDX-License-Identifier: Apache-2.0
- *
- *    Licensed under the Apache License, Version 2.0.
- *
- ******************************************************************************/
+// =============================================================================
+//    Copyright (c) 2026 Haixing Hu.
+//
+//    SPDX-License-Identifier: Apache-2.0
+//
+//    Licensed under the Apache License, Version 2.0.
+// =============================================================================
 use crate::{
     ByteOrder,
     Charset,
@@ -62,7 +60,8 @@ impl UnicodeBom {
     ///
     /// # Returns
     ///
-    /// Returns the detected BOM, or `None` if no supported BOM prefix is present.
+    /// Returns the detected BOM, or `None` if no supported BOM prefix is
+    /// present.
     ///
     /// UTF-32 BOMs are checked before UTF-16 BOMs so that overlapping prefixes
     /// such as `FF FE 00 00` are classified as UTF-32 little-endian when all
@@ -140,8 +139,12 @@ impl UnicodeBom {
     pub const fn byte_order(self) -> Option<ByteOrder> {
         match self {
             Self::Utf8 => None,
-            Self::Utf16BigEndian | Self::Utf32BigEndian => Some(ByteOrder::BigEndian),
-            Self::Utf16LittleEndian | Self::Utf32LittleEndian => Some(ByteOrder::LittleEndian),
+            Self::Utf16BigEndian | Self::Utf32BigEndian => {
+                Some(ByteOrder::BigEndian)
+            }
+            Self::Utf16LittleEndian | Self::Utf32LittleEndian => {
+                Some(ByteOrder::LittleEndian)
+            }
         }
     }
 }

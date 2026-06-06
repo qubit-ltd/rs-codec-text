@@ -1,12 +1,10 @@
-/*******************************************************************************
- *
- *    Copyright (c) 2026 Haixing Hu.
- *
- *    SPDX-License-Identifier: Apache-2.0
- *
- *    Licensed under the Apache License, Version 2.0.
- *
- ******************************************************************************/
+// =============================================================================
+//    Copyright (c) 2026 Haixing Hu.
+//
+//    SPDX-License-Identifier: Apache-2.0
+//
+//    Licensed under the Apache License, Version 2.0.
+// =============================================================================
 use core::fmt;
 
 use qubit_codec::{
@@ -70,8 +68,8 @@ where
     /// Returns an encoder whose unmappable action is
     /// [`UnmappableAction::Replace`] and whose replacement character is
     /// [`CharsetEncodePolicy::DEFAULT_REPLACEMENT`]. If the default cannot be
-    /// encoded by the codec, [`CharsetEncodePolicy::DEFAULT_FALLBACK_REPLACEMENT`]
-    /// is used.
+    /// encoded by the codec,
+    /// [`CharsetEncodePolicy::DEFAULT_FALLBACK_REPLACEMENT`] is used.
     ///
     /// # Panics
     ///
@@ -92,7 +90,9 @@ where
                 replacement_units_len,
             },
             Err(default_error) => {
-                let fallback_policy = CharsetEncodePolicy::replace(CharsetEncodePolicy::DEFAULT_FALLBACK_REPLACEMENT);
+                let fallback_policy = CharsetEncodePolicy::replace(
+                    CharsetEncodePolicy::DEFAULT_FALLBACK_REPLACEMENT,
+                );
                 match Self::create_hooks(&codec, fallback_policy) {
                     Ok((hooks, replacement_units_len)) => Self {
                         engine: BufferedEncodeEngine::new(codec, hooks),
@@ -116,8 +116,12 @@ where
     ///
     /// Returns an error when `policy` uses replacement and the replacement
     /// character cannot be encoded by `codec`.
-    pub fn with_policy(codec: C, policy: CharsetEncodePolicy) -> Result<Self, CharsetEncodeError> {
-        let (hooks, replacement_units_len) = Self::create_hooks(&codec, policy)?;
+    pub fn with_policy(
+        codec: C,
+        policy: CharsetEncodePolicy,
+    ) -> Result<Self, CharsetEncodeError> {
+        let (hooks, replacement_units_len) =
+            Self::create_hooks(&codec, policy)?;
         Ok(Self {
             engine: BufferedEncodeEngine::new(codec, hooks),
             policy,
@@ -129,7 +133,8 @@ where
     ///
     /// # Returns
     ///
-    /// Returns the action used when target encoding cannot represent a character.
+    /// Returns the action used when target encoding cannot represent a
+    /// character.
     #[must_use]
     #[inline(always)]
     pub const fn unmappable_action(&self) -> UnmappableAction {
@@ -140,7 +145,8 @@ where
     ///
     /// # Returns
     ///
-    /// Returns the character encoded when [`UnmappableAction::Replace`] is used.
+    /// Returns the character encoded when [`UnmappableAction::Replace`] is
+    /// used.
     #[must_use]
     #[inline(always)]
     pub const fn replacement(&self) -> char {
@@ -152,11 +158,15 @@ where
         codec: &C,
         policy: CharsetEncodePolicy,
     ) -> Result<(CharsetEncodeHooks<C::Unit>, usize), CharsetEncodeError> {
-        let mut hooks = CharsetEncodeHooks::new(policy.unmappable_action(), policy.replacement());
+        let mut hooks = CharsetEncodeHooks::new(
+            policy.unmappable_action(),
+            policy.replacement(),
+        );
         if policy.unmappable_action() != UnmappableAction::Replace {
             return Ok((hooks, 0));
         }
-        let replacement_units_len = replacement_len(codec, policy.replacement())?;
+        let replacement_units_len =
+            replacement_len(codec, policy.replacement())?;
         hooks.set_replacement_units_len(replacement_units_len);
         Ok((hooks, replacement_units_len))
     }
@@ -168,7 +178,8 @@ where
 {
     type Error = CharsetEncodeError;
 
-    /// Returns the maximum number of target units needed for `input_len` characters.
+    /// Returns the maximum number of target units needed for `input_len`
+    /// characters.
     #[inline(always)]
     fn max_output_len(&self, input_len: usize) -> Result<usize, CapacityError> {
         self.engine.max_output_len(input_len)
@@ -186,7 +197,8 @@ where
         self.engine.reset();
     }
 
-    /// Encodes characters into the target charset while applying unmappable policy.
+    /// Encodes characters into the target charset while applying unmappable
+    /// policy.
     #[inline(always)]
     fn transcode(
         &mut self,
@@ -195,17 +207,25 @@ where
         output: &mut [C::Unit],
         output_index: usize,
     ) -> Result<TranscodeProgress, Self::Error> {
-        self.engine.transcode(input, input_index, output, output_index)
+        self.engine
+            .transcode(input, input_index, output, output_index)
     }
 
     /// Finishes encoder-owned final output after EOF.
     #[inline(always)]
-    fn finish(&mut self, output: &mut [C::Unit], output_index: usize) -> Result<usize, FinishError<Self::Error>> {
+    fn finish(
+        &mut self,
+        output: &mut [C::Unit],
+        output_index: usize,
+    ) -> Result<usize, FinishError<Self::Error>> {
         self.engine.finish(output, output_index)
     }
 }
 
-impl<C> BufferedEncoder<char, C::Unit> for CharsetEncoder<C> where C: CharsetEncodeProbe {}
+impl<C> BufferedEncoder<char, C::Unit> for CharsetEncoder<C> where
+    C: CharsetEncodeProbe
+{
+}
 
 impl<C> Eq for CharsetEncoder<C> where C: CharsetEncodeProbe + Eq {}
 

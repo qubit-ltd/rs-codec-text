@@ -1,12 +1,10 @@
-/*******************************************************************************
- *
- *    Copyright (c) 2026 Haixing Hu.
- *
- *    SPDX-License-Identifier: Apache-2.0
- *
- *    Licensed under the Apache License, Version 2.0.
- *
- ******************************************************************************/
+// =============================================================================
+//    Copyright (c) 2026 Haixing Hu.
+//
+//    SPDX-License-Identifier: Apache-2.0
+//
+//    Licensed under the Apache License, Version 2.0.
+// =============================================================================
 use crate::{
     Charset,
     CharsetDecodeError,
@@ -36,7 +34,11 @@ use qubit_codec::Codec;
 /// [`Codec::Unit`], keeping text wrappers bound to the same object without
 /// duplicating associated types.
 pub trait CharsetCodec:
-    Codec<Value = char, DecodeError = CharsetDecodeError, EncodeError = CharsetEncodeError>
+    Codec<
+        Value = char,
+        DecodeError = CharsetDecodeError,
+        EncodeError = CharsetEncodeError,
+    >
 {
     /// Returns the charset handled by this codec.
     ///

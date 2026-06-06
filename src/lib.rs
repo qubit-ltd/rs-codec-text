@@ -1,16 +1,15 @@
-/*******************************************************************************
- *
- *    Copyright (c) 2026 Haixing Hu.
- *
- *    SPDX-License-Identifier: Apache-2.0
- *
- *    Licensed under the Apache License, Version 2.0.
- *
- ******************************************************************************/
+// =============================================================================
+//    Copyright (c) 2026 Haixing Hu.
+//
+//    SPDX-License-Identifier: Apache-2.0
+//
+//    Licensed under the Apache License, Version 2.0.
+// =============================================================================
 //! # Qubit Text Codec
 //!
-//! Low-level Unicode constants, character classification helpers, and text codec
-//! primitives for ASCII, ISO-8859-1, UTF-8, UTF-16, and UTF-32-oriented code.
+//! Low-level Unicode constants, character classification helpers, and text
+//! codec primitives for ASCII, ISO-8859-1, UTF-8, UTF-16, and UTF-32-oriented
+//! code.
 //!
 //! This crate deliberately stays below `std::io::Read` and `std::io::Write`.
 //! Concrete text I/O adapters are expected to own buffering, EOF handling, line

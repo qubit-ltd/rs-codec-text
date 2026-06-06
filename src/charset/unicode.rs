@@ -1,12 +1,10 @@
-/*******************************************************************************
- *
- *    Copyright (c) 2026 Haixing Hu.
- *
- *    SPDX-License-Identifier: Apache-2.0
- *
- *    Licensed under the Apache License, Version 2.0.
- *
- ******************************************************************************/
+// =============================================================================
+//    Copyright (c) 2026 Haixing Hu.
+//
+//    SPDX-License-Identifier: Apache-2.0
+//
+//    Licensed under the Apache License, Version 2.0.
+// =============================================================================
 /// Namespace for Unicode constants and encoding-independent code point helpers.
 pub enum Unicode {}
 
@@ -55,7 +53,8 @@ impl Unicode {
     ///
     /// # Returns
     ///
-    /// Returns `true` for values in `0x0000..=0x10FFFF`, including surrogate code points.
+    /// Returns `true` for values in `0x0000..=0x10FFFF`, including surrogate
+    /// code points.
     #[inline(always)]
     pub const fn is_code_point(value: u32) -> bool {
         value <= Self::MAX_CODE_POINT
@@ -69,7 +68,8 @@ impl Unicode {
     ///
     /// # Returns
     ///
-    /// Returns `true` for Unicode code points excluding UTF-16 surrogate values.
+    /// Returns `true` for Unicode code points excluding UTF-16 surrogate
+    /// values.
     #[inline(always)]
     pub const fn is_scalar_value(value: u32) -> bool {
         Self::is_code_point(value) && !Self::is_surrogate(value)
@@ -171,7 +171,9 @@ impl Unicode {
     /// code points ending in `FFFE` or `FFFF`.
     #[inline(always)]
     pub const fn is_noncharacter(value: u32) -> bool {
-        Self::is_code_point(value) && ((value >= 0xfdd0 && value <= 0xfdef) || (value & 0xfffe) == 0xfffe)
+        Self::is_code_point(value)
+            && ((value >= 0xfdd0 && value <= 0xfdef)
+                || (value & 0xfffe) == 0xfffe)
     }
 
     /// Tests whether `value` is a Unicode C0, C1, or DEL control code point.
@@ -196,8 +198,8 @@ impl Unicode {
     ///
     /// # Returns
     ///
-    /// Returns `Some(plane)` for Unicode code points, or `None` for values above
-    /// `U+10FFFF`.
+    /// Returns `Some(plane)` for Unicode code points, or `None` for values
+    /// above `U+10FFFF`.
     #[inline(always)]
     pub const fn plane(value: u32) -> Option<u32> {
         if Self::is_code_point(value) {
@@ -215,7 +217,8 @@ impl Unicode {
     ///
     /// # Returns
     ///
-    /// Returns `Some(char)` for valid Unicode scalar values and `None` otherwise.
+    /// Returns `Some(char)` for valid Unicode scalar values and `None`
+    /// otherwise.
     #[inline(always)]
     pub fn to_char(value: u32) -> Option<char> {
         char::from_u32(value)

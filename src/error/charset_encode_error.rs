@@ -1,12 +1,10 @@
-/*******************************************************************************
- *
- *    Copyright (c) 2026 Haixing Hu.
- *
- *    SPDX-License-Identifier: Apache-2.0
- *
- *    Licensed under the Apache License, Version 2.0.
- *
- ******************************************************************************/
+// =============================================================================
+//    Copyright (c) 2026 Haixing Hu.
+//
+//    SPDX-License-Identifier: Apache-2.0
+//
+//    Licensed under the Apache License, Version 2.0.
+// =============================================================================
 use core::fmt;
 use std::error::Error;
 
@@ -18,9 +16,9 @@ use crate::{
 /// Error reported by a charset encoder.
 ///
 /// The error always carries the target charset, error kind, and operation
-/// index associated with the failure. For buffer errors this is the caller-supplied
-/// output index. Errors tied to a raw code point or character value expose that
-/// value through [`Self::kind`] and [`Self::value`].
+/// index associated with the failure. For buffer errors this is the
+/// caller-supplied output index. Errors tied to a raw code point or character
+/// value expose that value through [`Self::kind`] and [`Self::value`].
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct CharsetEncodeError {
     /// Target charset of the operation that produced this error.
@@ -51,8 +49,16 @@ impl CharsetEncodeError {
     ///
     /// Returns an encoding error carrying the supplied context.
     #[inline(always)]
-    pub const fn new(charset: Charset, kind: CharsetEncodeErrorKind, index: usize) -> Self {
-        Self { charset, kind, index }
+    pub const fn new(
+        charset: Charset,
+        kind: CharsetEncodeErrorKind,
+        index: usize,
+    ) -> Self {
+        Self {
+            charset,
+            kind,
+            index,
+        }
     }
 
     /// Returns required output units for this encoding error, if reported.
@@ -70,8 +76,8 @@ impl CharsetEncodeError {
     ///
     /// # Returns
     ///
-    /// Returns `Some(available)` for [`CharsetEncodeErrorKind::BufferTooSmall`],
-    /// otherwise `None`.
+    /// Returns `Some(available)` for
+    /// [`CharsetEncodeErrorKind::BufferTooSmall`], otherwise `None`.
     #[inline(always)]
     pub const fn available(self) -> Option<usize> {
         self.kind.available()
@@ -81,8 +87,8 @@ impl CharsetEncodeError {
     ///
     /// # Returns
     ///
-    /// Returns `Some(output_len)` for [`CharsetEncodeErrorKind::InvalidOutputIndex`],
-    /// otherwise `None`.
+    /// Returns `Some(output_len)` for
+    /// [`CharsetEncodeErrorKind::InvalidOutputIndex`], otherwise `None`.
     #[inline(always)]
     pub const fn output_len(self) -> Option<usize> {
         self.kind.output_len()

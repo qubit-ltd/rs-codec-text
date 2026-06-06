@@ -1,12 +1,10 @@
-/*******************************************************************************
- *
- *    Copyright (c) 2026 Haixing Hu.
- *
- *    SPDX-License-Identifier: Apache-2.0.
- *
- *    Licensed under the Apache License, Version 2.0.
- *
- ******************************************************************************/
+// =============================================================================
+//    Copyright (c) 2026 Haixing Hu.
+//
+//    SPDX-License-Identifier: Apache-2.0.
+//
+//    Licensed under the Apache License, Version 2.0.
+// =============================================================================
 use crate::{
     Ascii,
     Charset,
@@ -71,7 +69,9 @@ impl CharsetEncodeProbe for AsciiCodec {
     #[inline]
     fn encode_len(&self, ch: char, index: usize) -> CharsetEncodeResult<usize> {
         if ch > Ascii::MAX_CHAR {
-            let kind = CharsetEncodeErrorKind::UnmappableCharacter { value: ch as u32 };
+            let kind = CharsetEncodeErrorKind::UnmappableCharacter {
+                value: ch as u32,
+            };
             return Err(CharsetEncodeError::new(Charset::ASCII, kind, index));
         }
         Ok(1)
@@ -101,7 +101,9 @@ unsafe impl Codec for AsciiCodec {
         index: usize,
     ) -> CharsetDecodeResult<(char, core::num::NonZeroUsize)> {
         if index > input.len() {
-            let kind = CharsetDecodeErrorKind::InvalidInputIndex { input_len: input.len() };
+            let kind = CharsetDecodeErrorKind::InvalidInputIndex {
+                input_len: input.len(),
+            };
             return Err(CharsetDecodeError::new(Charset::ASCII, kind, index));
         }
         if index == input.len() {
@@ -124,9 +126,16 @@ unsafe impl Codec for AsciiCodec {
     }
 
     #[inline]
-    unsafe fn encode_unchecked(&self, ch: &char, output: &mut [u8], index: usize) -> CharsetEncodeResult<usize> {
+    unsafe fn encode_unchecked(
+        &self,
+        ch: &char,
+        output: &mut [u8],
+        index: usize,
+    ) -> CharsetEncodeResult<usize> {
         if *ch > Ascii::MAX_CHAR {
-            let kind = CharsetEncodeErrorKind::UnmappableCharacter { value: *ch as u32 };
+            let kind = CharsetEncodeErrorKind::UnmappableCharacter {
+                value: *ch as u32,
+            };
             return Err(CharsetEncodeError::new(Charset::ASCII, kind, index));
         }
         if index >= output.len() {

@@ -1,12 +1,10 @@
-/*******************************************************************************
- *
- *    Copyright (c) 2026 Haixing Hu.
- *
- *    SPDX-License-Identifier: Apache-2.0
- *
- *    Licensed under the Apache License, Version 2.0.
- *
- ******************************************************************************/
+// =============================================================================
+//    Copyright (c) 2026 Haixing Hu.
+//
+//    SPDX-License-Identifier: Apache-2.0
+//
+//    Licensed under the Apache License, Version 2.0.
+// =============================================================================
 use crate::{
     ByteOrder,
     Unicode,
@@ -20,7 +18,8 @@ impl Utf32 {
     /// Maximum number of UTF-32 code units needed for one Unicode scalar value.
     pub const MAX_UNITS_PER_CHAR: usize = 1;
 
-    /// Maximum number of serialized UTF-32 bytes needed for one Unicode scalar value.
+    /// Maximum number of serialized UTF-32 bytes needed for one Unicode scalar
+    /// value.
     pub const MAX_BYTES_PER_CHAR: usize = 4;
 
     /// Tests whether a UTF-32 unit is a valid Unicode scalar value.
@@ -64,7 +63,9 @@ impl Utf32 {
     pub fn detect_bom(bytes: &[u8]) -> Option<ByteOrder> {
         match UnicodeBom::detect(bytes) {
             Some(UnicodeBom::Utf32BigEndian) => Some(ByteOrder::BigEndian),
-            Some(UnicodeBom::Utf32LittleEndian) => Some(ByteOrder::LittleEndian),
+            Some(UnicodeBom::Utf32LittleEndian) => {
+                Some(ByteOrder::LittleEndian)
+            }
             _ => None,
         }
     }

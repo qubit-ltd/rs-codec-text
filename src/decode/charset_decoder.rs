@@ -1,12 +1,10 @@
-/*******************************************************************************
- *
- *    Copyright (c) 2026 Haixing Hu.
- *
- *    SPDX-License-Identifier: Apache-2.0
- *
- *    Licensed under the Apache License, Version 2.0.
- *
- ******************************************************************************/
+// =============================================================================
+//    Copyright (c) 2026 Haixing Hu.
+//
+//    SPDX-License-Identifier: Apache-2.0
+//
+//    Licensed under the Apache License, Version 2.0.
+// =============================================================================
 use qubit_codec::{
     BufferedDecodeEngine,
     BufferedDecoder,
@@ -115,7 +113,10 @@ where
     }
 }
 
-impl<C> BufferedDecoder<C::Unit, char> for CharsetDecoder<C> where C: CharsetCodec {}
+impl<C> BufferedDecoder<C::Unit, char> for CharsetDecoder<C> where
+    C: CharsetCodec
+{
+}
 
 impl<C> BufferedTranscoder<C::Unit, char> for CharsetDecoder<C>
 where
@@ -129,7 +130,8 @@ where
         self.engine.max_output_len(input_len)
     }
 
-    /// Returns the maximum number of characters emitted by finishing internal state.
+    /// Returns the maximum number of characters emitted by finishing internal
+    /// state.
     #[inline(always)]
     fn max_finish_output_len(&self) -> Result<usize, CapacityError> {
         Ok(self.engine.max_finish_output_len())
@@ -141,7 +143,8 @@ where
         self.engine.reset();
     }
 
-    /// Decodes source units into Unicode scalar values while applying malformed policy.
+    /// Decodes source units into Unicode scalar values while applying malformed
+    /// policy.
     #[inline(always)]
     fn transcode(
         &mut self,
@@ -150,12 +153,17 @@ where
         output: &mut [char],
         output_index: usize,
     ) -> Result<TranscodeProgress, Self::Error> {
-        self.engine.transcode(input, input_index, output, output_index)
+        self.engine
+            .transcode(input, input_index, output, output_index)
     }
 
     /// Finishes decoder-owned final output after EOF.
     #[inline(always)]
-    fn finish(&mut self, output: &mut [char], output_index: usize) -> Result<usize, FinishError<Self::Error>> {
+    fn finish(
+        &mut self,
+        output: &mut [char],
+        output_index: usize,
+    ) -> Result<usize, FinishError<Self::Error>> {
         self.engine.finish(output, output_index)
     }
 }

@@ -1,12 +1,10 @@
-/*******************************************************************************
- *
- *    Copyright (c) 2026 Haixing Hu.
- *
- *    SPDX-License-Identifier: Apache-2.0
- *
- *    Licensed under the Apache License, Version 2.0.
- *
- ******************************************************************************/
+// =============================================================================
+//    Copyright (c) 2026 Haixing Hu.
+//
+//    SPDX-License-Identifier: Apache-2.0
+//
+//    Licensed under the Apache License, Version 2.0.
+// =============================================================================
 //! Policy hooks used by charset converters.
 
 use qubit_codec::BufferedConvertHooks;
@@ -68,13 +66,21 @@ where
 
     /// Creates default charset decode hooks.
     #[inline(always)]
-    fn create_decode_hooks(&self, _decode_codec: &D, _encode_codec: &E) -> Self::DecodeHooks {
+    fn create_decode_hooks(
+        &self,
+        _decode_codec: &D,
+        _encode_codec: &E,
+    ) -> Self::DecodeHooks {
         CharsetDecodeHooks::from_policy(self.decode_policy)
     }
 
     /// Returns the prevalidated charset encode hooks.
     #[inline(always)]
-    fn create_encode_hooks(&self, _decode_codec: &D, _encode_codec: &E) -> Self::EncodeHooks {
+    fn create_encode_hooks(
+        &self,
+        _decode_codec: &D,
+        _encode_codec: &E,
+    ) -> Self::EncodeHooks {
         self.encode_hooks.clone()
     }
 
@@ -92,8 +98,17 @@ where
 
     /// Creates an input-index error using the source charset.
     #[inline]
-    fn invalid_input_index(&self, decode_codec: &D, index: usize, input_len: usize) -> Self::Error {
+    fn invalid_input_index(
+        &self,
+        decode_codec: &D,
+        index: usize,
+        input_len: usize,
+    ) -> Self::Error {
         let kind = CharsetDecodeErrorKind::InvalidInputIndex { input_len };
-        CharsetConvertError::Decode(CharsetDecodeError::new(decode_codec.charset(), kind, index))
+        CharsetConvertError::Decode(CharsetDecodeError::new(
+            decode_codec.charset(),
+            kind,
+            index,
+        ))
     }
 }

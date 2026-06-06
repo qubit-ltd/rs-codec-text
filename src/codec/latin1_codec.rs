@@ -1,12 +1,10 @@
-/*******************************************************************************
- *
- *    Copyright (c) 2026 Haixing Hu.
- *
- *    SPDX-License-Identifier: Apache-2.0.
- *
- *    Licensed under the Apache License, Version 2.0.
- *
- ******************************************************************************/
+// =============================================================================
+//    Copyright (c) 2026 Haixing Hu.
+//
+//    SPDX-License-Identifier: Apache-2.0.
+//
+//    Licensed under the Apache License, Version 2.0.
+// =============================================================================
 use crate::{
     Charset,
     CharsetCodec,
@@ -72,7 +70,11 @@ impl CharsetEncodeProbe for Latin1Codec {
         let value = ch as u32;
         if value > Unicode::LATIN1_MAX {
             let kind = CharsetEncodeErrorKind::UnmappableCharacter { value };
-            return Err(CharsetEncodeError::new(Charset::ISO_8859_1, kind, index));
+            return Err(CharsetEncodeError::new(
+                Charset::ISO_8859_1,
+                kind,
+                index,
+            ));
         }
 
         Ok(1)
@@ -102,38 +104,62 @@ unsafe impl Codec for Latin1Codec {
         index: usize,
     ) -> CharsetDecodeResult<(char, core::num::NonZeroUsize)> {
         if index > input.len() {
-            let kind = CharsetDecodeErrorKind::InvalidInputIndex { input_len: input.len() };
-            return Err(CharsetDecodeError::new(Charset::ISO_8859_1, kind, index));
+            let kind = CharsetDecodeErrorKind::InvalidInputIndex {
+                input_len: input.len(),
+            };
+            return Err(CharsetDecodeError::new(
+                Charset::ISO_8859_1,
+                kind,
+                index,
+            ));
         }
         if index == input.len() {
             let kind = CharsetDecodeErrorKind::IncompleteSequence {
                 required: 1,
                 available: 0,
             };
-            return Err(CharsetDecodeError::new(Charset::ISO_8859_1, kind, index));
+            return Err(CharsetDecodeError::new(
+                Charset::ISO_8859_1,
+                kind,
+                index,
+            ));
         }
 
         let value = input[index] as u32;
         debug_assert!(index < input.len());
         Ok((
-            Unicode::to_char(value).expect("valid Latin-1 byte decodes to Unicode scalar"),
+            Unicode::to_char(value)
+                .expect("valid Latin-1 byte decodes to Unicode scalar"),
             core::num::NonZeroUsize::MIN,
         ))
     }
 
     #[inline]
-    unsafe fn encode_unchecked(&self, ch: &char, output: &mut [u8], index: usize) -> CharsetEncodeResult<usize> {
+    unsafe fn encode_unchecked(
+        &self,
+        ch: &char,
+        output: &mut [u8],
+        index: usize,
+    ) -> CharsetEncodeResult<usize> {
         let value = *ch as u32;
         if value > Unicode::LATIN1_MAX {
             let kind = CharsetEncodeErrorKind::UnmappableCharacter { value };
-            return Err(CharsetEncodeError::new(Charset::ISO_8859_1, kind, index));
+            return Err(CharsetEncodeError::new(
+                Charset::ISO_8859_1,
+                kind,
+                index,
+            ));
         }
         if index >= output.len() {
             let kind = CharsetEncodeErrorKind::BufferTooSmall {
                 required: required_index(index, 1),
                 available: 0,
             };
-            return Err(CharsetEncodeError::new(Charset::ISO_8859_1, kind, index));
+            return Err(CharsetEncodeError::new(
+                Charset::ISO_8859_1,
+                kind,
+                index,
+            ));
         }
         output[index] = value as u8;
         Ok(1)

@@ -1,12 +1,10 @@
-/*******************************************************************************
- *
- *    Copyright (c) 2026 Haixing Hu.
- *
- *    SPDX-License-Identifier: Apache-2.0
- *
- *    Licensed under the Apache License, Version 2.0.
- *
- ******************************************************************************/
+// =============================================================================
+//    Copyright (c) 2026 Haixing Hu.
+//
+//    SPDX-License-Identifier: Apache-2.0
+//
+//    Licensed under the Apache License, Version 2.0.
+// =============================================================================
 use crate::MalformedAction;
 
 /// Malformed-input policy used by charset decoders and converters.
@@ -25,7 +23,10 @@ impl CharsetDecodePolicy {
     /// Creates a malformed-input policy.
     #[must_use]
     #[inline(always)]
-    pub const fn new(malformed_action: MalformedAction, replacement: char) -> Self {
+    pub const fn new(
+        malformed_action: MalformedAction,
+        replacement: char,
+    ) -> Self {
         Self {
             malformed_action,
             replacement,
@@ -39,7 +40,8 @@ impl CharsetDecodePolicy {
         Self::new(MalformedAction::Replace, replacement)
     }
 
-    /// Creates an ignore policy with the default replacement retained for metadata.
+    /// Creates an ignore policy with the default replacement retained for
+    /// metadata.
     #[must_use]
     #[inline(always)]
     pub const fn ignore() -> Self {
@@ -53,7 +55,8 @@ impl CharsetDecodePolicy {
         Self::new(MalformedAction::Ignore, replacement)
     }
 
-    /// Creates a report policy with the default replacement retained for metadata.
+    /// Creates a report policy with the default replacement retained for
+    /// metadata.
     #[must_use]
     #[inline(always)]
     pub const fn report() -> Self {

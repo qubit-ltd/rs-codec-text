@@ -1,12 +1,10 @@
-/*******************************************************************************
- *
- *    Copyright (c) 2026 Haixing Hu.
- *
- *    SPDX-License-Identifier: Apache-2.0
- *
- *    Licensed under the Apache License, Version 2.0.
- *
- ******************************************************************************/
+// =============================================================================
+//    Copyright (c) 2026 Haixing Hu.
+//
+//    SPDX-License-Identifier: Apache-2.0
+//
+//    Licensed under the Apache License, Version 2.0.
+// =============================================================================
 use crate::{
     CharsetCodec,
     CharsetEncodeResult,
@@ -24,8 +22,8 @@ use crate::{
 /// [`qubit_codec::Codec::encode_unchecked`] will write when the caller supplies
 /// sufficient output capacity. Both methods must also agree on charset
 /// mappability: a character accepted by `encode_len` must not later be reported
-/// as unmappable by `encode_unchecked`, and a character rejected as unmappable by
-/// `encode_len` must not be encoded by `encode_unchecked`.
+/// as unmappable by `encode_unchecked`, and a character rejected as unmappable
+/// by `encode_len` must not be encoded by `encode_unchecked`.
 pub trait CharsetEncodeProbe: CharsetCodec {
     /// Computes the number of units needed to encode one character.
     ///

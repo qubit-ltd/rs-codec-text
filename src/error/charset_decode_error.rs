@@ -1,12 +1,10 @@
-/*******************************************************************************
- *
- *    Copyright (c) 2026 Haixing Hu.
- *
- *    SPDX-License-Identifier: Apache-2.0
- *
- *    Licensed under the Apache License, Version 2.0.
- *
- ******************************************************************************/
+// =============================================================================
+//    Copyright (c) 2026 Haixing Hu.
+//
+//    SPDX-License-Identifier: Apache-2.0
+//
+//    Licensed under the Apache License, Version 2.0.
+// =============================================================================
 use core::fmt;
 use std::error::Error;
 
@@ -20,8 +18,8 @@ use crate::{
 /// The error always carries the charset, error kind, and input unit index at
 /// which the failure was detected. Errors that decode a raw numeric value, such
 /// as invalid UTF-32 units, carry that value through [`Self::kind`] and
-/// [`Self::value`]. Invalid-input errors may also carry a consumed-unit count so
-/// buffered decoders can make progress without an extra status wrapper.
+/// [`Self::value`]. Invalid-input errors may also carry a consumed-unit count
+/// so buffered decoders can make progress without an extra status wrapper.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct CharsetDecodeError {
     /// Charset being decoded when this error was detected.
@@ -54,7 +52,11 @@ impl CharsetDecodeError {
     ///
     /// Returns a decoding error carrying the supplied context.
     #[inline(always)]
-    pub const fn new(charset: Charset, kind: CharsetDecodeErrorKind, index: usize) -> Self {
+    pub const fn new(
+        charset: Charset,
+        kind: CharsetDecodeErrorKind,
+        index: usize,
+    ) -> Self {
         Self {
             charset,
             kind,
@@ -117,8 +119,8 @@ impl CharsetDecodeError {
     ///
     /// # Returns
     ///
-    /// Returns `Some(required)` for [`CharsetDecodeErrorKind::IncompleteSequence`],
-    /// otherwise `None`.
+    /// Returns `Some(required)` for
+    /// [`CharsetDecodeErrorKind::IncompleteSequence`], otherwise `None`.
     #[inline(always)]
     pub const fn required(self) -> Option<usize> {
         self.kind.required()
@@ -128,8 +130,8 @@ impl CharsetDecodeError {
     ///
     /// # Returns
     ///
-    /// Returns `Some(available)` for [`CharsetDecodeErrorKind::IncompleteSequence`],
-    /// otherwise `None`.
+    /// Returns `Some(available)` for
+    /// [`CharsetDecodeErrorKind::IncompleteSequence`], otherwise `None`.
     #[inline(always)]
     pub const fn available(self) -> Option<usize> {
         self.kind.available()
@@ -139,8 +141,8 @@ impl CharsetDecodeError {
     ///
     /// # Returns
     ///
-    /// Returns `Some(input_len)` for [`CharsetDecodeErrorKind::InvalidInputIndex`],
-    /// otherwise `None`.
+    /// Returns `Some(input_len)` for
+    /// [`CharsetDecodeErrorKind::InvalidInputIndex`], otherwise `None`.
     #[inline(always)]
     pub const fn input_len(self) -> Option<usize> {
         self.kind.input_len()
@@ -150,8 +152,8 @@ impl CharsetDecodeError {
     ///
     /// # Returns
     ///
-    /// Returns `Some(output_len)` for [`CharsetDecodeErrorKind::InvalidOutputIndex`],
-    /// otherwise `None`.
+    /// Returns `Some(output_len)` for
+    /// [`CharsetDecodeErrorKind::InvalidOutputIndex`], otherwise `None`.
     #[inline(always)]
     pub const fn output_len(self) -> Option<usize> {
         self.kind.output_len()
@@ -177,7 +179,8 @@ impl CharsetDecodeError {
     #[inline(always)]
     pub const fn consumed(self) -> Option<usize> {
         match self.kind {
-            CharsetDecodeErrorKind::MalformedSequence { .. } | CharsetDecodeErrorKind::InvalidCodePoint { .. } => {
+            CharsetDecodeErrorKind::MalformedSequence { .. }
+            | CharsetDecodeErrorKind::InvalidCodePoint { .. } => {
                 Some(self.consumed)
             }
             CharsetDecodeErrorKind::IncompleteSequence { .. }

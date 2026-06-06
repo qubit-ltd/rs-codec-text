@@ -1,12 +1,10 @@
-/*******************************************************************************
- *
- *    Copyright (c) 2026 Haixing Hu.
- *
- *    SPDX-License-Identifier: Apache-2.0
- *
- *    Licensed under the Apache License, Version 2.0.
- *
- ******************************************************************************/
+// =============================================================================
+//    Copyright (c) 2026 Haixing Hu.
+//
+//    SPDX-License-Identifier: Apache-2.0
+//
+//    Licensed under the Apache License, Version 2.0.
+// =============================================================================
 use thiserror::Error;
 
 /// Classifies failures detected while encoding Unicode text into encoded units.
@@ -41,7 +39,9 @@ pub enum CharsetEncodeErrorKind {
     },
 
     /// The supplied output buffer is too small for the encoded character.
-    #[error("The output buffer is too small (required {required} units, available {available} units).")]
+    #[error(
+        "The output buffer is too small (required {required} units, available {available} units)."
+    )]
     BufferTooSmall {
         /// Total units required to encode the character.
         required: usize,
@@ -56,7 +56,8 @@ impl CharsetEncodeErrorKind {
     ///
     /// # Returns
     ///
-    /// - `Some(value)` for [`Self::InvalidCodePoint`] and [`Self::UnmappableCharacter`];
+    /// - `Some(value)` for [`Self::InvalidCodePoint`] and
+    ///   [`Self::UnmappableCharacter`];
     /// - `None` for other kinds.
     #[must_use]
     #[inline(always)]
@@ -64,7 +65,9 @@ impl CharsetEncodeErrorKind {
         match self {
             Self::InvalidCodePoint { value, .. } => Some(value),
             Self::UnmappableCharacter { value, .. } => Some(value),
-            Self::BufferTooSmall { .. } | Self::InvalidInputIndex { .. } | Self::InvalidOutputIndex { .. } => None,
+            Self::BufferTooSmall { .. }
+            | Self::InvalidInputIndex { .. }
+            | Self::InvalidOutputIndex { .. } => None,
         }
     }
 
@@ -105,7 +108,8 @@ impl CharsetEncodeErrorKind {
         }
     }
 
-    /// Returns the input length when this error comes from an invalid input index.
+    /// Returns the input length when this error comes from an invalid input
+    /// index.
     ///
     /// # Returns
     ///
@@ -123,7 +127,8 @@ impl CharsetEncodeErrorKind {
         }
     }
 
-    /// Returns the output length when this error comes from an invalid output index.
+    /// Returns the output length when this error comes from an invalid output
+    /// index.
     ///
     /// # Returns
     ///

@@ -1,12 +1,10 @@
-/*******************************************************************************
- *
- *    Copyright (c) 2026 Haixing Hu.
- *
- *    SPDX-License-Identifier: Apache-2.0
- *
- *    Licensed under the Apache License, Version 2.0.
- *
- ******************************************************************************/
+// =============================================================================
+//    Copyright (c) 2026 Haixing Hu.
+//
+//    SPDX-License-Identifier: Apache-2.0
+//
+//    Licensed under the Apache License, Version 2.0.
+// =============================================================================
 use core::num::NonZeroUsize;
 
 use qubit_codec::{
@@ -47,7 +45,10 @@ impl CharsetDecodeHooks {
     /// Returns hooks carrying the supplied policy.
     #[must_use]
     #[inline(always)]
-    pub(crate) const fn new(malformed_action: MalformedAction, replacement: char) -> Self {
+    pub(crate) const fn new(
+        malformed_action: MalformedAction,
+        replacement: char,
+    ) -> Self {
         Self {
             malformed_action,
             replacement,
@@ -73,9 +74,13 @@ impl CharsetDecodeHooks {
     /// Returns a non-zero consumed-unit count.
     #[must_use]
     #[inline]
-    fn malformed_consumed(reported: Option<usize>, available: usize) -> NonZeroUsize {
+    fn malformed_consumed(
+        reported: Option<usize>,
+        available: usize,
+    ) -> NonZeroUsize {
         let consumed = reported.unwrap_or(1).min(available).max(1);
-        NonZeroUsize::new(consumed).expect("malformed input consumption is non-zero")
+        NonZeroUsize::new(consumed)
+            .expect("malformed input consumption is non-zero")
     }
 }
 
@@ -87,7 +92,11 @@ where
 
     /// Returns the maximum number of characters decoded from `input_len` units.
     #[inline(always)]
-    fn max_output_len(&self, _codec: &C, input_len: usize) -> Result<usize, CapacityError> {
+    fn max_output_len(
+        &self,
+        _codec: &C,
+        input_len: usize,
+    ) -> Result<usize, CapacityError> {
         Ok(input_len)
     }
 
@@ -99,13 +108,19 @@ where
         context: DecodeContext,
     ) -> Result<DecodeAction<char>, Self::Error> {
         if let Some((required, available)) = error.kind().incomplete() {
-            debug_assert!(required > available, "incomplete error did not require more input");
+            debug_assert!(
+                required > available,
+                "incomplete error did not require more input"
+            );
             return Ok(DecodeAction::NeedInput {
                 required_total: required,
             });
         }
         if error.kind().is_malformed_input() {
-            let consumed = CharsetDecodeHooks::malformed_consumed(error.consumed(), context.available);
+            let consumed = CharsetDecodeHooks::malformed_consumed(
+                error.consumed(),
+                context.available,
+            );
             return match self.malformed_action {
                 MalformedAction::Report => Err(error),
                 MalformedAction::Ignore => Ok(DecodeAction::Skip { consumed }),
@@ -120,14 +135,24 @@ where
 
     /// Creates an invalid input index error for the charset decoder.
     #[inline]
-    fn invalid_input_index(&mut self, codec: &C, index: usize, input_len: usize) -> Self::Error {
+    fn invalid_input_index(
+        &mut self,
+        codec: &C,
+        index: usize,
+        input_len: usize,
+    ) -> Self::Error {
         let kind = CharsetDecodeErrorKind::InvalidInputIndex { input_len };
         CharsetDecodeError::new(codec.charset(), kind, index)
     }
 
     /// Creates an invalid output index error for the charset decoder.
     #[inline]
-    fn invalid_output_index(&mut self, codec: &C, index: usize, output_len: usize) -> Self::Error {
+    fn invalid_output_index(
+        &mut self,
+        codec: &C,
+        index: usize,
+        output_len: usize,
+    ) -> Self::Error {
         let kind = CharsetDecodeErrorKind::InvalidOutputIndex { output_len };
         CharsetDecodeError::new(codec.charset(), kind, index)
     }
