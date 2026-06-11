@@ -111,3 +111,8 @@ fn test_charset_exposes_fixed_byte_order_helpers() {
     assert_eq!(None, Charset::UTF_16.byte_order());
     assert_eq!(None, Charset::UTF_8.byte_order());
 }
+
+#[test]
+fn test_charset_default_is_ascii() {
+    assert_eq!(Charset::ASCII, Charset::default());
+}

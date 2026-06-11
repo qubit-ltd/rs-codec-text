@@ -68,10 +68,19 @@ pub use error::{
     CharsetEncodeResult,
 };
 pub use qubit_codec::{
-    BufferedTranscoder,
     ByteOrder,
     CapacityError,
     Codec,
+    TranscodeConvertEngine,
+    TranscodeConvertHooks,
+    TranscodeConverter,
+    TranscodeDecodeEngine,
+    TranscodeDecodeHooks,
+    TranscodeDecoder,
+    TranscodeEncodeEngine,
+    TranscodeEncodeHooks,
+    TranscodeEncoder,
     TranscodeProgress,
     TranscodeStatus,
+    Transcoder,
 };

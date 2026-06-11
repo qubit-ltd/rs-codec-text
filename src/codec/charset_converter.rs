@@ -11,6 +11,7 @@ use super::{
     charset_convert_hooks::CharsetConvertHooks,
 };
 use crate::{
+    Charset,
     CharsetDecodePolicy,
     CharsetEncodeError,
     CharsetEncodeErrorKind,
@@ -22,12 +23,11 @@ use crate::{
     UnmappableAction,
 };
 use qubit_codec::{
-    BufferedConvertEngine,
-    BufferedConverter,
-    BufferedTranscoder,
     CapacityError,
-    FinishError,
+    TranscodeConvertEngine,
+    TranscodeConverter,
     TranscodeProgress,
+    Transcoder,
 };
 
 /// Converts units encoded with one charset into units encoded with another
@@ -38,7 +38,7 @@ use qubit_codec::{
 /// [`crate::CharsetEncoder`].
 /// A decoded character may be kept pending inside the common buffered convert
 /// engine when the target output buffer is full. During
-/// [`BufferedTranscoder::finish`], the converter drains internally retained
+/// [`Transcoder::finish`], the converter drains internally retained
 /// output and finishes the composed decode/encode policy hooks. Callers remain
 /// responsible for handling any incomplete input tail before finishing the
 /// logical stream.
@@ -54,7 +54,7 @@ use qubit_codec::{
 ///     CharsetDecoder,
 ///     CharsetEncoder,
 ///     TranscodeStatus,
-///     BufferedTranscoder,
+///     Transcoder,
 ///     Utf16U16Codec,
 ///     Utf8Codec,
 /// };
@@ -78,7 +78,7 @@ where
     E: CharsetEncodeProbe,
 {
     /// Common buffered converter engine.
-    engine: BufferedConvertEngine<D, E, CharsetConvertHooks<E::Unit>>,
+    engine: TranscodeConvertEngine<D, E, CharsetConvertHooks<E::Unit>>,
     /// Public malformed-input policy metadata.
     decode_policy: CharsetDecodePolicy,
     /// Public unmappable-input policy metadata.
@@ -113,7 +113,7 @@ where
         let (encode_policy, encode_hooks) =
             Self::default_encode_policy(&target);
         Self {
-            engine: BufferedConvertEngine::new(
+            engine: TranscodeConvertEngine::new(
                 source,
                 target,
                 CharsetConvertHooks::with_policies(
@@ -153,7 +153,7 @@ where
         let (encode_hooks, _) =
             CharsetEncoder::<E>::create_hooks(&target, encode_policy)?;
         Ok(Self {
-            engine: BufferedConvertEngine::new(
+            engine: TranscodeConvertEngine::new(
                 source,
                 target,
                 CharsetConvertHooks::with_policies(
@@ -271,12 +271,18 @@ where
     }
 }
 
-impl<D, E> BufferedTranscoder<D::Unit, E::Unit> for CharsetConverter<D, E>
+impl<D, E> Transcoder<D::Unit, E::Unit> for CharsetConverter<D, E>
 where
     D: CharsetCodec,
     E: CharsetEncodeProbe,
 {
     type Error = CharsetConvertError;
+    type ErrorContext = (Charset, Charset);
+
+    #[inline(always)]
+    fn error_context(&self) -> Self::ErrorContext {
+        self.engine.public_error_context()
+    }
 
     /// Returns the target-side upper bound for converted output units.
     #[inline(always)]
@@ -291,10 +297,21 @@ where
         self.engine.max_finish_output_len()
     }
 
-    /// Clears any pending decoded character.
+    /// Returns the maximum target units emitted when resetting stream state.
     #[inline(always)]
-    fn reset(&mut self) {
-        self.engine.reset();
+    fn max_reset_output_len(&self) -> Result<usize, CapacityError> {
+        self.engine.max_reset_output_len()
+    }
+
+    /// Clears any pending decoded character and emits stream-start encode
+    /// output.
+    #[inline(always)]
+    fn reset(
+        &mut self,
+        output: &mut [E::Unit],
+        output_index: usize,
+    ) -> Result<usize, Self::Error> {
+        self.engine.reset(output, output_index)
     }
 
     /// Converts source units to target units through the configured decoder and
@@ -330,20 +347,20 @@ where
     ///
     /// # Errors
     ///
-    /// Returns [`FinishError`] when `output_index` is invalid, when output
-    /// capacity is insufficient, or when encoding pending or final decoded
-    /// characters violates target charset policy.
+    /// Returns [`CharsetConvertError`] when `output_index` is invalid, when
+    /// output capacity is insufficient, or when encoding pending or final
+    /// decoded characters violates target charset policy.
     #[inline(always)]
     fn finish(
         &mut self,
         output: &mut [E::Unit],
         output_index: usize,
-    ) -> Result<usize, FinishError<Self::Error>> {
+    ) -> Result<usize, Self::Error> {
         self.engine.finish(output, output_index)
     }
 }
 
-impl<D, E> BufferedConverter<D::Unit, E::Unit> for CharsetConverter<D, E>
+impl<D, E> TranscodeConverter<D::Unit, E::Unit> for CharsetConverter<D, E>
 where
     D: CharsetCodec,
     E: CharsetEncodeProbe,

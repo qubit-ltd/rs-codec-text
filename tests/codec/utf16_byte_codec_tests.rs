@@ -12,9 +12,10 @@ use qubit_codec_text::{
 };
 
 type DecodedCharResult = CharsetDecodeResult<(char, core::num::NonZeroUsize)>;
-type DecodeFn = unsafe fn(&Utf16ByteCodec, &[u8], usize) -> DecodedCharResult;
+type DecodeFn =
+    unsafe fn(&mut Utf16ByteCodec, &[u8], usize) -> DecodedCharResult;
 type EncodeFn = unsafe fn(
-    &Utf16ByteCodec,
+    &mut Utf16ByteCodec,
     &char,
     &mut [u8],
     usize,
@@ -38,16 +39,16 @@ fn test_utf16_byte_codec_exposes_encoder_and_decoder_contracts() {
 
 #[test]
 fn test_utf16_byte_codec_encodes_and_decodes_bytes() {
-    let codec = Utf16ByteCodec::new(ByteOrder::LittleEndian);
+    let mut codec = Utf16ByteCodec::new(ByteOrder::LittleEndian);
     let mut output = [0_u8; Utf16::MAX_BYTES_PER_CHAR];
 
     assert_eq!(4, unsafe {
         codec
-            .encode_unchecked(&'😀', &mut output, 0)
+            .encode(&'😀', &mut output, 0)
             .expect("encode pair bytes")
     });
-    let (decoded, consumed) = unsafe { codec.decode_unchecked(&output, 0) }
-        .expect("decode pair bytes");
+    let (decoded, consumed) =
+        unsafe { codec.decode(&output, 0) }.expect("decode pair bytes");
     assert_eq!('😀', decoded);
     assert_eq!(4, consumed.get());
 }
@@ -55,14 +56,14 @@ fn test_utf16_byte_codec_encodes_and_decodes_bytes() {
 #[test]
 fn test_utf16_byte_codec_decodes_bmp_and_reports_closed_tail_or_malformed_bytes()
  {
-    let codec = Utf16ByteCodec::new(ByteOrder::BigEndian);
+    let mut codec = Utf16ByteCodec::new(ByteOrder::BigEndian);
 
     let (decoded, consumed) =
-        unsafe { codec.decode_unchecked(&[0x00, 0x41], 0) }.expect("BMP bytes");
+        unsafe { codec.decode(&[0x00, 0x41], 0) }.expect("BMP bytes");
     assert_eq!('A', decoded);
     assert_eq!(2, consumed.get());
 
-    let error = unsafe { codec.decode_unchecked(&[0x00], 0) }
+    let error = unsafe { codec.decode(&[0x00], 0) }
         .expect_err("partial unit is incomplete");
     assert_eq!(
         CharsetDecodeErrorKind::IncompleteSequence {
@@ -72,7 +73,7 @@ fn test_utf16_byte_codec_decodes_bmp_and_reports_closed_tail_or_malformed_bytes(
         error.kind()
     );
 
-    let error = unsafe { codec.decode_unchecked(&[0xd8, 0x3d], 0) }
+    let error = unsafe { codec.decode(&[0xd8, 0x3d], 0) }
         .expect_err("partial surrogate pair is incomplete");
     assert_eq!(
         CharsetDecodeErrorKind::IncompleteSequence {
@@ -82,7 +83,7 @@ fn test_utf16_byte_codec_decodes_bmp_and_reports_closed_tail_or_malformed_bytes(
         error.kind()
     );
 
-    let error = unsafe { codec.decode_unchecked(&[], 1) }
+    let error = unsafe { codec.decode(&[], 1) }
         .expect_err("index outside slice should fail");
     assert_eq!(
         CharsetDecodeErrorKind::InvalidInputIndex { input_len: 0 },
@@ -90,7 +91,7 @@ fn test_utf16_byte_codec_decodes_bmp_and_reports_closed_tail_or_malformed_bytes(
     );
     assert_eq!(1, error.index());
 
-    let error = unsafe { codec.decode_unchecked(&[0xd8, 0x3d, 0x00, 0x41], 0) }
+    let error = unsafe { codec.decode(&[0xd8, 0x3d, 0x00, 0x41], 0) }
         .expect_err("high surrogate followed by BMP unit should fail");
     assert_eq!(
         CharsetDecodeErrorKind::MalformedSequence {
@@ -100,7 +101,7 @@ fn test_utf16_byte_codec_decodes_bmp_and_reports_closed_tail_or_malformed_bytes(
     );
     assert_eq!(2, error.index());
 
-    let error = unsafe { codec.decode_unchecked(&[0xde, 0x00], 0) }
+    let error = unsafe { codec.decode(&[0xde, 0x00], 0) }
         .expect_err("isolated low surrogate should fail");
     assert_eq!(
         CharsetDecodeErrorKind::MalformedSequence {
@@ -113,31 +114,31 @@ fn test_utf16_byte_codec_decodes_bmp_and_reports_closed_tail_or_malformed_bytes(
 
 #[test]
 fn test_utf16_byte_codec_encodes_bmp_and_supplementary_scalars() {
-    let codec = Utf16ByteCodec::new(ByteOrder::LittleEndian);
+    let mut codec = Utf16ByteCodec::new(ByteOrder::LittleEndian);
     let mut output = [0_u8; Utf16::MAX_BYTES_PER_CHAR];
 
     assert_eq!(2, unsafe {
         codec
-            .encode_unchecked(&'A', &mut output, 0)
+            .encode(&'A', &mut output, 0)
             .expect("BMP byte encoding")
     });
     assert_eq!(4, unsafe {
         codec
-            .encode_unchecked(&'😀', &mut output, 0)
+            .encode(&'😀', &mut output, 0)
             .expect("surrogate pair bytes")
     });
 
-    let error = unsafe { codec.encode_unchecked(&'😀', &mut output[..2], 0) }
+    let error = unsafe { codec.encode(&'😀', &mut output[..2], 0) }
         .expect_err("surrogate pair needs four bytes");
     assert_eq!(Some(4), error.required());
     assert_eq!(Some(2), error.available());
 
-    let error = unsafe { codec.encode_unchecked(&'A', &mut [], 1) }
+    let error = unsafe { codec.encode(&'A', &mut [], 1) }
         .expect_err("output index outside slice");
     assert_eq!(Some(3), error.required());
     assert_eq!(Some(0), error.available());
 
-    let error = unsafe { codec.encode_unchecked(&'A', &mut [], usize::MAX) }
+    let error = unsafe { codec.encode(&'A', &mut [], usize::MAX) }
         .expect_err("overflowing output index should fail without panicking");
     assert_eq!(Some(usize::MAX), error.required());
     assert_eq!(Some(0), error.available());
@@ -145,7 +146,7 @@ fn test_utf16_byte_codec_encodes_bmp_and_supplementary_scalars() {
 
 #[test]
 fn test_utf16_byte_codec_direct_function_items_cover_trait_methods() {
-    let codec = Utf16ByteCodec::new(ByteOrder::BigEndian);
+    let mut codec = Utf16ByteCodec::new(ByteOrder::BigEndian);
     let new_fn: fn(ByteOrder) -> Utf16ByteCodec = Utf16ByteCodec::new;
     let byte_order: fn(Utf16ByteCodec) -> ByteOrder =
         Utf16ByteCodec::byte_order;
@@ -163,9 +164,9 @@ fn test_utf16_byte_codec_direct_function_items_cover_trait_methods() {
         usize,
     ) -> CharsetEncodeResult<usize> =
         <Utf16ByteCodec as CharsetEncodeProbe>::encode_len;
-    let decode: DecodeFn = <Utf16ByteCodec as Codec>::decode_unchecked;
+    let decode: DecodeFn = <Utf16ByteCodec as Codec>::decode;
     let encode: EncodeFn =
-        std::hint::black_box(<Utf16ByteCodec as Codec>::encode_unchecked);
+        std::hint::black_box(<Utf16ByteCodec as Codec>::encode);
 
     assert_eq!(
         ByteOrder::LittleEndian,
@@ -183,10 +184,10 @@ fn test_utf16_byte_codec_direct_function_items_cover_trait_methods() {
     let mut output = [0_u8; Utf16::MAX_BYTES_PER_CHAR];
     assert_eq!(
         4,
-        unsafe { encode(&codec, &'😀', &mut output, 0) }
+        unsafe { encode(&mut codec, &'😀', &mut output, 0) }
             .expect("encode pair bytes")
     );
     let (decoded, consumed) =
-        unsafe { decode(&codec, &output, 0) }.expect("decode pair bytes");
+        unsafe { decode(&mut codec, &output, 0) }.expect("decode pair bytes");
     assert_eq!(('😀', 4), (decoded, consumed.get()));
 }

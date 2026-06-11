@@ -23,7 +23,7 @@ Use this crate when you need:
 - Buffer-level codecs for ASCII, ISO-8859-1, UTF-8, UTF-16, and UTF-32.
 - Policy-aware decoders, encoders, and converters with replace, ignore, and
   report modes.
-- `Charset`, `UnicodeBom`, `ByteOrder`, `Codec`, `BufferedTranscoder`, typed
+- `Charset`, `UnicodeBom`, `ByteOrder`, `Codec`, `Transcoder`, typed
   encode/decode errors, and policy-aware wrappers for building higher-level
   adapters. Custom buffered adapters should import core engines and hooks
   directly from `qubit-codec`.
@@ -59,7 +59,7 @@ use qubit_codec_text::{
     CharsetCodec,
     CharsetDecoder,
     CharsetEncoder,
-    BufferedTranscoder,
+    Transcoder,
     Utf8Codec,
 };
 ```
@@ -74,9 +74,9 @@ The crate is split into a few small layers.
 | Charset metadata | `Charset`, `UnicodeBom`, `ByteOrder` | Stable charset identity, aliases, fixed byte order, and BOM metadata. |
 | Low-level codecs | `Codec<Value = char>`, built-in codec structs | Decode or encode one complete Unicode scalar value from/to caller-owned buffers. |
 | Text codec metadata | `CharsetCodec`, `CharsetEncodeProbe` | Attach charset metadata and exact encode sizing to low-level codec implementations. |
-| Policy wrappers | `CharsetDecoder`, `CharsetEncoder` | Apply malformed/unmappable policy while converting many units; implement `BufferedDecoder` / `BufferedEncoder`. `CharsetDecoder` reuses the core `BufferedDecodeEngine` loop, and `CharsetEncoder` reuses the core `BufferedEncodeEngine` loop. |
-| Charset conversion | `CharsetConverter` | Decode source units to `char`, then encode them to target units; implements `BufferedConverter`. |
-| Progress API | `BufferedTranscoder`, `TranscodeProgress`, `TranscodeStatus` | Report partial progress, input starvation, and output backpressure. |
+| Policy wrappers | `CharsetDecoder`, `CharsetEncoder` | Apply malformed/unmappable policy while converting many units; implement `TranscodeDecoder` / `TranscodeEncoder`. `CharsetDecoder` reuses the core `TranscodeDecodeEngine` loop, and `CharsetEncoder` reuses the core `TranscodeEncodeEngine` loop. |
+| Charset conversion | `CharsetConverter` | Decode source units to `char`, then encode them to target units; implements `TranscodeConverter`. |
+| Progress API | `Transcoder`, `TranscodeProgress`, `TranscodeStatus` | Report partial progress, input starvation, and output backpressure. |
 | Errors | `CharsetDecodeError`, `CharsetEncodeError`, `CharsetConvertError` | Preserve charset, kind, absolute index, and optional raw value. |
 
 All codec operations are buffer-oriented. Callers pass a complete input slice,
@@ -184,21 +184,21 @@ detect, skip, or emit BOM bytes automatically. The caller owns BOM handling.
 
 The built-in text codec structs implement the domain-neutral
 `qubit_codec::Codec` trait with `Value = char`. That trait is the lowest-level
-single-value contract: `decode_unchecked` decodes one Unicode scalar value from
-caller-owned input units, and `encode_unchecked` writes one Unicode scalar value
+single-value contract: `decode` decodes one Unicode scalar value from
+caller-owned input units, and `encode` writes one Unicode scalar value
 to caller-owned output units.
 
 `CharsetCodec` stays at this same low-level layer. It adds only `charset()`
 metadata and the storage `Unit` type. `CharsetEncodeProbe` adds `encode_len()`,
 which is used by encoders to validate mappability and compute the exact output
-unit count before calling unsafe `encode_unchecked`. For the same codec state,
+unit count before calling unsafe `encode`. For the same codec state,
 character, and output index, a successful `encode_len()` result must equal the
-number of units that `encode_unchecked()` writes when enough output capacity is
+number of units that `encode()` writes when enough output capacity is
 available.
 
-For decoding through `decode_unchecked`, callers must provide at least
+For decoding through `decode`, callers must provide at least
 `codec.min_units_per_value()` readable units from the current input index before
-calling `decode_unchecked`. Callers should normally provide up to
+calling `decode`. Callers should normally provide up to
 `codec.max_units_per_value().get()` unless EOF makes that impossible. Built-in codecs
 decode complete shorter representations, such as one-byte UTF-8 ASCII, and
 return `CharsetDecodeErrorKind::IncompleteSequence` / `MalformedSequence` for
@@ -225,7 +225,7 @@ use qubit_codec_text::{
 
 let decoded = unsafe {
     Utf8Codec
-        .decode_unchecked("中".as_bytes(), 0)
+        .decode("中".as_bytes(), 0)
 }
     .expect("valid UTF-8 input");
 assert_eq!(('中', 3), decoded);
@@ -242,7 +242,7 @@ use qubit_codec_text::{
 
 let error = unsafe {
     Utf8Codec
-        .decode_unchecked(&[0xe4], 0)
+        .decode(&[0xe4], 0)
 }
     .expect_err("closed input ended inside a UTF-8 scalar value");
 
@@ -271,7 +271,7 @@ let required = Utf8Codec
     .expect("UTF-8 can encode every scalar value");
 let written = unsafe {
     Utf8Codec
-        .encode_unchecked(&'é', &mut output, 0)
+        .encode(&'é', &mut output, 0)
 }
     .expect("buffer is large enough");
 
@@ -297,8 +297,8 @@ The caller owns tail preservation, refill, and EOF policy. After the caller has
 handled any incomplete tail, `finish()` only drains internally retained output.
 
 Internally, `CharsetDecoder` stores malformed-input policy in decode hooks and
-delegates to `BufferedDecodeEngine<C, H>`. The engine owns repeated
-`decode_unchecked` calls, output-capacity progress, and status reporting, while
+delegates to `TranscodeDecodeEngine<C, H>`. The engine owns repeated
+`decode` calls, output-capacity progress, and status reporting, while
 input-buffer refill stays with the caller.
 
 ## Policy Decoding
@@ -315,7 +315,7 @@ input-buffer refill stays with the caller.
 ```rust
 use qubit_codec_text::{
     CharsetDecoder,
-    BufferedTranscoder,
+    Transcoder,
     TranscodeStatus,
     Utf8Codec,
 };
@@ -339,7 +339,7 @@ For strict validation:
 use qubit_codec_text::{
     CharsetDecoder,
     CharsetDecodePolicy,
-    BufferedTranscoder,
+    Transcoder,
     Utf8Codec,
 };
 
@@ -354,7 +354,7 @@ assert_eq!(0, error.index());
 ```
 
 `CharsetDecoder::transcode` may panic if a custom `CharsetCodec` violates the
-low-level `Codec::decode_unchecked` contract by reporting more consumed units
+low-level `Codec::decode` contract by reporting more consumed units
 than were provided. Built-in codecs satisfy that contract.
 
 ## Policy Encoding
@@ -371,7 +371,7 @@ than were provided. Built-in codecs satisfy that contract.
 ```rust
 use qubit_codec_text::{
     CharsetEncoder,
-    BufferedTranscoder,
+    Transcoder,
     TranscodeStatus,
     Utf8Codec,
     Utf8,
@@ -398,7 +398,7 @@ use qubit_codec_text::{
     AsciiCodec,
     CharsetEncoder,
     CharsetEncodePolicy,
-    BufferedTranscoder,
+    Transcoder,
 };
 
 let mut encoder = CharsetEncoder::with_policy(AsciiCodec, CharsetEncodePolicy::report())
@@ -416,11 +416,11 @@ records its encoded width. It first tries `U+FFFD`, then falls back to `?`. It
 panics only if the supplied codec cannot encode either replacement. Built-in
 codecs do not trigger this; for a custom codec, that panic indicates a broken
 codec invariant rather than recoverable text input. Replacement output is still
-written through `encode_unchecked()`, so non-policy codec errors from that write
+written through `encode()`, so non-policy codec errors from that write
 are surfaced during transcoding.
 
 Internally, `CharsetEncoder` stores unmappable-input policy in encode hooks and
-delegates to `BufferedEncodeEngine<C, H>`. The engine owns input iteration,
+delegates to `TranscodeEncodeEngine<C, H>`. The engine owns input iteration,
 output capacity checks, and `TranscodeProgress` construction; the hooks supply
 the charset-specific plan for original, replacement, or ignored characters.
 
@@ -447,7 +447,7 @@ uses `char` values as the intermediate representation.
 ```rust
 use qubit_codec_text::{
     CharsetConverter,
-    BufferedTranscoder,
+    Transcoder,
     TranscodeStatus,
     Utf8Codec,
     Utf16U16Codec,
@@ -477,7 +477,7 @@ caller has handled any incomplete source tail to drain pending output.
 
 When constructing a converter with explicit policies, the target replacement is
 validated once and the resulting encode hooks are reused by the internal
-`BufferedConvertEngine`.
+`TranscodeConvertEngine`.
 
 `CharsetConvertError` distinguishes source decode failures from target encode
 failures:
@@ -486,7 +486,7 @@ failures:
 use qubit_codec_text::{
     CharsetConvertError,
     CharsetConverter,
-    BufferedTranscoder,
+    Transcoder,
     Utf8Codec,
     Utf16U16Codec,
 };
@@ -503,7 +503,7 @@ assert!(matches!(error, CharsetConvertError::Decode(_)));
 
 ## Progress and Buffering
 
-`BufferedTranscoder<Input, Output>` is re-exported from `qubit-codec`. It models one
+`Transcoder<Input, Output>` is re-exported from `qubit-codec`. It models one
 logical input stream converted into one logical output stream. Call
 `transcode()` for each available segment, then call `finish()` after EOF and
 continue while it reports `NeedOutput`. Call `reset()` before reusing the same
@@ -587,7 +587,7 @@ let required = codec
     .expect("UTF-16 can encode every scalar value");
 let written = unsafe {
     codec
-        .encode_unchecked(&'😀', &mut output, 0)
+        .encode(&'😀', &mut output, 0)
 }
     .expect("UTF-16 output buffer is large enough");
 
@@ -611,17 +611,17 @@ To add another charset in a downstream crate:
 5. Return the non-zero maximum storage units needed for one scalar value from
    the `Codec::max_units_per_value()` implementation.
 6. Return incomplete, malformed, and invalid-scalar failures through
-   `CharsetDecodeError` from `Codec::decode_unchecked()`.
+   `CharsetDecodeError` from `Codec::decode()`.
 7. Implement `CharsetEncodeProbe` if the charset can be used with
    `CharsetEncoder` or as a converter target.
 8. Use `CharsetDecoder`, `CharsetEncoder`, or `CharsetConverter` to apply
    policy.
 
-Important `decode_unchecked` expectations:
+Important `decode` expectations:
 
 - Success returns a `NonZeroUsize` consumed-unit count.
 - Success must not consume beyond `input.len() - index`.
-- Callers using `decode_unchecked` provide at least `min_units_per_value()`
+- Callers using `decode` provide at least `min_units_per_value()`
   readable units and should normally provide up to `max_units_per_value().get()`
   unless EOF prevents that.
 - If the currently provided units are a valid but incomplete prefix, return
@@ -629,14 +629,14 @@ Important `decode_unchecked` expectations:
   `MalformedSequence` or `InvalidCodePoint`.
 - `index > input.len()` is a caller contract violation for the unsafe method.
 
-Important `encode_unchecked` and `encode_len` expectations:
+Important `encode` and `encode_len` expectations:
 
 - Return `BufferTooSmall` when output capacity is insufficient.
 - Return `UnmappableCharacter` when the charset cannot represent the scalar
   value.
-- `encode_len` must return the exact number of units that `encode_unchecked`
+- `encode_len` must return the exact number of units that `encode`
   will write for the same character when enough output capacity is available.
-- `encode_len` and `encode_unchecked` must agree on mappability for the same
+- `encode_len` and `encode` must agree on mappability for the same
   codec state, character, and output index.
 - Keep replacement `?` encodable if the codec is meant to work with
   `CharsetEncoder::new`.

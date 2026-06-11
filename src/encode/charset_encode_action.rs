@@ -10,9 +10,9 @@
 /// Write action used by [`crate::CharsetEncoder`].
 ///
 /// This action is produced by the charset encoder's internal
-/// [`qubit_codec::BufferedEncodeHooks`] implementation. Normal callers usually
+/// [`qubit_codec::TranscodeEncodeHooks`] implementation. Normal callers usually
 /// interact with [`crate::CharsetEncoder`] through
-/// [`crate::BufferedTranscoder`] instead of constructing actions directly.
+/// [`crate::Transcoder`] instead of constructing actions directly.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum CharsetEncodeAction {
     /// Encode the original input character.

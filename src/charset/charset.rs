@@ -256,6 +256,13 @@ impl Charset {
     }
 }
 
+impl Default for Charset {
+    #[inline(always)]
+    fn default() -> Self {
+        Self::ASCII
+    }
+}
+
 impl PartialEq for Charset {
     /// Compares charsets by stable identifier.
     ///

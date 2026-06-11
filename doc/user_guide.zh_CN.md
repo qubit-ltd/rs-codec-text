@@ -19,7 +19,7 @@
 - UTF-8、UTF-16、UTF-32 命名空间辅助函数，用于长度计算和 BOM 检测。
 - ASCII、ISO-8859-1、UTF-8、UTF-16、UTF-32 的缓冲区级 codec。
 - 带策略的 decoder、encoder 和 converter，支持 replace、ignore、report。
-- `Charset`、`UnicodeBom`、`ByteOrder`、`Codec`、`BufferedTranscoder`、强类型
+- `Charset`、`UnicodeBom`、`ByteOrder`、`Codec`、`Transcoder`、强类型
   编解码错误，以及带策略的 wrapper，便于构建更高层适配器。自定义
   buffered adapter 需要直接从 `qubit-codec` 引入 core engine 和 hook。
 
@@ -52,7 +52,7 @@ use qubit_codec_text::{
     CharsetCodec,
     CharsetDecoder,
     CharsetEncoder,
-    BufferedTranscoder,
+    Transcoder,
     Utf8Codec,
 };
 ```
@@ -67,9 +67,9 @@ use qubit_codec_text::{
 | Charset 元数据 | `Charset`、`UnicodeBom`、`ByteOrder` | 稳定 charset 身份、别名、固定字节序和 BOM 元数据。 |
 | 低层 codec | `Codec<Value = char>`、内置 codec 结构体 | 从调用方缓冲区解码或编码一个完整 Unicode 标量值。 |
 | 文本 codec 元数据 | `CharsetCodec`、`CharsetEncodeProbe` | 为低层 codec 实现附加 charset 元数据和精确编码长度探测。 |
-| 策略包装器 | `CharsetDecoder`、`CharsetEncoder` | 在批量转换时应用 malformed / unmappable 策略；分别实现 `BufferedDecoder` / `BufferedEncoder`。`CharsetDecoder` 复用 core 的 `BufferedDecodeEngine` 循环，`CharsetEncoder` 复用 core 的 `BufferedEncodeEngine` 循环。 |
-| Charset 转换 | `CharsetConverter` | 先把源单元解码成 `char`，再编码成目标单元；实现 `BufferedConverter`。 |
-| 进度 API | `BufferedTranscoder`、`TranscodeProgress`、`TranscodeStatus` | 报告部分进度、输入不足和输出回压。 |
+| 策略包装器 | `CharsetDecoder`、`CharsetEncoder` | 在批量转换时应用 malformed / unmappable 策略；分别实现 `TranscodeDecoder` / `TranscodeEncoder`。`CharsetDecoder` 复用 core 的 `TranscodeDecodeEngine` 循环，`CharsetEncoder` 复用 core 的 `TranscodeEncodeEngine` 循环。 |
+| Charset 转换 | `CharsetConverter` | 先把源单元解码成 `char`，再编码成目标单元；实现 `TranscodeConverter`。 |
+| 进度 API | `Transcoder`、`TranscodeProgress`、`TranscodeStatus` | 报告部分进度、输入不足和输出回压。 |
 | 错误类型 | `CharsetDecodeError`、`CharsetEncodeError`、`CharsetConvertError` | 保留 charset、错误种类、绝对下标和可选原始值。 |
 
 所有 codec 操作都面向缓冲区。调用方传入完整输入 slice、完整输出 slice 和绝对
@@ -171,16 +171,16 @@ BOM。BOM 处理由调用方负责。
 ## 低层 Codec
 
 内置 text codec 结构体实现了领域无关的 `qubit_codec::Codec` trait，其中
-`Value = char`。这个 trait 是最低层单值契约：`decode_unchecked` 从调用方输入单元中解码
-一个 Unicode 标量值，`encode_unchecked` 把一个 Unicode 标量值写入调用方输出单元。
+`Value = char`。这个 trait 是最低层单值契约：`decode` 从调用方输入单元中解码
+一个 Unicode 标量值，`encode` 把一个 Unicode 标量值写入调用方输出单元。
 
 `CharsetCodec` 与这个 unsafe trait 处于同一低层，只增加 `charset()` 元数据和
 存储 `Unit` 类型。`CharsetEncodeProbe` 增加 `encode_len()`，encoder 用它提前
-校验可映射性，并在调用 unsafe `encode_unchecked` 前计算精确输出单元数。对同一个
+校验可映射性，并在调用 unsafe `encode` 前计算精确输出单元数。对同一个
 codec 状态、字符和输出下标，`encode_len()` 成功返回的长度必须等于输出容量充足时
-`encode_unchecked()` 实际写出的单元数。
+`encode()` 实际写出的单元数。
 
-通过 `decode_unchecked` 解码时，调用方必须在调用前从当前输入下标开始提供
+通过 `decode` 解码时，调用方必须在调用前从当前输入下标开始提供
 至少 `codec.min_units_per_value()` 个可读单元。调用方通常应尽量提供到
 `codec.max_units_per_value().get()`，除非 EOF 已经无法继续读取。内置 codec 会解码完整的
 较短表示，例如单字节 UTF-8 ASCII；对不完整或畸形前缀返回
@@ -207,7 +207,7 @@ use qubit_codec_text::{
 
 let decoded = unsafe {
     Utf8Codec
-        .decode_unchecked("中".as_bytes(), 0)
+        .decode("中".as_bytes(), 0)
 }
     .expect("valid UTF-8 input");
 assert_eq!(('中', 3), decoded);
@@ -224,7 +224,7 @@ use qubit_codec_text::{
 
 let error = unsafe {
     Utf8Codec
-        .decode_unchecked(&[0xe4], 0)
+        .decode(&[0xe4], 0)
 }
     .expect_err("closed input ended inside a UTF-8 scalar value");
 
@@ -253,7 +253,7 @@ let required = Utf8Codec
     .expect("UTF-8 can encode every scalar value");
 let written = unsafe {
     Utf8Codec
-        .encode_unchecked(&'é', &mut output, 0)
+        .encode(&'é', &mut output, 0)
 }
     .expect("buffer is large enough");
 
@@ -275,7 +275,7 @@ assert_eq!("é".as_bytes(), &output[..written]);
 调用方负责。调用方处理完不完整尾部后，再调用 `finish()` 刷新内部暂存输出。
 
 内部实现上，`CharsetDecoder` 把 malformed-input 策略保存在 decode hooks 中，并转发给
-`BufferedDecodeEngine<C, H>`。engine 负责重复调用 `decode_unchecked`、
+`TranscodeDecodeEngine<C, H>`。engine 负责重复调用 `decode`、
 输出容量 progress 和状态报告；输入缓冲区填充由调用方负责。
 
 ## 带策略的解码
@@ -291,7 +291,7 @@ assert_eq!("é".as_bytes(), &output[..written]);
 ```rust
 use qubit_codec_text::{
     CharsetDecoder,
-    BufferedTranscoder,
+    Transcoder,
     TranscodeStatus,
     Utf8Codec,
 };
@@ -315,7 +315,7 @@ assert_eq!(['A', 'é'], output);
 use qubit_codec_text::{
     CharsetDecoder,
     CharsetDecodePolicy,
-    BufferedTranscoder,
+    Transcoder,
     Utf8Codec,
 };
 
@@ -329,7 +329,7 @@ let error = decoder
 assert_eq!(0, error.index());
 ```
 
-如果自定义 `CharsetCodec` 违反低层 `Codec::decode_unchecked` 契约，例如报告的
+如果自定义 `CharsetCodec` 违反低层 `Codec::decode` 契约，例如报告的
 消耗单元数超过已提供输入的单元，`CharsetDecoder::transcode` 可能 panic。内置
 codec 满足这个契约。
 
@@ -346,7 +346,7 @@ codec 满足这个契约。
 ```rust
 use qubit_codec_text::{
     CharsetEncoder,
-    BufferedTranscoder,
+    Transcoder,
     TranscodeStatus,
     Utf8Codec,
     Utf8,
@@ -373,7 +373,7 @@ use qubit_codec_text::{
     AsciiCodec,
     CharsetEncodePolicy,
     CharsetEncoder,
-    BufferedTranscoder,
+    Transcoder,
 };
 
 let mut encoder = CharsetEncoder::with_policy(AsciiCodec, CharsetEncodePolicy::report())
@@ -390,10 +390,10 @@ assert_eq!(Some('é' as u32), error.value());
 它先尝试 `U+FFFD`，再回退到 `?`。只有当传入的 codec 连这两个替换字符都无法编码时
 才会 panic。内置 codec 不会触发这个分支；对自定义 codec 来说，这个 panic 表示
 codec 不变量被破坏，而不是可恢复文本输入错误。真正写出 replacement 时仍会调用
-`encode_unchecked()`，因此该写入过程中出现的非策略类 codec 错误会在转码时暴露。
+`encode()`，因此该写入过程中出现的非策略类 codec 错误会在转码时暴露。
 
 内部实现上，`CharsetEncoder` 把 unmappable-input 策略保存在 encode hooks 中，并转发给
-`BufferedEncodeEngine<C, H>`。engine 负责输入迭代、输出容量检查和
+`TranscodeEncodeEngine<C, H>`。engine 负责输入迭代、输出容量检查和
 `TranscodeProgress` 构造；hooks 提供 original、replacement 或 ignored 字符对应的
 charset-specific 计划。
 
@@ -419,7 +419,7 @@ assert_eq!('?', encoder.replacement());
 ```rust
 use qubit_codec_text::{
     CharsetConverter,
-    BufferedTranscoder,
+    Transcoder,
     TranscodeStatus,
     Utf8Codec,
     Utf16U16Codec,
@@ -448,7 +448,7 @@ assert_eq!(['A' as u16, '中' as u16], output);
 `finish` 刷出 pending 输出。
 
 使用显式 policy 构造 converter 时，目标端 replacement 会被验证一次，并把验证后得到的
-encode hooks 交给内部 `BufferedConvertEngine` 复用。
+encode hooks 交给内部 `TranscodeConvertEngine` 复用。
 
 `CharsetConvertError` 会区分源端解码失败和目标端编码失败：
 
@@ -456,7 +456,7 @@ encode hooks 交给内部 `BufferedConvertEngine` 复用。
 use qubit_codec_text::{
     CharsetConvertError,
     CharsetConverter,
-    BufferedTranscoder,
+    Transcoder,
     Utf8Codec,
     Utf16U16Codec,
 };
@@ -473,7 +473,7 @@ assert!(matches!(error, CharsetConvertError::Decode(_)));
 
 ## 进度与缓冲
 
-`BufferedTranscoder<Input, Output>` 从 `qubit-codec` 重导出。它表示把一个逻辑输入流转换为一个逻辑输出流。
+`Transcoder<Input, Output>` 从 `qubit-codec` 重导出。它表示把一个逻辑输入流转换为一个逻辑输出流。
 对每段可用输入调用 `transcode()`，到达 EOF 后调用 `finish()`，并在它返回 `NeedOutput`
 时继续提供输出空间。复用同一个实例处理下一个逻辑流前，应先调用 `reset()`。它有四个核心方法：
 
@@ -549,7 +549,7 @@ let required = codec
     .expect("UTF-16 can encode every scalar value");
 let written = unsafe {
     codec
-        .encode_unchecked(&'😀', &mut output, 0)
+        .encode(&'😀', &mut output, 0)
 }
     .expect("UTF-16 output buffer is large enough");
 
@@ -569,29 +569,29 @@ assert_eq!(&[0x3d, 0xd8, 0x00, 0xde], &output[..written]);
 3. 实现 `CharsetCodec`，提供 charset 元数据。
 4. 从 `charset()` 返回稳定的 `Charset` 描述对象。
 5. 在 `Codec::max_units_per_value()` 实现中返回单个标量值最多需要的非零存储单元数。
-6. 在 `Codec::decode_unchecked()` 中通过 `CharsetDecodeError` 返回不完整、畸形和
+6. 在 `Codec::decode()` 中通过 `CharsetDecodeError` 返回不完整、畸形和
    invalid-scalar failure。
 7. 如果该 charset 需要与 `CharsetEncoder` 或 converter 目标端一起使用，实现
    `CharsetEncodeProbe`。
 8. 使用 `CharsetDecoder`、`CharsetEncoder` 或 `CharsetConverter` 应用策略。
 
-重要的 `decode_unchecked` 约定：
+重要的 `decode` 约定：
 
 - 成功时返回 `NonZeroUsize` 类型的已消耗单元数。
 - 成功消耗的单元数不能超过 `input.len() - index`。
-- 使用 `decode_unchecked` 的调用方至少提供 `min_units_per_value()` 个可读单元，并应
+- 使用 `decode` 的调用方至少提供 `min_units_per_value()` 个可读单元，并应
   尽量提供到 `max_units_per_value().get()`，除非 EOF 阻止继续读取。
 - 如果当前提供的单元是合法但不完整的前缀，返回 `IncompleteSequence`；一旦这些单元
   足以证明序列非法，返回 `MalformedSequence` 或 `InvalidCodePoint`。
 - `index > input.len()` 对 unsafe 方法来说是调用方违反契约。
 
-重要的 `encode_unchecked` 与 `encode_len` 约定：
+重要的 `encode` 与 `encode_len` 约定：
 
 - 输出容量不足时返回 `BufferTooSmall`。
 - charset 无法表示某个标量值时返回 `UnmappableCharacter`。
-- 输出容量充足时，`encode_len` 必须返回同一个字符随后由 `encode_unchecked`
+- 输出容量充足时，`encode_len` 必须返回同一个字符随后由 `encode`
   写出的精确单元数。
-- 对同一个 codec 状态、字符和输出下标，`encode_len` 与 `encode_unchecked`
+- 对同一个 codec 状态、字符和输出下标，`encode_len` 与 `encode`
   必须在可映射性判断上保持一致。
 - 如果希望 codec 能和 `CharsetEncoder::new` 一起使用，应保证替换字符 `?`
   可以编码。

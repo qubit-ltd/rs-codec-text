@@ -1,6 +1,5 @@
-use qubit_codec::BufferedDecoder;
+use qubit_codec::TranscodeDecoder;
 use qubit_codec_text::{
-    BufferedTranscoder,
     Charset,
     CharsetCodec,
     CharsetDecodeError,
@@ -14,6 +13,7 @@ use qubit_codec_text::{
     Codec,
     MalformedAction,
     TranscodeStatus,
+    Transcoder,
     Utf8Codec,
     Utf32U32Codec,
 };
@@ -32,6 +32,8 @@ unsafe impl Codec for InvalidInputErrorCodec {
     type Unit = u8;
     type DecodeError = CharsetDecodeError;
     type EncodeError = CharsetEncodeError;
+    type DecodeState = ();
+    type EncodeState = ();
 
     fn min_units_per_value(&self) -> core::num::NonZeroUsize {
         core::num::NonZeroUsize::MIN
@@ -41,8 +43,8 @@ unsafe impl Codec for InvalidInputErrorCodec {
         core::num::NonZeroUsize::MIN
     }
 
-    unsafe fn decode_unchecked(
-        &self,
+    unsafe fn decode(
+        &mut self,
         _input: &[u8],
         index: usize,
     ) -> CharsetDecodeResult<(char, core::num::NonZeroUsize)> {
@@ -50,8 +52,8 @@ unsafe impl Codec for InvalidInputErrorCodec {
         Err(CharsetDecodeError::new(Charset::ASCII, kind, index))
     }
 
-    unsafe fn encode_unchecked(
-        &self,
+    unsafe fn encode(
+        &mut self,
         _value: &char,
         _output: &mut [u8],
         index: usize,
@@ -64,10 +66,10 @@ unsafe impl Codec for InvalidInputErrorCodec {
 }
 
 #[test]
-fn test_charset_decoder_is_buffered_decoder() {
-    fn assert_buffered_decoder<T: BufferedDecoder<u8, char>>() {}
+fn test_charset_decoder_is_transcode_decoder() {
+    fn assert_transcode_decoder<T: TranscodeDecoder<u8, char>>() {}
 
-    assert_buffered_decoder::<CharsetDecoder<Utf8Codec>>();
+    assert_transcode_decoder::<CharsetDecoder<Utf8Codec>>();
 }
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -84,6 +86,8 @@ unsafe impl Codec for PendingInvalidInputErrorCodec {
     type Unit = u8;
     type DecodeError = CharsetDecodeError;
     type EncodeError = CharsetEncodeError;
+    type DecodeState = ();
+    type EncodeState = ();
 
     fn min_units_per_value(&self) -> core::num::NonZeroUsize {
         core::num::NonZeroUsize::MIN
@@ -93,8 +97,8 @@ unsafe impl Codec for PendingInvalidInputErrorCodec {
         unsafe { core::num::NonZeroUsize::new_unchecked(2) }
     }
 
-    unsafe fn decode_unchecked(
-        &self,
+    unsafe fn decode(
+        &mut self,
         input: &[u8],
         index: usize,
     ) -> CharsetDecodeResult<(char, core::num::NonZeroUsize)> {
@@ -109,8 +113,8 @@ unsafe impl Codec for PendingInvalidInputErrorCodec {
         Err(CharsetDecodeError::new(Charset::ASCII, kind, index))
     }
 
-    unsafe fn encode_unchecked(
-        &self,
+    unsafe fn encode(
+        &mut self,
         _value: &char,
         _output: &mut [u8],
         index: usize,
@@ -144,6 +148,7 @@ fn test_charset_decoder_exposes_configuration_and_bounds() {
 
     assert_eq!('?', decoder.replacement());
     assert_eq!(MalformedAction::Ignore, decoder.malformed_action());
+    assert_eq!(Charset::UTF_8, decoder.error_context());
 }
 
 #[test]
@@ -473,7 +478,7 @@ fn test_charset_decoder_reset_clears_incomplete_input() {
     ));
     assert_eq!(Ok(0), decoder.max_finish_output_len());
 
-    decoder.reset();
+    decoder.reset(&mut [], 0).expect("reset");
     let written = decoder
         .finish(&mut output, 0)
         .expect("reset removes pending incomplete input");

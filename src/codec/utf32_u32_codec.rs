@@ -38,17 +38,17 @@ use qubit_codec::Codec;
 ///     Utf32U32Codec,
 /// };
 ///
-/// let codec = Utf32U32Codec;
+/// let mut codec = Utf32U32Codec;
 /// assert_eq!(Charset::UTF_32, codec.charset());
 /// assert_eq!(Utf32::MAX_UNITS_PER_CHAR, codec.max_units_per_value().get());
 ///
 /// let mut output = [0_u32; Utf32::MAX_UNITS_PER_CHAR];
 /// let written = codec.encode_len('中', 0).expect("mappable");
 /// unsafe {
-///     codec.encode_unchecked(&'中', &mut output, 0).expect("buffer fits");
+///     codec.encode(&'中', &mut output, 0).expect("buffer fits");
 /// }
 /// let (value, consumed) = unsafe {
-///     codec.decode_unchecked(&output[..written], 0).expect("valid UTF-32")
+///     codec.decode(&output[..written], 0).expect("valid UTF-32")
 /// };
 /// assert_eq!(('中', written), (value, consumed.get()));
 /// ```
@@ -106,6 +106,8 @@ unsafe impl Codec for Utf32U32Codec {
     type Unit = u32;
     type DecodeError = CharsetDecodeError;
     type EncodeError = CharsetEncodeError;
+    type DecodeState = ();
+    type EncodeState = ();
 
     #[inline(always)]
     fn min_units_per_value(&self) -> core::num::NonZeroUsize {
@@ -118,8 +120,8 @@ unsafe impl Codec for Utf32U32Codec {
     }
 
     #[inline(always)]
-    unsafe fn decode_unchecked(
-        &self,
+    unsafe fn decode(
+        &mut self,
         input: &[u32],
         index: usize,
     ) -> CharsetDecodeResult<(char, core::num::NonZeroUsize)> {
@@ -129,8 +131,8 @@ unsafe impl Codec for Utf32U32Codec {
     }
 
     #[inline(always)]
-    unsafe fn encode_unchecked(
-        &self,
+    unsafe fn encode(
+        &mut self,
         ch: &char,
         output: &mut [u32],
         index: usize,

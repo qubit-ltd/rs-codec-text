@@ -7,11 +7,11 @@
 // =============================================================================
 //! Policy hooks used by charset converters.
 
-use qubit_codec::BufferedConvertHooks;
+use qubit_codec::TranscodeConvertHooks;
 
 use crate::{
+    Charset,
     CharsetDecodeError,
-    CharsetDecodeErrorKind,
     CharsetDecodeHooks,
     CharsetDecodePolicy,
     CharsetEncodeError,
@@ -53,7 +53,7 @@ impl<Unit> CharsetConvertHooks<Unit> {
     }
 }
 
-impl<D, E> BufferedConvertHooks<D, E> for CharsetConvertHooks<E::Unit>
+impl<D, E> TranscodeConvertHooks<D, E> for CharsetConvertHooks<E::Unit>
 where
     D: CharsetCodec,
     E: CharsetEncodeProbe,
@@ -63,6 +63,7 @@ where
     type EncodeError = CharsetEncodeError;
     type EncodeHooks = CharsetEncodeHooks<E::Unit>;
     type Error = CharsetConvertError;
+    type ErrorContext = (Charset, Charset);
 
     /// Creates default charset decode hooks.
     #[inline(always)]
@@ -96,19 +97,12 @@ where
         CharsetConvertError::Encode(error)
     }
 
-    /// Creates an input-index error using the source charset.
-    #[inline]
-    fn invalid_input_index(
+    #[inline(always)]
+    fn error_context(
         &self,
         decode_codec: &D,
-        index: usize,
-        input_len: usize,
-    ) -> Self::Error {
-        let kind = CharsetDecodeErrorKind::InvalidInputIndex { input_len };
-        CharsetConvertError::Decode(CharsetDecodeError::new(
-            decode_codec.charset(),
-            kind,
-            index,
-        ))
+        encode_codec: &E,
+    ) -> Self::ErrorContext {
+        (decode_codec.charset(), encode_codec.charset())
     }
 }

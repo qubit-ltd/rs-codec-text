@@ -12,9 +12,10 @@ use qubit_codec_text::{
 };
 
 type DecodedCharResult = CharsetDecodeResult<(char, core::num::NonZeroUsize)>;
-type DecodeFn = unsafe fn(&Utf32ByteCodec, &[u8], usize) -> DecodedCharResult;
+type DecodeFn =
+    unsafe fn(&mut Utf32ByteCodec, &[u8], usize) -> DecodedCharResult;
 type EncodeFn = unsafe fn(
-    &Utf32ByteCodec,
+    &mut Utf32ByteCodec,
     &char,
     &mut [u8],
     usize,
@@ -41,30 +42,30 @@ fn test_utf32_byte_codec_exposes_encoder_and_decoder_contracts() {
 
 #[test]
 fn test_utf32_byte_codec_encodes_and_decodes_bytes() {
-    let codec = Utf32ByteCodec::new(ByteOrder::BigEndian);
+    let mut codec = Utf32ByteCodec::new(ByteOrder::BigEndian);
     let mut output = [0_u8; Utf32::MAX_BYTES_PER_CHAR];
 
     assert_eq!(4, unsafe {
         codec
-            .encode_unchecked(&'A', &mut output, 0)
+            .encode(&'A', &mut output, 0)
             .expect("encode UTF-32BE A")
     });
-    let (decoded, consumed) = unsafe { codec.decode_unchecked(&output, 0) }
-        .expect("decode UTF-32BE A");
+    let (decoded, consumed) =
+        unsafe { codec.decode(&output, 0) }.expect("decode UTF-32BE A");
     assert_eq!('A', decoded);
     assert_eq!(4, consumed.get());
 
-    let error = unsafe { codec.encode_unchecked(&'A', &mut output[..2], 0) }
+    let error = unsafe { codec.encode(&'A', &mut output[..2], 0) }
         .expect_err("UTF-32 bytes need four bytes");
     assert_eq!(Some(4), error.required());
     assert_eq!(Some(2), error.available());
 
-    let error = unsafe { codec.encode_unchecked(&'A', &mut [], 1) }
+    let error = unsafe { codec.encode(&'A', &mut [], 1) }
         .expect_err("output index outside slice");
     assert_eq!(Some(5), error.required());
     assert_eq!(Some(0), error.available());
 
-    let error = unsafe { codec.encode_unchecked(&'A', &mut [], usize::MAX) }
+    let error = unsafe { codec.encode(&'A', &mut [], usize::MAX) }
         .expect_err("overflowing output index should fail without panicking");
     assert_eq!(Some(usize::MAX), error.required());
     assert_eq!(Some(0), error.available());
@@ -72,9 +73,9 @@ fn test_utf32_byte_codec_encodes_and_decodes_bytes() {
 
 #[test]
 fn test_utf32_byte_codec_reports_closed_tail_and_invalid_units() {
-    let codec = Utf32ByteCodec::new(ByteOrder::LittleEndian);
+    let mut codec = Utf32ByteCodec::new(ByteOrder::LittleEndian);
 
-    let error = unsafe { codec.decode_unchecked(&[0x41, 0x00], 0) }
+    let error = unsafe { codec.decode(&[0x41, 0x00], 0) }
         .expect_err("partial UTF-32 bytes are incomplete");
     assert_eq!(
         CharsetDecodeErrorKind::IncompleteSequence {
@@ -84,7 +85,7 @@ fn test_utf32_byte_codec_reports_closed_tail_and_invalid_units() {
         error.kind()
     );
 
-    let error = unsafe { codec.decode_unchecked(&[], 1) }
+    let error = unsafe { codec.decode(&[], 1) }
         .expect_err("index outside slice should fail");
     assert_eq!(
         CharsetDecodeErrorKind::InvalidInputIndex { input_len: 0 },
@@ -92,7 +93,7 @@ fn test_utf32_byte_codec_reports_closed_tail_and_invalid_units() {
     );
     assert_eq!(1, error.index());
 
-    let error = unsafe { codec.decode_unchecked(&[0x00, 0x00, 0x11, 0x00], 0) }
+    let error = unsafe { codec.decode(&[0x00, 0x00, 0x11, 0x00], 0) }
         .expect_err("non-scalar UTF-32 unit should fail");
     assert!(matches!(
         error.kind(),
@@ -103,7 +104,7 @@ fn test_utf32_byte_codec_reports_closed_tail_and_invalid_units() {
 
 #[test]
 fn test_utf32_byte_codec_direct_function_items_cover_trait_methods() {
-    let codec = Utf32ByteCodec::new(ByteOrder::LittleEndian);
+    let mut codec = Utf32ByteCodec::new(ByteOrder::LittleEndian);
     let new_fn: fn(ByteOrder) -> Utf32ByteCodec = Utf32ByteCodec::new;
     let byte_order: fn(Utf32ByteCodec) -> ByteOrder =
         Utf32ByteCodec::byte_order;
@@ -121,8 +122,8 @@ fn test_utf32_byte_codec_direct_function_items_cover_trait_methods() {
         usize,
     ) -> CharsetEncodeResult<usize> =
         <Utf32ByteCodec as CharsetEncodeProbe>::encode_len;
-    let decode: DecodeFn = <Utf32ByteCodec as Codec>::decode_unchecked;
-    let encode: EncodeFn = <Utf32ByteCodec as Codec>::encode_unchecked;
+    let decode: DecodeFn = <Utf32ByteCodec as Codec>::decode;
+    let encode: EncodeFn = <Utf32ByteCodec as Codec>::encode;
 
     assert_eq!(
         ByteOrder::BigEndian,
@@ -137,9 +138,10 @@ fn test_utf32_byte_codec_direct_function_items_cover_trait_methods() {
     let mut output = [0_u8; Utf32::MAX_BYTES_PER_CHAR];
     assert_eq!(
         4,
-        unsafe { encode(&codec, &'中', &mut output, 0) }.expect("encode bytes")
+        unsafe { encode(&mut codec, &'中', &mut output, 0) }
+            .expect("encode bytes")
     );
     let (decoded, consumed) =
-        unsafe { decode(&codec, &output, 0) }.expect("decode bytes");
+        unsafe { decode(&mut codec, &output, 0) }.expect("decode bytes");
     assert_eq!(('中', 4), (decoded, consumed.get()));
 }

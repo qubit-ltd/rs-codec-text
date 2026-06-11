@@ -8,15 +8,15 @@
 use core::fmt;
 
 use qubit_codec::{
-    BufferedEncodeEngine,
-    BufferedEncoder,
-    BufferedTranscoder,
     CapacityError,
-    FinishError,
+    TranscodeEncodeEngine,
+    TranscodeEncoder,
     TranscodeProgress,
+    Transcoder,
 };
 
 use crate::{
+    Charset,
     CharsetEncodeError,
     UnmappableAction,
 };
@@ -46,7 +46,7 @@ where
     C: CharsetEncodeProbe,
 {
     /// Common buffered encode engine.
-    engine: BufferedEncodeEngine<C, CharsetEncodeHooks<C::Unit>>,
+    engine: TranscodeEncodeEngine<C, CharsetEncodeHooks<C::Unit>>,
     /// Public unmappable-input policy metadata.
     policy: CharsetEncodePolicy,
     /// Number of units used by replacement policy.
@@ -85,7 +85,7 @@ where
         let policy = CharsetEncodePolicy::default();
         match Self::create_hooks(&codec, policy) {
             Ok((hooks, replacement_units_len)) => Self {
-                engine: BufferedEncodeEngine::new(codec, hooks),
+                engine: TranscodeEncodeEngine::new(codec, hooks),
                 policy,
                 replacement_units_len,
             },
@@ -95,7 +95,7 @@ where
                 );
                 match Self::create_hooks(&codec, fallback_policy) {
                     Ok((hooks, replacement_units_len)) => Self {
-                        engine: BufferedEncodeEngine::new(codec, hooks),
+                        engine: TranscodeEncodeEngine::new(codec, hooks),
                         policy: fallback_policy,
                         replacement_units_len,
                     },
@@ -123,7 +123,7 @@ where
         let (hooks, replacement_units_len) =
             Self::create_hooks(&codec, policy)?;
         Ok(Self {
-            engine: BufferedEncodeEngine::new(codec, hooks),
+            engine: TranscodeEncodeEngine::new(codec, hooks),
             policy,
             replacement_units_len,
         })
@@ -172,11 +172,17 @@ where
     }
 }
 
-impl<C> BufferedTranscoder<char, C::Unit> for CharsetEncoder<C>
+impl<C> Transcoder<char, C::Unit> for CharsetEncoder<C>
 where
     C: CharsetEncodeProbe,
 {
     type Error = CharsetEncodeError;
+    type ErrorContext = Charset;
+
+    #[inline(always)]
+    fn error_context(&self) -> Self::ErrorContext {
+        self.engine.public_error_context()
+    }
 
     /// Returns the maximum number of target units needed for `input_len`
     /// characters.
@@ -191,10 +197,20 @@ where
         Ok(self.engine.max_finish_output_len())
     }
 
+    /// Returns the maximum target units emitted when resetting stream state.
+    #[inline(always)]
+    fn max_reset_output_len(&self) -> Result<usize, CapacityError> {
+        Ok(self.engine.max_reset_output_len())
+    }
+
     /// Clears hook-owned state while keeping encoder policy.
     #[inline(always)]
-    fn reset(&mut self) {
-        self.engine.reset();
+    fn reset(
+        &mut self,
+        output: &mut [C::Unit],
+        output_index: usize,
+    ) -> Result<usize, Self::Error> {
+        self.engine.reset(output, output_index)
     }
 
     /// Encodes characters into the target charset while applying unmappable
@@ -217,12 +233,12 @@ where
         &mut self,
         output: &mut [C::Unit],
         output_index: usize,
-    ) -> Result<usize, FinishError<Self::Error>> {
+    ) -> Result<usize, Self::Error> {
         self.engine.finish(output, output_index)
     }
 }
 
-impl<C> BufferedEncoder<char, C::Unit> for CharsetEncoder<C> where
+impl<C> TranscodeEncoder<char, C::Unit> for CharsetEncoder<C> where
     C: CharsetEncodeProbe
 {
 }

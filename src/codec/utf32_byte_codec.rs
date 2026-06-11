@@ -40,17 +40,17 @@ use qubit_codec::Codec;
 ///     Utf32ByteCodec,
 /// };
 ///
-/// let codec = Utf32ByteCodec::new(ByteOrder::BigEndian);
+/// let mut codec = Utf32ByteCodec::new(ByteOrder::BigEndian);
 /// assert_eq!(Charset::UTF_32BE, codec.charset());
 /// assert_eq!(Utf32::MAX_BYTES_PER_CHAR, codec.max_units_per_value().get());
 ///
 /// let mut output = [0_u8; Utf32::MAX_BYTES_PER_CHAR];
 /// let written = codec.encode_len('中', 0).expect("mappable");
 /// unsafe {
-///     codec.encode_unchecked(&'中', &mut output, 0).expect("buffer fits");
+///     codec.encode(&'中', &mut output, 0).expect("buffer fits");
 /// }
 /// let (value, consumed) = unsafe {
-///     codec.decode_unchecked(&output[..written], 0).expect("valid UTF-32BE")
+///     codec.decode(&output[..written], 0).expect("valid UTF-32BE")
 /// };
 /// assert_eq!(('中', written), (value, consumed.get()));
 /// ```
@@ -139,6 +139,8 @@ unsafe impl Codec for Utf32ByteCodec {
     type Unit = u8;
     type DecodeError = CharsetDecodeError;
     type EncodeError = CharsetEncodeError;
+    type DecodeState = ();
+    type EncodeState = ();
 
     #[inline(always)]
     fn min_units_per_value(&self) -> core::num::NonZeroUsize {
@@ -155,8 +157,8 @@ unsafe impl Codec for Utf32ByteCodec {
     }
 
     #[inline(always)]
-    unsafe fn decode_unchecked(
-        &self,
+    unsafe fn decode(
+        &mut self,
         input: &[u8],
         index: usize,
     ) -> CharsetDecodeResult<(char, core::num::NonZeroUsize)> {
@@ -167,8 +169,8 @@ unsafe impl Codec for Utf32ByteCodec {
     }
 
     #[inline(always)]
-    unsafe fn encode_unchecked(
-        &self,
+    unsafe fn encode(
+        &mut self,
         ch: &char,
         output: &mut [u8],
         index: usize,

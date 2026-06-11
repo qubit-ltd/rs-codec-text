@@ -23,7 +23,7 @@ use qubit_codec::Codec;
 ///
 /// Built-in variable-width codecs report incomplete prefixes through
 /// [`CharsetDecodeError`], so buffered decoders can call
-/// [`Codec::decode_unchecked`] as soon as at least
+/// [`Codec::decode`] as soon as at least
 /// [`Codec::min_units_per_value`] units are available.
 ///
 /// # Associated Types

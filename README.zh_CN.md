@@ -19,7 +19,7 @@ Qubit Text Codec 是一个低层编解码核心，服务于那些需要在 Rust 
 - ASCII、ISO-8859-1、UTF-8、UTF-16、UTF-32 的缓冲区级 codec。
 - 带策略的 `CharsetDecoder`、`CharsetEncoder` 和 `CharsetConverter`。
 - 带精确缓冲区下标的强类型 decode / encode / convert 错误。
-- 面向调用方重导出的必要 `qubit-codec` 原语：`Codec`、`BufferedTranscoder`、
+- 面向调用方重导出的必要 `qubit-codec` 原语：`Codec`、`Transcoder`、
   `TranscodeProgress`、`TranscodeStatus`、`CapacityError` 和 `ByteOrder`。
 
 本库刻意停留在 `std::io` 读写适配器、自动 charset 检测、规范化、切分、
@@ -87,7 +87,7 @@ use qubit_codec_text::{
     CharsetEncoder,
     Codec,
     TranscodeStatus,
-    BufferedTranscoder,
+    Transcoder,
     UnicodeBom,
     Utf8,
     Utf8Codec,
@@ -98,7 +98,7 @@ assert_eq!(Some(3), Utf8::byte_len_from_leading_byte(0xe4));
 
 let (decoded, consumed) = unsafe {
     Utf8Codec
-        .decode_unchecked("中".as_bytes(), 0)
+        .decode("中".as_bytes(), 0)
 }
     .expect("valid UTF-8 input");
 assert_eq!(('中', 3), (decoded, consumed.get()));
@@ -140,9 +140,9 @@ assert_eq!("😀".as_bytes(), &output[..progress.written()]);
 
 | 类型 | 用途 |
 |------|------|
-| `CharsetDecoder<C>` | 实现 `BufferedDecoder<C::Unit, char>` 的有状态缓冲区 decoder，并复用 `BufferedDecodeEngine` 处理解码迭代和 progress 报告 |
-| `CharsetEncoder<C>` | 实现 `BufferedEncoder<char, C::Unit>` 的有状态缓冲区 encoder，并复用 `BufferedEncodeEngine` 的公共循环 |
-| `CharsetConverter<D, E>` | 在两个 charset codec 之间 decode + encode，并实现 `BufferedConverter<D::Unit, E::Unit>` |
+| `CharsetDecoder<C>` | 实现 `TranscodeDecoder<C::Unit, char>` 的有状态缓冲区 decoder，并复用 `TranscodeDecodeEngine` 处理解码迭代和 progress 报告 |
+| `CharsetEncoder<C>` | 实现 `TranscodeEncoder<char, C::Unit>` 的有状态缓冲区 encoder，并复用 `TranscodeEncodeEngine` 的公共循环 |
+| `CharsetConverter<D, E>` | 在两个 charset codec 之间 decode + encode，并实现 `TranscodeConverter<D::Unit, E::Unit>` |
 | `MalformedAction` | Malformed input 处理策略 |
 | `UnmappableAction` | 无法编码输出字符的处理策略 |
 
@@ -157,14 +157,14 @@ assert_eq!("😀".as_bytes(), &output[..progress.written()]);
 ## 性能考虑
 
 Codec 实现直接操作调用方提供的输入和输出缓冲区。`CharsetDecoder` 在至少有
-`codec.min_units_per_value()` 个可读单元时调用 `Codec::decode_unchecked`，
+`codec.min_units_per_value()` 个可读单元时调用 `Codec::decode`，
 charset codec 通过 `CharsetDecodeError` 报告不完整前缀。`NeedInput` 表示当前单元是
 合法但不完整的前缀，尾部仍留在调用方输入缓冲区中；到达 EOF 后，调用方先处理这个
 尾部，再调用 `finish()` 刷新内部暂存输出。内部实现上，`CharsetDecoder` 复用
-decode hooks 保存策略，并复用 `BufferedDecodeEngine` 处理重复调用
-`decode_unchecked`、输出容量 progress 和状态报告。`CharsetEncoder` 通过 encode hooks 保存
-unmappable 策略，并复用 `BufferedEncodeEngine` 处理输入迭代和输出容量检查，
-同时保留 text-specific 的 replace、ignore、report 策略。它通过共享的 `BufferedTranscoder` 进度模型报告
+decode hooks 保存策略，并复用 `TranscodeDecodeEngine` 处理重复调用
+`decode`、输出容量 progress 和状态报告。`CharsetEncoder` 通过 encode hooks 保存
+unmappable 策略，并复用 `TranscodeEncodeEngine` 处理输入迭代和输出容量检查，
+同时保留 text-specific 的 replace、ignore、report 策略。它通过共享的 `Transcoder` 进度模型报告
 `NeedOutput`，调用方可以自行控制分配和缓冲区复用。
 
 ## 测试与代码覆盖率

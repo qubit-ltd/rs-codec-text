@@ -11,12 +11,13 @@ use core::{
 };
 
 use qubit_codec::{
-    BufferedEncodeHooks,
     EncodeContext,
     EncodePlan,
+    TranscodeEncodeHooks,
 };
 
 use crate::{
+    Charset,
     CharsetEncodeError,
     CharsetEncodeErrorKind,
     CharsetEncodeResult,
@@ -105,18 +106,24 @@ impl<Unit> CharsetEncodeHooks<Unit> {
     }
 }
 
-impl<C> BufferedEncodeHooks<C> for CharsetEncodeHooks<C::Unit>
+impl<C> TranscodeEncodeHooks<C> for CharsetEncodeHooks<C::Unit>
 where
     C: CharsetEncodeProbe,
 {
     type Error = CharsetEncodeError;
+    type ErrorContext = Charset;
     type PlanAction = CharsetEncodeAction;
+
+    #[inline(always)]
+    fn error_context(codec: &C) -> Self::ErrorContext {
+        codec.charset()
+    }
 
     /// Prepares a charset-specific encoding plan.
     #[inline]
     fn prepare_encode(
         &mut self,
-        codec: &C,
+        codec: &mut C,
         ch: &char,
         input_index: usize,
     ) -> Result<EncodePlan<Self::PlanAction>, Self::Error> {
@@ -150,7 +157,7 @@ where
     #[inline]
     unsafe fn write_encode(
         &mut self,
-        codec: &C,
+        codec: &mut C,
         context: EncodeContext<'_, char, C::Unit>,
         plan: EncodePlan<Self::PlanAction>,
     ) -> Result<usize, Self::Error> {
@@ -158,7 +165,7 @@ where
             // SAFETY: The engine checked the exact capacity requested by
             // `prepare_encode`.
             CharsetEncodeAction::WriteOriginal => unsafe {
-                codec.encode_unchecked(
+                codec.encode(
                     context.input_value,
                     context.output,
                     context.output_index,
@@ -167,7 +174,7 @@ where
             // SAFETY: The engine checked the replacement capacity reported by
             // `prepare_encode`.
             CharsetEncodeAction::WriteReplacement => unsafe {
-                codec.encode_unchecked(
+                codec.encode(
                     &self.replacement,
                     context.output,
                     context.output_index,
@@ -177,28 +184,14 @@ where
         }
     }
 
-    /// Creates an input-index error using the charset from `codec`.
-    #[inline]
-    fn invalid_input_index(
+    /// Maps charset encode reset errors unchanged.
+    #[inline(always)]
+    fn map_encode_reset_error(
         &mut self,
-        codec: &C,
-        index: usize,
-        input_len: usize,
+        _codec: &mut C,
+        error: CharsetEncodeError,
     ) -> Self::Error {
-        let kind = CharsetEncodeErrorKind::InvalidInputIndex { input_len };
-        CharsetEncodeError::new(codec.charset(), kind, index)
-    }
-
-    /// Creates an output-index error using the charset from `codec`.
-    #[inline]
-    fn invalid_output_index(
-        &mut self,
-        codec: &C,
-        index: usize,
-        output_len: usize,
-    ) -> Self::Error {
-        let kind = CharsetEncodeErrorKind::InvalidOutputIndex { output_len };
-        CharsetEncodeError::new(codec.charset(), kind, index)
+        error
     }
 }
 

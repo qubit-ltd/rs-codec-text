@@ -1,3 +1,4 @@
+use qubit_codec::TranscodeError;
 use qubit_codec_text::{
     Charset,
     CharsetDecodeError,
@@ -125,4 +126,42 @@ fn test_charset_decode_error_exposes_consumption_and_incomplete_details() {
     );
     assert_eq!(None, invalid_index.consumed());
     assert_eq!(Some(1), invalid_index.input_len());
+}
+
+#[test]
+fn test_charset_decode_error_transcode_error_constructors_preserve_context() {
+    let invalid_input =
+        <CharsetDecodeError as TranscodeError<Charset>>::invalid_input_index(
+            Charset::UTF_8,
+            3,
+            2,
+        );
+    assert_eq!(Charset::UTF_8, invalid_input.charset());
+    assert_eq!(Some(2), invalid_input.input_len());
+
+    let invalid_output =
+        <CharsetDecodeError as TranscodeError<Charset>>::invalid_output_index(
+            Charset::UTF_16,
+            4,
+            1,
+        );
+    assert_eq!(Charset::UTF_16, invalid_output.charset());
+    assert_eq!(Some(1), invalid_output.output_len());
+
+    let insufficient =
+        <CharsetDecodeError as TranscodeError<Charset>>::insufficient_output(
+            Charset::UTF_32,
+            5,
+            3,
+            1,
+        );
+    assert_eq!(Charset::UTF_32, insufficient.charset());
+    assert_eq!(None, insufficient.consumed());
+    assert!(matches!(
+        insufficient.kind(),
+        CharsetDecodeErrorKind::InsufficientOutput {
+            required: 3,
+            available: 1,
+        }
+    ));
 }

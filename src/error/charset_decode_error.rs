@@ -8,6 +8,8 @@
 use core::fmt;
 use std::error::Error;
 
+use qubit_codec::TranscodeError;
+
 use crate::{
     Charset,
     CharsetDecodeErrorKind,
@@ -185,7 +187,8 @@ impl CharsetDecodeError {
             }
             CharsetDecodeErrorKind::IncompleteSequence { .. }
             | CharsetDecodeErrorKind::InvalidInputIndex { .. }
-            | CharsetDecodeErrorKind::InvalidOutputIndex { .. } => None,
+            | CharsetDecodeErrorKind::InvalidOutputIndex { .. }
+            | CharsetDecodeErrorKind::InsufficientOutput { .. } => None,
         }
     }
 
@@ -243,3 +246,44 @@ impl fmt::Display for CharsetDecodeError {
 }
 
 impl Error for CharsetDecodeError {}
+
+impl TranscodeError<Charset> for CharsetDecodeError {
+    #[inline(always)]
+    fn invalid_input_index(charset: Charset, index: usize, len: usize) -> Self {
+        Self::new(
+            charset,
+            CharsetDecodeErrorKind::InvalidInputIndex { input_len: len },
+            index,
+        )
+    }
+
+    #[inline(always)]
+    fn invalid_output_index(
+        charset: Charset,
+        index: usize,
+        len: usize,
+    ) -> Self {
+        Self::new(
+            charset,
+            CharsetDecodeErrorKind::InvalidOutputIndex { output_len: len },
+            index,
+        )
+    }
+
+    #[inline(always)]
+    fn insufficient_output(
+        charset: Charset,
+        output_index: usize,
+        required: usize,
+        available: usize,
+    ) -> Self {
+        Self::new(
+            charset,
+            CharsetDecodeErrorKind::InsufficientOutput {
+                required,
+                available,
+            },
+            output_index,
+        )
+    }
+}

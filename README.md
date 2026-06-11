@@ -22,7 +22,7 @@ below ordinary `str`, `String`, and `char` APIs. It provides:
   wrappers.
 - Typed decode/encode/convert errors with precise buffer indices.
 - Essential `qubit-codec` primitives re-exported for callers:
-  `Codec`, `BufferedTranscoder`, `TranscodeProgress`, `TranscodeStatus`, `CapacityError`,
+  `Codec`, `Transcoder`, `TranscodeProgress`, `TranscodeStatus`, `CapacityError`,
   and `ByteOrder`.
 
 This crate intentionally stays below `std::io` reader/writer adapters,
@@ -99,7 +99,7 @@ use qubit_codec_text::{
     CharsetEncoder,
     Codec,
     TranscodeStatus,
-    BufferedTranscoder,
+    Transcoder,
     UnicodeBom,
     Utf8,
     Utf8Codec,
@@ -110,7 +110,7 @@ assert_eq!(Some(3), Utf8::byte_len_from_leading_byte(0xe4));
 
 let (decoded, consumed) = unsafe {
     Utf8Codec
-        .decode_unchecked("中".as_bytes(), 0)
+        .decode("中".as_bytes(), 0)
 }
     .expect("valid UTF-8 input");
 assert_eq!(('中', 3), (decoded, consumed.get()));
@@ -152,9 +152,9 @@ assert_eq!("😀".as_bytes(), &output[..progress.written()]);
 
 | Type | Purpose |
 |------|---------|
-| `CharsetDecoder<C>` | Stateful buffer decoder implementing `BufferedDecoder<C::Unit, char>` and reusing `BufferedDecodeEngine` for decode iteration and progress reporting |
-| `CharsetEncoder<C>` | Stateful buffer encoder implementing `BufferedEncoder<char, C::Unit>` and reusing `BufferedEncodeEngine` for its buffered loop |
-| `CharsetConverter<D, E>` | Decode and encode between two charset codecs, implementing `BufferedConverter<D::Unit, E::Unit>` |
+| `CharsetDecoder<C>` | Stateful buffer decoder implementing `TranscodeDecoder<C::Unit, char>` and reusing `TranscodeDecodeEngine` for decode iteration and progress reporting |
+| `CharsetEncoder<C>` | Stateful buffer encoder implementing `TranscodeEncoder<char, C::Unit>` and reusing `TranscodeEncodeEngine` for its buffered loop |
+| `CharsetConverter<D, E>` | Decode and encode between two charset codecs, implementing `TranscodeConverter<D::Unit, E::Unit>` |
 | `MalformedAction` | Policy for malformed input |
 | `UnmappableAction` | Policy for unencodable output characters |
 
@@ -169,18 +169,18 @@ assert_eq!("😀".as_bytes(), &output[..progress.written()]);
 ## Performance Considerations
 
 Codec implementations work against caller-provided input and output buffers.
-`CharsetDecoder` calls `Codec::decode_unchecked` once at least
+`CharsetDecoder` calls `Codec::decode` once at least
 `codec.min_units_per_value()` units are readable, and charset codecs report
 incomplete prefixes through `CharsetDecodeError`. `NeedInput` means the current
 units are a valid incomplete prefix left in the caller-owned input buffer; after
 EOF, the caller handles that tail before calling `finish()` to drain internal
 output. Internally, `CharsetDecoder` stores its policy in decode hooks and
-reuses `BufferedDecodeEngine` for repeated `decode_unchecked` calls, output
+reuses `TranscodeDecodeEngine` for repeated `decode` calls, output
 capacity progress, and status reporting.
 `CharsetEncoder` stores its unmappable policy in encode hooks and reuses
-`BufferedEncodeEngine` for input iteration and output capacity checks while
+`TranscodeEncodeEngine` for input iteration and output capacity checks while
 still applying text-specific replacement, ignore, and report policy. It reports
-`NeedOutput` through the shared `BufferedTranscoder` progress model so callers can
+`NeedOutput` through the shared `Transcoder` progress model so callers can
 control allocation and buffer reuse.
 
 ## Testing & Code Coverage

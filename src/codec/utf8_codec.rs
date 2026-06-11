@@ -34,17 +34,17 @@ use qubit_codec::Codec;
 ///     Utf8Codec,
 /// };
 ///
-/// let codec = Utf8Codec;
+/// let mut codec = Utf8Codec;
 /// assert_eq!(Charset::UTF_8, codec.charset());
 /// assert_eq!(Utf8::MAX_UNITS_PER_CHAR, codec.max_units_per_value().get());
 ///
 /// let mut output = [0_u8; Utf8::MAX_BYTES_PER_CHAR];
 /// let written = codec.encode_len('é', 0).expect("mappable");
 /// unsafe {
-///     codec.encode_unchecked(&'é', &mut output, 0).expect("buffer fits");
+///     codec.encode(&'é', &mut output, 0).expect("buffer fits");
 /// }
 /// let (value, consumed) = unsafe {
-///     codec.decode_unchecked(&output[..written], 0).expect("valid UTF-8")
+///     codec.decode(&output[..written], 0).expect("valid UTF-8")
 /// };
 /// assert_eq!(('é', written), (value, consumed.get()));
 /// ```
@@ -102,6 +102,8 @@ unsafe impl Codec for Utf8Codec {
     type Unit = u8;
     type DecodeError = CharsetDecodeError;
     type EncodeError = CharsetEncodeError;
+    type DecodeState = ();
+    type EncodeState = ();
 
     #[inline(always)]
     fn min_units_per_value(&self) -> core::num::NonZeroUsize {
@@ -117,8 +119,8 @@ unsafe impl Codec for Utf8Codec {
     }
 
     #[inline(always)]
-    unsafe fn decode_unchecked(
-        &self,
+    unsafe fn decode(
+        &mut self,
         input: &[u8],
         index: usize,
     ) -> CharsetDecodeResult<(char, core::num::NonZeroUsize)> {
@@ -128,8 +130,8 @@ unsafe impl Codec for Utf8Codec {
     }
 
     #[inline(always)]
-    unsafe fn encode_unchecked(
-        &self,
+    unsafe fn encode(
+        &mut self,
         ch: &char,
         output: &mut [u8],
         index: usize,

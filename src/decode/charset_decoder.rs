@@ -6,15 +6,15 @@
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
 use qubit_codec::{
-    BufferedDecodeEngine,
-    BufferedDecoder,
-    BufferedTranscoder,
     CapacityError,
-    FinishError,
+    TranscodeDecodeEngine,
+    TranscodeDecoder,
     TranscodeProgress,
+    Transcoder,
 };
 
 use crate::{
+    Charset,
     CharsetCodec,
     CharsetDecodeError,
     MalformedAction,
@@ -33,7 +33,7 @@ use super::{
 /// currently available units. If the codec reports a valid incomplete prefix,
 /// the tail is left in the caller-provided input slice and
 /// [`crate::TranscodeStatus::NeedInput`] is returned. Callers must handle
-/// incomplete EOF tails before calling [`BufferedTranscoder::finish`].
+/// incomplete EOF tails before calling [`Transcoder::finish`].
 ///
 /// # Type Parameters
 ///
@@ -45,7 +45,7 @@ where
     C: CharsetCodec,
 {
     /// Common buffered decode engine.
-    engine: BufferedDecodeEngine<C, CharsetDecodeHooks>,
+    engine: TranscodeDecodeEngine<C, CharsetDecodeHooks>,
     /// Public malformed-input policy metadata.
     policy: CharsetDecodePolicy,
 }
@@ -85,7 +85,7 @@ where
     pub fn with_policy(codec: C, policy: CharsetDecodePolicy) -> Self {
         let hooks = CharsetDecodeHooks::from_policy(policy);
         Self {
-            engine: BufferedDecodeEngine::new(codec, hooks),
+            engine: TranscodeDecodeEngine::new(codec, hooks),
             policy,
         }
     }
@@ -113,16 +113,22 @@ where
     }
 }
 
-impl<C> BufferedDecoder<C::Unit, char> for CharsetDecoder<C> where
+impl<C> TranscodeDecoder<C::Unit, char> for CharsetDecoder<C> where
     C: CharsetCodec
 {
 }
 
-impl<C> BufferedTranscoder<C::Unit, char> for CharsetDecoder<C>
+impl<C> Transcoder<C::Unit, char> for CharsetDecoder<C>
 where
     C: CharsetCodec,
 {
     type Error = CharsetDecodeError;
+    type ErrorContext = Charset;
+
+    #[inline(always)]
+    fn error_context(&self) -> Self::ErrorContext {
+        self.engine.public_error_context()
+    }
 
     /// Returns the maximum number of characters decoded from `input_len` units.
     #[inline(always)]
@@ -137,10 +143,20 @@ where
         Ok(self.engine.max_finish_output_len())
     }
 
+    /// Returns the maximum characters emitted when resetting stream state.
+    #[inline(always)]
+    fn max_reset_output_len(&self) -> Result<usize, CapacityError> {
+        Ok(self.engine.max_reset_output_len())
+    }
+
     /// Clears hook-owned state while keeping decoder policy.
     #[inline(always)]
-    fn reset(&mut self) {
-        self.engine.reset();
+    fn reset(
+        &mut self,
+        output: &mut [char],
+        output_index: usize,
+    ) -> Result<usize, Self::Error> {
+        self.engine.reset(output, output_index)
     }
 
     /// Decodes source units into Unicode scalar values while applying malformed
@@ -163,7 +179,7 @@ where
         &mut self,
         output: &mut [char],
         output_index: usize,
-    ) -> Result<usize, FinishError<Self::Error>> {
+    ) -> Result<usize, Self::Error> {
         self.engine.finish(output, output_index)
     }
 }

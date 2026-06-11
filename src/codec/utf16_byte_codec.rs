@@ -41,17 +41,17 @@ use qubit_codec::Codec;
 ///     Utf16ByteCodec,
 /// };
 ///
-/// let codec = Utf16ByteCodec::new(ByteOrder::LittleEndian);
+/// let mut codec = Utf16ByteCodec::new(ByteOrder::LittleEndian);
 /// assert_eq!(Charset::UTF_16LE, codec.charset());
 /// assert_eq!(Utf16::MAX_BYTES_PER_CHAR, codec.max_units_per_value().get());
 ///
 /// let mut output = [0_u8; Utf16::MAX_BYTES_PER_CHAR];
 /// let written = codec.encode_len('😀', 0).expect("mappable");
 /// unsafe {
-///     codec.encode_unchecked(&'😀', &mut output, 0).expect("buffer fits");
+///     codec.encode(&'😀', &mut output, 0).expect("buffer fits");
 /// }
 /// let (value, consumed) = unsafe {
-///     codec.decode_unchecked(&output[..written], 0).expect("valid UTF-16LE")
+///     codec.decode(&output[..written], 0).expect("valid UTF-16LE")
 /// };
 /// assert_eq!(('😀', written), (value, consumed.get()));
 /// ```
@@ -141,6 +141,8 @@ unsafe impl Codec for Utf16ByteCodec {
     type Unit = u8;
     type DecodeError = CharsetDecodeError;
     type EncodeError = CharsetEncodeError;
+    type DecodeState = ();
+    type EncodeState = ();
 
     #[inline(always)]
     fn min_units_per_value(&self) -> NonZeroUsize {
@@ -155,8 +157,8 @@ unsafe impl Codec for Utf16ByteCodec {
     }
 
     #[inline(always)]
-    unsafe fn decode_unchecked(
-        &self,
+    unsafe fn decode(
+        &mut self,
         input: &[u8],
         index: usize,
     ) -> CharsetDecodeResult<(char, NonZeroUsize)> {
@@ -167,8 +169,8 @@ unsafe impl Codec for Utf16ByteCodec {
     }
 
     #[inline(always)]
-    unsafe fn encode_unchecked(
-        &self,
+    unsafe fn encode(
+        &mut self,
         ch: &char,
         output: &mut [u8],
         index: usize,

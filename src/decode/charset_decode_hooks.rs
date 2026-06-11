@@ -8,16 +8,16 @@
 use core::num::NonZeroUsize;
 
 use qubit_codec::{
-    BufferedDecodeHooks,
     CapacityError,
     DecodeAction,
     DecodeContext,
+    TranscodeDecodeHooks,
 };
 
 use crate::{
+    Charset,
     CharsetCodec,
     CharsetDecodeError,
-    CharsetDecodeErrorKind,
     MalformedAction,
 };
 
@@ -84,11 +84,17 @@ impl CharsetDecodeHooks {
     }
 }
 
-impl<C> BufferedDecodeHooks<C> for CharsetDecodeHooks
+impl<C> TranscodeDecodeHooks<C> for CharsetDecodeHooks
 where
     C: CharsetCodec,
 {
     type Error = CharsetDecodeError;
+    type ErrorContext = Charset;
+
+    #[inline(always)]
+    fn error_context(codec: &C) -> Self::ErrorContext {
+        codec.charset()
+    }
 
     /// Returns the maximum number of characters decoded from `input_len` units.
     #[inline(always)]
@@ -103,7 +109,7 @@ where
     /// Handles a charset decode failure during `transcode`.
     fn handle_decode_error(
         &mut self,
-        _codec: &C,
+        _codec: &mut C,
         error: CharsetDecodeError,
         context: DecodeContext,
     ) -> Result<DecodeAction<char>, Self::Error> {
@@ -133,27 +139,13 @@ where
         Err(error)
     }
 
-    /// Creates an invalid input index error for the charset decoder.
-    #[inline]
-    fn invalid_input_index(
+    /// Maps charset decode flush errors unchanged.
+    #[inline(always)]
+    fn map_decode_flush_error(
         &mut self,
-        codec: &C,
-        index: usize,
-        input_len: usize,
+        _codec: &mut C,
+        error: CharsetDecodeError,
     ) -> Self::Error {
-        let kind = CharsetDecodeErrorKind::InvalidInputIndex { input_len };
-        CharsetDecodeError::new(codec.charset(), kind, index)
-    }
-
-    /// Creates an invalid output index error for the charset decoder.
-    #[inline]
-    fn invalid_output_index(
-        &mut self,
-        codec: &C,
-        index: usize,
-        output_len: usize,
-    ) -> Self::Error {
-        let kind = CharsetDecodeErrorKind::InvalidOutputIndex { output_len };
-        CharsetDecodeError::new(codec.charset(), kind, index)
+        error
     }
 }

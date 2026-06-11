@@ -11,9 +11,10 @@ use qubit_codec_text::{
 };
 
 type DecodedCharResult = CharsetDecodeResult<(char, core::num::NonZeroUsize)>;
-type DecodeFn = unsafe fn(&Utf16U16Codec, &[u16], usize) -> DecodedCharResult;
+type DecodeFn =
+    unsafe fn(&mut Utf16U16Codec, &[u16], usize) -> DecodedCharResult;
 type EncodeFn = unsafe fn(
-    &Utf16U16Codec,
+    &mut Utf16U16Codec,
     &char,
     &mut [u16],
     usize,
@@ -36,16 +37,14 @@ fn test_utf16_u16_codec_exposes_encoder_and_decoder_contracts() {
 
 #[test]
 fn test_utf16_u16_codec_encodes_and_decodes_pairs() {
-    let codec = Utf16U16Codec;
+    let mut codec = Utf16U16Codec;
     let mut output = [0_u16; Utf16::MAX_UNITS_PER_CHAR];
 
     assert_eq!(2, unsafe {
-        codec
-            .encode_unchecked(&'😀', &mut output, 0)
-            .expect("encode pair")
+        codec.encode(&'😀', &mut output, 0).expect("encode pair")
     });
     let (decoded, consumed) =
-        unsafe { codec.decode_unchecked(&output, 0) }.expect("decode pair");
+        unsafe { codec.decode(&output, 0) }.expect("decode pair");
     assert_eq!('😀', decoded);
     assert_eq!(2, consumed.get());
 }
@@ -53,15 +52,14 @@ fn test_utf16_u16_codec_encodes_and_decodes_pairs() {
 #[test]
 fn test_utf16_u16_codec_decodes_bmp_and_reports_closed_tail_or_malformed_units()
 {
-    let codec = Utf16U16Codec;
+    let mut codec = Utf16U16Codec;
 
     let (decoded, consumed) =
-        unsafe { codec.decode_unchecked(&['A' as u16], 0) }
-            .expect("BMP scalar");
+        unsafe { codec.decode(&['A' as u16], 0) }.expect("BMP scalar");
     assert_eq!('A', decoded);
     assert_eq!(1, consumed.get());
 
-    let error = unsafe { codec.decode_unchecked(&[0xd83d], 0) }
+    let error = unsafe { codec.decode(&[0xd83d], 0) }
         .expect_err("dangling high surrogate is incomplete");
     assert_eq!(
         CharsetDecodeErrorKind::IncompleteSequence {
@@ -71,7 +69,7 @@ fn test_utf16_u16_codec_decodes_bmp_and_reports_closed_tail_or_malformed_units()
         error.kind()
     );
 
-    let error = unsafe { codec.decode_unchecked(&[], 1) }
+    let error = unsafe { codec.decode(&[], 1) }
         .expect_err("index outside slice should fail");
     assert_eq!(
         CharsetDecodeErrorKind::InvalidInputIndex { input_len: 0 },
@@ -79,7 +77,7 @@ fn test_utf16_u16_codec_decodes_bmp_and_reports_closed_tail_or_malformed_units()
     );
     assert_eq!(1, error.index());
 
-    let error = unsafe { codec.decode_unchecked(&[], 0) }
+    let error = unsafe { codec.decode(&[], 0) }
         .expect_err("empty closed input should be incomplete");
     assert_eq!(
         CharsetDecodeErrorKind::IncompleteSequence {
@@ -90,7 +88,7 @@ fn test_utf16_u16_codec_decodes_bmp_and_reports_closed_tail_or_malformed_units()
     );
     assert_eq!(0, error.index());
 
-    let error = unsafe { codec.decode_unchecked(&[0xd83d, 'A' as u16], 0) }
+    let error = unsafe { codec.decode(&[0xd83d, 'A' as u16], 0) }
         .expect_err("high surrogate followed by non-low-surrogate should fail");
     assert_eq!(
         CharsetDecodeErrorKind::MalformedSequence {
@@ -100,7 +98,7 @@ fn test_utf16_u16_codec_decodes_bmp_and_reports_closed_tail_or_malformed_units()
     );
     assert_eq!(1, error.index());
 
-    let error = unsafe { codec.decode_unchecked(&[0xde00], 0) }
+    let error = unsafe { codec.decode(&[0xde00], 0) }
         .expect_err("isolated low surrogate should fail");
     assert_eq!(
         CharsetDecodeErrorKind::MalformedSequence {
@@ -113,29 +111,27 @@ fn test_utf16_u16_codec_decodes_bmp_and_reports_closed_tail_or_malformed_units()
 
 #[test]
 fn test_utf16_u16_codec_encodes_bmp_and_supplementary_scalars() {
-    let codec = Utf16U16Codec;
+    let mut codec = Utf16U16Codec;
     let mut output = [0_u16; Utf16::MAX_UNITS_PER_CHAR];
 
     assert_eq!(1, unsafe {
-        codec.encode_unchecked(&'A', &mut output, 0).expect("BMP")
+        codec.encode(&'A', &mut output, 0).expect("BMP")
     });
     assert_eq!(2, unsafe {
-        codec
-            .encode_unchecked(&'😀', &mut output, 0)
-            .expect("surrogate pair")
+        codec.encode(&'😀', &mut output, 0).expect("surrogate pair")
     });
 
-    let error = unsafe { codec.encode_unchecked(&'😀', &mut output[..1], 0) }
+    let error = unsafe { codec.encode(&'😀', &mut output[..1], 0) }
         .expect_err("surrogate pair needs two units");
     assert_eq!(Some(2), error.required());
     assert_eq!(Some(1), error.available());
 
-    let error = unsafe { codec.encode_unchecked(&'A', &mut [], 1) }
+    let error = unsafe { codec.encode(&'A', &mut [], 1) }
         .expect_err("output index outside slice");
     assert_eq!(Some(2), error.required());
     assert_eq!(Some(0), error.available());
 
-    let error = unsafe { codec.encode_unchecked(&'A', &mut [], usize::MAX) }
+    let error = unsafe { codec.encode(&'A', &mut [], usize::MAX) }
         .expect_err("overflowing output index should fail without panicking");
     assert_eq!(Some(usize::MAX), error.required());
     assert_eq!(Some(0), error.available());
@@ -143,7 +139,7 @@ fn test_utf16_u16_codec_encodes_bmp_and_supplementary_scalars() {
 
 #[test]
 fn test_utf16_u16_codec_direct_function_items_cover_trait_methods() {
-    let codec = Utf16U16Codec;
+    let mut codec = Utf16U16Codec;
     let inherent_charset: fn(Utf16U16Codec) -> Charset = Utf16U16Codec::charset;
     let trait_charset: fn(&Utf16U16Codec) -> Charset =
         <Utf16U16Codec as CharsetCodec>::charset;
@@ -157,8 +153,8 @@ fn test_utf16_u16_codec_direct_function_items_cover_trait_methods() {
         usize,
     ) -> CharsetEncodeResult<usize> =
         <Utf16U16Codec as CharsetEncodeProbe>::encode_len;
-    let decode: DecodeFn = <Utf16U16Codec as Codec>::decode_unchecked;
-    let encode: EncodeFn = <Utf16U16Codec as Codec>::encode_unchecked;
+    let decode: DecodeFn = <Utf16U16Codec as Codec>::decode;
+    let encode: EncodeFn = <Utf16U16Codec as Codec>::encode;
 
     assert_eq!(Charset::UTF_16, inherent_charset(codec));
     assert_eq!(Charset::UTF_16, trait_charset(&codec));
@@ -169,9 +165,10 @@ fn test_utf16_u16_codec_direct_function_items_cover_trait_methods() {
     let mut output = [0_u16; Utf16::MAX_UNITS_PER_CHAR];
     assert_eq!(
         2,
-        unsafe { encode(&codec, &'😀', &mut output, 0) }.expect("encode pair")
+        unsafe { encode(&mut codec, &'😀', &mut output, 0) }
+            .expect("encode pair")
     );
     let (decoded, consumed) =
-        unsafe { decode(&codec, &output, 0) }.expect("decode pair");
+        unsafe { decode(&mut codec, &output, 0) }.expect("decode pair");
     assert_eq!(('😀', 2), (decoded, consumed.get()));
 }

@@ -36,7 +36,7 @@ fn test_core_codec_trait_reports_text_codec_unit_bounds() {
     assert_eq!(1, Utf32U32Codec.max_units_per_value().get());
 }
 
-fn assert_u8_codec<C>(codec: C, value: char, expected: &[u8])
+fn assert_u8_codec<C>(mut codec: C, value: char, expected: &[u8])
 where
     C: Codec<Value = char, Unit = u8>,
     C::DecodeError: core::fmt::Debug,
@@ -45,14 +45,14 @@ where
     let mut output = [0_u8; 4];
     let written = unsafe {
         codec
-            .encode_unchecked(&value, &mut output, 0)
+            .encode(&value, &mut output, 0)
             .expect("character should encode")
     };
     assert_eq!(expected, &output[..written]);
 
     let (decoded, consumed) = unsafe {
         codec
-            .decode_unchecked(&output[..written], 0)
+            .decode(&output[..written], 0)
             .expect("encoded bytes should decode")
     };
     assert_eq!((value, written), (decoded, consumed.get()));
@@ -77,12 +77,12 @@ fn test_core_codec_trait_is_implemented_for_byte_text_codecs() {
 
 #[test]
 fn test_core_codec_trait_is_implemented_for_utf16_units() {
-    let codec = Utf16U16Codec;
+    let mut codec = Utf16U16Codec;
     let mut output = [0_u16; 2];
 
     let written = unsafe {
         codec
-            .encode_unchecked(&'😀', &mut output, 0)
+            .encode(&'😀', &mut output, 0)
             .expect("supplementary character should encode")
     };
     assert_eq!(2, written);
@@ -90,7 +90,7 @@ fn test_core_codec_trait_is_implemented_for_utf16_units() {
 
     let (decoded, consumed) = unsafe {
         codec
-            .decode_unchecked(&output, 0)
+            .decode(&output, 0)
             .expect("surrogate pair should decode")
     };
     assert_eq!('😀', decoded);
@@ -99,22 +99,19 @@ fn test_core_codec_trait_is_implemented_for_utf16_units() {
 
 #[test]
 fn test_core_codec_trait_is_implemented_for_utf32_units() {
-    let codec = Utf32U32Codec;
+    let mut codec = Utf32U32Codec;
     let mut output = [0_u32; 1];
 
     let written = unsafe {
         codec
-            .encode_unchecked(&'中', &mut output, 0)
+            .encode(&'中', &mut output, 0)
             .expect("character should encode")
     };
     assert_eq!(1, written);
     assert_eq!([0x4e2d], output);
 
-    let (decoded, consumed) = unsafe {
-        codec
-            .decode_unchecked(&output, 0)
-            .expect("UTF-32 unit should decode")
-    };
+    let (decoded, consumed) =
+        unsafe { codec.decode(&output, 0).expect("UTF-32 unit should decode") };
     assert_eq!('中', decoded);
     assert_eq!(1, consumed.get());
 }
@@ -123,7 +120,7 @@ fn test_core_codec_trait_is_implemented_for_utf32_units() {
 fn test_core_codec_trait_reports_text_codec_value_errors() {
     let decode_error = unsafe {
         AsciiCodec
-            .decode_unchecked(&[0x80], 0)
+            .decode(&[0x80], 0)
             .expect_err("non-ASCII byte should be malformed")
     };
     assert_eq!(
@@ -135,7 +132,7 @@ fn test_core_codec_trait_reports_text_codec_value_errors() {
     let mut ascii_output = [0_u8; 1];
     let encode_error = unsafe {
         AsciiCodec
-            .encode_unchecked(&'é', &mut ascii_output, 0)
+            .encode(&'é', &mut ascii_output, 0)
             .expect_err("non-ASCII character should be unmappable")
     };
     assert_eq!(
@@ -147,7 +144,7 @@ fn test_core_codec_trait_reports_text_codec_value_errors() {
     let mut latin1_output = [0_u8; 1];
     let encode_error = unsafe {
         Latin1Codec
-            .encode_unchecked(&'\u{0100}', &mut latin1_output, 0)
+            .encode(&'\u{0100}', &mut latin1_output, 0)
             .expect_err("outside Latin-1 should be unmappable")
     };
     assert_eq!(

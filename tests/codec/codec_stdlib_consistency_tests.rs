@@ -2,7 +2,6 @@ use core::fmt::Debug;
 
 use qubit_codec_text::{
     AsciiCodec,
-    BufferedTranscoder,
     ByteOrder,
     CharsetCodec,
     CharsetConvertError,
@@ -15,6 +14,7 @@ use qubit_codec_text::{
     CharsetEncoder,
     Codec,
     TranscodeStatus,
+    Transcoder,
     Utf8Codec,
     Utf16ByteCodec,
     Utf16U16Codec,
@@ -24,7 +24,7 @@ use qubit_codec_text::{
 
 #[test]
 fn test_utf8_codec_matches_std_boundaries_and_round_trip() {
-    let codec = Utf8Codec;
+    let mut codec = Utf8Codec;
     let mut encoder = CharsetEncoder::new(Utf8Codec);
     let samples = [
         "",
@@ -44,7 +44,7 @@ fn test_utf8_codec_matches_std_boundaries_and_round_trip() {
     for text in &samples {
         let bytes = text.as_bytes();
         let expected: Vec<char> = text.chars().collect();
-        assert_eq!(expected, decode_all_utf8(&codec, bytes));
+        assert_eq!(expected, decode_all_utf8(&mut codec, bytes));
 
         let mut output = vec![0_u8; bytes.len()];
         let progress = encoder
@@ -53,7 +53,7 @@ fn test_utf8_codec_matches_std_boundaries_and_round_trip() {
         assert_eq!(TranscodeStatus::Complete, progress.status());
         assert_eq!(bytes.len(), progress.written());
         assert_eq!(bytes, &output);
-        encoder.reset();
+        encoder.reset(&mut output, 0).expect("reset");
     }
 
     for (input, error_index, value) in [
@@ -63,7 +63,7 @@ fn test_utf8_codec_matches_std_boundaries_and_round_trip() {
         (b"\xF4\x90\x80\x80", 1, Some(0x90)),
     ] {
         let std_error = std::str::from_utf8(input).unwrap_err();
-        let codec_error = unsafe { codec.decode_unchecked(input, 0) }
+        let codec_error = unsafe { codec.decode(input, 0) }
             .expect_err("malformed utf-8 should fail");
         assert_eq!(
             CharsetDecodeErrorKind::MalformedSequence { value },
@@ -81,7 +81,7 @@ fn test_utf8_codec_matches_std_boundaries_and_round_trip() {
         let std_error = std::str::from_utf8(input).unwrap_err();
         assert!(std_error.error_len().is_none());
 
-        let error = unsafe { codec.decode_unchecked(input, 0) }
+        let error = unsafe { codec.decode(input, 0) }
             .expect_err("short input is incomplete");
         assert_eq!(
             CharsetDecodeErrorKind::IncompleteSequence {
@@ -95,13 +95,13 @@ fn test_utf8_codec_matches_std_boundaries_and_round_trip() {
 
 #[test]
 fn test_utf16_codecs_match_std_unit_round_trip() {
-    let codec = Utf16U16Codec;
+    let mut codec = Utf16U16Codec;
     let sample_chars = unicode_boundary_chars();
     let expected_units = encode_utf16_units(&sample_chars);
 
     assert_eq!(
         sample_chars,
-        decode_all_utf16_units(&codec, &expected_units)
+        decode_all_utf16_units(&mut codec, &expected_units)
     );
 
     let mut encoded = vec![0_u16; expected_units.len()];
@@ -131,7 +131,7 @@ fn test_utf16_codecs_match_std_unit_round_trip() {
             std::char::decode_utf16(malformed.iter().copied())
                 .any(|result| result.is_err())
         );
-        let decode_result = unsafe { codec.decode_unchecked(malformed, 0) };
+        let decode_result = unsafe { codec.decode(malformed, 0) };
         assert!(matches!(
             decode_result,
             Err(ref error) if matches!(
@@ -143,7 +143,7 @@ fn test_utf16_codecs_match_std_unit_round_trip() {
     }
 
     let partial = [0xd83d];
-    let error = unsafe { codec.decode_unchecked(&partial, 0) }
+    let error = unsafe { codec.decode(&partial, 0) }
         .expect_err("partial high surrogate is incomplete");
     assert_eq!(
         CharsetDecodeErrorKind::IncompleteSequence {
@@ -162,14 +162,14 @@ fn test_utf16_byte_codecs_match_std_and_round_trip() {
 
 #[test]
 fn test_utf32_codecs_match_std_unit_round_trip() {
-    let codec = Utf32U32Codec;
+    let mut codec = Utf32U32Codec;
     let sample_chars = unicode_boundary_chars();
     let expected_units: Vec<u32> =
         sample_chars.iter().map(|&ch| ch as u32).collect();
 
     assert_eq!(
         sample_chars,
-        decode_all_utf32_units(&codec, &expected_units)
+        decode_all_utf32_units(&mut codec, &expected_units)
     );
 
     let mut encoded = vec![0_u32; expected_units.len()];
@@ -183,7 +183,7 @@ fn test_utf32_codecs_match_std_unit_round_trip() {
     for invalid in invalid_units {
         assert_eq!(None, std::char::from_u32(invalid));
         assert!(matches!(
-            unsafe { codec.decode_unchecked(&[invalid], 0) },
+            unsafe { codec.decode(&[invalid], 0) },
             Err(ref error) if matches!(error.kind(), CharsetDecodeErrorKind::InvalidCodePoint { .. }),
         ));
     }
@@ -548,11 +548,11 @@ fn test_charset_converter_policies_handle_unicode_decode_and_encode_paths() {
     }
 }
 
-fn decode_all_utf8(codec: &Utf8Codec, input: &[u8]) -> Vec<char> {
+fn decode_all_utf8(codec: &mut Utf8Codec, input: &[u8]) -> Vec<char> {
     let mut output = Vec::new();
     let mut index = 0;
     while index < input.len() {
-        match unsafe { codec.decode_unchecked(input, index) } {
+        match unsafe { codec.decode(input, index) } {
             Ok((value, consumed)) => {
                 output.push(value);
                 index += consumed.get();
@@ -565,11 +565,14 @@ fn decode_all_utf8(codec: &Utf8Codec, input: &[u8]) -> Vec<char> {
     output
 }
 
-fn decode_all_utf16_units(codec: &Utf16U16Codec, input: &[u16]) -> Vec<char> {
+fn decode_all_utf16_units(
+    codec: &mut Utf16U16Codec,
+    input: &[u16],
+) -> Vec<char> {
     let mut output = Vec::new();
     let mut index = 0;
     while index < input.len() {
-        match unsafe { codec.decode_unchecked(input, index) } {
+        match unsafe { codec.decode(input, index) } {
             Ok((value, consumed)) => {
                 output.push(value);
                 index += consumed.get();
@@ -582,11 +585,14 @@ fn decode_all_utf16_units(codec: &Utf16U16Codec, input: &[u16]) -> Vec<char> {
     output
 }
 
-fn decode_all_utf16_bytes(codec: &Utf16ByteCodec, input: &[u8]) -> Vec<char> {
+fn decode_all_utf16_bytes(
+    codec: &mut Utf16ByteCodec,
+    input: &[u8],
+) -> Vec<char> {
     let mut output = Vec::new();
     let mut index = 0;
     while index < input.len() {
-        match unsafe { codec.decode_unchecked(input, index) } {
+        match unsafe { codec.decode(input, index) } {
             Ok((value, consumed)) => {
                 output.push(value);
                 index += consumed.get();
@@ -601,11 +607,14 @@ fn decode_all_utf16_bytes(codec: &Utf16ByteCodec, input: &[u8]) -> Vec<char> {
     output
 }
 
-fn decode_all_utf32_units(codec: &Utf32U32Codec, input: &[u32]) -> Vec<char> {
+fn decode_all_utf32_units(
+    codec: &mut Utf32U32Codec,
+    input: &[u32],
+) -> Vec<char> {
     let mut output = Vec::new();
     let mut index = 0;
     while index < input.len() {
-        match unsafe { codec.decode_unchecked(input, index) } {
+        match unsafe { codec.decode(input, index) } {
             Ok((value, consumed)) => {
                 output.push(value);
                 index += consumed.get();
@@ -618,11 +627,14 @@ fn decode_all_utf32_units(codec: &Utf32U32Codec, input: &[u32]) -> Vec<char> {
     output
 }
 
-fn decode_all_utf32_bytes(codec: &Utf32ByteCodec, input: &[u8]) -> Vec<char> {
+fn decode_all_utf32_bytes(
+    codec: &mut Utf32ByteCodec,
+    input: &[u8],
+) -> Vec<char> {
     let mut output = Vec::new();
     let mut index = 0;
     while index < input.len() {
-        match unsafe { codec.decode_unchecked(input, index) } {
+        match unsafe { codec.decode(input, index) } {
             Ok((value, consumed)) => {
                 output.push(value);
                 index += consumed.get();
@@ -638,7 +650,7 @@ fn decode_all_utf32_bytes(codec: &Utf32ByteCodec, input: &[u8]) -> Vec<char> {
 }
 
 fn assert_utf16_byte_codec_round_trip(order: ByteOrder) {
-    let codec = Utf16ByteCodec::new(order);
+    let mut codec = Utf16ByteCodec::new(order);
     let chars = unicode_boundary_chars();
     let units = encode_utf16_units(&chars);
     let expected: Vec<u8> = units
@@ -650,7 +662,7 @@ fn assert_utf16_byte_codec_round_trip(order: ByteOrder) {
         })
         .collect();
 
-    assert_eq!(chars, decode_all_utf16_bytes(&codec, &expected));
+    assert_eq!(chars, decode_all_utf16_bytes(&mut codec, &expected));
 
     let mut output = vec![0_u8; expected.len()];
     let progress = CharsetEncoder::new(codec)
@@ -661,7 +673,7 @@ fn assert_utf16_byte_codec_round_trip(order: ByteOrder) {
 }
 
 fn assert_utf32_byte_codec_round_trip(order: ByteOrder) {
-    let codec = Utf32ByteCodec::new(order);
+    let mut codec = Utf32ByteCodec::new(order);
     let chars = unicode_boundary_chars();
     let units: Vec<u32> = chars.iter().copied().map(|ch| ch as u32).collect();
     let expected: Vec<u8> = units
@@ -673,7 +685,7 @@ fn assert_utf32_byte_codec_round_trip(order: ByteOrder) {
         })
         .collect();
 
-    assert_eq!(chars, decode_all_utf32_bytes(&codec, &expected));
+    assert_eq!(chars, decode_all_utf32_bytes(&mut codec, &expected));
 
     let mut output = vec![0_u8; expected.len()];
     let progress = CharsetEncoder::new(codec)

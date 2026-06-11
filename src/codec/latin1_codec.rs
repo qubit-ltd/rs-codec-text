@@ -86,6 +86,8 @@ unsafe impl Codec for Latin1Codec {
     type Unit = u8;
     type DecodeError = CharsetDecodeError;
     type EncodeError = CharsetEncodeError;
+    type DecodeState = ();
+    type EncodeState = ();
 
     #[inline(always)]
     fn min_units_per_value(&self) -> core::num::NonZeroUsize {
@@ -98,8 +100,8 @@ unsafe impl Codec for Latin1Codec {
     }
 
     #[inline]
-    unsafe fn decode_unchecked(
-        &self,
+    unsafe fn decode(
+        &mut self,
         input: &[u8],
         index: usize,
     ) -> CharsetDecodeResult<(char, core::num::NonZeroUsize)> {
@@ -135,8 +137,8 @@ unsafe impl Codec for Latin1Codec {
     }
 
     #[inline]
-    unsafe fn encode_unchecked(
-        &self,
+    unsafe fn encode(
+        &mut self,
         ch: &char,
         output: &mut [u8],
         index: usize,

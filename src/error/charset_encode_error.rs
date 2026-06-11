@@ -8,6 +8,8 @@
 use core::fmt;
 use std::error::Error;
 
+use qubit_codec::TranscodeError;
+
 use crate::{
     Charset,
     CharsetEncodeErrorKind,
@@ -188,3 +190,44 @@ impl fmt::Display for CharsetEncodeError {
 }
 
 impl Error for CharsetEncodeError {}
+
+impl TranscodeError<Charset> for CharsetEncodeError {
+    #[inline(always)]
+    fn invalid_input_index(charset: Charset, index: usize, len: usize) -> Self {
+        Self::new(
+            charset,
+            CharsetEncodeErrorKind::InvalidInputIndex { input_len: len },
+            index,
+        )
+    }
+
+    #[inline(always)]
+    fn invalid_output_index(
+        charset: Charset,
+        index: usize,
+        len: usize,
+    ) -> Self {
+        Self::new(
+            charset,
+            CharsetEncodeErrorKind::InvalidOutputIndex { output_len: len },
+            index,
+        )
+    }
+
+    #[inline(always)]
+    fn insufficient_output(
+        charset: Charset,
+        output_index: usize,
+        required: usize,
+        available: usize,
+    ) -> Self {
+        Self::new(
+            charset,
+            CharsetEncodeErrorKind::BufferTooSmall {
+                required,
+                available,
+            },
+            output_index,
+        )
+    }
+}

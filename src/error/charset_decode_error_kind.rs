@@ -32,6 +32,18 @@ pub enum CharsetDecodeErrorKind {
         output_len: usize,
     },
 
+    /// The supplied output buffer is too small for finish output.
+    #[error(
+        "The output buffer is too small (required {required} values, available {available} values)."
+    )]
+    InsufficientOutput {
+        /// Total output values required by finish.
+        required: usize,
+
+        /// Total output values currently available from the requested index.
+        available: usize,
+    },
+
     /// The closed input ended before a complete character was available.
     #[error(
         "The encoded text sequence is incomplete (required {required} units, available {available} units)."
@@ -70,6 +82,7 @@ impl CharsetDecodeErrorKind {
             Self::MalformedSequence { .. }
             | Self::InvalidInputIndex { .. }
             | Self::InvalidOutputIndex { .. }
+            | Self::InsufficientOutput { .. }
             | Self::InvalidCodePoint { .. } => None,
         }
     }
@@ -89,6 +102,7 @@ impl CharsetDecodeErrorKind {
             Self::MalformedSequence { .. }
             | Self::InvalidInputIndex { .. }
             | Self::InvalidOutputIndex { .. }
+            | Self::InsufficientOutput { .. }
             | Self::InvalidCodePoint { .. } => None,
         }
     }
@@ -110,7 +124,8 @@ impl CharsetDecodeErrorKind {
             Self::InvalidCodePoint { value } => Some(value),
             Self::IncompleteSequence { .. }
             | Self::InvalidInputIndex { .. }
-            | Self::InvalidOutputIndex { .. } => None,
+            | Self::InvalidOutputIndex { .. }
+            | Self::InsufficientOutput { .. } => None,
         }
     }
 
@@ -129,6 +144,7 @@ impl CharsetDecodeErrorKind {
             Self::MalformedSequence { .. }
             | Self::IncompleteSequence { .. }
             | Self::InvalidOutputIndex { .. }
+            | Self::InsufficientOutput { .. }
             | Self::InvalidCodePoint { .. } => None,
         }
     }
@@ -148,6 +164,7 @@ impl CharsetDecodeErrorKind {
             Self::MalformedSequence { .. }
             | Self::InvalidInputIndex { .. }
             | Self::IncompleteSequence { .. }
+            | Self::InsufficientOutput { .. }
             | Self::InvalidCodePoint { .. } => None,
         }
     }
@@ -180,6 +197,7 @@ impl CharsetDecodeErrorKind {
             Self::MalformedSequence { .. }
             | Self::InvalidInputIndex { .. }
             | Self::InvalidOutputIndex { .. }
+            | Self::InsufficientOutput { .. }
             | Self::InvalidCodePoint { .. } => None,
         }
     }
