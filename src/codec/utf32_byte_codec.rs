@@ -6,18 +6,9 @@
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
 use crate::{
-    ByteOrder,
-    Charset,
-    CharsetCodec,
-    CharsetDecodeError,
-    CharsetDecodeErrorKind,
-    CharsetDecodeResult,
-    CharsetEncodeError,
-    CharsetEncodeErrorKind,
-    CharsetEncodeProbe,
-    CharsetEncodeResult,
-    Unicode,
-    Utf32,
+    ByteOrder, Charset, CharsetCodec, CharsetDecodeError, CharsetDecodeErrorKind,
+    CharsetDecodeResult, CharsetEncodeError, CharsetEncodeErrorKind, CharsetEncodeProbe,
+    CharsetEncodeResult, Unicode, Utf32,
 };
 use qubit_codec::Codec;
 
@@ -45,7 +36,7 @@ use qubit_codec::Codec;
 /// assert_eq!(Utf32::MAX_BYTES_PER_CHAR, codec.max_units_per_value().get());
 ///
 /// let mut output = [0_u8; Utf32::MAX_BYTES_PER_CHAR];
-/// let written = codec.encode_len('中', 0).expect("mappable");
+/// let written = CharsetEncodeProbe::encode_len(&codec, '中', 0).expect("mappable");
 /// unsafe {
 ///     codec.encode(&'中', &mut output, 0).expect("buffer fits");
 /// }
@@ -125,11 +116,7 @@ impl CharsetEncodeProbe for Utf32ByteCodec {
     ///
     /// Always returns `Ok(4)`.
     #[inline(always)]
-    fn encode_len(
-        &self,
-        _ch: char,
-        _index: usize,
-    ) -> CharsetEncodeResult<usize> {
+    fn encode_len(&self, _ch: char, _index: usize) -> CharsetEncodeResult<usize> {
         Ok(Utf32::MAX_BYTES_PER_CHAR)
     }
 }
@@ -139,21 +126,15 @@ unsafe impl Codec for Utf32ByteCodec {
     type Unit = u8;
     type DecodeError = CharsetDecodeError;
     type EncodeError = CharsetEncodeError;
-    type DecodeState = ();
-    type EncodeState = ();
 
     #[inline(always)]
     fn min_units_per_value(&self) -> core::num::NonZeroUsize {
-        // SAFETY: 4 is non-zero.
-        unsafe { core::num::NonZeroUsize::new_unchecked(4) }
+        qubit_codec::nz!(4)
     }
 
     #[inline(always)]
     fn max_units_per_value(&self) -> core::num::NonZeroUsize {
-        // SAFETY: UTF-32 byte encoding always uses four bytes.
-        unsafe {
-            core::num::NonZeroUsize::new_unchecked(Utf32::MAX_BYTES_PER_CHAR)
-        }
+        qubit_codec::nz!(Utf32::MAX_BYTES_PER_CHAR)
     }
 
     #[inline(always)]
@@ -162,8 +143,7 @@ unsafe impl Codec for Utf32ByteCodec {
         input: &[u8],
         index: usize,
     ) -> CharsetDecodeResult<(char, core::num::NonZeroUsize)> {
-        let (ch, consumed) =
-            decode_bytes_prefix(input, index, self.byte_order)?;
+        let (ch, consumed) = decode_bytes_prefix(input, index, self.byte_order)?;
         debug_assert!(consumed.get() <= input.len() - index);
         Ok((ch, consumed))
     }
@@ -174,11 +154,11 @@ unsafe impl Codec for Utf32ByteCodec {
         ch: &char,
         output: &mut [u8],
         index: usize,
-    ) -> CharsetEncodeResult<usize> {
+    ) -> CharsetEncodeResult<core::num::NonZeroUsize> {
         let written = encode_bytes_char(*ch, output, self.byte_order, index)?;
         debug_assert_eq!(written, Utf32::MAX_BYTES_PER_CHAR);
         debug_assert!(written <= output.len() - index);
-        Ok(written)
+        Ok(qubit_codec::nz!(Utf32::MAX_BYTES_PER_CHAR))
     }
 }
 
@@ -227,10 +207,7 @@ fn decode_bytes_prefix(
     }
     let unit = read_ordered_u32(input, index, byte_order);
     match Unicode::to_char(unit) {
-        Some(ch) => {
-            // SAFETY: 4 is non-zero.
-            Ok((ch, unsafe { core::num::NonZeroUsize::new_unchecked(4) }))
-        }
+        Some(ch) => Ok((ch, qubit_codec::nz!(4))),
         None => {
             let kind = CharsetDecodeErrorKind::InvalidCodePoint { value: unit };
             Err(CharsetDecodeError::new(charset, kind, index).with_consumed(4))
@@ -327,12 +304,7 @@ fn read_ordered_u32(input: &[u8], index: usize, byte_order: ByteOrder) -> u32 {
 /// - `unit`: UTF-32 unit to write.
 /// - `byte_order`: Byte order used to serialize the unit.
 #[inline(always)]
-fn write_ordered_u32(
-    output: &mut [u8],
-    index: usize,
-    unit: u32,
-    byte_order: ByteOrder,
-) {
+fn write_ordered_u32(output: &mut [u8], index: usize, unit: u32, byte_order: ByteOrder) {
     let bytes = match byte_order {
         ByteOrder::BigEndian => unit.to_be_bytes(),
         ByteOrder::LittleEndian => unit.to_le_bytes(),

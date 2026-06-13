@@ -5,29 +5,13 @@
 //
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
-use core::{
-    fmt,
-    marker::PhantomData,
-};
+use core::{fmt, marker::PhantomData};
 
-use qubit_codec::{
-    EncodeContext,
-    EncodePlan,
-    TranscodeEncodeHooks,
-};
+use qubit_codec::{EncodeContext, EncodePlan, TranscodeEncodeHooks};
 
-use crate::{
-    Charset,
-    CharsetEncodeError,
-    CharsetEncodeErrorKind,
-    CharsetEncodeResult,
-    UnmappableAction,
-};
+use crate::{CharsetEncodeError, CharsetEncodeErrorKind, CharsetEncodeResult, UnmappableAction};
 
-use super::{
-    charset_encode_action::CharsetEncodeAction,
-    charset_encode_probe::CharsetEncodeProbe,
-};
+use super::{charset_encode_action::CharsetEncodeAction, charset_encode_probe::CharsetEncodeProbe};
 
 /// Unmappable-input policy hooks used by [`super::CharsetEncoder`].
 #[derive(Clone)]
@@ -79,10 +63,7 @@ impl<Unit> CharsetEncodeHooks<Unit> {
     /// Returns hooks configured with no replacement output units.
     #[must_use]
     #[inline(always)]
-    pub(crate) const fn new(
-        unmappable_action: UnmappableAction,
-        replacement: char,
-    ) -> Self {
+    pub(crate) const fn new(unmappable_action: UnmappableAction, replacement: char) -> Self {
         Self {
             unmappable_action,
             replacement,
@@ -98,10 +79,7 @@ impl<Unit> CharsetEncodeHooks<Unit> {
     /// - `replacement_units_len`: Number of target units used by the
     ///   replacement.
     #[inline(always)]
-    pub(crate) const fn set_replacement_units_len(
-        &mut self,
-        replacement_units_len: usize,
-    ) {
+    pub(crate) const fn set_replacement_units_len(&mut self, replacement_units_len: usize) {
         self.replacement_units_len = replacement_units_len;
     }
 }
@@ -111,13 +89,7 @@ where
     C: CharsetEncodeProbe,
 {
     type Error = CharsetEncodeError;
-    type ErrorContext = Charset;
     type PlanAction = CharsetEncodeAction;
-
-    #[inline(always)]
-    fn error_context(codec: &C) -> Self::ErrorContext {
-        codec.charset()
-    }
 
     /// Prepares a charset-specific encoding plan.
     #[inline]
@@ -127,7 +99,7 @@ where
         ch: &char,
         input_index: usize,
     ) -> Result<EncodePlan<Self::PlanAction>, Self::Error> {
-        match codec.encode_len(*ch, input_index) {
+        match CharsetEncodeProbe::encode_len(codec, *ch, input_index) {
             Ok(max_output_units) => Ok(EncodePlan::new(
                 max_output_units,
                 CharsetEncodeAction::WriteOriginal,
@@ -140,7 +112,8 @@ where
             {
                 match self.unmappable_action {
                     UnmappableAction::Report => Err(error),
-                    UnmappableAction::Ignore => {
+                    UnmappableAction::Ignore => Ok(EncodePlan::new(0, CharsetEncodeAction::Skip)),
+                    UnmappableAction::Replace if self.replacement_units_len == 0 => {
                         Ok(EncodePlan::new(0, CharsetEncodeAction::Skip))
                     }
                     UnmappableAction::Replace => Ok(EncodePlan::new(
@@ -165,20 +138,16 @@ where
             // SAFETY: The engine checked the exact capacity requested by
             // `prepare_encode`.
             CharsetEncodeAction::WriteOriginal => unsafe {
-                codec.encode(
-                    context.input_value,
-                    context.output,
-                    context.output_index,
-                )
+                codec
+                    .encode(context.input_value, context.output, context.output_index)
+                    .map(core::num::NonZeroUsize::get)
             },
             // SAFETY: The engine checked the replacement capacity reported by
             // `prepare_encode`.
             CharsetEncodeAction::WriteReplacement => unsafe {
-                codec.encode(
-                    &self.replacement,
-                    context.output,
-                    context.output_index,
-                )
+                codec
+                    .encode(&self.replacement, context.output, context.output_index)
+                    .map(core::num::NonZeroUsize::get)
             },
             CharsetEncodeAction::Skip => Ok(0),
         }
@@ -186,23 +155,16 @@ where
 
     /// Maps charset encode reset errors unchanged.
     #[inline(always)]
-    fn map_encode_reset_error(
-        &mut self,
-        _codec: &mut C,
-        error: CharsetEncodeError,
-    ) -> Self::Error {
+    fn map_encode_reset_error(&mut self, _codec: &mut C, error: CharsetEncodeError) -> Self::Error {
         error
     }
 }
 
 /// Returns the encoded width of a replacement character.
 #[inline(always)]
-pub(super) fn replacement_len<C>(
-    codec: &C,
-    ch: char,
-) -> CharsetEncodeResult<usize>
+pub(super) fn replacement_len<C>(codec: &C, ch: char) -> CharsetEncodeResult<usize>
 where
     C: CharsetEncodeProbe,
 {
-    codec.encode_len(ch, 0)
+    CharsetEncodeProbe::encode_len(codec, ch, 0)
 }

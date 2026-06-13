@@ -1,25 +1,16 @@
 use qubit_codec_text::{
-    ByteOrder,
-    Charset,
-    CharsetCodec,
-    CharsetDecodeErrorKind,
-    CharsetDecodeResult,
-    CharsetEncodeProbe,
-    CharsetEncodeResult,
-    Codec,
-    Utf32,
-    Utf32ByteCodec,
+    ByteOrder, Charset, CharsetCodec, CharsetDecodeErrorKind, CharsetDecodeResult,
+    CharsetEncodeProbe, CharsetEncodeResult, Codec, Utf32, Utf32ByteCodec,
 };
 
 type DecodedCharResult = CharsetDecodeResult<(char, core::num::NonZeroUsize)>;
-type DecodeFn =
-    unsafe fn(&mut Utf32ByteCodec, &[u8], usize) -> DecodedCharResult;
+type DecodeFn = unsafe fn(&mut Utf32ByteCodec, &[u8], usize) -> DecodedCharResult;
 type EncodeFn = unsafe fn(
     &mut Utf32ByteCodec,
     &char,
     &mut [u8],
     usize,
-) -> CharsetEncodeResult<usize>;
+) -> CharsetEncodeResult<core::num::NonZeroUsize>;
 
 #[test]
 fn test_utf32_byte_codec_exposes_encoder_and_decoder_contracts() {
@@ -33,7 +24,7 @@ fn test_utf32_byte_codec_exposes_encoder_and_decoder_contracts() {
     assert_eq!(Utf32::MAX_BYTES_PER_CHAR, codec.max_units_per_value().get());
     assert_eq!(
         4,
-        codec.encode_len('A', 0).expect("encode utf32 unit bytes")
+        CharsetEncodeProbe::encode_len(&codec, 'A', 0).expect("encode utf32 unit bytes")
     );
 
     assert_eq!(ByteOrder::BigEndian, codec.byte_order());
@@ -49,9 +40,9 @@ fn test_utf32_byte_codec_encodes_and_decodes_bytes() {
         codec
             .encode(&'A', &mut output, 0)
             .expect("encode UTF-32BE A")
+            .get()
     });
-    let (decoded, consumed) =
-        unsafe { codec.decode(&output, 0) }.expect("decode UTF-32BE A");
+    let (decoded, consumed) = unsafe { codec.decode(&output, 0) }.expect("decode UTF-32BE A");
     assert_eq!('A', decoded);
     assert_eq!(4, consumed.get());
 
@@ -60,8 +51,7 @@ fn test_utf32_byte_codec_encodes_and_decodes_bytes() {
     assert_eq!(Some(4), error.required());
     assert_eq!(Some(2), error.available());
 
-    let error = unsafe { codec.encode(&'A', &mut [], 1) }
-        .expect_err("output index outside slice");
+    let error = unsafe { codec.encode(&'A', &mut [], 1) }.expect_err("output index outside slice");
     assert_eq!(Some(5), error.required());
     assert_eq!(Some(0), error.available());
 
@@ -75,8 +65,8 @@ fn test_utf32_byte_codec_encodes_and_decodes_bytes() {
 fn test_utf32_byte_codec_reports_closed_tail_and_invalid_units() {
     let mut codec = Utf32ByteCodec::new(ByteOrder::LittleEndian);
 
-    let error = unsafe { codec.decode(&[0x41, 0x00], 0) }
-        .expect_err("partial UTF-32 bytes are incomplete");
+    let error =
+        unsafe { codec.decode(&[0x41, 0x00], 0) }.expect_err("partial UTF-32 bytes are incomplete");
     assert_eq!(
         CharsetDecodeErrorKind::IncompleteSequence {
             required: 4,
@@ -85,8 +75,7 @@ fn test_utf32_byte_codec_reports_closed_tail_and_invalid_units() {
         error.kind()
     );
 
-    let error = unsafe { codec.decode(&[], 1) }
-        .expect_err("index outside slice should fail");
+    let error = unsafe { codec.decode(&[], 1) }.expect_err("index outside slice should fail");
     assert_eq!(
         CharsetDecodeErrorKind::InvalidInputIndex { input_len: 0 },
         error.kind()
@@ -106,21 +95,14 @@ fn test_utf32_byte_codec_reports_closed_tail_and_invalid_units() {
 fn test_utf32_byte_codec_direct_function_items_cover_trait_methods() {
     let mut codec = Utf32ByteCodec::new(ByteOrder::LittleEndian);
     let new_fn: fn(ByteOrder) -> Utf32ByteCodec = Utf32ByteCodec::new;
-    let byte_order: fn(Utf32ByteCodec) -> ByteOrder =
-        Utf32ByteCodec::byte_order;
-    let inherent_charset: fn(Utf32ByteCodec) -> Charset =
-        Utf32ByteCodec::charset;
-    let trait_charset: fn(&Utf32ByteCodec) -> Charset =
-        <Utf32ByteCodec as CharsetCodec>::charset;
+    let byte_order: fn(Utf32ByteCodec) -> ByteOrder = Utf32ByteCodec::byte_order;
+    let inherent_charset: fn(Utf32ByteCodec) -> Charset = Utf32ByteCodec::charset;
+    let trait_charset: fn(&Utf32ByteCodec) -> Charset = <Utf32ByteCodec as CharsetCodec>::charset;
     let min_units: fn(&Utf32ByteCodec) -> core::num::NonZeroUsize =
         <Utf32ByteCodec as Codec>::min_units_per_value;
     let max_units: fn(&Utf32ByteCodec) -> core::num::NonZeroUsize =
         <Utf32ByteCodec as Codec>::max_units_per_value;
-    let encode_len: fn(
-        &Utf32ByteCodec,
-        char,
-        usize,
-    ) -> CharsetEncodeResult<usize> =
+    let encode_len: fn(&Utf32ByteCodec, char, usize) -> CharsetEncodeResult<usize> =
         <Utf32ByteCodec as CharsetEncodeProbe>::encode_len;
     let decode: DecodeFn = <Utf32ByteCodec as Codec>::decode;
     let encode: EncodeFn = <Utf32ByteCodec as Codec>::encode;
@@ -140,8 +122,8 @@ fn test_utf32_byte_codec_direct_function_items_cover_trait_methods() {
         4,
         unsafe { encode(&mut codec, &'中', &mut output, 0) }
             .expect("encode bytes")
+            .get()
     );
-    let (decoded, consumed) =
-        unsafe { decode(&mut codec, &output, 0) }.expect("decode bytes");
+    let (decoded, consumed) = unsafe { decode(&mut codec, &output, 0) }.expect("decode bytes");
     assert_eq!(('中', 4), (decoded, consumed.get()));
 }

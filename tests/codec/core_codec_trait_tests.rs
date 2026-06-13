@@ -1,17 +1,7 @@
-use qubit_codec::{
-    ByteOrder,
-    Codec,
-};
+use qubit_codec::{ByteOrder, Codec};
 use qubit_codec_text::{
-    AsciiCodec,
-    CharsetDecodeErrorKind,
-    CharsetEncodeErrorKind,
-    Latin1Codec,
-    Utf8Codec,
-    Utf16ByteCodec,
-    Utf16U16Codec,
-    Utf32ByteCodec,
-    Utf32U32Codec,
+    AsciiCodec, CharsetDecodeErrorKind, CharsetEncodeErrorKind, Latin1Codec, Utf8Codec,
+    Utf16ByteCodec, Utf16U16Codec, Utf32ByteCodec, Utf32U32Codec,
 };
 
 #[test]
@@ -47,7 +37,8 @@ where
         codec
             .encode(&value, &mut output, 0)
             .expect("character should encode")
-    };
+    }
+    .get();
     assert_eq!(expected, &output[..written]);
 
     let (decoded, consumed) = unsafe {
@@ -84,7 +75,8 @@ fn test_core_codec_trait_is_implemented_for_utf16_units() {
         codec
             .encode(&'😀', &mut output, 0)
             .expect("supplementary character should encode")
-    };
+    }
+    .get();
     assert_eq!(2, written);
     assert_eq!([0xd83d, 0xde00], output);
 
@@ -106,7 +98,8 @@ fn test_core_codec_trait_is_implemented_for_utf32_units() {
         codec
             .encode(&'中', &mut output, 0)
             .expect("character should encode")
-    };
+    }
+    .get();
     assert_eq!(1, written);
     assert_eq!([0x4e2d], output);
 

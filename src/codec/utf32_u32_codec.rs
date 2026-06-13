@@ -6,16 +6,8 @@
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
 use crate::{
-    Charset,
-    CharsetCodec,
-    CharsetDecodeError,
-    CharsetDecodeErrorKind,
-    CharsetDecodeResult,
-    CharsetEncodeError,
-    CharsetEncodeErrorKind,
-    CharsetEncodeProbe,
-    CharsetEncodeResult,
-    Unicode,
+    Charset, CharsetCodec, CharsetDecodeError, CharsetDecodeErrorKind, CharsetDecodeResult,
+    CharsetEncodeError, CharsetEncodeErrorKind, CharsetEncodeProbe, CharsetEncodeResult, Unicode,
     Utf32,
 };
 use qubit_codec::Codec;
@@ -43,7 +35,7 @@ use qubit_codec::Codec;
 /// assert_eq!(Utf32::MAX_UNITS_PER_CHAR, codec.max_units_per_value().get());
 ///
 /// let mut output = [0_u32; Utf32::MAX_UNITS_PER_CHAR];
-/// let written = codec.encode_len('中', 0).expect("mappable");
+/// let written = CharsetEncodeProbe::encode_len(&codec, '中', 0).expect("mappable");
 /// unsafe {
 ///     codec.encode(&'中', &mut output, 0).expect("buffer fits");
 /// }
@@ -92,11 +84,7 @@ impl CharsetEncodeProbe for Utf32U32Codec {
     ///
     /// Always returns `Ok(1)`.
     #[inline(always)]
-    fn encode_len(
-        &self,
-        _ch: char,
-        _index: usize,
-    ) -> CharsetEncodeResult<usize> {
+    fn encode_len(&self, _ch: char, _index: usize) -> CharsetEncodeResult<usize> {
         Ok(Utf32::MAX_UNITS_PER_CHAR)
     }
 }
@@ -106,8 +94,6 @@ unsafe impl Codec for Utf32U32Codec {
     type Unit = u32;
     type DecodeError = CharsetDecodeError;
     type EncodeError = CharsetEncodeError;
-    type DecodeState = ();
-    type EncodeState = ();
 
     #[inline(always)]
     fn min_units_per_value(&self) -> core::num::NonZeroUsize {
@@ -136,11 +122,11 @@ unsafe impl Codec for Utf32U32Codec {
         ch: &char,
         output: &mut [u32],
         index: usize,
-    ) -> CharsetEncodeResult<usize> {
+    ) -> CharsetEncodeResult<core::num::NonZeroUsize> {
         let written = encode_units_char(*ch, output, index)?;
         debug_assert_eq!(written, Utf32::MAX_UNITS_PER_CHAR);
         debug_assert!(written <= output.len() - index);
-        Ok(written)
+        Ok(qubit_codec::nz!(Utf32::MAX_UNITS_PER_CHAR))
     }
 }
 
@@ -211,11 +197,7 @@ fn decode_units_prefix(
 /// * `CharsetEncodeErrorKind::BufferTooSmall` when no unit can be written at
 ///   `index`.
 #[inline]
-fn encode_units_char(
-    ch: char,
-    output: &mut [u32],
-    index: usize,
-) -> CharsetEncodeResult<usize> {
+fn encode_units_char(ch: char, output: &mut [u32], index: usize) -> CharsetEncodeResult<usize> {
     if index >= output.len() {
         let kind = CharsetEncodeErrorKind::BufferTooSmall {
             required: required_index(index, 1),

@@ -6,16 +6,8 @@
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
 use crate::{
-    Ascii,
-    Charset,
-    CharsetCodec,
-    CharsetDecodeError,
-    CharsetDecodeErrorKind,
-    CharsetDecodeResult,
-    CharsetEncodeError,
-    CharsetEncodeErrorKind,
-    CharsetEncodeProbe,
-    CharsetEncodeResult,
+    Ascii, Charset, CharsetCodec, CharsetDecodeError, CharsetDecodeErrorKind, CharsetDecodeResult,
+    CharsetEncodeError, CharsetEncodeErrorKind, CharsetEncodeProbe, CharsetEncodeResult,
 };
 use qubit_codec::Codec;
 
@@ -69,9 +61,7 @@ impl CharsetEncodeProbe for AsciiCodec {
     #[inline]
     fn encode_len(&self, ch: char, index: usize) -> CharsetEncodeResult<usize> {
         if ch > Ascii::MAX_CHAR {
-            let kind = CharsetEncodeErrorKind::UnmappableCharacter {
-                value: ch as u32,
-            };
+            let kind = CharsetEncodeErrorKind::UnmappableCharacter { value: ch as u32 };
             return Err(CharsetEncodeError::new(Charset::ASCII, kind, index));
         }
         Ok(1)
@@ -83,8 +73,6 @@ unsafe impl Codec for AsciiCodec {
     type Unit = u8;
     type DecodeError = CharsetDecodeError;
     type EncodeError = CharsetEncodeError;
-    type DecodeState = ();
-    type EncodeState = ();
 
     #[inline(always)]
     fn min_units_per_value(&self) -> core::num::NonZeroUsize {
@@ -133,11 +121,9 @@ unsafe impl Codec for AsciiCodec {
         ch: &char,
         output: &mut [u8],
         index: usize,
-    ) -> CharsetEncodeResult<usize> {
+    ) -> CharsetEncodeResult<core::num::NonZeroUsize> {
         if *ch > Ascii::MAX_CHAR {
-            let kind = CharsetEncodeErrorKind::UnmappableCharacter {
-                value: *ch as u32,
-            };
+            let kind = CharsetEncodeErrorKind::UnmappableCharacter { value: *ch as u32 };
             return Err(CharsetEncodeError::new(Charset::ASCII, kind, index));
         }
         if index >= output.len() {
@@ -148,7 +134,7 @@ unsafe impl Codec for AsciiCodec {
             return Err(CharsetEncodeError::new(Charset::ASCII, kind, index));
         }
         output[index] = *ch as u8;
-        Ok(1)
+        Ok(core::num::NonZeroUsize::MIN)
     }
 }
 

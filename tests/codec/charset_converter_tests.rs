@@ -1,30 +1,11 @@
-use std::{
-    cell::Cell,
-    rc::Rc,
-};
+use std::{cell::Cell, rc::Rc};
 
-use qubit_codec::TranscodeConverter;
+use qubit_codec::{TranscodeConverter, TranscodeError};
 use qubit_codec_text::{
-    Charset,
-    CharsetCodec,
-    CharsetConvertError,
-    CharsetConverter,
-    CharsetDecodeError,
-    CharsetDecodeErrorKind,
-    CharsetDecodePolicy,
-    CharsetDecodeResult,
-    CharsetEncodeError,
-    CharsetEncodeErrorKind,
-    CharsetEncodePolicy,
-    CharsetEncodeProbe,
-    CharsetEncodeResult,
-    Codec,
-    MalformedAction,
-    TranscodeStatus,
-    Transcoder,
-    UnmappableAction,
-    Utf8Codec,
-    Utf16U16Codec,
+    Charset, CharsetCodec, CharsetConvertError, CharsetConverter, CharsetDecodeError,
+    CharsetDecodeErrorKind, CharsetDecodePolicy, CharsetDecodeResult, CharsetEncodeError,
+    CharsetEncodeErrorKind, CharsetEncodePolicy, CharsetEncodeProbe, CharsetEncodeResult, Codec,
+    MalformedAction, TranscodeStatus, Transcoder, UnmappableAction, Utf8Codec, Utf16U16Codec,
 };
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -39,9 +20,7 @@ impl CharsetCodec for AsciiBytesCodec {
 impl CharsetEncodeProbe for AsciiBytesCodec {
     fn encode_len(&self, ch: char, index: usize) -> CharsetEncodeResult<usize> {
         if !ch.is_ascii() {
-            let kind = CharsetEncodeErrorKind::UnmappableCharacter {
-                value: ch as u32,
-            };
+            let kind = CharsetEncodeErrorKind::UnmappableCharacter { value: ch as u32 };
             return Err(CharsetEncodeError::new(Charset::ASCII, kind, index));
         }
         Ok(1)
@@ -53,8 +32,6 @@ unsafe impl Codec for AsciiBytesCodec {
     type Unit = u8;
     type DecodeError = CharsetDecodeError;
     type EncodeError = CharsetEncodeError;
-    type DecodeState = ();
-    type EncodeState = ();
 
     fn min_units_per_value(&self) -> core::num::NonZeroUsize {
         core::num::NonZeroUsize::MIN
@@ -91,11 +68,12 @@ unsafe impl Codec for AsciiBytesCodec {
         value: &char,
         output: &mut [u8],
         index: usize,
-    ) -> CharsetEncodeResult<usize> {
-        let required = self.encode_len(*value, index)?;
+    ) -> CharsetEncodeResult<core::num::NonZeroUsize> {
+        let required = CharsetEncodeProbe::encode_len(self, *value, index)?;
         debug_assert!(index + required <= output.len());
         output[index] = *value as u8;
-        Ok(required)
+        Ok(core::num::NonZeroUsize::new(required)
+            .expect("test codec encode writes at least one unit"))
     }
 }
 
@@ -119,7 +97,7 @@ impl CharsetCodec for CountingEncodeProbeCodec {
 impl CharsetEncodeProbe for CountingEncodeProbeCodec {
     fn encode_len(&self, ch: char, index: usize) -> CharsetEncodeResult<usize> {
         self.calls.set(self.calls.get() + 1);
-        AsciiBytesCodec.encode_len(ch, index)
+        CharsetEncodeProbe::encode_len(&AsciiBytesCodec, ch, index)
     }
 }
 
@@ -128,8 +106,6 @@ unsafe impl Codec for CountingEncodeProbeCodec {
     type Unit = u8;
     type DecodeError = CharsetDecodeError;
     type EncodeError = CharsetEncodeError;
-    type DecodeState = ();
-    type EncodeState = ();
 
     fn min_units_per_value(&self) -> core::num::NonZeroUsize {
         AsciiBytesCodec.min_units_per_value()
@@ -152,7 +128,7 @@ unsafe impl Codec for CountingEncodeProbeCodec {
         value: &char,
         output: &mut [u8],
         index: usize,
-    ) -> CharsetEncodeResult<usize> {
+    ) -> CharsetEncodeResult<core::num::NonZeroUsize> {
         unsafe { AsciiBytesCodec.encode(value, output, index) }
     }
 }
@@ -172,9 +148,7 @@ impl CharsetCodec for NonDefaultUnitCodec {
 impl CharsetEncodeProbe for NonDefaultUnitCodec {
     fn encode_len(&self, ch: char, index: usize) -> CharsetEncodeResult<usize> {
         if !ch.is_ascii() {
-            let kind = CharsetEncodeErrorKind::UnmappableCharacter {
-                value: ch as u32,
-            };
+            let kind = CharsetEncodeErrorKind::UnmappableCharacter { value: ch as u32 };
             return Err(CharsetEncodeError::new(Charset::ASCII, kind, index));
         }
         Ok(1)
@@ -186,8 +160,6 @@ unsafe impl Codec for NonDefaultUnitCodec {
     type Unit = NonDefaultUnit;
     type DecodeError = CharsetDecodeError;
     type EncodeError = CharsetEncodeError;
-    type DecodeState = ();
-    type EncodeState = ();
 
     fn min_units_per_value(&self) -> core::num::NonZeroUsize {
         core::num::NonZeroUsize::MIN
@@ -211,11 +183,12 @@ unsafe impl Codec for NonDefaultUnitCodec {
         value: &char,
         output: &mut [NonDefaultUnit],
         index: usize,
-    ) -> CharsetEncodeResult<usize> {
-        let required = self.encode_len(*value, index)?;
+    ) -> CharsetEncodeResult<core::num::NonZeroUsize> {
+        let required = CharsetEncodeProbe::encode_len(self, *value, index)?;
         debug_assert!(index + required <= output.len());
         output[index] = NonDefaultUnit(*value as u8);
-        Ok(required)
+        Ok(core::num::NonZeroUsize::new(required)
+            .expect("test codec encode writes at least one unit"))
     }
 }
 
@@ -239,8 +212,7 @@ impl CharsetCodec for RejectingEncodeCodec {
 
 impl CharsetEncodeProbe for RejectingEncodeCodec {
     fn encode_len(&self, ch: char, index: usize) -> CharsetEncodeResult<usize> {
-        let kind =
-            CharsetEncodeErrorKind::UnmappableCharacter { value: ch as u32 };
+        let kind = CharsetEncodeErrorKind::UnmappableCharacter { value: ch as u32 };
         Err(CharsetEncodeError::new(Charset::ASCII, kind, index))
     }
 }
@@ -250,8 +222,6 @@ unsafe impl Codec for RejectingEncodeCodec {
     type Unit = u8;
     type DecodeError = CharsetDecodeError;
     type EncodeError = CharsetEncodeError;
-    type DecodeState = ();
-    type EncodeState = ();
 
     fn min_units_per_value(&self) -> core::num::NonZeroUsize {
         core::num::NonZeroUsize::MIN
@@ -275,24 +245,24 @@ unsafe impl Codec for RejectingEncodeCodec {
         value: &char,
         _output: &mut [u8],
         index: usize,
-    ) -> CharsetEncodeResult<usize> {
-        self.encode_len(*value, index)
+    ) -> CharsetEncodeResult<core::num::NonZeroUsize> {
+        CharsetEncodeProbe::encode_len(self, *value, index).map(|required| {
+            core::num::NonZeroUsize::new(required)
+                .expect("test codec encode writes at least one unit")
+        })
     }
 }
 
 impl CharsetEncodeProbe for ReplacementFallbackCodec {
     fn encode_len(&self, ch: char, index: usize) -> CharsetEncodeResult<usize> {
         if ch == '\u{fffd}' {
-            let kind = CharsetEncodeErrorKind::UnmappableCharacter {
-                value: ch as u32,
-            };
+            let kind = CharsetEncodeErrorKind::UnmappableCharacter { value: ch as u32 };
             return Err(CharsetEncodeError::new(Charset::ASCII, kind, index));
         }
         if ch == '?' || ch.is_ascii() {
             return Ok(1);
         }
-        let kind =
-            CharsetEncodeErrorKind::UnmappableCharacter { value: ch as u32 };
+        let kind = CharsetEncodeErrorKind::UnmappableCharacter { value: ch as u32 };
         Err(CharsetEncodeError::new(Charset::ASCII, kind, index))
     }
 }
@@ -302,8 +272,6 @@ unsafe impl Codec for ReplacementFallbackCodec {
     type Unit = u8;
     type DecodeError = CharsetDecodeError;
     type EncodeError = CharsetEncodeError;
-    type DecodeState = ();
-    type EncodeState = ();
 
     fn min_units_per_value(&self) -> core::num::NonZeroUsize {
         core::num::NonZeroUsize::MIN
@@ -326,19 +294,13 @@ unsafe impl Codec for ReplacementFallbackCodec {
         value: &char,
         output: &mut [u8],
         index: usize,
-    ) -> CharsetEncodeResult<usize> {
-        let required = self.encode_len(*value, index)?;
+    ) -> CharsetEncodeResult<core::num::NonZeroUsize> {
+        let required = CharsetEncodeProbe::encode_len(self, *value, index)?;
         debug_assert!(index + required <= output.len());
         output[index] = *value as u8;
-        Ok(required)
+        Ok(core::num::NonZeroUsize::new(required)
+            .expect("test codec encode writes at least one unit"))
     }
-}
-
-#[test]
-fn test_charset_converter_exposes_error_context() {
-    let converter = CharsetConverter::from_codecs(Utf8Codec, AsciiBytesCodec);
-
-    assert_eq!((Charset::UTF_8, Charset::ASCII), converter.error_context());
 }
 
 #[test]
@@ -407,8 +369,7 @@ fn test_charset_converter_with_policies_rejects_unencodable_replacement() {
 }
 
 #[test]
-fn test_charset_converter_with_explicit_policies_exposes_effective_configuration()
- {
+fn test_charset_converter_with_explicit_policies_exposes_effective_configuration() {
     let decode_policy = CharsetDecodePolicy::replace('!');
     let encode_policy = CharsetEncodePolicy::replace('?');
     let converter = CharsetConverter::from_codecs_with_policies(
@@ -429,14 +390,12 @@ fn test_charset_converter_with_explicit_policies_exposes_effective_configuration
 
 #[test]
 #[should_panic(expected = "cannot initialize CharsetConverter target")]
-fn test_charset_converter_from_codecs_panics_when_no_default_replacement_is_encodable()
- {
+fn test_charset_converter_from_codecs_panics_when_no_default_replacement_is_encodable() {
     let _ = CharsetConverter::from_codecs(Utf8Codec, RejectingEncodeCodec);
 }
 
 #[test]
-fn test_charset_converter_from_codecs_converts_available_ascii_without_finish()
-{
+fn test_charset_converter_from_codecs_converts_available_ascii_without_finish() {
     let mut converter = CharsetConverter::from_codecs(Utf8Codec, Utf16U16Codec);
     let mut output = [0_u16; 4];
 
@@ -470,8 +429,8 @@ fn test_charset_converter_drains_decoder_need_output_batches() {
     assert_eq!(9, progress.written());
     assert_eq!(
         [
-            'A' as u16, 'B' as u16, 'C' as u16, 'D' as u16, 'E' as u16,
-            'F' as u16, 'G' as u16, 'H' as u16, 'I' as u16,
+            'A' as u16, 'B' as u16, 'C' as u16, 'D' as u16, 'E' as u16, 'F' as u16, 'G' as u16,
+            'H' as u16, 'I' as u16,
         ],
         output,
     );
@@ -488,19 +447,14 @@ fn test_charset_converter_reports_invalid_input_index() {
         .expect_err("input index outside input slice should fail");
 
     match error {
-        CharsetConvertError::Decode(error) => {
-            assert_eq!(Charset::UTF_8, error.charset());
-            assert_eq!(
-                CharsetDecodeErrorKind::InvalidInputIndex {
-                    input_len: input.len()
-                },
-                error.kind()
-            );
-            assert_eq!(input.len() + 1, error.index());
+        TranscodeError::Domain(_) => {
+            panic!("invalid source index must be reported as a framework error")
         }
-        CharsetConvertError::Encode(_) => {
-            panic!("invalid source index must be reported as a decode error")
+        TranscodeError::InvalidInputIndex { index, len } => {
+            assert_eq!(input.len() + 1, index);
+            assert_eq!(input.len(), len);
         }
+        other => panic!("expected invalid input index, got {other:?}"),
     }
 }
 
@@ -552,8 +506,7 @@ fn test_charset_converter_keeps_pending_character_when_output_is_full() {
 }
 
 #[test]
-fn test_charset_converter_finish_reports_need_output_for_starting_pending_character()
- {
+fn test_charset_converter_finish_reports_need_output_for_starting_pending_character() {
     let mut converter = CharsetConverter::from_codecs(Utf8Codec, Utf16U16Codec);
     let mut empty_output = [];
 
@@ -571,22 +524,16 @@ fn test_charset_converter_finish_reports_need_output_for_starting_pending_charac
         .finish(&mut empty_output, 0)
         .expect_err("pending character still needs output at finish");
     match error {
-        CharsetConvertError::Encode(error) => {
-            assert_eq!(Charset::UTF_16, error.charset());
-            assert_eq!(
-                CharsetEncodeErrorKind::BufferTooSmall {
-                    required: 2,
-                    available: 0,
-                },
-                error.kind()
-            );
-            assert_eq!(0, error.index());
+        TranscodeError::InsufficientOutput {
+            output_index,
+            required,
+            available,
+        } => {
+            assert_eq!(0, output_index);
+            assert_eq!(2, required);
+            assert_eq!(0, available);
         }
-        CharsetConvertError::Decode(_) => {
-            panic!(
-                "pending output at finish must be reported as an encode error"
-            )
-        }
+        other => panic!("expected insufficient output, got {other:?}"),
     }
 }
 
@@ -599,19 +546,11 @@ fn test_charset_converter_finish_delegates_to_target_encoder() {
         .finish(&mut output, 1)
         .expect_err("target encoder reports out-of-range output index");
     match error {
-        CharsetConvertError::Encode(error) => {
-            assert_eq!(Charset::UTF_16, error.charset());
-            assert_eq!(
-                CharsetEncodeErrorKind::InvalidOutputIndex { output_len: 0 },
-                error.kind()
-            );
-            assert_eq!(1, error.index());
+        TranscodeError::InvalidOutputIndex { index, len } => {
+            assert_eq!(1, index);
+            assert_eq!(0, len);
         }
-        CharsetConvertError::Decode(_) => {
-            panic!(
-                "target finish validation must be reported as an encode error"
-            )
-        }
+        other => panic!("expected invalid output index, got {other:?}"),
     }
 }
 
@@ -745,7 +684,10 @@ fn test_charset_converter_propagates_decode_and_encode_errors() {
     let error = converter
         .transcode(&[0x80, b'A', b'B', b'C'], 0, &mut output, 0)
         .expect_err("malformed source input is reported");
-    assert!(matches!(error, CharsetConvertError::Decode(_)));
+    assert!(matches!(
+        error,
+        TranscodeError::Domain(CharsetConvertError::Decode(_))
+    ));
 
     let mut converter = CharsetConverter::from_codecs_with_policies(
         Utf8Codec,
@@ -759,14 +701,15 @@ fn test_charset_converter_propagates_decode_and_encode_errors() {
     let error = converter
         .transcode("é".as_bytes(), 0, &mut ascii_output, 0)
         .expect_err("unmappable target character is reported");
-    assert!(matches!(error, CharsetConvertError::Encode(_)));
+    assert!(matches!(
+        error,
+        TranscodeError::Domain(CharsetConvertError::Encode(_))
+    ));
 }
 
 #[test]
-fn test_charset_converter_falls_back_to_question_mark_when_default_replacement_is_unencodable()
- {
-    let mut converter =
-        CharsetConverter::from_codecs(Utf8Codec, ReplacementFallbackCodec);
+fn test_charset_converter_falls_back_to_question_mark_when_default_replacement_is_unencodable() {
+    let mut converter = CharsetConverter::from_codecs(Utf8Codec, ReplacementFallbackCodec);
     let mut output = [0_u8; 1];
 
     assert_eq!(CharsetDecodePolicy::default(), converter.decode_policy());
@@ -809,8 +752,7 @@ fn test_charset_converter_report_target_policy_does_not_require_default_unit() {
 
 #[test]
 fn test_charset_converter_converts_available_utf8_to_ascii_without_finish() {
-    let mut converter =
-        CharsetConverter::from_codecs(Utf8Codec, AsciiBytesCodec);
+    let mut converter = CharsetConverter::from_codecs(Utf8Codec, AsciiBytesCodec);
     let mut output = [0_u8; 4];
 
     let progress = converter

@@ -58,9 +58,7 @@ pub enum CharsetDecodeErrorKind {
     },
 
     /// The decoded numeric value is not a valid Unicode scalar value.
-    #[error(
-        "The decoded code point 0x{value:x} is not a valid Unicode scalar value."
-    )]
+    #[error("The decoded code point 0x{value:x} is not a valid Unicode scalar value.")]
     InvalidCodePoint {
         /// Raw decoded code-point value.
         value: u32,

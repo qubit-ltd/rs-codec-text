@@ -5,10 +5,7 @@
 //
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
-use crate::{
-    ByteOrder,
-    Charset,
-};
+use crate::{ByteOrder, Charset};
 
 /// Unicode byte order marks supported by this crate.
 ///
@@ -139,12 +136,8 @@ impl UnicodeBom {
     pub const fn byte_order(self) -> Option<ByteOrder> {
         match self {
             Self::Utf8 => None,
-            Self::Utf16BigEndian | Self::Utf32BigEndian => {
-                Some(ByteOrder::BigEndian)
-            }
-            Self::Utf16LittleEndian | Self::Utf32LittleEndian => {
-                Some(ByteOrder::LittleEndian)
-            }
+            Self::Utf16BigEndian | Self::Utf32BigEndian => Some(ByteOrder::BigEndian),
+            Self::Utf16LittleEndian | Self::Utf32LittleEndian => Some(ByteOrder::LittleEndian),
         }
     }
 }

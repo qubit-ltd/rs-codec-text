@@ -10,20 +10,11 @@
 use qubit_codec::TranscodeConvertHooks;
 
 use crate::{
-    Charset,
-    CharsetDecodeError,
-    CharsetDecodeHooks,
-    CharsetDecodePolicy,
-    CharsetEncodeError,
-    CharsetEncodeHooks,
-    CharsetEncodePolicy,
-    CharsetEncodeProbe,
+    CharsetDecodeError, CharsetDecodeHooks, CharsetDecodePolicy, CharsetEncodeError,
+    CharsetEncodeHooks, CharsetEncodePolicy, CharsetEncodeProbe,
 };
 
-use super::{
-    charset_codec::CharsetCodec,
-    charset_convert_error::CharsetConvertError,
-};
+use super::{charset_codec::CharsetCodec, charset_convert_error::CharsetConvertError};
 
 /// Policy hooks for [`super::CharsetConverter`].
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -63,25 +54,16 @@ where
     type EncodeError = CharsetEncodeError;
     type EncodeHooks = CharsetEncodeHooks<E::Unit>;
     type Error = CharsetConvertError;
-    type ErrorContext = (Charset, Charset);
 
     /// Creates default charset decode hooks.
     #[inline(always)]
-    fn create_decode_hooks(
-        &self,
-        _decode_codec: &D,
-        _encode_codec: &E,
-    ) -> Self::DecodeHooks {
+    fn create_decode_hooks(&self, _decode_codec: &D, _encode_codec: &E) -> Self::DecodeHooks {
         CharsetDecodeHooks::from_policy(self.decode_policy)
     }
 
     /// Returns the prevalidated charset encode hooks.
     #[inline(always)]
-    fn create_encode_hooks(
-        &self,
-        _decode_codec: &D,
-        _encode_codec: &E,
-    ) -> Self::EncodeHooks {
+    fn create_encode_hooks(&self, _decode_codec: &D, _encode_codec: &E) -> Self::EncodeHooks {
         self.encode_hooks.clone()
     }
 
@@ -95,14 +77,5 @@ where
     #[inline(always)]
     fn map_encode_error(&self, error: Self::EncodeError) -> Self::Error {
         CharsetConvertError::Encode(error)
-    }
-
-    #[inline(always)]
-    fn error_context(
-        &self,
-        decode_codec: &D,
-        encode_codec: &E,
-    ) -> Self::ErrorContext {
-        (decode_codec.charset(), encode_codec.charset())
     }
 }

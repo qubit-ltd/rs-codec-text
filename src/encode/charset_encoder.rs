@@ -8,24 +8,14 @@
 use core::fmt;
 
 use qubit_codec::{
-    CapacityError,
-    TranscodeEncodeEngine,
-    TranscodeEncoder,
-    TranscodeProgress,
+    CapacityError, TranscodeEncodeEngine, TranscodeEncoder, TranscodeError, TranscodeProgress,
     Transcoder,
 };
 
-use crate::{
-    Charset,
-    CharsetEncodeError,
-    UnmappableAction,
-};
+use crate::{CharsetEncodeError, UnmappableAction};
 
 use super::{
-    charset_encode_hooks::{
-        CharsetEncodeHooks,
-        replacement_len,
-    },
+    charset_encode_hooks::{CharsetEncodeHooks, replacement_len},
     charset_encode_policy::CharsetEncodePolicy,
     charset_encode_probe::CharsetEncodeProbe,
 };
@@ -90,9 +80,8 @@ where
                 replacement_units_len,
             },
             Err(default_error) => {
-                let fallback_policy = CharsetEncodePolicy::replace(
-                    CharsetEncodePolicy::DEFAULT_FALLBACK_REPLACEMENT,
-                );
+                let fallback_policy =
+                    CharsetEncodePolicy::replace(CharsetEncodePolicy::DEFAULT_FALLBACK_REPLACEMENT);
                 match Self::create_hooks(&codec, fallback_policy) {
                     Ok((hooks, replacement_units_len)) => Self {
                         engine: TranscodeEncodeEngine::new(codec, hooks),
@@ -116,12 +105,8 @@ where
     ///
     /// Returns an error when `policy` uses replacement and the replacement
     /// character cannot be encoded by `codec`.
-    pub fn with_policy(
-        codec: C,
-        policy: CharsetEncodePolicy,
-    ) -> Result<Self, CharsetEncodeError> {
-        let (hooks, replacement_units_len) =
-            Self::create_hooks(&codec, policy)?;
+    pub fn with_policy(codec: C, policy: CharsetEncodePolicy) -> Result<Self, CharsetEncodeError> {
+        let (hooks, replacement_units_len) = Self::create_hooks(&codec, policy)?;
         Ok(Self {
             engine: TranscodeEncodeEngine::new(codec, hooks),
             policy,
@@ -158,15 +143,11 @@ where
         codec: &C,
         policy: CharsetEncodePolicy,
     ) -> Result<(CharsetEncodeHooks<C::Unit>, usize), CharsetEncodeError> {
-        let mut hooks = CharsetEncodeHooks::new(
-            policy.unmappable_action(),
-            policy.replacement(),
-        );
+        let mut hooks = CharsetEncodeHooks::new(policy.unmappable_action(), policy.replacement());
         if policy.unmappable_action() != UnmappableAction::Replace {
             return Ok((hooks, 0));
         }
-        let replacement_units_len =
-            replacement_len(codec, policy.replacement())?;
+        let replacement_units_len = replacement_len(codec, policy.replacement())?;
         hooks.set_replacement_units_len(replacement_units_len);
         Ok((hooks, replacement_units_len))
     }
@@ -177,12 +158,6 @@ where
     C: CharsetEncodeProbe,
 {
     type Error = CharsetEncodeError;
-    type ErrorContext = Charset;
-
-    #[inline(always)]
-    fn error_context(&self) -> Self::ErrorContext {
-        self.engine.public_error_context()
-    }
 
     /// Returns the maximum number of target units needed for `input_len`
     /// characters.
@@ -209,7 +184,7 @@ where
         &mut self,
         output: &mut [C::Unit],
         output_index: usize,
-    ) -> Result<usize, Self::Error> {
+    ) -> Result<usize, TranscodeError<Self::Error>> {
         self.engine.reset(output, output_index)
     }
 
@@ -222,7 +197,7 @@ where
         input_index: usize,
         output: &mut [C::Unit],
         output_index: usize,
-    ) -> Result<TranscodeProgress, Self::Error> {
+    ) -> Result<TranscodeProgress, TranscodeError<Self::Error>> {
         self.engine
             .transcode(input, input_index, output, output_index)
     }
@@ -233,15 +208,12 @@ where
         &mut self,
         output: &mut [C::Unit],
         output_index: usize,
-    ) -> Result<usize, Self::Error> {
+    ) -> Result<usize, TranscodeError<Self::Error>> {
         self.engine.finish(output, output_index)
     }
 }
 
-impl<C> TranscodeEncoder<char, C::Unit> for CharsetEncoder<C> where
-    C: CharsetEncodeProbe
-{
-}
+impl<C> TranscodeEncoder<char, C::Unit> for CharsetEncoder<C> where C: CharsetEncodeProbe {}
 
 impl<C> Eq for CharsetEncoder<C> where C: CharsetEncodeProbe + Eq {}
 

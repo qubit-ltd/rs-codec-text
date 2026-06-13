@@ -6,24 +6,13 @@
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
 use qubit_codec::{
-    CapacityError,
-    TranscodeDecodeEngine,
-    TranscodeDecoder,
-    TranscodeProgress,
+    CapacityError, TranscodeDecodeEngine, TranscodeDecoder, TranscodeError, TranscodeProgress,
     Transcoder,
 };
 
-use crate::{
-    Charset,
-    CharsetCodec,
-    CharsetDecodeError,
-    MalformedAction,
-};
+use crate::{CharsetCodec, CharsetDecodeError, MalformedAction};
 
-use super::{
-    charset_decode_hooks::CharsetDecodeHooks,
-    charset_decode_policy::CharsetDecodePolicy,
-};
+use super::{charset_decode_hooks::CharsetDecodeHooks, charset_decode_policy::CharsetDecodePolicy};
 
 /// Converts units of one charset into Unicode scalar values.
 ///
@@ -113,22 +102,13 @@ where
     }
 }
 
-impl<C> TranscodeDecoder<C::Unit, char> for CharsetDecoder<C> where
-    C: CharsetCodec
-{
-}
+impl<C> TranscodeDecoder<C::Unit, char> for CharsetDecoder<C> where C: CharsetCodec {}
 
 impl<C> Transcoder<C::Unit, char> for CharsetDecoder<C>
 where
     C: CharsetCodec,
 {
     type Error = CharsetDecodeError;
-    type ErrorContext = Charset;
-
-    #[inline(always)]
-    fn error_context(&self) -> Self::ErrorContext {
-        self.engine.public_error_context()
-    }
 
     /// Returns the maximum number of characters decoded from `input_len` units.
     #[inline(always)]
@@ -155,7 +135,7 @@ where
         &mut self,
         output: &mut [char],
         output_index: usize,
-    ) -> Result<usize, Self::Error> {
+    ) -> Result<usize, TranscodeError<Self::Error>> {
         self.engine.reset(output, output_index)
     }
 
@@ -168,7 +148,7 @@ where
         input_index: usize,
         output: &mut [char],
         output_index: usize,
-    ) -> Result<TranscodeProgress, Self::Error> {
+    ) -> Result<TranscodeProgress, TranscodeError<Self::Error>> {
         self.engine
             .transcode(input, input_index, output, output_index)
     }
@@ -179,7 +159,7 @@ where
         &mut self,
         output: &mut [char],
         output_index: usize,
-    ) -> Result<usize, Self::Error> {
+    ) -> Result<usize, TranscodeError<Self::Error>> {
         self.engine.finish(output, output_index)
     }
 }

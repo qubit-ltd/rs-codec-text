@@ -1,7 +1,4 @@
-use qubit_codec_text::{
-    ByteOrder,
-    Utf32,
-};
+use qubit_codec_text::{ByteOrder, Utf32};
 
 #[test]
 fn test_utf32_classifies_units_and_detects_bom() {

@@ -8,12 +8,7 @@
 use core::fmt;
 use std::error::Error;
 
-use qubit_codec::TranscodeError;
-
-use crate::{
-    Charset,
-    CharsetDecodeErrorKind,
-};
+use crate::{Charset, CharsetDecodeErrorKind};
 
 /// Error reported by a charset decoder.
 ///
@@ -54,11 +49,7 @@ impl CharsetDecodeError {
     ///
     /// Returns a decoding error carrying the supplied context.
     #[inline(always)]
-    pub const fn new(
-        charset: Charset,
-        kind: CharsetDecodeErrorKind,
-        index: usize,
-    ) -> Self {
+    pub const fn new(charset: Charset, kind: CharsetDecodeErrorKind, index: usize) -> Self {
         Self {
             charset,
             kind,
@@ -182,9 +173,7 @@ impl CharsetDecodeError {
     pub const fn consumed(self) -> Option<usize> {
         match self.kind {
             CharsetDecodeErrorKind::MalformedSequence { .. }
-            | CharsetDecodeErrorKind::InvalidCodePoint { .. } => {
-                Some(self.consumed)
-            }
+            | CharsetDecodeErrorKind::InvalidCodePoint { .. } => Some(self.consumed),
             CharsetDecodeErrorKind::IncompleteSequence { .. }
             | CharsetDecodeErrorKind::InvalidInputIndex { .. }
             | CharsetDecodeErrorKind::InvalidOutputIndex { .. }
@@ -246,44 +235,3 @@ impl fmt::Display for CharsetDecodeError {
 }
 
 impl Error for CharsetDecodeError {}
-
-impl TranscodeError<Charset> for CharsetDecodeError {
-    #[inline(always)]
-    fn invalid_input_index(charset: Charset, index: usize, len: usize) -> Self {
-        Self::new(
-            charset,
-            CharsetDecodeErrorKind::InvalidInputIndex { input_len: len },
-            index,
-        )
-    }
-
-    #[inline(always)]
-    fn invalid_output_index(
-        charset: Charset,
-        index: usize,
-        len: usize,
-    ) -> Self {
-        Self::new(
-            charset,
-            CharsetDecodeErrorKind::InvalidOutputIndex { output_len: len },
-            index,
-        )
-    }
-
-    #[inline(always)]
-    fn insufficient_output(
-        charset: Charset,
-        output_index: usize,
-        required: usize,
-        available: usize,
-    ) -> Self {
-        Self::new(
-            charset,
-            CharsetDecodeErrorKind::InsufficientOutput {
-                required,
-                available,
-            },
-            output_index,
-        )
-    }
-}

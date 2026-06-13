@@ -5,10 +5,7 @@
 //
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
-use crate::{
-    CharsetCodec,
-    CharsetEncodeResult,
-};
+use crate::{CharsetCodec, CharsetEncodeResult};
 
 /// Encoding-size probe used by [`crate::CharsetEncoder`].
 ///

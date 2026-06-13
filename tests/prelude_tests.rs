@@ -1,20 +1,6 @@
 use qubit_codec_text::prelude::{
-    Ascii,
-    ByteOrder,
-    Charset,
-    CharsetDecoder,
-    CharsetEncoder,
-    Codec,
-    TranscodeStatus,
-    Transcoder,
-    Unicode,
-    UnicodeBom,
-    Utf8,
-    Utf8Codec,
-    Utf16,
-    Utf16ByteCodec,
-    Utf32,
-    Utf32ByteCodec,
+    Ascii, ByteOrder, Charset, CharsetDecoder, CharsetEncoder, Codec, TranscodeStatus, Transcoder,
+    Unicode, UnicodeBom, Utf8, Utf8Codec, Utf16, Utf16ByteCodec, Utf32, Utf32ByteCodec,
 };
 
 #[test]
@@ -36,8 +22,7 @@ fn test_prelude_reexports_common_types() {
     let mut utf8 = Utf8Codec;
     assert_eq!(Charset::UTF_8, utf8.charset());
     assert_eq!(4, utf8.max_units_per_value().get());
-    let (decoded, consumed) =
-        unsafe { utf8.decode("A".as_bytes(), 0).expect("UTF-8 prefix") };
+    let (decoded, consumed) = unsafe { utf8.decode("A".as_bytes(), 0).expect("UTF-8 prefix") };
     assert_eq!('A', decoded);
     assert_eq!(1, consumed.get());
     let mut decoder = CharsetDecoder::new(utf8);
