@@ -5,8 +5,10 @@
 //
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
-use core::fmt;
+use core::{fmt, num::NonZeroUsize};
 use std::error::Error;
+
+use qubit_codec::CodecDecodeSignal;
 
 use crate::{Charset, CharsetDecodeErrorKind};
 
@@ -235,3 +237,15 @@ impl fmt::Display for CharsetDecodeError {
 }
 
 impl Error for CharsetDecodeError {}
+
+impl CodecDecodeSignal for CharsetDecodeError {
+    #[inline(always)]
+    fn required_total(&self) -> Option<usize> {
+        self.kind.required()
+    }
+
+    #[inline(always)]
+    fn consumed_units(&self) -> Option<NonZeroUsize> {
+        self.consumed().and_then(NonZeroUsize::new)
+    }
+}
