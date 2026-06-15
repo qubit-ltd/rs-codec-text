@@ -1,3 +1,4 @@
+use qubit_codec::CodecDecodeSignal;
 use qubit_codec_text::{Charset, CharsetDecodeError, CharsetDecodeErrorKind};
 
 #[test]
@@ -93,6 +94,8 @@ fn test_charset_decode_error_exposes_consumption_and_incomplete_details() {
     )
     .with_consumed(2);
     assert_eq!(Some(2), malformed.consumed());
+    assert_eq!(core::num::NonZeroUsize::new(2), malformed.consumed_units(),);
+    assert_eq!(None, malformed.required_total());
     assert_eq!(Some(0x80), malformed.value());
 
     let invalid_code_point = CharsetDecodeError::new(
@@ -111,7 +114,9 @@ fn test_charset_decode_error_exposes_consumption_and_incomplete_details() {
         0,
     );
     assert_eq!(None, incomplete.consumed());
+    assert_eq!(None, incomplete.consumed_units());
     assert_eq!(Some(4), incomplete.required());
+    assert_eq!(Some(4), incomplete.required_total());
     assert_eq!(Some(1), incomplete.available());
 
     let invalid_index = CharsetDecodeError::new(
