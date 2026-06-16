@@ -1,18 +1,10 @@
 use qubit_codec_text::{
-    ByteOrder,
-    Charset,
-    CharsetCodec,
-    CharsetDecodeErrorKind,
-    CharsetDecodeResult,
-    CharsetEncodeResult,
-    Codec,
-    Utf16,
-    Utf16ByteCodec,
+    ByteOrder, Charset, CharsetCodec, CharsetDecodeErrorKind, CharsetDecodeResult,
+    CharsetEncodeResult, Codec, Utf16, Utf16ByteCodec,
 };
 
 type DecodedCharResult = CharsetDecodeResult<(char, core::num::NonZeroUsize)>;
-type DecodeFn =
-    unsafe fn(&mut Utf16ByteCodec, &[u8], usize) -> DecodedCharResult;
+type DecodeFn = unsafe fn(&mut Utf16ByteCodec, &[u8], usize) -> DecodedCharResult;
 type EncodeFn = unsafe fn(
     &mut Utf16ByteCodec,
     &char,
@@ -48,19 +40,16 @@ fn test_utf16_byte_codec_encodes_and_decodes_bytes() {
             .expect("encode pair bytes")
             .get()
     });
-    let (decoded, consumed) =
-        unsafe { codec.decode(&output, 0) }.expect("decode pair bytes");
+    let (decoded, consumed) = unsafe { codec.decode(&output, 0) }.expect("decode pair bytes");
     assert_eq!('😀', decoded);
     assert_eq!(4, consumed.get());
 }
 
 #[test]
-fn test_utf16_byte_codec_decodes_bmp_and_reports_closed_tail_or_malformed_bytes()
- {
+fn test_utf16_byte_codec_decodes_bmp_and_reports_closed_tail_or_malformed_bytes() {
     let mut codec = Utf16ByteCodec::new(ByteOrder::BigEndian);
 
-    let (decoded, consumed) =
-        unsafe { codec.decode(&[0x00, 0x41], 0) }.expect("BMP bytes");
+    let (decoded, consumed) = unsafe { codec.decode(&[0x00, 0x41], 0) }.expect("BMP bytes");
     assert_eq!('A', decoded);
     assert_eq!(2, consumed.get());
 
@@ -84,8 +73,8 @@ fn test_utf16_byte_codec_decodes_bmp_and_reports_closed_tail_or_malformed_bytes(
     );
     assert_eq!(2, error.index());
 
-    let error = unsafe { codec.decode(&[0xde, 0x00], 0) }
-        .expect_err("isolated low surrogate should fail");
+    let error =
+        unsafe { codec.decode(&[0xde, 0x00], 0) }.expect_err("isolated low surrogate should fail");
     assert_eq!(
         CharsetDecodeErrorKind::MalformedSequence {
             value: Some(0xde00)
@@ -120,12 +109,9 @@ fn test_utf16_byte_codec_encodes_bmp_and_supplementary_scalars() {
 fn test_utf16_byte_codec_direct_function_items_cover_trait_methods() {
     let mut codec = Utf16ByteCodec::new(ByteOrder::BigEndian);
     let new_fn: fn(ByteOrder) -> Utf16ByteCodec = Utf16ByteCodec::new;
-    let byte_order: fn(Utf16ByteCodec) -> ByteOrder =
-        Utf16ByteCodec::byte_order;
-    let inherent_charset: fn(Utf16ByteCodec) -> Charset =
-        Utf16ByteCodec::charset;
-    let trait_charset: fn(&Utf16ByteCodec) -> Charset =
-        <Utf16ByteCodec as CharsetCodec>::charset;
+    let byte_order: fn(Utf16ByteCodec) -> ByteOrder = Utf16ByteCodec::byte_order;
+    let inherent_charset: fn(Utf16ByteCodec) -> Charset = Utf16ByteCodec::charset;
+    let trait_charset: fn(&Utf16ByteCodec) -> Charset = <Utf16ByteCodec as CharsetCodec>::charset;
     let min_units: fn(&Utf16ByteCodec) -> core::num::NonZeroUsize =
         <Utf16ByteCodec as Codec>::min_units_per_value;
     let max_units: fn(&Utf16ByteCodec) -> core::num::NonZeroUsize =
@@ -133,8 +119,7 @@ fn test_utf16_byte_codec_direct_function_items_cover_trait_methods() {
     let encode_len: fn(&Utf16ByteCodec, &char) -> core::num::NonZeroUsize =
         <Utf16ByteCodec as Codec>::encode_len;
     let decode: DecodeFn = <Utf16ByteCodec as Codec>::decode;
-    let encode: EncodeFn =
-        std::hint::black_box(<Utf16ByteCodec as Codec>::encode);
+    let encode: EncodeFn = std::hint::black_box(<Utf16ByteCodec as Codec>::encode);
 
     assert_eq!(
         ByteOrder::LittleEndian,
@@ -153,7 +138,6 @@ fn test_utf16_byte_codec_direct_function_items_cover_trait_methods() {
             .expect("encode pair bytes")
             .get()
     );
-    let (decoded, consumed) =
-        unsafe { decode(&mut codec, &output, 0) }.expect("decode pair bytes");
+    let (decoded, consumed) = unsafe { decode(&mut codec, &output, 0) }.expect("decode pair bytes");
     assert_eq!(('😀', 4), (decoded, consumed.get()));
 }

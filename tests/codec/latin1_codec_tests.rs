@@ -1,11 +1,5 @@
 use qubit_codec_text::{
-    Charset,
-    CharsetCodec,
-    CharsetDecodeResult,
-    CharsetEncodeResult,
-    Codec,
-    Latin1,
-    Latin1Codec,
+    Charset, CharsetCodec, CharsetDecodeResult, CharsetEncodeResult, Codec, Latin1, Latin1Codec,
 };
 
 type DecodedCharResult = CharsetDecodeResult<(char, core::num::NonZeroUsize)>;
@@ -41,19 +35,15 @@ fn test_latin1_codec_decodes_all_byte_values() {
     let mut codec = Latin1Codec;
     let input = [0u8, 0x7f, 0xff];
 
-    let (decoded, consumed) =
-        unsafe { codec.decode(&input, 0) }.expect("decode zero");
+    let (decoded, consumed) = unsafe { codec.decode(&input, 0) }.expect("decode zero");
     assert_eq!('\u{0000}', decoded);
     assert_eq!(1, consumed.get());
-    let (decoded, consumed) =
-        unsafe { codec.decode(&input, 1) }.expect("decode DEL");
+    let (decoded, consumed) = unsafe { codec.decode(&input, 1) }.expect("decode DEL");
     assert_eq!('\u{007f}', decoded);
     assert_eq!(1, consumed.get());
-    let (decoded, consumed) =
-        unsafe { codec.decode(&input, 2) }.expect("decode 0xFF");
+    let (decoded, consumed) = unsafe { codec.decode(&input, 2) }.expect("decode 0xFF");
     assert_eq!(
-        Latin1::code_point_to_char(Latin1::MAX_CODE_POINT)
-            .expect("valid Latin-1 max"),
+        Latin1::code_point_to_char(Latin1::MAX_CODE_POINT).expect("valid Latin-1 max"),
         decoded
     );
     assert_eq!(1, consumed.get());
@@ -79,8 +69,7 @@ fn test_latin1_codec_encodes_latin1_and_reports_encodable_domain() {
 fn test_latin1_codec_direct_function_items_cover_trait_methods() {
     let mut codec = Latin1Codec;
     let inherent_charset: fn(Latin1Codec) -> Charset = Latin1Codec::charset;
-    let trait_charset: fn(&Latin1Codec) -> Charset =
-        <Latin1Codec as CharsetCodec>::charset;
+    let trait_charset: fn(&Latin1Codec) -> Charset = <Latin1Codec as CharsetCodec>::charset;
     let min_units: fn(&Latin1Codec) -> core::num::NonZeroUsize =
         <Latin1Codec as Codec>::min_units_per_value;
     let max_units: fn(&Latin1Codec) -> core::num::NonZeroUsize =
@@ -99,8 +88,7 @@ fn test_latin1_codec_direct_function_items_cover_trait_methods() {
     assert!(can_encode_value(&codec, &'\u{00ff}'));
     assert_eq!(1, encode_len(&codec, &'\u{00ff}').get());
 
-    let (decoded, consumed) =
-        unsafe { decode(&mut codec, &[0xff], 0) }.expect("decode Latin-1");
+    let (decoded, consumed) = unsafe { decode(&mut codec, &[0xff], 0) }.expect("decode Latin-1");
     assert_eq!(('\u{00ff}', 1), (decoded, consumed.get()));
     let mut output = [0_u8; 1];
     assert_eq!(

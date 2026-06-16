@@ -23,64 +23,23 @@ mod encode;
 mod error;
 
 pub mod prelude;
-pub use charset::{
-    Ascii,
-    Charset,
-    Latin1,
-    Unicode,
-    UnicodeBom,
-    Utf8,
-    Utf16,
-    Utf32,
-};
+pub use charset::{Ascii, Charset, Latin1, Unicode, UnicodeBom, Utf8, Utf16, Utf32};
 pub use codec::{
-    AsciiCodec,
-    CharsetCodec,
-    CharsetConvertError,
-    CharsetConverter,
-    Latin1Codec,
-    MalformedAction,
+    AsciiCodec, CharsetCodec, CharsetConvertError, CharsetConverter, Latin1Codec, MalformedAction,
     UnmappableAction,
 };
-pub use codec::{
-    Utf8Codec,
-    Utf16ByteCodec,
-    Utf16U16Codec,
-    Utf32ByteCodec,
-    Utf32U32Codec,
-};
+pub use codec::{Utf8Codec, Utf16ByteCodec, Utf16U16Codec, Utf32ByteCodec, Utf32U32Codec};
 pub(crate) use decode::CharsetDecodeHooks;
-pub use decode::{
-    CharsetDecodePolicy,
-    CharsetDecoder,
-};
+pub use decode::{CharsetDecodePolicy, CharsetDecoder};
 pub(crate) use encode::CharsetEncodeHooks;
-pub use encode::{
-    CharsetEncodePolicy,
-    CharsetEncoder,
-};
+pub use encode::{CharsetEncodePolicy, CharsetEncoder};
 pub use error::{
-    CharsetDecodeError,
-    CharsetDecodeErrorKind,
-    CharsetDecodeResult,
-    CharsetEncodeError,
-    CharsetEncodeErrorKind,
-    CharsetEncodeResult,
+    CharsetDecodeError, CharsetDecodeErrorKind, CharsetDecodeResult, CharsetEncodeError,
+    CharsetEncodeErrorKind, CharsetEncodeResult,
 };
 pub use qubit_codec::{
-    ByteOrder,
-    CapacityError,
-    Codec,
-    TranscodeConvertEngine,
-    TranscodeConvertHooks,
-    TranscodeConverter,
-    TranscodeDecodeEngine,
-    TranscodeDecodeHooks,
-    TranscodeDecoder,
-    TranscodeEncodeEngine,
-    TranscodeEncodeHooks,
-    TranscodeEncoder,
-    TranscodeProgress,
-    TranscodeStatus,
-    Transcoder,
+    ByteOrder, CapacityError, Codec, TranscodeConvertEngine, TranscodeConvertHooks,
+    TranscodeConverter, TranscodeDecodeEngine, TranscodeDecodeHooks, TranscodeDecoder,
+    TranscodeEncodeEngine, TranscodeEncodeHooks, TranscodeEncoder, TranscodeProgress,
+    TranscodeStatus, Transcoder,
 };

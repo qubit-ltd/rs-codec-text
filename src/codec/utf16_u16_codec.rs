@@ -6,17 +6,10 @@
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
 use crate::{
-    Charset,
-    CharsetCodec,
-    CharsetDecodeError,
-    CharsetDecodeErrorKind,
-    CharsetDecodeResult,
-    CharsetEncodeError,
-    CharsetEncodeResult,
-    Unicode,
-    Utf16,
+    Charset, CharsetCodec, CharsetDecodeError, CharsetDecodeErrorKind, CharsetDecodeResult,
+    CharsetEncodeError, CharsetEncodeResult, Unicode, Utf16,
 };
-use qubit_codec::{Codec, nz};
+use qubit_codec::{Codec, nz, range_fits, read_unchecked, write_unchecked};
 
 /// Combined UTF-16 `u16` code-unit codec.
 ///
@@ -95,8 +88,7 @@ unsafe impl Codec for Utf16U16Codec {
 
     #[inline(always)]
     fn encode_len(&self, ch: &char) -> core::num::NonZeroUsize {
-        core::num::NonZeroUsize::new(Utf16::unit_len(*ch))
-            .expect("UTF-16 scalar width is non-zero")
+        core::num::NonZeroUsize::new(Utf16::unit_len(*ch)).expect("UTF-16 scalar width is non-zero")
     }
 
     #[inline(always)]
@@ -164,9 +156,9 @@ fn decode_units_prefix(
     debug_assert!(index < input.len());
     // SAFETY: The caller guarantees that at least one unit is readable from
     // `index`.
-    let first = unsafe { *input.as_ptr().add(index) };
+    let first = unsafe { read_unchecked(input, index) };
     if Utf16::is_high_surrogate(first) {
-        if !has_units(input.len(), index, 2) {
+        if !range_fits(input.len(), index, 2) {
             let kind = CharsetDecodeErrorKind::IncompleteSequence {
                 required: 2,
                 available: input.len() - index,
@@ -180,12 +172,10 @@ fn decode_units_prefix(
                 let kind = CharsetDecodeErrorKind::MalformedSequence {
                     value: Some(second as u32),
                 };
-                Err(CharsetDecodeError::new(
-                    Charset::UTF_16,
-                    kind,
-                    required_index(index, 1),
+                Err(
+                    CharsetDecodeError::new(Charset::UTF_16, kind, index.saturating_add(1))
+                        .with_consumed(2),
                 )
-                .with_consumed(2))
             }
         }
     } else if Utf16::is_low_surrogate(first) {
@@ -194,18 +184,16 @@ fn decode_units_prefix(
         };
         Err(CharsetDecodeError::new(Charset::UTF_16, kind, index))
     } else {
-        let ch = char::from_u32(first as u32)
-            .expect("non-surrogate UTF-16 unit is a scalar value");
+        let ch = char::from_u32(first as u32).expect("non-surrogate UTF-16 unit is a scalar value");
         Ok((ch, core::num::NonZeroUsize::MIN))
     }
 }
 
 /// Reads one UTF-16 unit from an already checked slice.
-#[inline(always)]
 fn unit_at(input: &[u16], index: usize) -> u16 {
     debug_assert!(index < input.len());
     // SAFETY: Callers check sequence availability before reading the unit.
-    unsafe { *input.as_ptr().add(index) }
+    unsafe { read_unchecked(input, index) }
 }
 
 /// Encodes one character into UTF-16 `u16` units at `index` in `output`.
@@ -235,30 +223,19 @@ fn encode_units_char(ch: char, output: &mut [u16], index: usize) -> usize {
         // SAFETY: The caller guarantees that `length` units are writable from
         // `index`.
         if length == 1 {
-            *output.as_mut_ptr().add(index) = code_point as u16;
+            write_unchecked(output, index, code_point as u16);
         } else {
-            *output.as_mut_ptr().add(index) = Utf16::high_surrogate(code_point)
-                .expect("supplementary scalar has high surrogate");
-            *output.as_mut_ptr().add(index + 1) =
-                Utf16::low_surrogate(code_point)
-                    .expect("supplementary scalar has low surrogate");
+            write_unchecked(
+                output,
+                index,
+                Utf16::high_surrogate(code_point).expect("supplementary scalar has high surrogate"),
+            );
+            write_unchecked(
+                output,
+                index + 1,
+                Utf16::low_surrogate(code_point).expect("supplementary scalar has low surrogate"),
+            );
         }
     }
     length
-}
-
-#[inline(always)]
-const fn has_units(len: usize, index: usize, required_units: usize) -> bool {
-    match index.checked_add(required_units) {
-        Some(end) => len >= end,
-        None => false,
-    }
-}
-
-#[inline(always)]
-const fn required_index(index: usize, required_units: usize) -> usize {
-    match index.checked_add(required_units) {
-        Some(required) => required,
-        None => usize::MAX,
-    }
 }

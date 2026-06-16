@@ -8,16 +8,11 @@
 use core::num::NonZeroUsize;
 
 use crate::{
-    Ascii,
-    Charset,
-    CharsetCodec,
-    CharsetDecodeError,
-    CharsetDecodeErrorKind,
-    CharsetDecodeResult,
-    CharsetEncodeError,
-    CharsetEncodeResult,
+    Ascii, Charset, CharsetCodec, CharsetDecodeError, CharsetDecodeErrorKind, CharsetDecodeResult,
+    CharsetEncodeError, CharsetEncodeResult,
 };
 use qubit_codec::Codec;
+use qubit_codec::{read_unchecked, write_unchecked};
 
 /// Single-byte ASCII codec for bytes.
 ///
@@ -81,7 +76,7 @@ unsafe impl Codec for AsciiCodec {
         debug_assert!(index < input.len());
 
         // SAFETY: The caller guarantees that `index` is readable.
-        let value = unsafe { *input.as_ptr().add(index) };
+        let value = unsafe { read_unchecked(input, index) };
         if !Ascii::is_ascii_byte(value) {
             let kind = CharsetDecodeErrorKind::MalformedSequence {
                 value: Some(value as u32),
@@ -104,7 +99,7 @@ unsafe impl Codec for AsciiCodec {
         // SAFETY: The caller guarantees that `ch` is encodable and `index` is
         // writable.
         unsafe {
-            *output.as_mut_ptr().add(index) = *ch as u8;
+            write_unchecked(output, index, *ch as u8);
         }
         Ok(NonZeroUsize::MIN)
     }

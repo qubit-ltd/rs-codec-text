@@ -674,8 +674,7 @@ impl Latin1 {
         if left == right {
             true
         } else {
-            Self::code_point_to_lowercase(left)
-                == Self::code_point_to_lowercase(right)
+            Self::code_point_to_lowercase(left) == Self::code_point_to_lowercase(right)
         }
     }
 

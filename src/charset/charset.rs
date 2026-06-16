@@ -7,10 +7,7 @@
 // =============================================================================
 use core::{
     fmt,
-    hash::{
-        Hash,
-        Hasher,
-    },
+    hash::{Hash, Hasher},
 };
 
 use crate::ByteOrder;
@@ -245,9 +242,7 @@ impl Charset {
     /// Returns `true` when `label` matches the identifier, display name, or one
     /// of the aliases using ASCII case-insensitive comparison.
     pub fn matches_label(self, label: &str) -> bool {
-        if label.eq_ignore_ascii_case(self.id)
-            || label.eq_ignore_ascii_case(self.name)
-        {
+        if label.eq_ignore_ascii_case(self.id) || label.eq_ignore_ascii_case(self.name) {
             return true;
         }
         self.aliases

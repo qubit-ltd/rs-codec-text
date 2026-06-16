@@ -6,17 +6,10 @@
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
 use crate::{
-    Charset,
-    CharsetCodec,
-    CharsetDecodeError,
-    CharsetDecodeErrorKind,
-    CharsetDecodeResult,
-    CharsetEncodeError,
-    CharsetEncodeResult,
-    Unicode,
-    Utf32,
+    Charset, CharsetCodec, CharsetDecodeError, CharsetDecodeErrorKind, CharsetDecodeResult,
+    CharsetEncodeError, CharsetEncodeResult, Unicode, Utf32,
 };
-use qubit_codec::{Codec, nz};
+use qubit_codec::{Codec, nz, read_unchecked, write_unchecked};
 
 /// Combined UTF-32 `u32` code-unit codec.
 ///
@@ -142,7 +135,7 @@ fn decode_units_prefix(
 ) -> CharsetDecodeResult<(char, core::num::NonZeroUsize)> {
     debug_assert!(index < input.len());
     // SAFETY: The caller guarantees that `index` is readable.
-    let unit = unsafe { *input.as_ptr().add(index) };
+    let unit = unsafe { read_unchecked(input, index) };
     match Unicode::to_char(unit) {
         Some(ch) => Ok((ch, core::num::NonZeroUsize::MIN)),
         None => {
@@ -168,7 +161,7 @@ fn encode_units_char(ch: char, output: &mut [u32], index: usize) -> usize {
     debug_assert!(index < output.len());
     // SAFETY: The caller guarantees that one unit is writable at `index`.
     unsafe {
-        *output.as_mut_ptr().add(index) = ch as u32;
+        write_unchecked(output, index, ch as u32);
     }
     1
 }

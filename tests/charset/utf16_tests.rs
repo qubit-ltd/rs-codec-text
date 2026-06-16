@@ -1,7 +1,4 @@
-use qubit_codec_text::{
-    ByteOrder,
-    Utf16,
-};
+use qubit_codec_text::{ByteOrder, Utf16};
 
 #[test]
 fn test_utf16_classifies_units_and_surrogate_pairs() {

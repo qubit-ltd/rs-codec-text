@@ -8,15 +8,11 @@
 use core::num::NonZeroUsize;
 
 use crate::{
-    Charset,
-    CharsetCodec,
-    CharsetDecodeError,
-    CharsetDecodeResult,
-    CharsetEncodeError,
-    CharsetEncodeResult,
-    Latin1,
+    Charset, CharsetCodec, CharsetDecodeError, CharsetDecodeResult, CharsetEncodeError,
+    CharsetEncodeResult, Latin1,
 };
 use qubit_codec::Codec;
+use qubit_codec::{read_unchecked, write_unchecked};
 
 /// Single-byte ISO-8859-1 codec for bytes.
 ///
@@ -78,7 +74,7 @@ unsafe impl Codec for Latin1Codec {
     ) -> CharsetDecodeResult<(char, NonZeroUsize)> {
         debug_assert!(index < input.len());
         // SAFETY: The caller guarantees that `index` is readable.
-        let value = unsafe { *input.as_ptr().add(index) };
+        let value = unsafe { read_unchecked(input, index) };
         Ok((Latin1::byte_to_char(value), NonZeroUsize::MIN))
     }
 
@@ -92,12 +88,11 @@ unsafe impl Codec for Latin1Codec {
         debug_assert!(self.can_encode_value(ch));
         debug_assert!(index < output.len());
 
-        let value = Latin1::char_to_byte(*ch)
-            .expect("encodable Latin-1 character maps to byte");
+        let value = Latin1::char_to_byte(*ch).expect("encodable Latin-1 character maps to byte");
         // SAFETY: The caller guarantees that `ch` is encodable and `index` is
         // writable.
         unsafe {
-            *output.as_mut_ptr().add(index) = value;
+            write_unchecked(output, index, value);
         }
         Ok(NonZeroUsize::MIN)
     }

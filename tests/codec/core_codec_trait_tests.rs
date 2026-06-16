@@ -1,16 +1,7 @@
-use qubit_codec::{
-    ByteOrder,
-    Codec,
-};
+use qubit_codec::{ByteOrder, Codec};
 use qubit_codec_text::{
-    AsciiCodec,
-    CharsetDecodeErrorKind,
-    Latin1Codec,
-    Utf8Codec,
-    Utf16ByteCodec,
-    Utf16U16Codec,
-    Utf32ByteCodec,
-    Utf32U32Codec,
+    AsciiCodec, CharsetDecodeErrorKind, Latin1Codec, Utf8Codec, Utf16ByteCodec, Utf16U16Codec,
+    Utf32ByteCodec, Utf32U32Codec,
 };
 
 #[test]

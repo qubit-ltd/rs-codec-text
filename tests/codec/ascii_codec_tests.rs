@@ -1,11 +1,6 @@
 use qubit_codec_text::{
-    AsciiCodec,
-    Charset,
-    CharsetCodec,
-    CharsetDecodeErrorKind,
-    CharsetDecodeResult,
-    CharsetEncodeResult,
-    Codec,
+    AsciiCodec, Charset, CharsetCodec, CharsetDecodeErrorKind, CharsetDecodeResult,
+    CharsetEncodeResult, Codec,
 };
 
 type DecodedCharResult = CharsetDecodeResult<(char, core::num::NonZeroUsize)>;
@@ -39,13 +34,11 @@ fn test_ascii_codec_exposes_identity_and_limits() {
 fn test_ascii_codec_decodes_ascii_bytes_and_reports_malformed() {
     let mut codec = AsciiCodec;
 
-    let (decoded, consumed) =
-        unsafe { codec.decode(b"A", 0) }.expect("ASCII decode");
+    let (decoded, consumed) = unsafe { codec.decode(b"A", 0) }.expect("ASCII decode");
     assert_eq!('A', decoded);
     assert_eq!(1, consumed.get());
 
-    let error = unsafe { codec.decode(&[0x80], 0) }
-        .expect_err("non-ASCII byte is malformed");
+    let error = unsafe { codec.decode(&[0x80], 0) }.expect_err("non-ASCII byte is malformed");
     assert_eq!(
         CharsetDecodeErrorKind::MalformedSequence { value: Some(128) },
         error.kind()
@@ -73,14 +66,12 @@ fn test_ascii_codec_encodes_ascii_and_reports_encodable_domain() {
 fn test_ascii_codec_direct_function_items_cover_trait_methods() {
     let mut codec = AsciiCodec;
     let inherent_charset: fn(AsciiCodec) -> Charset = AsciiCodec::charset;
-    let trait_charset: fn(&AsciiCodec) -> Charset =
-        <AsciiCodec as CharsetCodec>::charset;
+    let trait_charset: fn(&AsciiCodec) -> Charset = <AsciiCodec as CharsetCodec>::charset;
     let min_units: fn(&AsciiCodec) -> core::num::NonZeroUsize =
         <AsciiCodec as Codec>::min_units_per_value;
     let max_units: fn(&AsciiCodec) -> core::num::NonZeroUsize =
         <AsciiCodec as Codec>::max_units_per_value;
-    let can_encode_value: fn(&AsciiCodec, &char) -> bool =
-        <AsciiCodec as Codec>::can_encode_value;
+    let can_encode_value: fn(&AsciiCodec, &char) -> bool = <AsciiCodec as Codec>::can_encode_value;
     let encode_len: fn(&AsciiCodec, &char) -> core::num::NonZeroUsize =
         <AsciiCodec as Codec>::encode_len;
     let decode: DecodeFn = <AsciiCodec as Codec>::decode;
@@ -93,8 +84,7 @@ fn test_ascii_codec_direct_function_items_cover_trait_methods() {
     assert!(can_encode_value(&codec, &'Z'));
     assert_eq!(1, encode_len(&codec, &'Z').get());
 
-    let (decoded, consumed) =
-        unsafe { decode(&mut codec, b"Z", 0) }.expect("decode ASCII");
+    let (decoded, consumed) = unsafe { decode(&mut codec, b"Z", 0) }.expect("decode ASCII");
     assert_eq!(('Z', 1), (decoded, consumed.get()));
 
     let mut output = [0_u8; 1];

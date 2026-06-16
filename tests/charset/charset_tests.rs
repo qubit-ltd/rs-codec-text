@@ -1,15 +1,9 @@
 use std::{
     collections::hash_map::DefaultHasher,
-    hash::{
-        Hash,
-        Hasher,
-    },
+    hash::{Hash, Hasher},
 };
 
-use qubit_codec_text::{
-    ByteOrder,
-    Charset,
-};
+use qubit_codec_text::{ByteOrder, Charset};
 
 #[test]
 fn test_charset_exposes_identity_metadata() {
@@ -60,8 +54,7 @@ fn test_charset_matches_labels() {
     assert!(GBK.matches_label("windows-936"));
     assert!(!GBK.matches_label("big5"));
 
-    let display_named =
-        Charset::new("example-encoding", "Example Encoding", &["example"]);
+    let display_named = Charset::new("example-encoding", "Example Encoding", &["example"]);
     assert!(display_named.matches_label("example-encoding"));
     assert!(display_named.matches_label("Example Encoding"));
     assert!(display_named.matches_label("EXAMPLE"));

@@ -6,18 +6,10 @@
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
 use crate::{
-    ByteOrder,
-    Charset,
-    CharsetCodec,
-    CharsetDecodeError,
-    CharsetDecodeErrorKind,
-    CharsetDecodeResult,
-    CharsetEncodeError,
-    CharsetEncodeResult,
-    Unicode,
-    Utf32,
+    ByteOrder, Charset, CharsetCodec, CharsetDecodeError, CharsetDecodeErrorKind,
+    CharsetDecodeResult, CharsetEncodeError, CharsetEncodeResult, Unicode, Utf32,
 };
-use qubit_codec::{Codec, nz};
+use qubit_codec::{Codec, copy_nonoverlapping_unchecked, nz};
 
 /// Combined byte-serialized UTF-32 codec.
 ///
@@ -132,8 +124,7 @@ unsafe impl Codec for Utf32ByteCodec {
         input: &[u8],
         index: usize,
     ) -> CharsetDecodeResult<(char, core::num::NonZeroUsize)> {
-        let (ch, consumed) =
-            decode_bytes_prefix(input, index, self.byte_order)?;
+        let (ch, consumed) = decode_bytes_prefix(input, index, self.byte_order)?;
         debug_assert!(consumed.get() <= input.len().saturating_sub(index));
         Ok((ch, consumed))
     }
@@ -201,12 +192,7 @@ fn decode_bytes_prefix(
 ///
 /// `Ok(4)` on success, because UTF-32 always occupies exactly four bytes.
 #[inline]
-fn encode_bytes_char(
-    ch: char,
-    output: &mut [u8],
-    byte_order: ByteOrder,
-    index: usize,
-) -> usize {
+fn encode_bytes_char(ch: char, output: &mut [u8], byte_order: ByteOrder, index: usize) -> usize {
     let required = 4;
     debug_assert!(
         index
@@ -234,11 +220,7 @@ fn read_ordered_u32(input: &[u8], index: usize, byte_order: ByteOrder) -> u32 {
     let mut bytes = [0_u8; 4];
     // SAFETY: The caller guarantees that four bytes are readable from `index`.
     unsafe {
-        core::ptr::copy_nonoverlapping(
-            input.as_ptr().add(index),
-            bytes.as_mut_ptr(),
-            4,
-        );
+        copy_nonoverlapping_unchecked(input, index, &mut bytes, 0, 4);
     }
     match byte_order {
         ByteOrder::BigEndian => u32::from_be_bytes(bytes),
@@ -256,22 +238,13 @@ fn read_ordered_u32(input: &[u8], index: usize, byte_order: ByteOrder) -> u32 {
 /// - `unit`: UTF-32 unit to write.
 /// - `byte_order`: Byte order used to serialize the unit.
 #[inline(always)]
-fn write_ordered_u32(
-    output: &mut [u8],
-    index: usize,
-    unit: u32,
-    byte_order: ByteOrder,
-) {
+fn write_ordered_u32(output: &mut [u8], index: usize, unit: u32, byte_order: ByteOrder) {
     let bytes = match byte_order {
         ByteOrder::BigEndian => unit.to_be_bytes(),
         ByteOrder::LittleEndian => unit.to_le_bytes(),
     };
     // SAFETY: The caller guarantees that four bytes are writable from `index`.
     unsafe {
-        core::ptr::copy_nonoverlapping(
-            bytes.as_ptr(),
-            output.as_mut_ptr().add(index),
-            4,
-        );
+        copy_nonoverlapping_unchecked(bytes.as_slice(), 0, output, index, 4);
     }
 }

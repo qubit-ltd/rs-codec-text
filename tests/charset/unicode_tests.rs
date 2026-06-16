@@ -1,8 +1,4 @@
-use qubit_codec_text::{
-    ByteOrder,
-    Unicode,
-    UnicodeBom,
-};
+use qubit_codec_text::{ByteOrder, Unicode, UnicodeBom};
 
 #[test]
 fn test_unicode_classifies_code_points() {

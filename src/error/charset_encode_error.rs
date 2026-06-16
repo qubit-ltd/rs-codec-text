@@ -8,10 +8,7 @@
 use core::fmt;
 use std::error::Error;
 
-use crate::{
-    Charset,
-    CharsetEncodeErrorKind,
-};
+use crate::{Charset, CharsetEncodeErrorKind};
 
 /// Error reported by a charset encoder.
 ///
@@ -49,11 +46,7 @@ impl CharsetEncodeError {
     ///
     /// Returns an encoding error carrying the supplied context.
     #[inline(always)]
-    pub const fn new(
-        charset: Charset,
-        kind: CharsetEncodeErrorKind,
-        index: usize,
-    ) -> Self {
+    pub const fn new(charset: Charset, kind: CharsetEncodeErrorKind, index: usize) -> Self {
         Self {
             charset,
             kind,
