@@ -5,9 +5,17 @@
 //
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
+use core::num::NonZeroUsize;
+
 use crate::{
-    Ascii, Charset, CharsetCodec, CharsetDecodeError, CharsetDecodeErrorKind, CharsetDecodeResult,
-    CharsetEncodeError, CharsetEncodeErrorKind, CharsetEncodeProbe, CharsetEncodeResult,
+    Ascii,
+    Charset,
+    CharsetCodec,
+    CharsetDecodeError,
+    CharsetDecodeErrorKind,
+    CharsetDecodeResult,
+    CharsetEncodeError,
+    CharsetEncodeResult,
 };
 use qubit_codec::Codec;
 
@@ -24,8 +32,8 @@ impl AsciiCodec {
     /// # Returns
     ///
     /// Returns [`Charset::ASCII`].
-    #[must_use]
     #[inline(always)]
+    #[must_use]
     pub const fn charset(self) -> Charset {
         Charset::ASCII
     }
@@ -43,31 +51,6 @@ impl CharsetCodec for AsciiCodec {
     }
 }
 
-impl CharsetEncodeProbe for AsciiCodec {
-    /// Encodes one `char` into one ASCII byte.
-    ///
-    /// # Parameters
-    ///
-    /// - `ch`: The character to encode.
-    /// - `index`: Input character index used for error context.
-    ///
-    /// # Returns
-    ///
-    /// `Ok(1)` when one byte is needed.
-    ///
-    /// # Errors
-    ///
-    /// * `CharsetEncodeErrorKind::UnmappableCharacter` if `ch` is not ASCII.
-    #[inline]
-    fn encode_len(&self, ch: char, index: usize) -> CharsetEncodeResult<usize> {
-        if ch > Ascii::MAX_CHAR {
-            let kind = CharsetEncodeErrorKind::UnmappableCharacter { value: ch as u32 };
-            return Err(CharsetEncodeError::new(Charset::ASCII, kind, index));
-        }
-        Ok(1)
-    }
-}
-
 unsafe impl Codec for AsciiCodec {
     type Value = char;
     type Unit = u8;
@@ -75,73 +58,54 @@ unsafe impl Codec for AsciiCodec {
     type EncodeError = CharsetEncodeError;
 
     #[inline(always)]
-    fn min_units_per_value(&self) -> core::num::NonZeroUsize {
-        core::num::NonZeroUsize::MIN
+    fn min_units_per_value(&self) -> NonZeroUsize {
+        NonZeroUsize::MIN
     }
 
     #[inline(always)]
-    fn max_units_per_value(&self) -> core::num::NonZeroUsize {
-        core::num::NonZeroUsize::MIN
+    fn max_units_per_value(&self) -> NonZeroUsize {
+        NonZeroUsize::MIN
     }
 
-    #[inline]
+    #[inline(always)]
+    fn can_encode_value(&self, value: &char) -> bool {
+        Ascii::is_ascii_char(*value)
+    }
+
+    #[inline(always)]
     unsafe fn decode(
         &mut self,
         input: &[u8],
         index: usize,
-    ) -> CharsetDecodeResult<(char, core::num::NonZeroUsize)> {
-        if index > input.len() {
-            let kind = CharsetDecodeErrorKind::InvalidInputIndex {
-                input_len: input.len(),
-            };
-            return Err(CharsetDecodeError::new(Charset::ASCII, kind, index));
-        }
-        if index == input.len() {
-            let kind = CharsetDecodeErrorKind::IncompleteSequence {
-                required: 1,
-                available: 0,
-            };
-            return Err(CharsetDecodeError::new(Charset::ASCII, kind, index));
-        }
+    ) -> CharsetDecodeResult<(char, NonZeroUsize)> {
+        debug_assert!(index < input.len());
 
-        let value = input[index];
-        if value > Ascii::MAX_BYTE {
+        // SAFETY: The caller guarantees that `index` is readable.
+        let value = unsafe { *input.as_ptr().add(index) };
+        if !Ascii::is_ascii_byte(value) {
             let kind = CharsetDecodeErrorKind::MalformedSequence {
                 value: Some(value as u32),
             };
             return Err(CharsetDecodeError::new(Charset::ASCII, kind, index));
         }
-        debug_assert!(index < input.len());
-        Ok((value as char, core::num::NonZeroUsize::MIN))
+        Ok((value as char, NonZeroUsize::MIN))
     }
 
-    #[inline]
+    #[inline(always)]
     unsafe fn encode(
         &mut self,
         ch: &char,
         output: &mut [u8],
         index: usize,
-    ) -> CharsetEncodeResult<core::num::NonZeroUsize> {
-        if *ch > Ascii::MAX_CHAR {
-            let kind = CharsetEncodeErrorKind::UnmappableCharacter { value: *ch as u32 };
-            return Err(CharsetEncodeError::new(Charset::ASCII, kind, index));
-        }
-        if index >= output.len() {
-            let kind = CharsetEncodeErrorKind::BufferTooSmall {
-                required: required_index(index, 1),
-                available: 0,
-            };
-            return Err(CharsetEncodeError::new(Charset::ASCII, kind, index));
-        }
-        output[index] = *ch as u8;
-        Ok(core::num::NonZeroUsize::MIN)
-    }
-}
+    ) -> CharsetEncodeResult<NonZeroUsize> {
+        debug_assert!(self.can_encode_value(ch));
+        debug_assert!(index < output.len());
 
-#[inline(always)]
-const fn required_index(index: usize, required_units: usize) -> usize {
-    match index.checked_add(required_units) {
-        Some(required) => required,
-        None => usize::MAX,
+        // SAFETY: The caller guarantees that `ch` is encodable and `index` is
+        // writable.
+        unsafe {
+            *output.as_mut_ptr().add(index) = *ch as u8;
+        }
+        Ok(NonZeroUsize::MIN)
     }
 }

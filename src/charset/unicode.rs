@@ -172,7 +172,8 @@ impl Unicode {
     #[inline(always)]
     pub const fn is_noncharacter(value: u32) -> bool {
         Self::is_code_point(value)
-            && ((value >= 0xfdd0 && value <= 0xfdef) || (value & 0xfffe) == 0xfffe)
+            && ((value >= 0xfdd0 && value <= 0xfdef)
+                || (value & 0xfffe) == 0xfffe)
     }
 
     /// Tests whether `value` is a Unicode C0, C1, or DEL control code point.

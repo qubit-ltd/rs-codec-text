@@ -5,13 +5,26 @@
 //
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
-use core::{fmt, marker::PhantomData};
+use core::{
+    fmt,
+    marker::PhantomData,
+};
 
-use qubit_codec::{EncodeContext, EncodePlan, TranscodeEncodeHooks};
+use qubit_codec::{
+    EncodeContext,
+    EncodePlan,
+    TranscodeEncodeHooks,
+};
 
-use crate::{CharsetEncodeError, CharsetEncodeErrorKind, CharsetEncodeResult, UnmappableAction};
+use crate::{
+    CharsetEncodeError,
+    CharsetEncodeErrorKind,
+    CharsetEncodeResult,
+    UnmappableAction,
+};
 
-use super::{charset_encode_action::CharsetEncodeAction, charset_encode_probe::CharsetEncodeProbe};
+use super::charset_encode_action::CharsetEncodeAction;
+use crate::CharsetCodec;
 
 /// Unmappable-input policy hooks used by [`super::CharsetEncoder`].
 #[derive(Clone)]
@@ -63,7 +76,10 @@ impl<Unit> CharsetEncodeHooks<Unit> {
     /// Returns hooks configured with no replacement output units.
     #[must_use]
     #[inline(always)]
-    pub(crate) const fn new(unmappable_action: UnmappableAction, replacement: char) -> Self {
+    pub(crate) const fn new(
+        unmappable_action: UnmappableAction,
+        replacement: char,
+    ) -> Self {
         Self {
             unmappable_action,
             replacement,
@@ -79,14 +95,17 @@ impl<Unit> CharsetEncodeHooks<Unit> {
     /// - `replacement_units_len`: Number of target units used by the
     ///   replacement.
     #[inline(always)]
-    pub(crate) const fn set_replacement_units_len(&mut self, replacement_units_len: usize) {
+    pub(crate) const fn set_replacement_units_len(
+        &mut self,
+        replacement_units_len: usize,
+    ) {
         self.replacement_units_len = replacement_units_len;
     }
 }
 
 impl<C> TranscodeEncodeHooks<C> for CharsetEncodeHooks<C::Unit>
 where
-    C: CharsetEncodeProbe,
+    C: CharsetCodec,
 {
     type Error = CharsetEncodeError;
     type PlanAction = CharsetEncodeAction;
@@ -99,30 +118,25 @@ where
         ch: &char,
         input_index: usize,
     ) -> Result<EncodePlan<Self::PlanAction>, Self::Error> {
-        match CharsetEncodeProbe::encode_len(codec, *ch, input_index) {
-            Ok(max_output_units) => Ok(EncodePlan::new(
-                max_output_units,
+        if codec.can_encode_value(ch) {
+            return Ok(EncodePlan::new(
+                codec.encode_len(ch).get(),
                 CharsetEncodeAction::WriteOriginal,
-            )),
-            Err(error)
-                if matches!(
-                    error.kind(),
-                    CharsetEncodeErrorKind::UnmappableCharacter { .. }
-                ) =>
-            {
-                match self.unmappable_action {
-                    UnmappableAction::Report => Err(error),
-                    UnmappableAction::Ignore => Ok(EncodePlan::new(0, CharsetEncodeAction::Skip)),
-                    UnmappableAction::Replace if self.replacement_units_len == 0 => {
-                        Ok(EncodePlan::new(0, CharsetEncodeAction::Skip))
-                    }
-                    UnmappableAction::Replace => Ok(EncodePlan::new(
-                        self.replacement_units_len,
-                        CharsetEncodeAction::WriteReplacement,
-                    )),
-                }
+            ));
+        }
+        let error = unmappable_error(codec, *ch, input_index);
+        match self.unmappable_action {
+            UnmappableAction::Report => Err(error),
+            UnmappableAction::Ignore => {
+                Ok(EncodePlan::new(0, CharsetEncodeAction::Skip))
             }
-            Err(error) => Err(error),
+            UnmappableAction::Replace if self.replacement_units_len == 0 => {
+                Ok(EncodePlan::new(0, CharsetEncodeAction::Skip))
+            }
+            UnmappableAction::Replace => Ok(EncodePlan::new(
+                self.replacement_units_len,
+                CharsetEncodeAction::WriteReplacement,
+            )),
         }
     }
 
@@ -139,14 +153,22 @@ where
             // `prepare_encode`.
             CharsetEncodeAction::WriteOriginal => unsafe {
                 codec
-                    .encode(context.input_value, context.output, context.output_index)
+                    .encode(
+                        context.input_value,
+                        context.output,
+                        context.output_index,
+                    )
                     .map(core::num::NonZeroUsize::get)
             },
             // SAFETY: The engine checked the replacement capacity reported by
             // `prepare_encode`.
             CharsetEncodeAction::WriteReplacement => unsafe {
                 codec
-                    .encode(&self.replacement, context.output, context.output_index)
+                    .encode(
+                        &self.replacement,
+                        context.output,
+                        context.output_index,
+                    )
                     .map(core::num::NonZeroUsize::get)
             },
             CharsetEncodeAction::Skip => Ok(0),
@@ -155,16 +177,36 @@ where
 
     /// Maps charset encode reset errors unchanged.
     #[inline(always)]
-    fn map_encode_reset_error(&mut self, _codec: &mut C, error: CharsetEncodeError) -> Self::Error {
+    fn map_encode_reset_error(
+        &mut self,
+        _codec: &mut C,
+        error: CharsetEncodeError,
+    ) -> Self::Error {
         error
     }
 }
 
 /// Returns the encoded width of a replacement character.
 #[inline(always)]
-pub(super) fn replacement_len<C>(codec: &C, ch: char) -> CharsetEncodeResult<usize>
+pub(super) fn replacement_len<C>(
+    codec: &C,
+    ch: char,
+) -> CharsetEncodeResult<usize>
 where
-    C: CharsetEncodeProbe,
+    C: CharsetCodec,
 {
-    CharsetEncodeProbe::encode_len(codec, ch, 0)
+    if !codec.can_encode_value(&ch) {
+        return Err(unmappable_error(codec, ch, 0));
+    }
+    Ok(codec.encode_len(&ch).get())
+}
+
+/// Creates an unmappable-character error for `ch`.
+#[inline(always)]
+fn unmappable_error<C>(codec: &C, ch: char, index: usize) -> CharsetEncodeError
+where
+    C: CharsetCodec,
+{
+    let kind = CharsetEncodeErrorKind::UnmappableCharacter { value: ch as u32 };
+    CharsetEncodeError::new(codec.charset(), kind, index)
 }

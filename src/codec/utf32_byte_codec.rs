@@ -6,11 +6,18 @@
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
 use crate::{
-    ByteOrder, Charset, CharsetCodec, CharsetDecodeError, CharsetDecodeErrorKind,
-    CharsetDecodeResult, CharsetEncodeError, CharsetEncodeErrorKind, CharsetEncodeProbe,
-    CharsetEncodeResult, Unicode, Utf32,
+    ByteOrder,
+    Charset,
+    CharsetCodec,
+    CharsetDecodeError,
+    CharsetDecodeErrorKind,
+    CharsetDecodeResult,
+    CharsetEncodeError,
+    CharsetEncodeResult,
+    Unicode,
+    Utf32,
 };
-use qubit_codec::Codec;
+use qubit_codec::{Codec, nz};
 
 /// Combined byte-serialized UTF-32 codec.
 ///
@@ -24,7 +31,6 @@ use qubit_codec::Codec;
 /// use qubit_codec_text::{
 ///     ByteOrder,
 ///     CharsetCodec,
-///     CharsetEncodeProbe,
 ///     Codec,
 ///     Charset,
 ///     Utf32,
@@ -36,7 +42,7 @@ use qubit_codec::Codec;
 /// assert_eq!(Utf32::MAX_BYTES_PER_CHAR, codec.max_units_per_value().get());
 ///
 /// let mut output = [0_u8; Utf32::MAX_BYTES_PER_CHAR];
-/// let written = CharsetEncodeProbe::encode_len(&codec, '中', 0).expect("mappable");
+/// let written = codec.encode_len(&'中').get();
 /// unsafe {
 ///     codec.encode(&'中', &mut output, 0).expect("buffer fits");
 /// }
@@ -104,23 +110,6 @@ impl CharsetCodec for Utf32ByteCodec {
     }
 }
 
-impl CharsetEncodeProbe for Utf32ByteCodec {
-    /// Encodes one Unicode scalar value into UTF-32 bytes at `index`.
-    ///
-    /// # Arguments
-    ///
-    /// * `ch` - The Unicode scalar value to encode.
-    /// * `index` - Input character index used for error context.
-    ///
-    /// # Returns
-    ///
-    /// Always returns `Ok(4)`.
-    #[inline(always)]
-    fn encode_len(&self, _ch: char, _index: usize) -> CharsetEncodeResult<usize> {
-        Ok(Utf32::MAX_BYTES_PER_CHAR)
-    }
-}
-
 unsafe impl Codec for Utf32ByteCodec {
     type Value = char;
     type Unit = u8;
@@ -129,12 +118,12 @@ unsafe impl Codec for Utf32ByteCodec {
 
     #[inline(always)]
     fn min_units_per_value(&self) -> core::num::NonZeroUsize {
-        qubit_codec::nz!(4)
+        nz!(4)
     }
 
     #[inline(always)]
     fn max_units_per_value(&self) -> core::num::NonZeroUsize {
-        qubit_codec::nz!(Utf32::MAX_BYTES_PER_CHAR)
+        nz!(Utf32::MAX_BYTES_PER_CHAR)
     }
 
     #[inline(always)]
@@ -143,8 +132,9 @@ unsafe impl Codec for Utf32ByteCodec {
         input: &[u8],
         index: usize,
     ) -> CharsetDecodeResult<(char, core::num::NonZeroUsize)> {
-        let (ch, consumed) = decode_bytes_prefix(input, index, self.byte_order)?;
-        debug_assert!(consumed.get() <= input.len() - index);
+        let (ch, consumed) =
+            decode_bytes_prefix(input, index, self.byte_order)?;
+        debug_assert!(consumed.get() <= input.len().saturating_sub(index));
         Ok((ch, consumed))
     }
 
@@ -155,10 +145,10 @@ unsafe impl Codec for Utf32ByteCodec {
         output: &mut [u8],
         index: usize,
     ) -> CharsetEncodeResult<core::num::NonZeroUsize> {
-        let written = encode_bytes_char(*ch, output, self.byte_order, index)?;
+        let written = encode_bytes_char(*ch, output, self.byte_order, index);
         debug_assert_eq!(written, Utf32::MAX_BYTES_PER_CHAR);
-        debug_assert!(written <= output.len() - index);
-        Ok(qubit_codec::nz!(Utf32::MAX_BYTES_PER_CHAR))
+        debug_assert!(written <= output.len().saturating_sub(index));
+        Ok(nz!(Utf32::MAX_BYTES_PER_CHAR))
     }
 }
 
@@ -178,10 +168,6 @@ unsafe impl Codec for Utf32ByteCodec {
 ///
 /// # Errors
 ///
-/// * `CharsetDecodeErrorKind::InvalidInputIndex` when `index` is greater than
-///   `input.len()`.
-/// * `CharsetDecodeErrorKind::IncompleteSequence` when EOF appears before four
-///   bytes are available.
 /// * `CharsetDecodeErrorKind::InvalidCodePoint` when the decoded unit is not a
 ///   valid scalar.
 #[inline]
@@ -191,23 +177,10 @@ fn decode_bytes_prefix(
     byte_order: ByteOrder,
 ) -> CharsetDecodeResult<(char, core::num::NonZeroUsize)> {
     let charset = Charset::from_utf32_byte_order(byte_order);
-    if index > input.len() {
-        let kind = CharsetDecodeErrorKind::InvalidInputIndex {
-            input_len: input.len(),
-        };
-        return Err(CharsetDecodeError::new(charset, kind, index));
-    }
-    let available = input.len() - index;
-    if available < 4 {
-        let kind = CharsetDecodeErrorKind::IncompleteSequence {
-            required: 4,
-            available,
-        };
-        return Err(CharsetDecodeError::new(charset, kind, index));
-    }
+    debug_assert!(index.checked_add(4).is_some_and(|end| end <= input.len()));
     let unit = read_ordered_u32(input, index, byte_order);
     match Unicode::to_char(unit) {
-        Some(ch) => Ok((ch, qubit_codec::nz!(4))),
+        Some(ch) => Ok((ch, nz!(4))),
         None => {
             let kind = CharsetDecodeErrorKind::InvalidCodePoint { value: unit };
             Err(CharsetDecodeError::new(charset, kind, index).with_consumed(4))
@@ -227,45 +200,21 @@ fn decode_bytes_prefix(
 /// # Returns
 ///
 /// `Ok(4)` on success, because UTF-32 always occupies exactly four bytes.
-///
-/// # Errors
-///
-/// * `CharsetEncodeErrorKind::BufferTooSmall` when output has fewer than four
-///   bytes from `index`.
 #[inline]
 fn encode_bytes_char(
     ch: char,
     output: &mut [u8],
     byte_order: ByteOrder,
     index: usize,
-) -> CharsetEncodeResult<usize> {
-    let charset = Charset::from_utf32_byte_order(byte_order);
-    if index > output.len() {
-        let kind = CharsetEncodeErrorKind::BufferTooSmall {
-            required: required_index(index, 4),
-            available: 0,
-        };
-        return Err(CharsetEncodeError::new(charset, kind, index));
-    }
+) -> usize {
     let required = 4;
-    let available = output.len() - index;
-    if available < required {
-        let kind = CharsetEncodeErrorKind::BufferTooSmall {
-            required: required_index(index, required),
-            available,
-        };
-        return Err(CharsetEncodeError::new(charset, kind, index));
-    }
+    debug_assert!(
+        index
+            .checked_add(required)
+            .is_some_and(|end| end <= output.len())
+    );
     write_ordered_u32(output, index, ch as u32, byte_order);
-    Ok(4)
-}
-
-#[inline(always)]
-const fn required_index(index: usize, required_units: usize) -> usize {
-    match index.checked_add(required_units) {
-        Some(required) => required,
-        None => usize::MAX,
-    }
+    4
 }
 
 /// Reads one endian-aware `u32` value from an already checked byte slice.
@@ -282,12 +231,15 @@ const fn required_index(index: usize, required_units: usize) -> usize {
 /// Returns the decoded UTF-32 unit.
 #[inline(always)]
 fn read_ordered_u32(input: &[u8], index: usize, byte_order: ByteOrder) -> u32 {
-    let bytes = [
-        input[index],
-        input[index + 1],
-        input[index + 2],
-        input[index + 3],
-    ];
+    let mut bytes = [0_u8; 4];
+    // SAFETY: The caller guarantees that four bytes are readable from `index`.
+    unsafe {
+        core::ptr::copy_nonoverlapping(
+            input.as_ptr().add(index),
+            bytes.as_mut_ptr(),
+            4,
+        );
+    }
     match byte_order {
         ByteOrder::BigEndian => u32::from_be_bytes(bytes),
         ByteOrder::LittleEndian => u32::from_le_bytes(bytes),
@@ -304,10 +256,22 @@ fn read_ordered_u32(input: &[u8], index: usize, byte_order: ByteOrder) -> u32 {
 /// - `unit`: UTF-32 unit to write.
 /// - `byte_order`: Byte order used to serialize the unit.
 #[inline(always)]
-fn write_ordered_u32(output: &mut [u8], index: usize, unit: u32, byte_order: ByteOrder) {
+fn write_ordered_u32(
+    output: &mut [u8],
+    index: usize,
+    unit: u32,
+    byte_order: ByteOrder,
+) {
     let bytes = match byte_order {
         ByteOrder::BigEndian => unit.to_be_bytes(),
         ByteOrder::LittleEndian => unit.to_le_bytes(),
     };
-    output[index..index + 4].copy_from_slice(&bytes);
+    // SAFETY: The caller guarantees that four bytes are writable from `index`.
+    unsafe {
+        core::ptr::copy_nonoverlapping(
+            bytes.as_ptr(),
+            output.as_mut_ptr().add(index),
+            4,
+        );
+    }
 }

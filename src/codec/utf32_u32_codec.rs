@@ -6,11 +6,17 @@
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
 use crate::{
-    Charset, CharsetCodec, CharsetDecodeError, CharsetDecodeErrorKind, CharsetDecodeResult,
-    CharsetEncodeError, CharsetEncodeErrorKind, CharsetEncodeProbe, CharsetEncodeResult, Unicode,
+    Charset,
+    CharsetCodec,
+    CharsetDecodeError,
+    CharsetDecodeErrorKind,
+    CharsetDecodeResult,
+    CharsetEncodeError,
+    CharsetEncodeResult,
+    Unicode,
     Utf32,
 };
-use qubit_codec::Codec;
+use qubit_codec::{Codec, nz};
 
 /// Combined UTF-32 `u32` code-unit codec.
 ///
@@ -23,7 +29,6 @@ use qubit_codec::Codec;
 /// ```rust
 /// use qubit_codec_text::{
 ///     CharsetCodec,
-///     CharsetEncodeProbe,
 ///     Codec,
 ///     Charset,
 ///     Utf32,
@@ -35,7 +40,7 @@ use qubit_codec::Codec;
 /// assert_eq!(Utf32::MAX_UNITS_PER_CHAR, codec.max_units_per_value().get());
 ///
 /// let mut output = [0_u32; Utf32::MAX_UNITS_PER_CHAR];
-/// let written = CharsetEncodeProbe::encode_len(&codec, '中', 0).expect("mappable");
+/// let written = codec.encode_len(&'中').get();
 /// unsafe {
 ///     codec.encode(&'中', &mut output, 0).expect("buffer fits");
 /// }
@@ -72,23 +77,6 @@ impl CharsetCodec for Utf32U32Codec {
     }
 }
 
-impl CharsetEncodeProbe for Utf32U32Codec {
-    /// Encodes one Unicode scalar value into a `u32` unit at `index`.
-    ///
-    /// # Arguments
-    ///
-    /// * `ch` - The Unicode scalar value to encode.
-    /// * `index` - Input character index used for error context.
-    ///
-    /// # Returns
-    ///
-    /// Always returns `Ok(1)`.
-    #[inline(always)]
-    fn encode_len(&self, _ch: char, _index: usize) -> CharsetEncodeResult<usize> {
-        Ok(Utf32::MAX_UNITS_PER_CHAR)
-    }
-}
-
 unsafe impl Codec for Utf32U32Codec {
     type Value = char;
     type Unit = u32;
@@ -112,7 +100,7 @@ unsafe impl Codec for Utf32U32Codec {
         index: usize,
     ) -> CharsetDecodeResult<(char, core::num::NonZeroUsize)> {
         let (ch, consumed) = decode_units_prefix(input, index)?;
-        debug_assert!(consumed.get() <= input.len() - index);
+        debug_assert!(consumed.get() <= input.len().saturating_sub(index));
         Ok((ch, consumed))
     }
 
@@ -123,10 +111,10 @@ unsafe impl Codec for Utf32U32Codec {
         output: &mut [u32],
         index: usize,
     ) -> CharsetEncodeResult<core::num::NonZeroUsize> {
-        let written = encode_units_char(*ch, output, index)?;
+        let written = encode_units_char(*ch, output, index);
         debug_assert_eq!(written, Utf32::MAX_UNITS_PER_CHAR);
-        debug_assert!(written <= output.len() - index);
-        Ok(qubit_codec::nz!(Utf32::MAX_UNITS_PER_CHAR))
+        debug_assert!(written <= output.len().saturating_sub(index));
+        Ok(nz!(Utf32::MAX_UNITS_PER_CHAR))
     }
 }
 
@@ -145,10 +133,6 @@ unsafe impl Codec for Utf32U32Codec {
 ///
 /// # Errors
 ///
-/// * `CharsetDecodeErrorKind::InvalidInputIndex` when `index` is greater than
-///   `input.len()`.
-/// * `CharsetDecodeErrorKind::IncompleteSequence` when EOF appears before one
-///   UTF-32 unit is available.
 /// * `CharsetDecodeErrorKind::InvalidCodePoint` when `input[index]` is not a
 ///   valid scalar.
 #[inline]
@@ -156,25 +140,13 @@ fn decode_units_prefix(
     input: &[u32],
     index: usize,
 ) -> CharsetDecodeResult<(char, core::num::NonZeroUsize)> {
-    if index > input.len() {
-        let kind = CharsetDecodeErrorKind::InvalidInputIndex {
-            input_len: input.len(),
-        };
-        return Err(CharsetDecodeError::new(Charset::UTF_32, kind, index));
-    }
-    if index == input.len() {
-        let kind = CharsetDecodeErrorKind::IncompleteSequence {
-            required: 1,
-            available: 0,
-        };
-        return Err(CharsetDecodeError::new(Charset::UTF_32, kind, index));
-    }
-    match Unicode::to_char(input[index]) {
+    debug_assert!(index < input.len());
+    // SAFETY: The caller guarantees that `index` is readable.
+    let unit = unsafe { *input.as_ptr().add(index) };
+    match Unicode::to_char(unit) {
         Some(ch) => Ok((ch, core::num::NonZeroUsize::MIN)),
         None => {
-            let kind = CharsetDecodeErrorKind::InvalidCodePoint {
-                value: input[index],
-            };
+            let kind = CharsetDecodeErrorKind::InvalidCodePoint { value: unit };
             Err(CharsetDecodeError::new(Charset::UTF_32, kind, index))
         }
     }
@@ -191,28 +163,12 @@ fn decode_units_prefix(
 /// # Returns
 ///
 /// Always `Ok(1)` to indicate one unit was written.
-///
-/// # Errors
-///
-/// * `CharsetEncodeErrorKind::BufferTooSmall` when no unit can be written at
-///   `index`.
 #[inline]
-fn encode_units_char(ch: char, output: &mut [u32], index: usize) -> CharsetEncodeResult<usize> {
-    if index >= output.len() {
-        let kind = CharsetEncodeErrorKind::BufferTooSmall {
-            required: required_index(index, 1),
-            available: 0,
-        };
-        return Err(CharsetEncodeError::new(Charset::UTF_32, kind, index));
+fn encode_units_char(ch: char, output: &mut [u32], index: usize) -> usize {
+    debug_assert!(index < output.len());
+    // SAFETY: The caller guarantees that one unit is writable at `index`.
+    unsafe {
+        *output.as_mut_ptr().add(index) = ch as u32;
     }
-    output[index] = ch as u32;
-    Ok(1)
-}
-
-#[inline(always)]
-const fn required_index(index: usize, required_units: usize) -> usize {
-    match index.checked_add(required_units) {
-        Some(required) => required,
-        None => usize::MAX,
-    }
+    1
 }

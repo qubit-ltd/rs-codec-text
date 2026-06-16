@@ -73,7 +73,7 @@ The crate is split into a few small layers.
 | Namespace helpers | `Ascii`, `Unicode`, `Utf8`, `Utf16`, `Utf32` | Constants, classification, sizing, and BOM helper functions. |
 | Charset metadata | `Charset`, `UnicodeBom`, `ByteOrder` | Stable charset identity, aliases, fixed byte order, and BOM metadata. |
 | Low-level codecs | `Codec<Value = char>`, built-in codec structs | Decode or encode one complete Unicode scalar value from/to caller-owned buffers. |
-| Text codec metadata | `CharsetCodec`, `CharsetEncodeProbe` | Attach charset metadata and exact encode sizing to low-level codec implementations. |
+| Text codec metadata | `CharsetCodec` | Attach charset metadata to low-level text codec implementations. |
 | Policy wrappers | `CharsetDecoder`, `CharsetEncoder` | Apply malformed/unmappable policy while converting many units; implement `TranscodeDecoder` / `TranscodeEncoder`. `CharsetDecoder` reuses the core `TranscodeDecodeEngine` loop, and `CharsetEncoder` reuses the core `TranscodeEncodeEngine` loop. |
 | Charset conversion | `CharsetConverter` | Decode source units to `char`, then encode them to target units; implements `TranscodeConverter`. |
 | Progress API | `Transcoder`, `TranscodeProgress`, `TranscodeStatus` | Report partial progress, input starvation, and output backpressure. |
@@ -189,12 +189,11 @@ caller-owned input units, and `encode` writes one Unicode scalar value
 to caller-owned output units.
 
 `CharsetCodec` stays at this same low-level layer. It adds only `charset()`
-metadata and the storage `Unit` type. `CharsetEncodeProbe` adds `encode_len()`,
-which is used by encoders to validate mappability and compute the exact output
-unit count before calling unsafe `encode`. For the same codec state,
-character, and output index, a successful `encode_len()` result must equal the
-number of units that `encode()` writes when enough output capacity is
-available.
+metadata; storage units, value-domain checks, exact encode sizing, and unsafe
+single-value encode/decode are inherited from `Codec`. Charset encoders call
+`Codec::can_encode_value()` before `Codec::encode_len()` and unsafe
+`Codec::encode()`. For the same codec state and character, `encode_len()` must
+equal the number of units that `encode()` writes under that precondition.
 
 For decoding through `decode`, callers must provide at least
 `codec.min_units_per_value()` readable units from the current input index before
@@ -259,16 +258,14 @@ Encode one scalar value:
 
 ```rust
 use qubit_codec_text::{
-    CharsetEncodeProbe,
     Codec,
     Utf8Codec,
     Utf8,
 };
 
 let mut output = [0_u8; Utf8::MAX_BYTES_PER_CHAR];
-let required = Utf8Codec
-    .encode_len('é', 0)
-    .expect("UTF-8 can encode every scalar value");
+assert!(Utf8Codec.can_encode_value(&'é'));
+let required = Utf8Codec.encode_len(&'é').get();
 let written = unsafe {
     Utf8Codec
         .encode(&'é', &mut output, 0)
@@ -276,12 +273,14 @@ let written = unsafe {
     .expect("buffer is large enough");
 
 assert_eq!(2, required);
-assert_eq!("é".as_bytes(), &output[..written]);
+assert_eq!("é".as_bytes(), &output[..written.get()]);
 ```
 
-Low-level codecs are strict. They report malformed input, invalid input
-indices, invalid scalar values, unmappable characters, and small output buffers
-as typed errors. Policy decisions are handled by the wrappers described below.
+Low-level codecs are strict about malformed units and invalid decoded scalar
+values. Buffer bounds and encode value-domain checks are part of the unsafe
+caller contract: checked wrappers validate indices, capacity, and
+`can_encode_value()` before entering hot `Codec` methods. Policy decisions are
+handled by the wrappers described below.
 
 ## EOF and Incomplete Input
 
@@ -411,21 +410,20 @@ assert_eq!(0, error.index());
 assert_eq!(Some('é' as u32), error.value());
 ```
 
-`CharsetEncoder::new` validates the replacement character with `encode_len()` and
-records its encoded width. It first tries `U+FFFD`, then falls back to `?`. It
-panics only if the supplied codec cannot encode either replacement. Built-in
-codecs do not trigger this; for a custom codec, that panic indicates a broken
-codec invariant rather than recoverable text input. Replacement output is still
-written through `encode()`, so non-policy codec errors from that write
-are surfaced during transcoding.
+`CharsetEncoder::new` validates the replacement character with
+`can_encode_value()` and records its `encode_len()` width. It first tries
+`U+FFFD`, then falls back to `?`. It panics only if the supplied codec cannot
+encode either replacement. Built-in codecs do not trigger this; for a custom
+codec, that panic indicates a broken codec invariant rather than recoverable
+text input. Replacement output is still written through `encode()`, so
+non-policy codec errors from that write are surfaced during transcoding.
 
 Internally, `CharsetEncoder` stores unmappable-input policy in encode hooks and
 delegates to `TranscodeEncodeEngine<C, H>`. The engine owns input iteration,
 output capacity checks, and `TranscodeProgress` construction; the hooks supply
 the charset-specific plan for original, replacement, or ignored characters.
 
-Use `with_policy` to validate a custom replacement character up front with
-`encode_len()`:
+Use `with_policy` to validate a custom replacement character up front:
 
 ```rust
 use qubit_codec_text::{
@@ -574,7 +572,6 @@ as bytes.
 ```rust
 use qubit_codec_text::{
     ByteOrder,
-    CharsetEncodeProbe,
     Codec,
     Utf16ByteCodec,
 };
@@ -582,9 +579,8 @@ use qubit_codec_text::{
 let codec = Utf16ByteCodec::new(ByteOrder::LittleEndian);
 let mut output = [0_u8; 4];
 
-let required = codec
-    .encode_len('😀', 0)
-    .expect("UTF-16 can encode every scalar value");
+assert!(codec.can_encode_value(&'😀'));
+let required = codec.encode_len(&'😀').get();
 let written = unsafe {
     codec
         .encode(&'😀', &mut output, 0)
@@ -592,7 +588,7 @@ let written = unsafe {
     .expect("UTF-16 output buffer is large enough");
 
 assert_eq!(4, required);
-assert_eq!(&[0x3d, 0xd8, 0x00, 0xde], &output[..written]);
+assert_eq!(&[0x3d, 0xd8, 0x00, 0xde], &output[..written.get()]);
 ```
 
 The byte codecs read and write fixed-endian byte sequences directly. Public
@@ -612,9 +608,11 @@ To add another charset in a downstream crate:
    the `Codec::max_units_per_value()` implementation.
 6. Return incomplete, malformed, and invalid-scalar failures through
    `CharsetDecodeError` from `Codec::decode()`.
-7. Implement `CharsetEncodeProbe` if the charset can be used with
-   `CharsetEncoder` or as a converter target.
-8. Use `CharsetDecoder`, `CharsetEncoder`, or `CharsetConverter` to apply
+7. Override `Codec::can_encode_value()` when `Value = char` contains values the
+   charset cannot represent.
+8. Override `Codec::encode_len()` when different encodable values can require
+   different output widths.
+9. Use `CharsetDecoder`, `CharsetEncoder`, or `CharsetConverter` to apply
    policy.
 
 Important `decode` expectations:
@@ -631,13 +629,14 @@ Important `decode` expectations:
 
 Important `encode` and `encode_len` expectations:
 
-- Return `BufferTooSmall` when output capacity is insufficient.
-- Return `UnmappableCharacter` when the charset cannot represent the scalar
-  value.
+- `can_encode_value(value)` must return `false` when the charset cannot
+  represent `value`.
+- Callers must only call `encode_len(value)` and unsafe `encode(value, ...)`
+  after `can_encode_value(value)` returned `true`.
+- Callers must provide enough output capacity for `encode_len(value)` units
+  before entering unsafe `encode`.
 - `encode_len` must return the exact number of units that `encode`
-  will write for the same character when enough output capacity is available.
-- `encode_len` and `encode` must agree on mappability for the same
-  codec state, character, and output index.
+  will write for the same encodable value and codec state.
 - Keep replacement `?` encodable if the codec is meant to work with
   `CharsetEncoder::new`.
 

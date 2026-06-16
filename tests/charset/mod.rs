@@ -1,6 +1,7 @@
 mod ascii_folding_tests;
 mod ascii_tests;
 mod charset_tests;
+mod latin1_tests;
 mod unicode_bom_tests;
 mod unicode_tests;
 mod utf16_tests;

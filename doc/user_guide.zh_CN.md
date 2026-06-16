@@ -66,7 +66,7 @@ use qubit_codec_text::{
 | 命名空间辅助工具 | `Ascii`、`Unicode`、`Utf8`、`Utf16`、`Utf32` | 常量、分类、长度和 BOM 辅助函数。 |
 | Charset 元数据 | `Charset`、`UnicodeBom`、`ByteOrder` | 稳定 charset 身份、别名、固定字节序和 BOM 元数据。 |
 | 低层 codec | `Codec<Value = char>`、内置 codec 结构体 | 从调用方缓冲区解码或编码一个完整 Unicode 标量值。 |
-| 文本 codec 元数据 | `CharsetCodec`、`CharsetEncodeProbe` | 为低层 codec 实现附加 charset 元数据和精确编码长度探测。 |
+| 文本 codec 元数据 | `CharsetCodec` | 为低层文本 codec 实现附加 charset 元数据。 |
 | 策略包装器 | `CharsetDecoder`、`CharsetEncoder` | 在批量转换时应用 malformed / unmappable 策略；分别实现 `TranscodeDecoder` / `TranscodeEncoder`。`CharsetDecoder` 复用 core 的 `TranscodeDecodeEngine` 循环，`CharsetEncoder` 复用 core 的 `TranscodeEncodeEngine` 循环。 |
 | Charset 转换 | `CharsetConverter` | 先把源单元解码成 `char`，再编码成目标单元；实现 `TranscodeConverter`。 |
 | 进度 API | `Transcoder`、`TranscodeProgress`、`TranscodeStatus` | 报告部分进度、输入不足和输出回压。 |
@@ -174,11 +174,11 @@ BOM。BOM 处理由调用方负责。
 `Value = char`。这个 trait 是最低层单值契约：`decode` 从调用方输入单元中解码
 一个 Unicode 标量值，`encode` 把一个 Unicode 标量值写入调用方输出单元。
 
-`CharsetCodec` 与这个 unsafe trait 处于同一低层，只增加 `charset()` 元数据和
-存储 `Unit` 类型。`CharsetEncodeProbe` 增加 `encode_len()`，encoder 用它提前
-校验可映射性，并在调用 unsafe `encode` 前计算精确输出单元数。对同一个
-codec 状态、字符和输出下标，`encode_len()` 成功返回的长度必须等于输出容量充足时
-`encode()` 实际写出的单元数。
+`CharsetCodec` 与这个 unsafe trait 处于同一低层，只增加 `charset()` 元数据；
+存储单元、值域判断、精确编码长度以及 unsafe 单值 encode/decode 都继承自
+`Codec`。Charset encoder 会先调用 `Codec::can_encode_value()`，再调用
+`Codec::encode_len()` 和 unsafe `Codec::encode()`。对同一个 codec 状态和字符，
+`encode_len()` 必须等于满足这些前置条件时 `encode()` 实际写出的单元数。
 
 通过 `decode` 解码时，调用方必须在调用前从当前输入下标开始提供
 至少 `codec.min_units_per_value()` 个可读单元。调用方通常应尽量提供到
@@ -241,16 +241,14 @@ assert_eq!(
 
 ```rust
 use qubit_codec_text::{
-    CharsetEncodeProbe,
     Codec,
     Utf8Codec,
     Utf8,
 };
 
 let mut output = [0_u8; Utf8::MAX_BYTES_PER_CHAR];
-let required = Utf8Codec
-    .encode_len('é', 0)
-    .expect("UTF-8 can encode every scalar value");
+assert!(Utf8Codec.can_encode_value(&'é'));
+let required = Utf8Codec.encode_len(&'é').get();
 let written = unsafe {
     Utf8Codec
         .encode(&'é', &mut output, 0)
@@ -258,11 +256,12 @@ let written = unsafe {
     .expect("buffer is large enough");
 
 assert_eq!(2, required);
-assert_eq!("é".as_bytes(), &output[..written]);
+assert_eq!("é".as_bytes(), &output[..written.get()]);
 ```
 
-低层 codec 是严格的。它们会把 malformed input、非法输入下标、非法标量值、无法映射
-的字符、输出缓冲区不足都报告为强类型错误。策略决策交给后面的包装器。
+低层 codec 对 malformed 单元和非法解码标量值保持严格。缓冲区边界和 encode
+值域检查属于 unsafe 调用方契约：checked wrapper 会在进入热路径 `Codec` 方法前
+校验下标、容量和 `can_encode_value()`。策略决策交给后面的包装器。
 
 ## EOF 与不完整输入
 
@@ -386,18 +385,19 @@ assert_eq!(0, error.index());
 assert_eq!(Some('é' as u32), error.value());
 ```
 
-`CharsetEncoder::new` 会用 `encode_len()` 提前验证替换字符并记录其编码宽度。
-它先尝试 `U+FFFD`，再回退到 `?`。只有当传入的 codec 连这两个替换字符都无法编码时
-才会 panic。内置 codec 不会触发这个分支；对自定义 codec 来说，这个 panic 表示
-codec 不变量被破坏，而不是可恢复文本输入错误。真正写出 replacement 时仍会调用
-`encode()`，因此该写入过程中出现的非策略类 codec 错误会在转码时暴露。
+`CharsetEncoder::new` 会用 `can_encode_value()` 提前验证替换字符，并记录其
+`encode_len()` 宽度。它先尝试 `U+FFFD`，再回退到 `?`。只有当传入的 codec
+连这两个替换字符都无法编码时才会 panic。内置 codec 不会触发这个分支；对自定义
+codec 来说，这个 panic 表示 codec 不变量被破坏，而不是可恢复文本输入错误。
+真正写出 replacement 时仍会调用 `encode()`，因此该写入过程中出现的非策略类 codec
+错误会在转码时暴露。
 
 内部实现上，`CharsetEncoder` 把 unmappable-input 策略保存在 encode hooks 中，并转发给
 `TranscodeEncodeEngine<C, H>`。engine 负责输入迭代、输出容量检查和
 `TranscodeProgress` 构造；hooks 提供 original、replacement 或 ignored 字符对应的
 charset-specific 计划。
 
-需要自定义替换字符时，可使用 `with_policy` 通过 `encode_len()` 提前验证：
+需要自定义替换字符时，可使用 `with_policy` 提前验证：
 
 ```rust
 use qubit_codec_text::{
@@ -536,7 +536,6 @@ unmappable 字符会返回错误。
 ```rust
 use qubit_codec_text::{
     ByteOrder,
-    CharsetEncodeProbe,
     Codec,
     Utf16ByteCodec,
 };
@@ -544,9 +543,8 @@ use qubit_codec_text::{
 let codec = Utf16ByteCodec::new(ByteOrder::LittleEndian);
 let mut output = [0_u8; 4];
 
-let required = codec
-    .encode_len('😀', 0)
-    .expect("UTF-16 can encode every scalar value");
+assert!(codec.can_encode_value(&'😀'));
+let required = codec.encode_len(&'😀').get();
 let written = unsafe {
     codec
         .encode(&'😀', &mut output, 0)
@@ -554,7 +552,7 @@ let written = unsafe {
     .expect("UTF-16 output buffer is large enough");
 
 assert_eq!(4, required);
-assert_eq!(&[0x3d, 0xd8, 0x00, 0xde], &output[..written]);
+assert_eq!(&[0x3d, 0xd8, 0x00, 0xde], &output[..written.get()]);
 ```
 
 字节 codec 会直接读写固定字节序的 byte sequence。公开调用方通常通过
@@ -571,9 +569,10 @@ assert_eq!(&[0x3d, 0xd8, 0x00, 0xde], &output[..written]);
 5. 在 `Codec::max_units_per_value()` 实现中返回单个标量值最多需要的非零存储单元数。
 6. 在 `Codec::decode()` 中通过 `CharsetDecodeError` 返回不完整、畸形和
    invalid-scalar failure。
-7. 如果该 charset 需要与 `CharsetEncoder` 或 converter 目标端一起使用，实现
-   `CharsetEncodeProbe`。
-8. 使用 `CharsetDecoder`、`CharsetEncoder` 或 `CharsetConverter` 应用策略。
+7. 当 `Value = char` 包含该 charset 无法表示的值时，覆盖
+   `Codec::can_encode_value()`。
+8. 当不同可编码值可能需要不同输出宽度时，覆盖 `Codec::encode_len()`。
+9. 使用 `CharsetDecoder`、`CharsetEncoder` 或 `CharsetConverter` 应用策略。
 
 重要的 `decode` 约定：
 
@@ -587,12 +586,12 @@ assert_eq!(&[0x3d, 0xd8, 0x00, 0xde], &output[..written]);
 
 重要的 `encode` 与 `encode_len` 约定：
 
-- 输出容量不足时返回 `BufferTooSmall`。
-- charset 无法表示某个标量值时返回 `UnmappableCharacter`。
-- 输出容量充足时，`encode_len` 必须返回同一个字符随后由 `encode`
+- charset 无法表示 `value` 时，`can_encode_value(value)` 必须返回 `false`。
+- 调用方必须在 `can_encode_value(value)` 返回 `true` 后，才调用
+  `encode_len(value)` 和 unsafe `encode(value, ...)`。
+- 调用方必须在进入 unsafe `encode` 前提供至少 `encode_len(value)` 个可写输出单元。
+- `encode_len` 必须返回同一个可编码值、同一个 codec 状态下随后由 `encode`
   写出的精确单元数。
-- 对同一个 codec 状态、字符和输出下标，`encode_len` 与 `encode`
-  必须在可映射性判断上保持一致。
 - 如果希望 codec 能和 `CharsetEncoder::new` 一起使用，应保证替换字符 `?`
   可以编码。
 

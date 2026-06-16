@@ -1,7 +1,16 @@
-use qubit_codec::{ByteOrder, Codec};
+use qubit_codec::{
+    ByteOrder,
+    Codec,
+};
 use qubit_codec_text::{
-    AsciiCodec, CharsetDecodeErrorKind, CharsetEncodeErrorKind, Latin1Codec, Utf8Codec,
-    Utf16ByteCodec, Utf16U16Codec, Utf32ByteCodec, Utf32U32Codec,
+    AsciiCodec,
+    CharsetDecodeErrorKind,
+    Latin1Codec,
+    Utf8Codec,
+    Utf16ByteCodec,
+    Utf16U16Codec,
+    Utf32ByteCodec,
+    Utf32U32Codec,
 };
 
 #[test]
@@ -122,27 +131,6 @@ fn test_core_codec_trait_reports_text_codec_value_errors() {
     );
     assert_eq!(0, decode_error.index());
 
-    let mut ascii_output = [0_u8; 1];
-    let encode_error = unsafe {
-        AsciiCodec
-            .encode(&'é', &mut ascii_output, 0)
-            .expect_err("non-ASCII character should be unmappable")
-    };
-    assert_eq!(
-        CharsetEncodeErrorKind::UnmappableCharacter { value: 'é' as u32 },
-        encode_error.kind(),
-    );
-    assert_eq!(0, encode_error.index());
-
-    let mut latin1_output = [0_u8; 1];
-    let encode_error = unsafe {
-        Latin1Codec
-            .encode(&'\u{0100}', &mut latin1_output, 0)
-            .expect_err("outside Latin-1 should be unmappable")
-    };
-    assert_eq!(
-        CharsetEncodeErrorKind::UnmappableCharacter { value: 0x0100 },
-        encode_error.kind(),
-    );
-    assert_eq!(0, encode_error.index());
+    assert!(!AsciiCodec.can_encode_value(&'é'));
+    assert!(!Latin1Codec.can_encode_value(&'\u{0100}'));
 }

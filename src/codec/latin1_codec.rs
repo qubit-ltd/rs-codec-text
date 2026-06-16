@@ -5,9 +5,16 @@
 //
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
+use core::num::NonZeroUsize;
+
 use crate::{
-    Charset, CharsetCodec, CharsetDecodeError, CharsetDecodeErrorKind, CharsetDecodeResult,
-    CharsetEncodeError, CharsetEncodeErrorKind, CharsetEncodeProbe, CharsetEncodeResult, Unicode,
+    Charset,
+    CharsetCodec,
+    CharsetDecodeError,
+    CharsetDecodeResult,
+    CharsetEncodeError,
+    CharsetEncodeResult,
+    Latin1,
 };
 use qubit_codec::Codec;
 
@@ -23,8 +30,8 @@ impl Latin1Codec {
     /// # Returns
     ///
     /// Returns [`Charset::ISO_8859_1`].
-    #[must_use]
     #[inline(always)]
+    #[must_use]
     pub const fn charset(self) -> Charset {
         Charset::ISO_8859_1
     }
@@ -42,33 +49,6 @@ impl CharsetCodec for Latin1Codec {
     }
 }
 
-impl CharsetEncodeProbe for Latin1Codec {
-    /// Encodes one `char` into one ISO-8859-1 byte.
-    ///
-    /// # Parameters
-    ///
-    /// - `ch`: The character to encode.
-    /// - `index`: Input character index used for error context.
-    ///
-    /// # Returns
-    ///
-    /// `Ok(1)` when one byte is needed.
-    ///
-    /// # Errors
-    ///
-    /// * `CharsetEncodeErrorKind::UnmappableCharacter` if `ch` > `U+00FF`.
-    #[inline]
-    fn encode_len(&self, ch: char, index: usize) -> CharsetEncodeResult<usize> {
-        let value = ch as u32;
-        if value > Unicode::LATIN1_MAX {
-            let kind = CharsetEncodeErrorKind::UnmappableCharacter { value };
-            return Err(CharsetEncodeError::new(Charset::ISO_8859_1, kind, index));
-        }
-
-        Ok(1)
-    }
-}
-
 unsafe impl Codec for Latin1Codec {
     type Value = char;
     type Unit = u8;
@@ -76,71 +56,49 @@ unsafe impl Codec for Latin1Codec {
     type EncodeError = CharsetEncodeError;
 
     #[inline(always)]
-    fn min_units_per_value(&self) -> core::num::NonZeroUsize {
-        core::num::NonZeroUsize::MIN
+    fn min_units_per_value(&self) -> NonZeroUsize {
+        NonZeroUsize::MIN
     }
 
     #[inline(always)]
-    fn max_units_per_value(&self) -> core::num::NonZeroUsize {
-        core::num::NonZeroUsize::MIN
+    fn max_units_per_value(&self) -> NonZeroUsize {
+        NonZeroUsize::MIN
     }
 
-    #[inline]
+    #[inline(always)]
+    fn can_encode_value(&self, value: &char) -> bool {
+        Latin1::is_latin1_char(*value)
+    }
+
+    #[inline(always)]
     unsafe fn decode(
         &mut self,
         input: &[u8],
         index: usize,
-    ) -> CharsetDecodeResult<(char, core::num::NonZeroUsize)> {
-        if index > input.len() {
-            let kind = CharsetDecodeErrorKind::InvalidInputIndex {
-                input_len: input.len(),
-            };
-            return Err(CharsetDecodeError::new(Charset::ISO_8859_1, kind, index));
-        }
-        if index == input.len() {
-            let kind = CharsetDecodeErrorKind::IncompleteSequence {
-                required: 1,
-                available: 0,
-            };
-            return Err(CharsetDecodeError::new(Charset::ISO_8859_1, kind, index));
-        }
-
-        let value = input[index] as u32;
+    ) -> CharsetDecodeResult<(char, NonZeroUsize)> {
         debug_assert!(index < input.len());
-        Ok((
-            Unicode::to_char(value).expect("valid Latin-1 byte decodes to Unicode scalar"),
-            core::num::NonZeroUsize::MIN,
-        ))
+        // SAFETY: The caller guarantees that `index` is readable.
+        let value = unsafe { *input.as_ptr().add(index) };
+        Ok((Latin1::byte_to_char(value), NonZeroUsize::MIN))
     }
 
-    #[inline]
+    #[inline(always)]
     unsafe fn encode(
         &mut self,
         ch: &char,
         output: &mut [u8],
         index: usize,
-    ) -> CharsetEncodeResult<core::num::NonZeroUsize> {
-        let value = *ch as u32;
-        if value > Unicode::LATIN1_MAX {
-            let kind = CharsetEncodeErrorKind::UnmappableCharacter { value };
-            return Err(CharsetEncodeError::new(Charset::ISO_8859_1, kind, index));
-        }
-        if index >= output.len() {
-            let kind = CharsetEncodeErrorKind::BufferTooSmall {
-                required: required_index(index, 1),
-                available: 0,
-            };
-            return Err(CharsetEncodeError::new(Charset::ISO_8859_1, kind, index));
-        }
-        output[index] = value as u8;
-        Ok(core::num::NonZeroUsize::MIN)
-    }
-}
+    ) -> CharsetEncodeResult<NonZeroUsize> {
+        debug_assert!(self.can_encode_value(ch));
+        debug_assert!(index < output.len());
 
-#[inline(always)]
-const fn required_index(index: usize, required_units: usize) -> usize {
-    match index.checked_add(required_units) {
-        Some(required) => required,
-        None => usize::MAX,
+        let value = Latin1::char_to_byte(*ch)
+            .expect("encodable Latin-1 character maps to byte");
+        // SAFETY: The caller guarantees that `ch` is encodable and `index` is
+        // writable.
+        unsafe {
+            *output.as_mut_ptr().add(index) = value;
+        }
+        Ok(NonZeroUsize::MIN)
     }
 }

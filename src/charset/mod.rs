@@ -9,6 +9,7 @@ mod ascii;
 mod ascii_folding;
 #[allow(clippy::module_inception)]
 mod charset;
+mod latin1;
 mod unicode;
 mod unicode_bom;
 mod utf16;
@@ -17,6 +18,7 @@ mod utf8;
 
 pub use ascii::Ascii;
 pub use charset::Charset;
+pub use latin1::Latin1;
 pub use unicode::Unicode;
 pub use unicode_bom::UnicodeBom;
 pub use utf8::Utf8;

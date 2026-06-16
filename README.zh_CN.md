@@ -134,7 +134,6 @@ assert_eq!("😀".as_bytes(), &output[..progress.written()]);
 | `Utf16U16Codec` / `Utf32U32Codec` | Unit-oriented Unicode codec |
 | `Codec<Value = char>` | 从 `qubit-codec` 重导出的最低层完整值 codec trait |
 | `CharsetCodec` | 附加在低层文本 codec 实现上的 charset 元数据 |
-| `CharsetEncodeProbe` | 单字符输出长度和可映射性探测 |
 
 ### Converter 类型
 

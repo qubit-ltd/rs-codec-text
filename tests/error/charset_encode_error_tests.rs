@@ -1,4 +1,8 @@
-use qubit_codec_text::{Charset, CharsetEncodeError, CharsetEncodeErrorKind};
+use qubit_codec_text::{
+    Charset,
+    CharsetEncodeError,
+    CharsetEncodeErrorKind,
+};
 
 #[test]
 fn test_charset_encode_error_exposes_context() {
@@ -17,6 +21,8 @@ fn test_charset_encode_error_exposes_context() {
     ));
     assert_eq!(2, error.index());
     assert_eq!(None, error.value());
+    assert_eq!(Some(4), error.required());
+    assert_eq!(Some(1), error.available());
     assert_eq!(7, error.offset_by(5).index());
     assert_eq!(
         "UTF-16 encoding error at index 2: The output buffer is too small (required 4 units, available 1 units).",
@@ -38,7 +44,7 @@ fn test_charset_encode_error_exposes_context() {
     );
 
     let kind = CharsetEncodeErrorKind::UnmappableCharacter {
-        value: '中' as u32
+        value: '中' as u32,
     };
     let unmappable = CharsetEncodeError::new(GBK, kind, 4);
     assert_eq!(GBK, unmappable.charset());

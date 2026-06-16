@@ -6,12 +6,19 @@
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
 use crate::{
-    ByteOrder, Charset, CharsetCodec, CharsetDecodeError, CharsetDecodeErrorKind,
-    CharsetDecodeResult, CharsetEncodeError, CharsetEncodeErrorKind, CharsetEncodeProbe,
-    CharsetEncodeResult, Unicode, Utf16,
+    ByteOrder,
+    Charset,
+    CharsetCodec,
+    CharsetDecodeError,
+    CharsetDecodeErrorKind,
+    CharsetDecodeResult,
+    CharsetEncodeError,
+    CharsetEncodeResult,
+    Unicode,
+    Utf16,
 };
 use core::num::NonZeroUsize;
-use qubit_codec::Codec;
+use qubit_codec::{Codec, nz};
 
 /// Combined byte-serialized UTF-16 codec.
 ///
@@ -25,7 +32,6 @@ use qubit_codec::Codec;
 /// use qubit_codec_text::{
 ///     ByteOrder,
 ///     CharsetCodec,
-///     CharsetEncodeProbe,
 ///     Codec,
 ///     Charset,
 ///     Utf16,
@@ -37,7 +43,7 @@ use qubit_codec::Codec;
 /// assert_eq!(Utf16::MAX_BYTES_PER_CHAR, codec.max_units_per_value().get());
 ///
 /// let mut output = [0_u8; Utf16::MAX_BYTES_PER_CHAR];
-/// let written = CharsetEncodeProbe::encode_len(&codec, '😀', 0).expect("mappable");
+/// let written = codec.encode_len(&'😀').get();
 /// unsafe {
 ///     codec.encode(&'😀', &mut output, 0).expect("buffer fits");
 /// }
@@ -105,24 +111,6 @@ impl CharsetCodec for Utf16ByteCodec {
     }
 }
 
-impl CharsetEncodeProbe for Utf16ByteCodec {
-    /// Encodes one Unicode scalar value into UTF-16 bytes at `index`.
-    ///
-    /// # Arguments
-    ///
-    /// * `ch` - The Unicode scalar value to encode.
-    /// * `index` - Input character index used for error context.
-    ///
-    /// # Returns
-    ///
-    /// `Ok(usize)` with the required bytes (`2` for BMP and `4` for
-    /// supplementary).
-    #[inline(always)]
-    fn encode_len(&self, ch: char, _index: usize) -> CharsetEncodeResult<usize> {
-        Ok(Utf16::unit_len(ch) * 2)
-    }
-}
-
 unsafe impl Codec for Utf16ByteCodec {
     type Value = char;
     type Unit = u8;
@@ -131,17 +119,18 @@ unsafe impl Codec for Utf16ByteCodec {
 
     #[inline(always)]
     fn min_units_per_value(&self) -> NonZeroUsize {
-        qubit_codec::nz!(2)
+        nz!(2)
     }
 
     #[inline(always)]
     fn max_units_per_value(&self) -> NonZeroUsize {
-        qubit_codec::nz!(Utf16::MAX_BYTES_PER_CHAR)
+        nz!(Utf16::MAX_BYTES_PER_CHAR)
     }
 
     #[inline(always)]
     fn encode_len(&self, ch: &char) -> NonZeroUsize {
-        NonZeroUsize::new(Utf16::unit_len(*ch) * 2).expect("UTF-16 byte encoding width is non-zero")
+        NonZeroUsize::new(Utf16::unit_len(*ch) * 2)
+            .expect("UTF-16 byte encoding width is non-zero")
     }
 
     #[inline(always)]
@@ -150,8 +139,9 @@ unsafe impl Codec for Utf16ByteCodec {
         input: &[u8],
         index: usize,
     ) -> CharsetDecodeResult<(char, NonZeroUsize)> {
-        let (ch, consumed) = decode_bytes_prefix(input, index, self.byte_order)?;
-        debug_assert!(consumed.get() <= input.len() - index);
+        let (ch, consumed) =
+            decode_bytes_prefix(input, index, self.byte_order)?;
+        debug_assert!(consumed.get() <= input.len().saturating_sub(index));
         Ok((ch, consumed))
     }
 
@@ -162,9 +152,9 @@ unsafe impl Codec for Utf16ByteCodec {
         output: &mut [u8],
         index: usize,
     ) -> CharsetEncodeResult<NonZeroUsize> {
-        let written = encode_bytes_char(*ch, output, self.byte_order, index)?;
+        let written = encode_bytes_char(*ch, output, self.byte_order, index);
         debug_assert_eq!(written, ch.len_utf16() * 2);
-        debug_assert!(written <= output.len() - index);
+        debug_assert!(written <= output.len().saturating_sub(index));
         Ok(NonZeroUsize::new(written)
             .expect("UTF-16 byte encoding always writes at least one unit"))
     }
@@ -189,8 +179,6 @@ unsafe impl Codec for Utf16ByteCodec {
 ///
 /// # Errors
 ///
-/// * `CharsetDecodeErrorKind::InvalidInputIndex` when `index` is greater than
-///   `input.len()`.
 /// * `CharsetDecodeErrorKind::MalformedSequence` for invalid UTF-16 byte
 ///   sequences or malformed surrogate usage.
 /// * `CharsetDecodeErrorKind::IncompleteSequence` when EOF appears before a
@@ -201,20 +189,8 @@ fn decode_bytes_prefix(
     byte_order: ByteOrder,
 ) -> CharsetDecodeResult<(char, NonZeroUsize)> {
     let charset = Charset::from_utf16_byte_order(byte_order);
-    if index > input.len() {
-        let kind = CharsetDecodeErrorKind::InvalidInputIndex {
-            input_len: input.len(),
-        };
-        return Err(CharsetDecodeError::new(charset, kind, index));
-    }
+    debug_assert!(index.checked_add(2).is_some_and(|end| end <= input.len()));
     let available = input.len() - index;
-    if available < 2 {
-        let kind = CharsetDecodeErrorKind::IncompleteSequence {
-            required: 2,
-            available,
-        };
-        return Err(CharsetDecodeError::new(charset, kind, index));
-    }
     let first = read_ordered_u16(input, index, byte_order);
     if Utf16::is_high_surrogate(first) {
         if available < 4 {
@@ -226,15 +202,17 @@ fn decode_bytes_prefix(
         }
         let second = read_ordered_u16(input, index + 2, byte_order);
         match Utf16::compose_pair(first, second).and_then(Unicode::to_char) {
-            Some(ch) => Ok((ch, qubit_codec::nz!(4))),
+            Some(ch) => Ok((ch, nz!(4))),
             None => {
                 let kind = CharsetDecodeErrorKind::MalformedSequence {
                     value: Some(second as u32),
                 };
-                Err(
-                    CharsetDecodeError::new(charset, kind, required_index(index, 2))
-                        .with_consumed(4),
+                Err(CharsetDecodeError::new(
+                    charset,
+                    kind,
+                    required_index(index, 2),
                 )
+                .with_consumed(4))
             }
         }
     } else if Utf16::is_low_surrogate(first) {
@@ -243,8 +221,9 @@ fn decode_bytes_prefix(
         };
         Err(CharsetDecodeError::new(charset, kind, index).with_consumed(2))
     } else {
-        let ch = char::from_u32(first as u32).expect("non-surrogate UTF-16 unit is a scalar value");
-        Ok((ch, qubit_codec::nz!(2)))
+        let ch = char::from_u32(first as u32)
+            .expect("non-surrogate UTF-16 unit is a scalar value");
+        Ok((ch, nz!(2)))
     }
 }
 
@@ -261,45 +240,30 @@ fn decode_bytes_prefix(
 ///
 /// `Ok(usize)` with the number of bytes written (`2` for BMP, `4` for
 /// supplementary).
-///
-/// # Errors
-///
-/// * `CharsetEncodeErrorKind::BufferTooSmall` when output bytes from `index`
-///   are insufficient.
 fn encode_bytes_char(
     ch: char,
     output: &mut [u8],
     byte_order: ByteOrder,
     index: usize,
-) -> CharsetEncodeResult<usize> {
-    let charset = Charset::from_utf16_byte_order(byte_order);
-    if index > output.len() {
-        let kind = CharsetEncodeErrorKind::BufferTooSmall {
-            required: required_index(index, 2),
-            available: 0,
-        };
-        return Err(CharsetEncodeError::new(charset, kind, index));
-    }
+) -> usize {
     let required = Utf16::unit_len(ch) * 2;
-    let available = output.len() - index;
-    if available < required {
-        let kind = CharsetEncodeErrorKind::BufferTooSmall {
-            required: required_index(index, required),
-            available,
-        };
-        return Err(CharsetEncodeError::new(charset, kind, index));
-    }
+    debug_assert!(
+        index
+            .checked_add(required)
+            .is_some_and(|end| end <= output.len())
+    );
     let code_point = ch as u32;
     if required == 2 {
         write_ordered_u16(output, index, code_point as u16, byte_order);
     } else {
-        let high =
-            Utf16::high_surrogate(code_point).expect("supplementary scalar has high surrogate");
-        let low = Utf16::low_surrogate(code_point).expect("supplementary scalar has low surrogate");
+        let high = Utf16::high_surrogate(code_point)
+            .expect("supplementary scalar has high surrogate");
+        let low = Utf16::low_surrogate(code_point)
+            .expect("supplementary scalar has low surrogate");
         write_ordered_u16(output, index, high, byte_order);
         write_ordered_u16(output, index + 2, low, byte_order);
     }
-    Ok(required)
+    required
 }
 
 #[inline(always)]
@@ -324,7 +288,15 @@ const fn required_index(index: usize, required_units: usize) -> usize {
 /// Returns the decoded UTF-16 unit.
 #[inline(always)]
 fn read_ordered_u16(input: &[u8], index: usize, byte_order: ByteOrder) -> u16 {
-    let bytes = [input[index], input[index + 1]];
+    let mut bytes = [0_u8; 2];
+    // SAFETY: The caller guarantees that two bytes are readable from `index`.
+    unsafe {
+        core::ptr::copy_nonoverlapping(
+            input.as_ptr().add(index),
+            bytes.as_mut_ptr(),
+            2,
+        );
+    }
     match byte_order {
         ByteOrder::BigEndian => u16::from_be_bytes(bytes),
         ByteOrder::LittleEndian => u16::from_le_bytes(bytes),
@@ -341,10 +313,22 @@ fn read_ordered_u16(input: &[u8], index: usize, byte_order: ByteOrder) -> u16 {
 /// - `unit`: UTF-16 unit to write.
 /// - `byte_order`: Byte order used to serialize the unit.
 #[inline(always)]
-fn write_ordered_u16(output: &mut [u8], index: usize, unit: u16, byte_order: ByteOrder) {
+fn write_ordered_u16(
+    output: &mut [u8],
+    index: usize,
+    unit: u16,
+    byte_order: ByteOrder,
+) {
     let bytes = match byte_order {
         ByteOrder::BigEndian => unit.to_be_bytes(),
         ByteOrder::LittleEndian => unit.to_le_bytes(),
     };
-    output[index..index + 2].copy_from_slice(&bytes);
+    // SAFETY: The caller guarantees that two bytes are writable from `index`.
+    unsafe {
+        core::ptr::copy_nonoverlapping(
+            bytes.as_ptr(),
+            output.as_mut_ptr().add(index),
+            2,
+        );
+    }
 }
