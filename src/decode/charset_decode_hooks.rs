@@ -97,7 +97,7 @@ where
         }
         if error.kind().is_malformed_input() {
             let consumed =
-                CharsetDecodeHooks::malformed_consumed(error.consumed(), context.available);
+                CharsetDecodeHooks::malformed_consumed(error.consumed(), context.available());
             return match self.malformed_action {
                 MalformedAction::Report => Err(error),
                 MalformedAction::Ignore => Ok(DecodeAction::Skip { consumed }),
