@@ -62,8 +62,7 @@ impl CharsetDecodeHooks {
     #[must_use]
     #[inline]
     fn malformed_consumed(reported: Option<usize>, available: usize) -> NonZeroUsize {
-        let consumed = reported.unwrap_or(1).min(available).max(1);
-        NonZeroUsize::new(consumed).expect("malformed input consumption is non-zero")
+        qubit_io::nz!(reported.unwrap_or(1).min(available).max(1))
     }
 }
 

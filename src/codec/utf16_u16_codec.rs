@@ -9,7 +9,8 @@ use crate::{
     Charset, CharsetCodec, CharsetDecodeError, CharsetDecodeErrorKind, CharsetDecodeResult,
     CharsetEncodeError, CharsetEncodeResult, Unicode, Utf16,
 };
-use qubit_codec::{Codec, nz, range_fits, read_unchecked, write_unchecked};
+use qubit_codec::Codec;
+use qubit_io::UncheckedSlice;
 
 /// Combined UTF-16 `u16` code-unit codec.
 ///
@@ -83,12 +84,12 @@ unsafe impl Codec for Utf16U16Codec {
 
     #[inline(always)]
     fn max_units_per_value(&self) -> core::num::NonZeroUsize {
-        nz!(Utf16::MAX_UNITS_PER_CHAR)
+        qubit_io::nz!(Utf16::MAX_UNITS_PER_CHAR)
     }
 
     #[inline(always)]
     fn encode_len(&self, ch: &char) -> core::num::NonZeroUsize {
-        core::num::NonZeroUsize::new(Utf16::unit_len(*ch)).expect("UTF-16 scalar width is non-zero")
+        qubit_io::nz!(Utf16::unit_len(*ch))
     }
 
     #[inline(always)]
@@ -112,8 +113,7 @@ unsafe impl Codec for Utf16U16Codec {
         let written = encode_units_char(*ch, output, index);
         debug_assert_eq!(written, ch.len_utf16());
         debug_assert!(written <= output.len().saturating_sub(index));
-        Ok(core::num::NonZeroUsize::new(written)
-            .expect("UTF-16 encoding always writes at least one unit"))
+        Ok(qubit_io::nz!(written))
     }
 }
 
@@ -156,9 +156,9 @@ fn decode_units_prefix(
     debug_assert!(index < input.len());
     // SAFETY: The caller guarantees that at least one unit is readable from
     // `index`.
-    let first = unsafe { read_unchecked(input, index) };
+    let first = unsafe { qubit_io::UncheckedSlice::read(input, index) };
     if Utf16::is_high_surrogate(first) {
-        if !range_fits(input.len(), index, 2) {
+        if !UncheckedSlice::range_fits(input.len(), index, 2) {
             let kind = CharsetDecodeErrorKind::IncompleteSequence {
                 required: 2,
                 available: input.len() - index,
@@ -167,7 +167,7 @@ fn decode_units_prefix(
         }
         let second = unit_at(input, index + 1);
         match Utf16::compose_pair(first, second).and_then(Unicode::to_char) {
-            Some(ch) => Ok((ch, nz!(2))),
+            Some(ch) => Ok((ch, qubit_io::nz!(2))),
             None => {
                 let kind = CharsetDecodeErrorKind::MalformedSequence {
                     value: Some(second as u32),
@@ -193,7 +193,7 @@ fn decode_units_prefix(
 fn unit_at(input: &[u16], index: usize) -> u16 {
     debug_assert!(index < input.len());
     // SAFETY: Callers check sequence availability before reading the unit.
-    unsafe { read_unchecked(input, index) }
+    unsafe { qubit_io::UncheckedSlice::read(input, index) }
 }
 
 /// Encodes one character into UTF-16 `u16` units at `index` in `output`.
@@ -214,23 +214,22 @@ fn unit_at(input: &[u16], index: usize) -> u16 {
 fn encode_units_char(ch: char, output: &mut [u16], index: usize) -> usize {
     let length = Utf16::unit_len(ch);
     debug_assert!(
-        index
-            .checked_add(length)
-            .is_some_and(|end| end <= output.len())
+        UncheckedSlice::range_fits(output.len(), index, length),
+        "index + length exceeds output length"
     );
     let code_point = ch as u32;
     unsafe {
         // SAFETY: The caller guarantees that `length` units are writable from
         // `index`.
         if length == 1 {
-            write_unchecked(output, index, code_point as u16);
+            qubit_io::UncheckedSlice::write(output, index, code_point as u16);
         } else {
-            write_unchecked(
+            qubit_io::UncheckedSlice::write(
                 output,
                 index,
                 Utf16::high_surrogate(code_point).expect("supplementary scalar has high surrogate"),
             );
-            write_unchecked(
+            qubit_io::UncheckedSlice::write(
                 output,
                 index + 1,
                 Utf16::low_surrogate(code_point).expect("supplementary scalar has low surrogate"),

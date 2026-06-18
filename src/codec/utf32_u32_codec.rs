@@ -9,7 +9,7 @@ use crate::{
     Charset, CharsetCodec, CharsetDecodeError, CharsetDecodeErrorKind, CharsetDecodeResult,
     CharsetEncodeError, CharsetEncodeResult, Unicode, Utf32,
 };
-use qubit_codec::{Codec, nz, read_unchecked, write_unchecked};
+use qubit_codec::Codec;
 
 /// Combined UTF-32 `u32` code-unit codec.
 ///
@@ -107,7 +107,7 @@ unsafe impl Codec for Utf32U32Codec {
         let written = encode_units_char(*ch, output, index);
         debug_assert_eq!(written, Utf32::MAX_UNITS_PER_CHAR);
         debug_assert!(written <= output.len().saturating_sub(index));
-        Ok(nz!(Utf32::MAX_UNITS_PER_CHAR))
+        Ok(qubit_io::nz!(Utf32::MAX_UNITS_PER_CHAR))
     }
 }
 
@@ -135,7 +135,7 @@ fn decode_units_prefix(
 ) -> CharsetDecodeResult<(char, core::num::NonZeroUsize)> {
     debug_assert!(index < input.len());
     // SAFETY: The caller guarantees that `index` is readable.
-    let unit = unsafe { read_unchecked(input, index) };
+    let unit = unsafe { qubit_io::UncheckedSlice::read(input, index) };
     match Unicode::to_char(unit) {
         Some(ch) => Ok((ch, core::num::NonZeroUsize::MIN)),
         None => {
@@ -161,7 +161,7 @@ fn encode_units_char(ch: char, output: &mut [u32], index: usize) -> usize {
     debug_assert!(index < output.len());
     // SAFETY: The caller guarantees that one unit is writable at `index`.
     unsafe {
-        write_unchecked(output, index, ch as u32);
+        qubit_io::UncheckedSlice::write(output, index, ch as u32);
     }
     1
 }

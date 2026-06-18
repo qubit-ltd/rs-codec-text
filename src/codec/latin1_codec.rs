@@ -12,7 +12,6 @@ use crate::{
     CharsetEncodeResult, Latin1,
 };
 use qubit_codec::Codec;
-use qubit_codec::{read_unchecked, write_unchecked};
 
 /// Single-byte ISO-8859-1 codec for bytes.
 ///
@@ -74,7 +73,7 @@ unsafe impl Codec for Latin1Codec {
     ) -> CharsetDecodeResult<(char, NonZeroUsize)> {
         debug_assert!(index < input.len());
         // SAFETY: The caller guarantees that `index` is readable.
-        let value = unsafe { read_unchecked(input, index) };
+        let value = unsafe { qubit_io::UncheckedSlice::read(input, index) };
         Ok((Latin1::byte_to_char(value), NonZeroUsize::MIN))
     }
 
@@ -92,7 +91,7 @@ unsafe impl Codec for Latin1Codec {
         // SAFETY: The caller guarantees that `ch` is encodable and `index` is
         // writable.
         unsafe {
-            write_unchecked(output, index, value);
+            qubit_io::UncheckedSlice::write(output, index, value);
         }
         Ok(NonZeroUsize::MIN)
     }

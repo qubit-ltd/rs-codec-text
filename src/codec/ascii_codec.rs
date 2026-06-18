@@ -12,7 +12,6 @@ use crate::{
     CharsetEncodeError, CharsetEncodeResult,
 };
 use qubit_codec::Codec;
-use qubit_codec::{read_unchecked, write_unchecked};
 
 /// Single-byte ASCII codec for bytes.
 ///
@@ -76,7 +75,7 @@ unsafe impl Codec for AsciiCodec {
         debug_assert!(index < input.len());
 
         // SAFETY: The caller guarantees that `index` is readable.
-        let value = unsafe { read_unchecked(input, index) };
+        let value = unsafe { qubit_io::UncheckedSlice::read(input, index) };
         if !Ascii::is_ascii_byte(value) {
             let kind = CharsetDecodeErrorKind::MalformedSequence {
                 value: Some(value as u32),
@@ -99,7 +98,7 @@ unsafe impl Codec for AsciiCodec {
         // SAFETY: The caller guarantees that `ch` is encodable and `index` is
         // writable.
         unsafe {
-            write_unchecked(output, index, *ch as u8);
+            qubit_io::UncheckedSlice::write(output, index, *ch as u8);
         }
         Ok(NonZeroUsize::MIN)
     }

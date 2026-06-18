@@ -10,7 +10,8 @@ use crate::{
     CharsetDecodeResult, CharsetEncodeError, CharsetEncodeResult, Unicode, Utf16,
 };
 use core::num::NonZeroUsize;
-use qubit_codec::{Codec, copy_nonoverlapping_unchecked, nz};
+use qubit_codec::Codec;
+use qubit_io::UncheckedSlice;
 
 /// Combined byte-serialized UTF-16 codec.
 ///
@@ -111,17 +112,17 @@ unsafe impl Codec for Utf16ByteCodec {
 
     #[inline(always)]
     fn min_units_per_value(&self) -> NonZeroUsize {
-        nz!(2)
+        qubit_io::nz!(2)
     }
 
     #[inline(always)]
     fn max_units_per_value(&self) -> NonZeroUsize {
-        nz!(Utf16::MAX_BYTES_PER_CHAR)
+        qubit_io::nz!(Utf16::MAX_BYTES_PER_CHAR)
     }
 
     #[inline(always)]
     fn encode_len(&self, ch: &char) -> NonZeroUsize {
-        NonZeroUsize::new(Utf16::unit_len(*ch) * 2).expect("UTF-16 byte encoding width is non-zero")
+        qubit_io::nz!(Utf16::unit_len(*ch) * 2)
     }
 
     #[inline(always)]
@@ -145,8 +146,7 @@ unsafe impl Codec for Utf16ByteCodec {
         let written = encode_bytes_char(*ch, output, self.byte_order, index);
         debug_assert_eq!(written, ch.len_utf16() * 2);
         debug_assert!(written <= output.len().saturating_sub(index));
-        Ok(NonZeroUsize::new(written)
-            .expect("UTF-16 byte encoding always writes at least one unit"))
+        Ok(qubit_io::nz!(written))
     }
 }
 
@@ -179,7 +179,7 @@ fn decode_bytes_prefix(
     byte_order: ByteOrder,
 ) -> CharsetDecodeResult<(char, NonZeroUsize)> {
     let charset = Charset::from_utf16_byte_order(byte_order);
-    debug_assert!(index.checked_add(2).is_some_and(|end| end <= input.len()));
+    debug_assert!(UncheckedSlice::range_fits(input.len(), index, 2));
     let available = input.len() - index;
     let first = read_ordered_u16(input, index, byte_order);
     if Utf16::is_high_surrogate(first) {
@@ -192,7 +192,7 @@ fn decode_bytes_prefix(
         }
         let second = read_ordered_u16(input, index + 2, byte_order);
         match Utf16::compose_pair(first, second).and_then(Unicode::to_char) {
-            Some(ch) => Ok((ch, nz!(4))),
+            Some(ch) => Ok((ch, qubit_io::nz!(4))),
             None => {
                 let kind = CharsetDecodeErrorKind::MalformedSequence {
                     value: Some(second as u32),
@@ -210,7 +210,7 @@ fn decode_bytes_prefix(
         Err(CharsetDecodeError::new(charset, kind, index).with_consumed(2))
     } else {
         let ch = char::from_u32(first as u32).expect("non-surrogate UTF-16 unit is a scalar value");
-        Ok((ch, nz!(2)))
+        Ok((ch, qubit_io::nz!(2)))
     }
 }
 
@@ -229,11 +229,7 @@ fn decode_bytes_prefix(
 /// supplementary).
 fn encode_bytes_char(ch: char, output: &mut [u8], byte_order: ByteOrder, index: usize) -> usize {
     let required = Utf16::unit_len(ch) * 2;
-    debug_assert!(
-        index
-            .checked_add(required)
-            .is_some_and(|end| end <= output.len())
-    );
+    debug_assert!(UncheckedSlice::range_fits(output.len(), index, required));
     let code_point = ch as u32;
     if required == 2 {
         write_ordered_u16(output, index, code_point as u16, byte_order);
@@ -261,14 +257,11 @@ fn encode_bytes_char(ch: char, output: &mut [u8], byte_order: ByteOrder, index: 
 /// Returns the decoded UTF-16 unit.
 #[inline(always)]
 fn read_ordered_u16(input: &[u8], index: usize, byte_order: ByteOrder) -> u16 {
-    let mut bytes = [0_u8; 2];
     // SAFETY: The caller guarantees that two bytes are readable from `index`.
-    unsafe {
-        copy_nonoverlapping_unchecked(input, index, &mut bytes, 0, 2);
-    }
+    let unit = unsafe { UncheckedSlice::read_ne_unaligned(input, index) };
     match byte_order {
-        ByteOrder::BigEndian => u16::from_be_bytes(bytes),
-        ByteOrder::LittleEndian => u16::from_le_bytes(bytes),
+        ByteOrder::BigEndian => u16::from_be(unit),
+        ByteOrder::LittleEndian => u16::from_le(unit),
     }
 }
 
@@ -283,12 +276,10 @@ fn read_ordered_u16(input: &[u8], index: usize, byte_order: ByteOrder) -> u16 {
 /// - `byte_order`: Byte order used to serialize the unit.
 #[inline(always)]
 fn write_ordered_u16(output: &mut [u8], index: usize, unit: u16, byte_order: ByteOrder) {
-    let bytes = match byte_order {
-        ByteOrder::BigEndian => unit.to_be_bytes(),
-        ByteOrder::LittleEndian => unit.to_le_bytes(),
+    let value = match byte_order {
+        ByteOrder::BigEndian => unit.to_be(),
+        ByteOrder::LittleEndian => unit.to_le(),
     };
     // SAFETY: The caller guarantees that two bytes are writable from `index`.
-    unsafe {
-        copy_nonoverlapping_unchecked(bytes.as_slice(), 0, output, index, 2);
-    }
+    unsafe { UncheckedSlice::write_ne_unaligned(output, index, value) };
 }
