@@ -1,11 +1,32 @@
-use std::{cell::Cell, rc::Rc};
+use std::{
+    cell::Cell,
+    rc::Rc,
+};
 
-use qubit_codec::{TranscodeConverter, TranscodeError};
+use qubit_codec::{
+    TranscodeConverter,
+    TranscodeError,
+};
 use qubit_codec_text::{
-    Charset, CharsetCodec, CharsetConvertError, CharsetConverter, CharsetDecodeError,
-    CharsetDecodeErrorKind, CharsetDecodePolicy, CharsetDecodeResult, CharsetEncodeError,
-    CharsetEncodeErrorKind, CharsetEncodePolicy, CharsetEncodeResult, Codec, MalformedAction,
-    TranscodeStatus, Transcoder, UnmappableAction, Utf8Codec, Utf16U16Codec,
+    Charset,
+    CharsetCodec,
+    CharsetConvertError,
+    CharsetConverter,
+    CharsetDecodeError,
+    CharsetDecodeErrorKind,
+    CharsetDecodePolicy,
+    CharsetDecodeResult,
+    CharsetEncodeError,
+    CharsetEncodeErrorKind,
+    CharsetEncodePolicy,
+    CharsetEncodeResult,
+    Codec,
+    MalformedAction,
+    TranscodeStatus,
+    Transcoder,
+    UnmappableAction,
+    Utf8Codec,
+    Utf16U16Codec,
 };
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -349,7 +370,8 @@ fn test_charset_converter_with_policies_rejects_unencodable_replacement() {
 }
 
 #[test]
-fn test_charset_converter_with_explicit_policies_exposes_effective_configuration() {
+fn test_charset_converter_with_explicit_policies_exposes_effective_configuration()
+ {
     let decode_policy = CharsetDecodePolicy::replace('!');
     let encode_policy = CharsetEncodePolicy::replace('?');
     let converter = CharsetConverter::from_codecs_with_policies(
@@ -370,12 +392,14 @@ fn test_charset_converter_with_explicit_policies_exposes_effective_configuration
 
 #[test]
 #[should_panic(expected = "cannot initialize CharsetConverter target")]
-fn test_charset_converter_from_codecs_panics_when_no_default_replacement_is_encodable() {
+fn test_charset_converter_from_codecs_panics_when_no_default_replacement_is_encodable()
+ {
     let _ = CharsetConverter::from_codecs(Utf8Codec, RejectingEncodeCodec);
 }
 
 #[test]
-fn test_charset_converter_from_codecs_converts_available_ascii_without_finish() {
+fn test_charset_converter_from_codecs_converts_available_ascii_without_finish()
+{
     let mut converter = CharsetConverter::from_codecs(Utf8Codec, Utf16U16Codec);
     let mut output = [0_u16; 4];
 
@@ -409,8 +433,8 @@ fn test_charset_converter_drains_decoder_need_output_batches() {
     assert_eq!(9, progress.written());
     assert_eq!(
         [
-            'A' as u16, 'B' as u16, 'C' as u16, 'D' as u16, 'E' as u16, 'F' as u16, 'G' as u16,
-            'H' as u16, 'I' as u16,
+            'A' as u16, 'B' as u16, 'C' as u16, 'D' as u16, 'E' as u16,
+            'F' as u16, 'G' as u16, 'H' as u16, 'I' as u16,
         ],
         output,
     );
@@ -486,7 +510,8 @@ fn test_charset_converter_keeps_pending_character_when_output_is_full() {
 }
 
 #[test]
-fn test_charset_converter_finish_reports_need_output_for_starting_pending_character() {
+fn test_charset_converter_finish_reports_need_output_for_starting_pending_character()
+ {
     let mut converter = CharsetConverter::from_codecs(Utf8Codec, Utf16U16Codec);
     let mut empty_output = [];
 
@@ -688,8 +713,10 @@ fn test_charset_converter_propagates_decode_and_encode_errors() {
 }
 
 #[test]
-fn test_charset_converter_falls_back_to_question_mark_when_default_replacement_is_unencodable() {
-    let mut converter = CharsetConverter::from_codecs(Utf8Codec, ReplacementFallbackCodec);
+fn test_charset_converter_falls_back_to_question_mark_when_default_replacement_is_unencodable()
+ {
+    let mut converter =
+        CharsetConverter::from_codecs(Utf8Codec, ReplacementFallbackCodec);
     let mut output = [0_u8; 1];
 
     assert_eq!(CharsetDecodePolicy::default(), converter.decode_policy());
@@ -732,7 +759,8 @@ fn test_charset_converter_report_target_policy_does_not_require_default_unit() {
 
 #[test]
 fn test_charset_converter_converts_available_utf8_to_ascii_without_finish() {
-    let mut converter = CharsetConverter::from_codecs(Utf8Codec, AsciiBytesCodec);
+    let mut converter =
+        CharsetConverter::from_codecs(Utf8Codec, AsciiBytesCodec);
     let mut output = [0_u8; 4];
 
     let progress = converter

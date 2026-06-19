@@ -1,4 +1,8 @@
-use qubit_codec_text::{CharsetCodec, Codec, Utf8Codec};
+use qubit_codec_text::{
+    CharsetCodec,
+    Codec,
+    Utf8Codec,
+};
 
 fn assert_charset_codec<T>(_codec: &T)
 where

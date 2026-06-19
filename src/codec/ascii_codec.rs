@@ -8,8 +8,14 @@
 use core::num::NonZeroUsize;
 
 use crate::{
-    Ascii, Charset, CharsetCodec, CharsetDecodeError, CharsetDecodeErrorKind, CharsetDecodeResult,
-    CharsetEncodeError, CharsetEncodeResult,
+    Ascii,
+    Charset,
+    CharsetCodec,
+    CharsetDecodeError,
+    CharsetDecodeErrorKind,
+    CharsetDecodeResult,
+    CharsetEncodeError,
+    CharsetEncodeResult,
 };
 use qubit_codec::Codec;
 

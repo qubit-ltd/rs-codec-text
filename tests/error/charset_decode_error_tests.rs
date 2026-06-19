@@ -1,5 +1,9 @@
 use qubit_codec::CodecDecodeSignal;
-use qubit_codec_text::{Charset, CharsetDecodeError, CharsetDecodeErrorKind};
+use qubit_codec_text::{
+    Charset,
+    CharsetDecodeError,
+    CharsetDecodeErrorKind,
+};
 
 #[test]
 fn test_charset_decode_error_exposes_context() {

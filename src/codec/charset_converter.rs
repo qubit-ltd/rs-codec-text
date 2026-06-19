@@ -6,15 +6,26 @@
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
 use super::{
-    charset_codec::CharsetCodec, charset_convert_error::CharsetConvertError,
+    charset_codec::CharsetCodec,
+    charset_convert_error::CharsetConvertError,
     charset_convert_hooks::CharsetConvertHooks,
 };
 use crate::{
-    CharsetDecodePolicy, CharsetEncodeError, CharsetEncodeErrorKind, CharsetEncodeHooks,
-    CharsetEncodePolicy, CharsetEncoder, MalformedAction, UnmappableAction,
+    CharsetDecodePolicy,
+    CharsetEncodeError,
+    CharsetEncodeErrorKind,
+    CharsetEncodeHooks,
+    CharsetEncodePolicy,
+    CharsetEncoder,
+    MalformedAction,
+    UnmappableAction,
 };
 use qubit_codec::{
-    CapacityError, TranscodeConvertEngine, TranscodeConverter, TranscodeError, TranscodeProgress,
+    CapacityError,
+    TranscodeConvertEngine,
+    TranscodeConverter,
+    TranscodeError,
+    TranscodeProgress,
     Transcoder,
 };
 
@@ -98,12 +109,17 @@ where
     #[must_use]
     pub fn from_codecs(source: D, target: E) -> Self {
         let decode_policy = CharsetDecodePolicy::default();
-        let (encode_policy, encode_hooks) = Self::default_encode_policy(&target);
+        let (encode_policy, encode_hooks) =
+            Self::default_encode_policy(&target);
         Self {
             engine: TranscodeConvertEngine::new(
                 source,
                 target,
-                CharsetConvertHooks::with_policies(decode_policy, encode_policy, encode_hooks),
+                CharsetConvertHooks::with_policies(
+                    decode_policy,
+                    encode_policy,
+                    encode_hooks,
+                ),
             ),
             decode_policy,
             encode_policy,
@@ -133,12 +149,17 @@ where
         decode_policy: CharsetDecodePolicy,
         encode_policy: CharsetEncodePolicy,
     ) -> Result<Self, CharsetEncodeError> {
-        let (encode_hooks, _) = CharsetEncoder::<E>::create_hooks(&target, encode_policy)?;
+        let (encode_hooks, _) =
+            CharsetEncoder::<E>::create_hooks(&target, encode_policy)?;
         Ok(Self {
             engine: TranscodeConvertEngine::new(
                 source,
                 target,
-                CharsetConvertHooks::with_policies(decode_policy, encode_policy, encode_hooks),
+                CharsetConvertHooks::with_policies(
+                    decode_policy,
+                    encode_policy,
+                    encode_hooks,
+                ),
             ),
             decode_policy,
             encode_policy,
@@ -218,18 +239,24 @@ where
     ///
     /// Panics when neither the default replacement nor the fallback replacement
     /// can be encoded by `target`.
-    fn default_encode_policy(target: &E) -> (CharsetEncodePolicy, CharsetEncodeHooks<E::Unit>) {
+    fn default_encode_policy(
+        target: &E,
+    ) -> (CharsetEncodePolicy, CharsetEncodeHooks<E::Unit>) {
         let default_policy = CharsetEncodePolicy::default();
         match CharsetEncoder::<E>::create_hooks(target, default_policy) {
             Ok((hooks, _)) => (default_policy, hooks),
             Err(_) => {
-                let fallback_policy =
-                    CharsetEncodePolicy::replace(CharsetEncodePolicy::DEFAULT_FALLBACK_REPLACEMENT);
-                if let Ok((hooks, _)) = CharsetEncoder::<E>::create_hooks(target, fallback_policy) {
+                let fallback_policy = CharsetEncodePolicy::replace(
+                    CharsetEncodePolicy::DEFAULT_FALLBACK_REPLACEMENT,
+                );
+                if let Ok((hooks, _)) =
+                    CharsetEncoder::<E>::create_hooks(target, fallback_policy)
+                {
                     return (fallback_policy, hooks);
                 }
                 let kind = CharsetEncodeErrorKind::UnmappableCharacter {
-                    value: CharsetEncodePolicy::DEFAULT_FALLBACK_REPLACEMENT as u32,
+                    value: CharsetEncodePolicy::DEFAULT_FALLBACK_REPLACEMENT
+                        as u32,
                 };
                 panic!(
                     "cannot initialize CharsetConverter target for {:?}: neither {:?} nor {:?} is encodable ({})",
