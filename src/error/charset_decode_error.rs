@@ -5,12 +5,18 @@
 //
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
-use core::{fmt, num::NonZeroUsize};
+use core::{
+    fmt,
+    num::NonZeroUsize,
+};
 use std::error::Error;
 
 use qubit_codec::CodecDecodeSignal;
 
-use crate::{Charset, CharsetDecodeErrorKind};
+use crate::{
+    Charset,
+    CharsetDecodeErrorKind,
+};
 
 /// Error reported by a charset decoder.
 ///
@@ -51,7 +57,11 @@ impl CharsetDecodeError {
     ///
     /// Returns a decoding error carrying the supplied context.
     #[inline(always)]
-    pub const fn new(charset: Charset, kind: CharsetDecodeErrorKind, index: usize) -> Self {
+    pub const fn new(
+        charset: Charset,
+        kind: CharsetDecodeErrorKind,
+        index: usize,
+    ) -> Self {
         Self {
             charset,
             kind,
@@ -175,7 +185,9 @@ impl CharsetDecodeError {
     pub const fn consumed(self) -> Option<usize> {
         match self.kind {
             CharsetDecodeErrorKind::MalformedSequence { .. }
-            | CharsetDecodeErrorKind::InvalidCodePoint { .. } => Some(self.consumed),
+            | CharsetDecodeErrorKind::InvalidCodePoint { .. } => {
+                Some(self.consumed)
+            }
             CharsetDecodeErrorKind::IncompleteSequence { .. }
             | CharsetDecodeErrorKind::InvalidInputIndex { .. }
             | CharsetDecodeErrorKind::InvalidOutputIndex { .. }

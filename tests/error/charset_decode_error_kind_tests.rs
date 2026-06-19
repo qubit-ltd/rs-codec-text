@@ -12,7 +12,8 @@ fn test_charset_decode_error_kind_displays_messages() {
     );
     assert_eq!(
         "The output character index is outside the output buffer.",
-        CharsetDecodeErrorKind::InvalidOutputIndex { output_len: 1 }.to_string(),
+        CharsetDecodeErrorKind::InvalidOutputIndex { output_len: 1 }
+            .to_string(),
     );
     assert_eq!(
         "The encoded text sequence is incomplete (required 5 units, available 3 units).",
@@ -79,21 +80,26 @@ fn test_charset_decode_error_kind_displays_messages() {
     assert_eq!(None, invalid.input_len());
     assert_eq!(
         Some(1),
-        CharsetDecodeErrorKind::InvalidOutputIndex { output_len: 1 }.output_len()
+        CharsetDecodeErrorKind::InvalidOutputIndex { output_len: 1 }
+            .output_len()
     );
     assert_eq!(None, invalid.output_len());
 }
 
 #[test]
 fn test_charset_decode_error_kind_exposes_decode_policy_helpers() {
-    let malformed = CharsetDecodeErrorKind::MalformedSequence { value: Some(0x80) };
+    let malformed =
+        CharsetDecodeErrorKind::MalformedSequence { value: Some(0x80) };
     let incomplete = CharsetDecodeErrorKind::IncompleteSequence {
         required: 3,
         available: 1,
     };
-    let invalid_index = CharsetDecodeErrorKind::InvalidInputIndex { input_len: 2 };
-    let invalid_output_index = CharsetDecodeErrorKind::InvalidOutputIndex { output_len: 1 };
-    let invalid_code_point = CharsetDecodeErrorKind::InvalidCodePoint { value: 0x110000 };
+    let invalid_index =
+        CharsetDecodeErrorKind::InvalidInputIndex { input_len: 2 };
+    let invalid_output_index =
+        CharsetDecodeErrorKind::InvalidOutputIndex { output_len: 1 };
+    let invalid_code_point =
+        CharsetDecodeErrorKind::InvalidCodePoint { value: 0x110000 };
 
     assert!(!malformed.is_incomplete());
     assert!(incomplete.is_incomplete());

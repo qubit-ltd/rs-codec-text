@@ -6,8 +6,15 @@
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
 use crate::{
-    Charset, CharsetCodec, CharsetDecodeError, CharsetDecodeErrorKind, CharsetDecodeResult,
-    CharsetEncodeError, CharsetEncodeResult, Unicode, Utf32,
+    Charset,
+    CharsetCodec,
+    CharsetDecodeError,
+    CharsetDecodeErrorKind,
+    CharsetDecodeResult,
+    CharsetEncodeError,
+    CharsetEncodeResult,
+    Unicode,
+    Utf32,
 };
 use qubit_codec::Codec;
 

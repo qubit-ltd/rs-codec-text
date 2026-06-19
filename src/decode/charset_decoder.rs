@@ -6,13 +6,24 @@
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
 use qubit_codec::{
-    CapacityError, TranscodeDecodeEngine, TranscodeDecoder, TranscodeError, TranscodeProgress,
+    CapacityError,
+    TranscodeDecodeEngine,
+    TranscodeDecoder,
+    TranscodeError,
+    TranscodeProgress,
     Transcoder,
 };
 
-use crate::{CharsetCodec, CharsetDecodeError, MalformedAction};
+use crate::{
+    CharsetCodec,
+    CharsetDecodeError,
+    MalformedAction,
+};
 
-use super::{charset_decode_hooks::CharsetDecodeHooks, charset_decode_policy::CharsetDecodePolicy};
+use super::{
+    charset_decode_hooks::CharsetDecodeHooks,
+    charset_decode_policy::CharsetDecodePolicy,
+};
 
 /// Converts units of one charset into Unicode scalar values.
 ///
@@ -102,7 +113,10 @@ where
     }
 }
 
-impl<C> TranscodeDecoder<C::Unit, char> for CharsetDecoder<C> where C: CharsetCodec {}
+impl<C> TranscodeDecoder<C::Unit, char> for CharsetDecoder<C> where
+    C: CharsetCodec
+{
+}
 
 impl<C> Transcoder<C::Unit, char> for CharsetDecoder<C>
 where

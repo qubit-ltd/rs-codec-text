@@ -6,8 +6,15 @@
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
 use crate::{
-    Charset, CharsetCodec, CharsetDecodeError, CharsetDecodeErrorKind, CharsetDecodeResult,
-    CharsetEncodeError, CharsetEncodeResult, Unicode, Utf16,
+    Charset,
+    CharsetCodec,
+    CharsetDecodeError,
+    CharsetDecodeErrorKind,
+    CharsetDecodeResult,
+    CharsetEncodeError,
+    CharsetEncodeResult,
+    Unicode,
+    Utf16,
 };
 use qubit_codec::Codec;
 use qubit_io::UncheckedSlice;
@@ -172,10 +179,12 @@ fn decode_units_prefix(
                 let kind = CharsetDecodeErrorKind::MalformedSequence {
                     value: Some(second as u32),
                 };
-                Err(
-                    CharsetDecodeError::new(Charset::UTF_16, kind, index.saturating_add(1))
-                        .with_consumed(2),
+                Err(CharsetDecodeError::new(
+                    Charset::UTF_16,
+                    kind,
+                    index.saturating_add(1),
                 )
+                .with_consumed(2))
             }
         }
     } else if Utf16::is_low_surrogate(first) {
@@ -184,7 +193,8 @@ fn decode_units_prefix(
         };
         Err(CharsetDecodeError::new(Charset::UTF_16, kind, index))
     } else {
-        let ch = char::from_u32(first as u32).expect("non-surrogate UTF-16 unit is a scalar value");
+        let ch = char::from_u32(first as u32)
+            .expect("non-surrogate UTF-16 unit is a scalar value");
         Ok((ch, core::num::NonZeroUsize::MIN))
     }
 }
@@ -227,12 +237,14 @@ fn encode_units_char(ch: char, output: &mut [u16], index: usize) -> usize {
             qubit_io::UncheckedSlice::write(
                 output,
                 index,
-                Utf16::high_surrogate(code_point).expect("supplementary scalar has high surrogate"),
+                Utf16::high_surrogate(code_point)
+                    .expect("supplementary scalar has high surrogate"),
             );
             qubit_io::UncheckedSlice::write(
                 output,
                 index + 1,
-                Utf16::low_surrogate(code_point).expect("supplementary scalar has low surrogate"),
+                Utf16::low_surrogate(code_point)
+                    .expect("supplementary scalar has low surrogate"),
             );
         }
     }

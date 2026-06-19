@@ -6,8 +6,16 @@
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
 use crate::{
-    ByteOrder, Charset, CharsetCodec, CharsetDecodeError, CharsetDecodeErrorKind,
-    CharsetDecodeResult, CharsetEncodeError, CharsetEncodeResult, Unicode, Utf16,
+    ByteOrder,
+    Charset,
+    CharsetCodec,
+    CharsetDecodeError,
+    CharsetDecodeErrorKind,
+    CharsetDecodeResult,
+    CharsetEncodeError,
+    CharsetEncodeResult,
+    Unicode,
+    Utf16,
 };
 use core::num::NonZeroUsize;
 use qubit_codec::Codec;
@@ -131,7 +139,8 @@ unsafe impl Codec for Utf16ByteCodec {
         input: &[u8],
         index: usize,
     ) -> CharsetDecodeResult<(char, NonZeroUsize)> {
-        let (ch, consumed) = decode_bytes_prefix(input, index, self.byte_order)?;
+        let (ch, consumed) =
+            decode_bytes_prefix(input, index, self.byte_order)?;
         debug_assert!(consumed.get() <= input.len().saturating_sub(index));
         Ok((ch, consumed))
     }
@@ -197,10 +206,12 @@ fn decode_bytes_prefix(
                 let kind = CharsetDecodeErrorKind::MalformedSequence {
                     value: Some(second as u32),
                 };
-                Err(
-                    CharsetDecodeError::new(charset, kind, index.saturating_add(2))
-                        .with_consumed(4),
+                Err(CharsetDecodeError::new(
+                    charset,
+                    kind,
+                    index.saturating_add(2),
                 )
+                .with_consumed(4))
             }
         }
     } else if Utf16::is_low_surrogate(first) {
@@ -209,7 +220,8 @@ fn decode_bytes_prefix(
         };
         Err(CharsetDecodeError::new(charset, kind, index).with_consumed(2))
     } else {
-        let ch = char::from_u32(first as u32).expect("non-surrogate UTF-16 unit is a scalar value");
+        let ch = char::from_u32(first as u32)
+            .expect("non-surrogate UTF-16 unit is a scalar value");
         Ok((ch, qubit_io::nz!(2)))
     }
 }
@@ -227,16 +239,22 @@ fn decode_bytes_prefix(
 ///
 /// `Ok(usize)` with the number of bytes written (`2` for BMP, `4` for
 /// supplementary).
-fn encode_bytes_char(ch: char, output: &mut [u8], byte_order: ByteOrder, index: usize) -> usize {
+fn encode_bytes_char(
+    ch: char,
+    output: &mut [u8],
+    byte_order: ByteOrder,
+    index: usize,
+) -> usize {
     let required = Utf16::unit_len(ch) * 2;
     debug_assert!(UncheckedSlice::range_fits(output.len(), index, required));
     let code_point = ch as u32;
     if required == 2 {
         write_ordered_u16(output, index, code_point as u16, byte_order);
     } else {
-        let high =
-            Utf16::high_surrogate(code_point).expect("supplementary scalar has high surrogate");
-        let low = Utf16::low_surrogate(code_point).expect("supplementary scalar has low surrogate");
+        let high = Utf16::high_surrogate(code_point)
+            .expect("supplementary scalar has high surrogate");
+        let low = Utf16::low_surrogate(code_point)
+            .expect("supplementary scalar has low surrogate");
         write_ordered_u16(output, index, high, byte_order);
         write_ordered_u16(output, index + 2, low, byte_order);
     }
@@ -275,7 +293,12 @@ fn read_ordered_u16(input: &[u8], index: usize, byte_order: ByteOrder) -> u16 {
 /// - `unit`: UTF-16 unit to write.
 /// - `byte_order`: Byte order used to serialize the unit.
 #[inline(always)]
-fn write_ordered_u16(output: &mut [u8], index: usize, unit: u16, byte_order: ByteOrder) {
+fn write_ordered_u16(
+    output: &mut [u8],
+    index: usize,
+    unit: u16,
+    byte_order: ByteOrder,
+) {
     let value = match byte_order {
         ByteOrder::BigEndian => unit.to_be(),
         ByteOrder::LittleEndian => unit.to_le(),

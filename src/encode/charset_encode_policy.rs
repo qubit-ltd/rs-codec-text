@@ -25,7 +25,10 @@ impl CharsetEncodePolicy {
     /// Creates an unmappable-input policy.
     #[must_use]
     #[inline(always)]
-    pub const fn new(unmappable_action: UnmappableAction, replacement: char) -> Self {
+    pub const fn new(
+        unmappable_action: UnmappableAction,
+        replacement: char,
+    ) -> Self {
         Self {
             unmappable_action,
             replacement,
