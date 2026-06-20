@@ -11,7 +11,7 @@ use core::{
 };
 use std::error::Error;
 
-use qubit_codec::CodecDecodeSignal;
+use qubit_codec::CodecDecodeErrorSignal;
 
 use crate::{
     Charset,
@@ -250,7 +250,7 @@ impl fmt::Display for CharsetDecodeError {
 
 impl Error for CharsetDecodeError {}
 
-impl CodecDecodeSignal for CharsetDecodeError {
+impl CodecDecodeErrorSignal for CharsetDecodeError {
     #[inline(always)]
     fn required_total(&self) -> Option<usize> {
         self.kind.required()
