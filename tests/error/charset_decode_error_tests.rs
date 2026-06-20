@@ -1,4 +1,4 @@
-use qubit_codec::CodecDecodeSignal;
+use qubit_codec::CodecDecodeErrorSignal;
 use qubit_codec_text::{
     Charset,
     CharsetDecodeError,
