@@ -1,6 +1,6 @@
 [package]
 name = "qubit-codec-text"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
 rust-version = "1.94"
 authors = ["Haixing Hu <starfish.hu@gmail.com>"]
@@ -39,6 +39,10 @@ name = "codec"
 path = "tests/codec/mod.rs"
 
 [[test]]
+name = "convert"
+path = "tests/convert/mod.rs"
+
+[[test]]
 name = "decode"
 path = "tests/decode/mod.rs"
 
@@ -52,8 +56,17 @@ path = "tests/charset/mod.rs"
 
 [dependencies]
 thiserror = "2.0"
-qubit-io = "0.10.0"
-qubit-codec = { path = "../rs-codec", version = "0.8.0" }
+qubit-io = { path = "../rs-io", version = "0.11.0" }
+qubit-codec = { version = "0.10", path = "../rs-codec" }
+serde = { version = "1.0", optional = true }
+
+[dev-dependencies]
+proptest = "1.0"
+serde_json = "1.0"
+
+[features]
+default = []
+serde = ["dep:serde"]
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage)'] }
