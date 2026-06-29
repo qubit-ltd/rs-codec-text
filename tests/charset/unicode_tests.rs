@@ -1,5 +1,5 @@
+use qubit_codec::ByteOrder;
 use qubit_codec_text::{
-    ByteOrder,
     Unicode,
     UnicodeBom,
 };

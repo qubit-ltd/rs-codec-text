@@ -1,16 +1,20 @@
-use qubit_codec_text::{
+use qubit_codec::{
     ByteOrder,
+    Codec,
+};
+use qubit_codec_text::{
     Charset,
     CharsetCodec,
     CharsetDecodeErrorKind,
-    CharsetDecodeResult,
     CharsetEncodeResult,
-    Codec,
     Utf32,
     Utf32ByteCodec,
 };
 
-type DecodedCharResult = CharsetDecodeResult<(char, core::num::NonZeroUsize)>;
+type DecodedCharResult = Result<
+    (char, core::num::NonZeroUsize),
+    qubit_codec::DecodeFailure<qubit_codec_text::CharsetDecodeError>,
+>;
 type DecodeFn =
     unsafe fn(&mut Utf32ByteCodec, &[u8], usize) -> DecodedCharResult;
 type EncodeFn = unsafe fn(
@@ -28,8 +32,11 @@ fn test_utf32_byte_codec_exposes_encoder_and_decoder_contracts() {
         Charset::UTF_32BE,
         <Utf32ByteCodec as CharsetCodec>::charset(&codec)
     );
-    assert_eq!(4, codec.min_units_per_value().get());
-    assert_eq!(Utf32::MAX_BYTES_PER_CHAR, codec.max_units_per_value().get());
+    assert_eq!(4, <Utf32ByteCodec as Codec>::MIN_UNITS_PER_VALUE.get(),);
+    assert_eq!(
+        Utf32::MAX_BYTES_PER_CHAR,
+        <Utf32ByteCodec as Codec>::MAX_UNITS_PER_VALUE.get(),
+    );
     assert!(codec.can_encode_value(&'A'));
     assert_eq!(4, codec.encode_len(&'A').get());
 
@@ -60,6 +67,7 @@ fn test_utf32_byte_codec_reports_closed_tail_and_invalid_units() {
 
     let error = unsafe { codec.decode(&[0x00, 0x00, 0x11, 0x00], 0) }
         .expect_err("non-scalar UTF-32 unit should fail");
+    let error = super::invalid_source(error);
     assert!(matches!(
         error.kind(),
         CharsetDecodeErrorKind::InvalidCodePoint { .. },
@@ -74,13 +82,11 @@ fn test_utf32_byte_codec_direct_function_items_cover_trait_methods() {
     let byte_order: fn(Utf32ByteCodec) -> ByteOrder =
         Utf32ByteCodec::byte_order;
     let inherent_charset: fn(Utf32ByteCodec) -> Charset =
-        Utf32ByteCodec::charset;
+        std::hint::black_box(Utf32ByteCodec::charset);
     let trait_charset: fn(&Utf32ByteCodec) -> Charset =
-        <Utf32ByteCodec as CharsetCodec>::charset;
-    let min_units: fn(&Utf32ByteCodec) -> core::num::NonZeroUsize =
-        <Utf32ByteCodec as Codec>::min_units_per_value;
-    let max_units: fn(&Utf32ByteCodec) -> core::num::NonZeroUsize =
-        <Utf32ByteCodec as Codec>::max_units_per_value;
+        std::hint::black_box(<Utf32ByteCodec as CharsetCodec>::charset);
+    let min_units = <Utf32ByteCodec as Codec>::MIN_UNITS_PER_VALUE;
+    let max_units = <Utf32ByteCodec as Codec>::MAX_UNITS_PER_VALUE;
     let encode_len: fn(&Utf32ByteCodec, &char) -> core::num::NonZeroUsize =
         <Utf32ByteCodec as Codec>::encode_len;
     let decode: DecodeFn = <Utf32ByteCodec as Codec>::decode;
@@ -92,8 +98,8 @@ fn test_utf32_byte_codec_direct_function_items_cover_trait_methods() {
     );
     assert_eq!(Charset::UTF_32LE, inherent_charset(codec));
     assert_eq!(Charset::UTF_32LE, trait_charset(&codec));
-    assert_eq!(4, min_units(&codec).get());
-    assert_eq!(Utf32::MAX_BYTES_PER_CHAR, max_units(&codec).get());
+    assert_eq!(4, min_units.get());
+    assert_eq!(Utf32::MAX_BYTES_PER_CHAR, max_units.get());
     assert_eq!(4, encode_len(&codec, &'中').get());
 
     let mut output = [0_u8; Utf32::MAX_BYTES_PER_CHAR];

@@ -9,7 +9,7 @@ use qubit_codec_text::{
 
 #[test]
 fn test_charset_convert_error_wraps_decode_and_encode_errors() {
-    let kind = CharsetDecodeErrorKind::MalformedSequence { value: None };
+    let kind = CharsetDecodeErrorKind::malformed_unknown();
     let decode = CharsetConvertError::from(CharsetDecodeError::new(
         Charset::UTF_8,
         kind,

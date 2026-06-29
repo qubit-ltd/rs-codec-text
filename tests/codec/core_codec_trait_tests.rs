@@ -15,24 +15,22 @@ use qubit_codec_text::{
 
 #[test]
 fn test_core_codec_trait_reports_text_codec_unit_bounds() {
-    assert_eq!(1, AsciiCodec.min_units_per_value().get());
-    assert_eq!(1, AsciiCodec.max_units_per_value().get());
-    assert_eq!(1, Latin1Codec.min_units_per_value().get());
-    assert_eq!(1, Latin1Codec.max_units_per_value().get());
-    assert_eq!(1, Utf8Codec.min_units_per_value().get());
-    assert_eq!(4, Utf8Codec.max_units_per_value().get());
+    assert_eq!(1, <AsciiCodec as Codec>::MIN_UNITS_PER_VALUE.get());
+    assert_eq!(1, <AsciiCodec as Codec>::MAX_UNITS_PER_VALUE.get());
+    assert_eq!(1, <Latin1Codec as Codec>::MIN_UNITS_PER_VALUE.get());
+    assert_eq!(1, <Latin1Codec as Codec>::MAX_UNITS_PER_VALUE.get());
+    assert_eq!(1, <Utf8Codec as Codec>::MIN_UNITS_PER_VALUE.get());
+    assert_eq!(4, <Utf8Codec as Codec>::MAX_UNITS_PER_VALUE.get());
 
-    let utf16_bytes = Utf16ByteCodec::new(ByteOrder::BigEndian);
-    assert_eq!(2, utf16_bytes.min_units_per_value().get());
-    assert_eq!(4, utf16_bytes.max_units_per_value().get());
-    assert_eq!(1, Utf16U16Codec.min_units_per_value().get());
-    assert_eq!(2, Utf16U16Codec.max_units_per_value().get());
+    assert_eq!(2, <Utf16ByteCodec as Codec>::MIN_UNITS_PER_VALUE.get());
+    assert_eq!(4, <Utf16ByteCodec as Codec>::MAX_UNITS_PER_VALUE.get());
+    assert_eq!(1, <Utf16U16Codec as Codec>::MIN_UNITS_PER_VALUE.get());
+    assert_eq!(2, <Utf16U16Codec as Codec>::MAX_UNITS_PER_VALUE.get());
 
-    let utf32_bytes = Utf32ByteCodec::new(ByteOrder::LittleEndian);
-    assert_eq!(4, utf32_bytes.min_units_per_value().get());
-    assert_eq!(4, utf32_bytes.max_units_per_value().get());
-    assert_eq!(1, Utf32U32Codec.min_units_per_value().get());
-    assert_eq!(1, Utf32U32Codec.max_units_per_value().get());
+    assert_eq!(4, <Utf32ByteCodec as Codec>::MIN_UNITS_PER_VALUE.get());
+    assert_eq!(4, <Utf32ByteCodec as Codec>::MAX_UNITS_PER_VALUE.get());
+    assert_eq!(1, <Utf32U32Codec as Codec>::MIN_UNITS_PER_VALUE.get());
+    assert_eq!(1, <Utf32U32Codec as Codec>::MAX_UNITS_PER_VALUE.get());
 }
 
 fn assert_u8_codec<C>(mut codec: C, value: char, expected: &[u8])
@@ -125,10 +123,8 @@ fn test_core_codec_trait_reports_text_codec_value_errors() {
             .decode(&[0x80], 0)
             .expect_err("non-ASCII byte should be malformed")
     };
-    assert_eq!(
-        CharsetDecodeErrorKind::MalformedSequence { value: Some(0x80) },
-        decode_error.kind(),
-    );
+    let decode_error = super::invalid_source(decode_error);
+    assert_eq!(CharsetDecodeErrorKind::malformed(0x80), decode_error.kind(),);
     assert_eq!(0, decode_error.index());
 
     assert!(!AsciiCodec.can_encode_value(&'é'));

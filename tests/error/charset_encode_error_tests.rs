@@ -6,7 +6,7 @@ use qubit_codec_text::{
 
 #[test]
 fn test_charset_encode_error_exposes_context() {
-    const GBK: Charset = Charset::new("gbk", "GBK", &["cp936"]);
+    const GBK: Charset = Charset::new_static("gbk", "GBK", &["cp936"]);
 
     let kind = CharsetEncodeErrorKind::BufferTooSmall {
         required: 4,
@@ -82,4 +82,43 @@ fn test_charset_encode_error_offset_saturates_on_overflow() {
     let error = CharsetEncodeError::new(Charset::UTF_8, kind, usize::MAX - 1);
 
     assert_eq!(usize::MAX, error.offset_by(2).index());
+}
+
+#[test]
+fn test_charset_encode_error_direct_function_items_cover_forwarders() {
+    let required: fn(CharsetEncodeError) -> Option<usize> =
+        std::hint::black_box(CharsetEncodeError::required);
+    let available: fn(CharsetEncodeError) -> Option<usize> =
+        std::hint::black_box(CharsetEncodeError::available);
+    let output_len: fn(CharsetEncodeError) -> Option<usize> =
+        std::hint::black_box(CharsetEncodeError::output_len);
+    let value: fn(CharsetEncodeError) -> Option<u32> =
+        std::hint::black_box(CharsetEncodeError::value);
+
+    let buffer = CharsetEncodeError::new(
+        Charset::UTF_8,
+        CharsetEncodeErrorKind::BufferTooSmall {
+            required: 4,
+            available: 1,
+        },
+        0,
+    );
+    assert_eq!(Some(4), required(buffer));
+    assert_eq!(Some(1), available(buffer));
+
+    let invalid_output = CharsetEncodeError::new(
+        Charset::UTF_8,
+        CharsetEncodeErrorKind::InvalidOutputIndex { output_len: 2 },
+        0,
+    );
+    assert_eq!(Some(2), output_len(invalid_output));
+
+    let unmappable = CharsetEncodeError::new(
+        Charset::UTF_8,
+        CharsetEncodeErrorKind::UnmappableCharacter {
+            value: '中' as u32
+        },
+        0,
+    );
+    assert_eq!(Some('中' as u32), value(unmappable));
 }

@@ -1,16 +1,20 @@
-use qubit_codec_text::{
+use qubit_codec::{
     ByteOrder,
+    Codec,
+};
+use qubit_codec_text::{
     Charset,
     CharsetCodec,
     CharsetDecodeErrorKind,
-    CharsetDecodeResult,
     CharsetEncodeResult,
-    Codec,
     Utf16,
     Utf16ByteCodec,
 };
 
-type DecodedCharResult = CharsetDecodeResult<(char, core::num::NonZeroUsize)>;
+type DecodedCharResult = Result<
+    (char, core::num::NonZeroUsize),
+    qubit_codec::DecodeFailure<qubit_codec_text::CharsetDecodeError>,
+>;
 type DecodeFn =
     unsafe fn(&mut Utf16ByteCodec, &[u8], usize) -> DecodedCharResult;
 type EncodeFn = unsafe fn(
@@ -28,8 +32,11 @@ fn test_utf16_byte_codec_exposes_encoder_and_decoder_contracts() {
         Charset::UTF_16LE,
         <Utf16ByteCodec as CharsetCodec>::charset(&codec)
     );
-    assert_eq!(2, codec.min_units_per_value().get());
-    assert_eq!(Utf16::MAX_BYTES_PER_CHAR, codec.max_units_per_value().get());
+    assert_eq!(2, <Utf16ByteCodec as Codec>::MIN_UNITS_PER_VALUE.get(),);
+    assert_eq!(
+        Utf16::MAX_BYTES_PER_CHAR,
+        <Utf16ByteCodec as Codec>::MAX_UNITS_PER_VALUE.get(),
+    );
     assert!(codec.can_encode_value(&'A'));
     assert_eq!(2, codec.encode_len(&'A').get());
 
@@ -66,32 +73,18 @@ fn test_utf16_byte_codec_decodes_bmp_and_reports_closed_tail_or_malformed_bytes(
 
     let error = unsafe { codec.decode(&[0xd8, 0x3d], 0) }
         .expect_err("partial surrogate pair is incomplete");
-    assert_eq!(
-        CharsetDecodeErrorKind::IncompleteSequence {
-            required: 4,
-            available: 2,
-        },
-        error.kind()
-    );
+    assert_eq!(4, super::incomplete_required(error));
 
     let error = unsafe { codec.decode(&[0xd8, 0x3d, 0x00, 0x41], 0) }
         .expect_err("high surrogate followed by BMP unit should fail");
-    assert_eq!(
-        CharsetDecodeErrorKind::MalformedSequence {
-            value: Some(0x0041)
-        },
-        error.kind()
-    );
+    let error = super::invalid_source(error);
+    assert_eq!(CharsetDecodeErrorKind::malformed(0x0041), error.kind());
     assert_eq!(2, error.index());
 
     let error = unsafe { codec.decode(&[0xde, 0x00], 0) }
         .expect_err("isolated low surrogate should fail");
-    assert_eq!(
-        CharsetDecodeErrorKind::MalformedSequence {
-            value: Some(0xde00)
-        },
-        error.kind()
-    );
+    let error = super::invalid_source(error);
+    assert_eq!(CharsetDecodeErrorKind::malformed(0xde00), error.kind());
     assert_eq!(0, error.index());
 }
 
@@ -123,13 +116,11 @@ fn test_utf16_byte_codec_direct_function_items_cover_trait_methods() {
     let byte_order: fn(Utf16ByteCodec) -> ByteOrder =
         Utf16ByteCodec::byte_order;
     let inherent_charset: fn(Utf16ByteCodec) -> Charset =
-        Utf16ByteCodec::charset;
+        std::hint::black_box(Utf16ByteCodec::charset);
     let trait_charset: fn(&Utf16ByteCodec) -> Charset =
         <Utf16ByteCodec as CharsetCodec>::charset;
-    let min_units: fn(&Utf16ByteCodec) -> core::num::NonZeroUsize =
-        <Utf16ByteCodec as Codec>::min_units_per_value;
-    let max_units: fn(&Utf16ByteCodec) -> core::num::NonZeroUsize =
-        <Utf16ByteCodec as Codec>::max_units_per_value;
+    let min_units = <Utf16ByteCodec as Codec>::MIN_UNITS_PER_VALUE;
+    let max_units = <Utf16ByteCodec as Codec>::MAX_UNITS_PER_VALUE;
     let encode_len: fn(&Utf16ByteCodec, &char) -> core::num::NonZeroUsize =
         <Utf16ByteCodec as Codec>::encode_len;
     let decode: DecodeFn = <Utf16ByteCodec as Codec>::decode;
@@ -142,8 +133,8 @@ fn test_utf16_byte_codec_direct_function_items_cover_trait_methods() {
     );
     assert_eq!(Charset::UTF_16BE, inherent_charset(codec));
     assert_eq!(Charset::UTF_16BE, trait_charset(&codec));
-    assert_eq!(2, min_units(&codec).get());
-    assert_eq!(Utf16::MAX_BYTES_PER_CHAR, max_units(&codec).get());
+    assert_eq!(2, min_units.get());
+    assert_eq!(Utf16::MAX_BYTES_PER_CHAR, max_units.get());
     assert_eq!(4, encode_len(&codec, &'😀').get());
 
     let mut output = [0_u8; Utf16::MAX_BYTES_PER_CHAR];

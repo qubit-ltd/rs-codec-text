@@ -1,0 +1,4 @@
+mod charset_convert_error_tests;
+mod charset_converter_tests;
+mod malformed_action_tests;
+mod unmappable_action_tests;

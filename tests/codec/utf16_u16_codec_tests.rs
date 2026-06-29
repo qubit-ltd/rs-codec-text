@@ -1,15 +1,17 @@
+use qubit_codec::Codec;
 use qubit_codec_text::{
     Charset,
     CharsetCodec,
     CharsetDecodeErrorKind,
-    CharsetDecodeResult,
     CharsetEncodeResult,
-    Codec,
     Utf16,
     Utf16U16Codec,
 };
 
-type DecodedCharResult = CharsetDecodeResult<(char, core::num::NonZeroUsize)>;
+type DecodedCharResult = Result<
+    (char, core::num::NonZeroUsize),
+    qubit_codec::DecodeFailure<qubit_codec_text::CharsetDecodeError>,
+>;
 type DecodeFn =
     unsafe fn(&mut Utf16U16Codec, &[u16], usize) -> DecodedCharResult;
 type EncodeFn = unsafe fn(
@@ -27,8 +29,11 @@ fn test_utf16_u16_codec_exposes_encoder_and_decoder_contracts() {
         Charset::UTF_16,
         <Utf16U16Codec as CharsetCodec>::charset(&codec)
     );
-    assert_eq!(1, codec.min_units_per_value().get());
-    assert_eq!(Utf16::MAX_UNITS_PER_CHAR, codec.max_units_per_value().get());
+    assert_eq!(1, <Utf16U16Codec as Codec>::MIN_UNITS_PER_VALUE.get());
+    assert_eq!(
+        Utf16::MAX_UNITS_PER_CHAR,
+        <Utf16U16Codec as Codec>::MAX_UNITS_PER_VALUE.get(),
+    );
     assert!(codec.can_encode_value(&'A'));
     assert_eq!(1, codec.encode_len(&'A').get());
 
@@ -64,32 +69,18 @@ fn test_utf16_u16_codec_decodes_bmp_and_reports_closed_tail_or_malformed_units()
 
     let error = unsafe { codec.decode(&[0xd83d], 0) }
         .expect_err("dangling high surrogate is incomplete");
-    assert_eq!(
-        CharsetDecodeErrorKind::IncompleteSequence {
-            required: 2,
-            available: 1,
-        },
-        error.kind()
-    );
+    assert_eq!(2, super::incomplete_required(error));
 
     let error = unsafe { codec.decode(&[0xd83d, 'A' as u16], 0) }
         .expect_err("high surrogate followed by non-low-surrogate should fail");
-    assert_eq!(
-        CharsetDecodeErrorKind::MalformedSequence {
-            value: Some('A' as u32)
-        },
-        error.kind()
-    );
+    let error = super::invalid_source(error);
+    assert_eq!(CharsetDecodeErrorKind::malformed('A' as u32), error.kind());
     assert_eq!(1, error.index());
 
     let error = unsafe { codec.decode(&[0xde00], 0) }
         .expect_err("isolated low surrogate should fail");
-    assert_eq!(
-        CharsetDecodeErrorKind::MalformedSequence {
-            value: Some(0xde00)
-        },
-        error.kind()
-    );
+    let error = super::invalid_source(error);
+    assert_eq!(CharsetDecodeErrorKind::malformed(0xde00), error.kind());
     assert_eq!(0, error.index());
 }
 
@@ -117,10 +108,8 @@ fn test_utf16_u16_codec_direct_function_items_cover_trait_methods() {
     let inherent_charset: fn(Utf16U16Codec) -> Charset = Utf16U16Codec::charset;
     let trait_charset: fn(&Utf16U16Codec) -> Charset =
         <Utf16U16Codec as CharsetCodec>::charset;
-    let min_units: fn(&Utf16U16Codec) -> core::num::NonZeroUsize =
-        <Utf16U16Codec as Codec>::min_units_per_value;
-    let max_units: fn(&Utf16U16Codec) -> core::num::NonZeroUsize =
-        <Utf16U16Codec as Codec>::max_units_per_value;
+    let min_units = <Utf16U16Codec as Codec>::MIN_UNITS_PER_VALUE;
+    let max_units = <Utf16U16Codec as Codec>::MAX_UNITS_PER_VALUE;
     let encode_len: fn(&Utf16U16Codec, &char) -> core::num::NonZeroUsize =
         <Utf16U16Codec as Codec>::encode_len;
     let decode: DecodeFn = <Utf16U16Codec as Codec>::decode;
@@ -128,8 +117,8 @@ fn test_utf16_u16_codec_direct_function_items_cover_trait_methods() {
 
     assert_eq!(Charset::UTF_16, inherent_charset(codec));
     assert_eq!(Charset::UTF_16, trait_charset(&codec));
-    assert_eq!(1, min_units(&codec).get());
-    assert_eq!(Utf16::MAX_UNITS_PER_CHAR, max_units(&codec).get());
+    assert_eq!(1, min_units.get());
+    assert_eq!(Utf16::MAX_UNITS_PER_CHAR, max_units.get());
     assert_eq!(2, encode_len(&codec, &'😀').get());
 
     let mut output = [0_u16; Utf16::MAX_UNITS_PER_CHAR];
