@@ -7,6 +7,10 @@
 // =============================================================================
 use core::num::NonZeroUsize;
 
+use crate::error::{
+    CharsetCodecDecodeResult,
+    map_charset_decode_failure,
+};
 use crate::{
     Charset,
     CharsetCodec,
@@ -26,9 +30,9 @@ use qubit_io::UncheckedSlice;
 /// # Examples
 ///
 /// ```rust
+/// use qubit_codec::Codec;
 /// use qubit_codec_text::{
 ///     CharsetCodec,
-///     Codec,
 ///     Charset,
 ///     Utf8,
 ///     Utf8Codec,
@@ -36,7 +40,10 @@ use qubit_io::UncheckedSlice;
 ///
 /// let mut codec = Utf8Codec;
 /// assert_eq!(Charset::UTF_8, codec.charset());
-/// assert_eq!(Utf8::MAX_UNITS_PER_CHAR, codec.max_units_per_value().get());
+/// assert_eq!(
+///     Utf8::MAX_UNITS_PER_CHAR,
+///     <Utf8Codec as Codec>::MAX_UNITS_PER_VALUE.get(),
+/// );
 ///
 /// let mut output = [0_u8; Utf8::MAX_BYTES_PER_CHAR];
 /// let written = codec.encode_len(&'é').get();
@@ -58,7 +65,7 @@ impl Utf8Codec {
     ///
     /// Returns [`Charset::UTF_8`].
     #[must_use]
-    #[inline(always)]
+    #[inline]
     pub const fn charset(self) -> Charset {
         Charset::UTF_8
     }
@@ -70,54 +77,51 @@ impl CharsetCodec for Utf8Codec {
     /// # Returns
     ///
     /// Returns [`Charset::UTF_8`].
-    #[inline(always)]
+    #[inline]
     fn charset(&self) -> Charset {
         Charset::UTF_8
     }
 }
 
-unsafe impl Codec for Utf8Codec {
+impl Codec for Utf8Codec {
     type Value = char;
     type Unit = u8;
     type DecodeError = CharsetDecodeError;
     type EncodeError = CharsetEncodeError;
 
-    #[inline(always)]
-    fn min_units_per_value(&self) -> NonZeroUsize {
-        NonZeroUsize::MIN
-    }
+    const MIN_UNITS_PER_VALUE: NonZeroUsize = NonZeroUsize::MIN;
+    const MAX_UNITS_PER_VALUE: NonZeroUsize =
+        qubit_io::nz!(Utf8::MAX_UNITS_PER_CHAR);
 
-    #[inline(always)]
-    fn max_units_per_value(&self) -> NonZeroUsize {
-        qubit_io::nz!(Utf8::MAX_UNITS_PER_CHAR)
-    }
-
-    #[inline(always)]
+    #[inline]
     fn encode_len(&self, ch: &char) -> NonZeroUsize {
         qubit_io::nz!(Utf8::byte_len(*ch))
     }
 
-    #[inline(always)]
+    #[inline]
     unsafe fn decode(
         &mut self,
         input: &[u8],
-        index: usize,
-    ) -> CharsetDecodeResult<(char, NonZeroUsize)> {
-        let (ch, consumed) = decode_prefix(input, index)?;
-        debug_assert!(consumed.get() <= input.len().saturating_sub(index));
+        input_index: usize,
+    ) -> CharsetCodecDecodeResult<(char, NonZeroUsize)> {
+        let (ch, consumed) = decode_prefix(input, input_index)
+            .map_err(map_charset_decode_failure)?;
+        debug_assert!(
+            consumed.get() <= input.len().saturating_sub(input_index)
+        );
         Ok((ch, consumed))
     }
 
-    #[inline(always)]
+    #[inline]
     unsafe fn encode(
         &mut self,
         ch: &char,
         output: &mut [u8],
-        index: usize,
+        output_index: usize,
     ) -> CharsetEncodeResult<NonZeroUsize> {
-        let written = encode_char(*ch, output, index);
+        let written = encode_char(*ch, output, output_index);
         debug_assert_eq!(written, Utf8::byte_len(*ch));
-        debug_assert!(written <= output.len().saturating_sub(index));
+        debug_assert!(written <= output.len().saturating_sub(output_index));
         Ok(qubit_io::nz!(written))
     }
 }
@@ -145,6 +149,7 @@ unsafe impl Codec for Utf8Codec {
 ///   continuation bytes are invalid for UTF-8.
 /// * `CharsetDecodeErrorKind::IncompleteSequence` when EOF appears before the
 ///   complete UTF-8 sequence is available.
+#[inline]
 fn decode_prefix(
     input: &[u8],
     index: usize,
@@ -156,9 +161,7 @@ fn decode_prefix(
     let length = match Utf8::byte_len_from_leading_byte(first) {
         Some(length) => length,
         None => {
-            let kind = CharsetDecodeErrorKind::MalformedSequence {
-                value: Some(first as u32),
-            };
+            let kind = CharsetDecodeErrorKind::malformed(first as u32);
             return Err(CharsetDecodeError::new(Charset::UTF_8, kind, index));
         }
     };
@@ -203,23 +206,15 @@ fn encode_char(ch: char, output: &mut [u8], index: usize) -> usize {
         UncheckedSlice::range_fits(output.len(), index, length),
         "index + length exceeds output length"
     );
-    let mut scratch = [0_u8; Utf8::MAX_BYTES_PER_CHAR];
-    let encoded = ch.encode_utf8(&mut scratch);
     // SAFETY: The caller guarantees that `length` bytes are writable from
-    // `index`.
-    unsafe {
-        qubit_io::UncheckedSlice::copy_nonoverlapping(
-            encoded.as_bytes(),
-            0,
-            output,
-            index,
-            length,
-        )
+    // `index`; `encode_utf8` writes directly into that checked range.
+    let target = unsafe {
+        qubit_io::UncheckedSlice::subslice_mut(output, index, length)
     };
+    ch.encode_utf8(target);
     length
 }
 
-#[inline(always)]
 /// Decodes a two-byte UTF-8 sequence starting at `index`.
 ///
 /// # Arguments
@@ -235,20 +230,10 @@ fn encode_char(ch: char, output: &mut [u8], index: usize) -> usize {
 ///
 /// * `CharsetDecodeErrorKind::MalformedSequence` when the second byte is not a
 ///   valid UTF-8 continuation byte.
+#[inline]
 fn decode_two(input: &[u8], index: usize) -> CharsetDecodeResult<u32> {
     let first = byte_at(input, index);
-    let second = byte_at(input, index + 1);
-    if !Utf8::is_continuation_byte(second) {
-        let kind = CharsetDecodeErrorKind::MalformedSequence {
-            value: Some(second as u32),
-        };
-        return Err(CharsetDecodeError::new(
-            Charset::UTF_8,
-            kind,
-            index.saturating_add(1),
-        )
-        .with_consumed(2));
-    }
+    let second = validate_second_byte(input, index)?;
     Ok((((first & 0x1f) as u32) << 6) | ((second & 0x3f) as u32))
 }
 
@@ -268,34 +253,11 @@ fn decode_two(input: &[u8], index: usize) -> CharsetDecodeResult<u32> {
 /// decoding error describing the first malformed position.
 #[inline]
 fn validate_partial(input: &[u8], index: usize) -> CharsetDecodeResult<()> {
-    if UncheckedSlice::range_fits(input.len(), index, 2)
-        && !is_valid_second_byte(
-            byte_at(input, index),
-            byte_at(input, index + 1),
-        )
-    {
-        let kind = CharsetDecodeErrorKind::MalformedSequence {
-            value: Some(byte_at(input, index + 1) as u32),
-        };
-        return Err(CharsetDecodeError::new(
-            Charset::UTF_8,
-            kind,
-            index.saturating_add(1),
-        )
-        .with_consumed(2));
+    if UncheckedSlice::range_fits(input.len(), index, 2) {
+        validate_second_byte(input, index)?;
     }
-    if UncheckedSlice::range_fits(input.len(), index, 3)
-        && !Utf8::is_continuation_byte(byte_at(input, index + 2))
-    {
-        let kind = CharsetDecodeErrorKind::MalformedSequence {
-            value: Some(byte_at(input, index + 2) as u32),
-        };
-        return Err(CharsetDecodeError::new(
-            Charset::UTF_8,
-            kind,
-            index.saturating_add(2),
-        )
-        .with_consumed(3));
+    if UncheckedSlice::range_fits(input.len(), index, 3) {
+        validate_continuation_byte(input, index, 2)?;
     }
     Ok(())
 }
@@ -311,15 +273,15 @@ fn validate_partial(input: &[u8], index: usize) -> CharsetDecodeResult<()> {
 ///
 /// `true` when the pair `(first, second)` is valid for UTF-8 sequence decoding,
 /// otherwise `false`.
-#[inline(always)]
+#[inline]
 fn is_valid_second_byte(first: u8, second: u8) -> bool {
     match first {
-        0xc2..=0xdf => Utf8::is_continuation_byte(second),
+        0xc2..=0xdf | 0xe1..=0xec | 0xee..=0xef | 0xf1..=0xf3 => {
+            Utf8::is_continuation_byte(second)
+        }
         0xe0 => (0xa0..=0xbf).contains(&second),
         0xed => (0x80..=0x9f).contains(&second),
-        0xe1..=0xec | 0xee..=0xef => Utf8::is_continuation_byte(second),
         0xf0 => (0x90..=0xbf).contains(&second),
-        0xf1..=0xf3 => Utf8::is_continuation_byte(second),
         0xf4 => (0x80..=0x8f).contains(&second),
         _ => false,
     }
@@ -340,32 +302,11 @@ fn is_valid_second_byte(first: u8, second: u8) -> bool {
 ///
 /// * `CharsetDecodeErrorKind::MalformedSequence` when the second or third byte
 ///   is invalid.
+#[inline]
 fn decode_three(input: &[u8], index: usize) -> CharsetDecodeResult<u32> {
     let first = byte_at(input, index);
-    let second = byte_at(input, index + 1);
-    let third = byte_at(input, index + 2);
-    if !is_valid_second_byte(first, second) {
-        let kind = CharsetDecodeErrorKind::MalformedSequence {
-            value: Some(second as u32),
-        };
-        return Err(CharsetDecodeError::new(
-            Charset::UTF_8,
-            kind,
-            index.saturating_add(1),
-        )
-        .with_consumed(2));
-    }
-    if !Utf8::is_continuation_byte(third) {
-        let kind = CharsetDecodeErrorKind::MalformedSequence {
-            value: Some(third as u32),
-        };
-        return Err(CharsetDecodeError::new(
-            Charset::UTF_8,
-            kind,
-            index.saturating_add(2),
-        )
-        .with_consumed(3));
-    }
+    let second = validate_second_byte(input, index)?;
+    let third = validate_continuation_byte(input, index, 2)?;
     Ok((((first & 0x0f) as u32) << 12)
         | (((second & 0x3f) as u32) << 6)
         | ((third & 0x3f) as u32))
@@ -386,52 +327,66 @@ fn decode_three(input: &[u8], index: usize) -> CharsetDecodeResult<u32> {
 ///
 /// * `CharsetDecodeErrorKind::MalformedSequence` when any continuation byte is
 ///   invalid.
+#[inline]
 fn decode_four(input: &[u8], index: usize) -> CharsetDecodeResult<u32> {
     let first = byte_at(input, index);
-    let second = byte_at(input, index + 1);
-    let third = byte_at(input, index + 2);
-    let fourth = byte_at(input, index + 3);
-    if !is_valid_second_byte(first, second) {
-        let kind = CharsetDecodeErrorKind::MalformedSequence {
-            value: Some(second as u32),
-        };
-        return Err(CharsetDecodeError::new(
-            Charset::UTF_8,
-            kind,
-            index.saturating_add(1),
-        )
-        .with_consumed(2));
-    }
-    if !Utf8::is_continuation_byte(third) {
-        let kind = CharsetDecodeErrorKind::MalformedSequence {
-            value: Some(third as u32),
-        };
-        return Err(CharsetDecodeError::new(
-            Charset::UTF_8,
-            kind,
-            index.saturating_add(2),
-        )
-        .with_consumed(3));
-    }
-    if !Utf8::is_continuation_byte(fourth) {
-        let kind = CharsetDecodeErrorKind::MalformedSequence {
-            value: Some(fourth as u32),
-        };
-        return Err(CharsetDecodeError::new(
-            Charset::UTF_8,
-            kind,
-            index.saturating_add(3),
-        )
-        .with_consumed(4));
-    }
+    let second = validate_second_byte(input, index)?;
+    let third = validate_continuation_byte(input, index, 2)?;
+    let fourth = validate_continuation_byte(input, index, 3)?;
     Ok((((first & 0x07) as u32) << 18)
         | (((second & 0x3f) as u32) << 12)
         | (((third & 0x3f) as u32) << 6)
         | ((fourth & 0x3f) as u32))
 }
 
+/// Validates the first continuation-like byte after a UTF-8 leading byte.
+#[inline]
+fn validate_second_byte(input: &[u8], index: usize) -> CharsetDecodeResult<u8> {
+    let first = byte_at(input, index);
+    let second = byte_at(input, index + 1);
+    if is_valid_second_byte(first, second) {
+        Ok(second)
+    } else {
+        Err(malformed_byte_error(
+            second,
+            index.saturating_add(1),
+            qubit_io::nz!(2),
+        ))
+    }
+}
+
+/// Validates a regular UTF-8 continuation byte at `offset` from `index`.
+#[inline]
+fn validate_continuation_byte(
+    input: &[u8],
+    index: usize,
+    offset: usize,
+) -> CharsetDecodeResult<u8> {
+    let byte = byte_at(input, index + offset);
+    if Utf8::is_continuation_byte(byte) {
+        Ok(byte)
+    } else {
+        Err(malformed_byte_error(
+            byte,
+            index.saturating_add(offset),
+            NonZeroUsize::new(offset + 1)
+                .expect("UTF-8 consumed width is non-zero"),
+        ))
+    }
+}
+
+/// Creates a malformed-byte error with consumed width metadata.
+fn malformed_byte_error(
+    byte: u8,
+    index: usize,
+    consumed: NonZeroUsize,
+) -> CharsetDecodeError {
+    let kind = CharsetDecodeErrorKind::malformed(byte as u32);
+    CharsetDecodeError::new(Charset::UTF_8, kind, index).with_consumed(consumed)
+}
+
 /// Reads one byte from an already checked slice.
-#[inline(always)]
+#[inline]
 fn byte_at(input: &[u8], index: usize) -> u8 {
     debug_assert!(index < input.len());
     // SAFETY: Callers check sequence availability before reading the byte.

@@ -5,8 +5,11 @@
 //
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
+use crate::error::{
+    CharsetCodecDecodeResult,
+    map_charset_decode_failure,
+};
 use crate::{
-    ByteOrder,
     Charset,
     CharsetCodec,
     CharsetDecodeError,
@@ -18,7 +21,10 @@ use crate::{
     Utf16,
 };
 use core::num::NonZeroUsize;
-use qubit_codec::Codec;
+use qubit_codec::{
+    ByteOrder,
+    Codec,
+};
 use qubit_io::UncheckedSlice;
 
 /// Combined byte-serialized UTF-16 codec.
@@ -30,10 +36,12 @@ use qubit_io::UncheckedSlice;
 /// # Examples
 ///
 /// ```rust
-/// use qubit_codec_text::{
+/// use qubit_codec::{
 ///     ByteOrder,
-///     CharsetCodec,
 ///     Codec,
+/// };
+/// use qubit_codec_text::{
+///     CharsetCodec,
 ///     Charset,
 ///     Utf16,
 ///     Utf16ByteCodec,
@@ -41,7 +49,10 @@ use qubit_io::UncheckedSlice;
 ///
 /// let mut codec = Utf16ByteCodec::new(ByteOrder::LittleEndian);
 /// assert_eq!(Charset::UTF_16LE, codec.charset());
-/// assert_eq!(Utf16::MAX_BYTES_PER_CHAR, codec.max_units_per_value().get());
+/// assert_eq!(
+///     Utf16::MAX_BYTES_PER_CHAR,
+///     <Utf16ByteCodec as Codec>::MAX_UNITS_PER_VALUE.get(),
+/// );
 ///
 /// let mut output = [0_u8; Utf16::MAX_BYTES_PER_CHAR];
 /// let written = codec.encode_len(&'😀').get();
@@ -69,7 +80,7 @@ impl Utf16ByteCodec {
     /// # Returns
     ///
     /// Returns a UTF-16 byte codec.
-    #[inline(always)]
+    #[inline]
     #[must_use]
     pub const fn new(byte_order: ByteOrder) -> Self {
         Self { byte_order }
@@ -80,7 +91,7 @@ impl Utf16ByteCodec {
     /// # Returns
     ///
     /// Returns the byte order used by this codec.
-    #[inline(always)]
+    #[inline]
     #[must_use]
     pub const fn byte_order(self) -> ByteOrder {
         self.byte_order
@@ -92,7 +103,7 @@ impl Utf16ByteCodec {
     ///
     /// Returns [`Charset::UTF_16LE`] or [`Charset::UTF_16BE`] according to this
     /// codec's configured byte order.
-    #[inline(always)]
+    #[inline]
     #[must_use]
     pub const fn charset(self) -> Charset {
         Charset::from_utf16_byte_order(self.byte_order)
@@ -106,55 +117,53 @@ impl CharsetCodec for Utf16ByteCodec {
     ///
     /// Returns [`Charset::UTF_16BE`] when configured with
     /// `ByteOrder::BigEndian`, otherwise [`Charset::UTF_16LE`].
-    #[inline(always)]
+    #[inline]
     fn charset(&self) -> Charset {
         Charset::from_utf16_byte_order(self.byte_order)
     }
 }
 
-unsafe impl Codec for Utf16ByteCodec {
+impl Codec for Utf16ByteCodec {
     type Value = char;
     type Unit = u8;
     type DecodeError = CharsetDecodeError;
     type EncodeError = CharsetEncodeError;
 
-    #[inline(always)]
-    fn min_units_per_value(&self) -> NonZeroUsize {
-        qubit_io::nz!(2)
-    }
+    const MIN_UNITS_PER_VALUE: NonZeroUsize = qubit_io::nz!(2);
+    const MAX_UNITS_PER_VALUE: NonZeroUsize =
+        qubit_io::nz!(Utf16::MAX_BYTES_PER_CHAR);
 
-    #[inline(always)]
-    fn max_units_per_value(&self) -> NonZeroUsize {
-        qubit_io::nz!(Utf16::MAX_BYTES_PER_CHAR)
-    }
-
-    #[inline(always)]
+    #[inline]
     fn encode_len(&self, ch: &char) -> NonZeroUsize {
         qubit_io::nz!(Utf16::unit_len(*ch) * 2)
     }
 
-    #[inline(always)]
+    #[inline]
     unsafe fn decode(
         &mut self,
         input: &[u8],
-        index: usize,
-    ) -> CharsetDecodeResult<(char, NonZeroUsize)> {
+        input_index: usize,
+    ) -> CharsetCodecDecodeResult<(char, NonZeroUsize)> {
         let (ch, consumed) =
-            decode_bytes_prefix(input, index, self.byte_order)?;
-        debug_assert!(consumed.get() <= input.len().saturating_sub(index));
+            decode_bytes_prefix(input, input_index, self.byte_order)
+                .map_err(map_charset_decode_failure)?;
+        debug_assert!(
+            consumed.get() <= input.len().saturating_sub(input_index)
+        );
         Ok((ch, consumed))
     }
 
-    #[inline(always)]
+    #[inline]
     unsafe fn encode(
         &mut self,
         ch: &char,
         output: &mut [u8],
-        index: usize,
+        output_index: usize,
     ) -> CharsetEncodeResult<NonZeroUsize> {
-        let written = encode_bytes_char(*ch, output, self.byte_order, index);
+        let written =
+            encode_bytes_char(*ch, output, self.byte_order, output_index);
         debug_assert_eq!(written, ch.len_utf16() * 2);
-        debug_assert!(written <= output.len().saturating_sub(index));
+        debug_assert!(written <= output.len().saturating_sub(output_index));
         Ok(qubit_io::nz!(written))
     }
 }
@@ -179,9 +188,13 @@ unsafe impl Codec for Utf16ByteCodec {
 /// # Errors
 ///
 /// * `CharsetDecodeErrorKind::MalformedSequence` for invalid UTF-16 byte
-///   sequences or malformed surrogate usage.
+///   sequences or malformed surrogate usage. Surrogates are valid UTF-16 code
+///   units only inside well-formed pairs, so malformed pair structure is
+///   reported as a sequence error rather than as an independently decoded
+///   scalar value.
 /// * `CharsetDecodeErrorKind::IncompleteSequence` when EOF appears before a
 ///   complete UTF-16 unit or surrogate pair is available.
+#[inline]
 fn decode_bytes_prefix(
     input: &[u8],
     index: usize,
@@ -203,22 +216,19 @@ fn decode_bytes_prefix(
         match Utf16::compose_pair(first, second).and_then(Unicode::to_char) {
             Some(ch) => Ok((ch, qubit_io::nz!(4))),
             None => {
-                let kind = CharsetDecodeErrorKind::MalformedSequence {
-                    value: Some(second as u32),
-                };
+                let kind = CharsetDecodeErrorKind::malformed(second as u32);
                 Err(CharsetDecodeError::new(
                     charset,
                     kind,
                     index.saturating_add(2),
                 )
-                .with_consumed(4))
+                .with_consumed(qubit_io::nz!(4)))
             }
         }
     } else if Utf16::is_low_surrogate(first) {
-        let kind = CharsetDecodeErrorKind::MalformedSequence {
-            value: Some(first as u32),
-        };
-        Err(CharsetDecodeError::new(charset, kind, index).with_consumed(2))
+        let kind = CharsetDecodeErrorKind::malformed(first as u32);
+        Err(CharsetDecodeError::new(charset, kind, index)
+            .with_consumed(qubit_io::nz!(2)))
     } else {
         let ch = char::from_u32(first as u32)
             .expect("non-surrogate UTF-16 unit is a scalar value");
@@ -239,6 +249,7 @@ fn decode_bytes_prefix(
 ///
 /// `Ok(usize)` with the number of bytes written (`2` for BMP, `4` for
 /// supplementary).
+#[inline]
 fn encode_bytes_char(
     ch: char,
     output: &mut [u8],
@@ -273,13 +284,18 @@ fn encode_bytes_char(
 /// # Returns
 ///
 /// Returns the decoded UTF-16 unit.
-#[inline(always)]
+#[inline]
 fn read_ordered_u16(input: &[u8], index: usize, byte_order: ByteOrder) -> u16 {
     // SAFETY: The caller guarantees that two bytes are readable from `index`.
-    let unit = unsafe { UncheckedSlice::read_ne_unaligned(input, index) };
+    let bytes = unsafe {
+        [
+            UncheckedSlice::read(input, index),
+            UncheckedSlice::read(input, index + 1),
+        ]
+    };
     match byte_order {
-        ByteOrder::BigEndian => u16::from_be(unit),
-        ByteOrder::LittleEndian => u16::from_le(unit),
+        ByteOrder::BigEndian => u16::from_be_bytes(bytes),
+        ByteOrder::LittleEndian => u16::from_le_bytes(bytes),
     }
 }
 
@@ -292,17 +308,20 @@ fn read_ordered_u16(input: &[u8], index: usize, byte_order: ByteOrder) -> u16 {
 ///   writable from this offset.
 /// - `unit`: UTF-16 unit to write.
 /// - `byte_order`: Byte order used to serialize the unit.
-#[inline(always)]
+#[inline]
 fn write_ordered_u16(
     output: &mut [u8],
     index: usize,
     unit: u16,
     byte_order: ByteOrder,
 ) {
-    let value = match byte_order {
-        ByteOrder::BigEndian => unit.to_be(),
-        ByteOrder::LittleEndian => unit.to_le(),
+    let bytes = match byte_order {
+        ByteOrder::BigEndian => unit.to_be_bytes(),
+        ByteOrder::LittleEndian => unit.to_le_bytes(),
     };
     // SAFETY: The caller guarantees that two bytes are writable from `index`.
-    unsafe { UncheckedSlice::write_ne_unaligned(output, index, value) };
+    unsafe {
+        UncheckedSlice::write(output, index, bytes[0]);
+        UncheckedSlice::write(output, index + 1, bytes[1]);
+    }
 }

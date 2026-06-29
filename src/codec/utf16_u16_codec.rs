@@ -5,6 +5,10 @@
 //
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
+use crate::error::{
+    CharsetCodecDecodeResult,
+    map_charset_decode_failure,
+};
 use crate::{
     Charset,
     CharsetCodec,
@@ -25,12 +29,19 @@ use qubit_io::UncheckedSlice;
 /// Use [`crate::Utf16ByteCodec`] when the input or output is a byte stream with
 /// an explicit byte order.
 ///
+/// # Invariant
+///
+/// `u16` units are interpreted as host `u16` values that already contain
+/// UTF-16 code units. This codec does not define a serialized byte order. Data
+/// stored in files, sent over a network, or exchanged across byte streams must
+/// be serialized with [`crate::Utf16ByteCodec`] first.
+///
 /// # Examples
 ///
 /// ```rust
+/// use qubit_codec::Codec;
 /// use qubit_codec_text::{
 ///     CharsetCodec,
-///     Codec,
 ///     Charset,
 ///     Utf16,
 ///     Utf16U16Codec,
@@ -38,7 +49,10 @@ use qubit_io::UncheckedSlice;
 ///
 /// let mut codec = Utf16U16Codec;
 /// assert_eq!(Charset::UTF_16, codec.charset());
-/// assert_eq!(Utf16::MAX_UNITS_PER_CHAR, codec.max_units_per_value().get());
+/// assert_eq!(
+///     Utf16::MAX_UNITS_PER_CHAR,
+///     <Utf16U16Codec as Codec>::MAX_UNITS_PER_VALUE.get(),
+/// );
 ///
 /// let mut output = [0_u16; Utf16::MAX_UNITS_PER_CHAR];
 /// let written = codec.encode_len(&'😀').get();
@@ -60,7 +74,7 @@ impl Utf16U16Codec {
     ///
     /// Returns [`Charset::UTF_16`].
     #[must_use]
-    #[inline(always)]
+    #[inline]
     pub const fn charset(self) -> Charset {
         Charset::UTF_16
     }
@@ -72,54 +86,52 @@ impl CharsetCodec for Utf16U16Codec {
     /// # Returns
     ///
     /// Returns [`Charset::UTF_16`].
-    #[inline(always)]
+    #[inline]
     fn charset(&self) -> Charset {
         Charset::UTF_16
     }
 }
 
-unsafe impl Codec for Utf16U16Codec {
+impl Codec for Utf16U16Codec {
     type Value = char;
     type Unit = u16;
     type DecodeError = CharsetDecodeError;
     type EncodeError = CharsetEncodeError;
 
-    #[inline(always)]
-    fn min_units_per_value(&self) -> core::num::NonZeroUsize {
-        core::num::NonZeroUsize::MIN
-    }
+    const MIN_UNITS_PER_VALUE: core::num::NonZeroUsize =
+        core::num::NonZeroUsize::MIN;
+    const MAX_UNITS_PER_VALUE: core::num::NonZeroUsize =
+        qubit_io::nz!(Utf16::MAX_UNITS_PER_CHAR);
 
-    #[inline(always)]
-    fn max_units_per_value(&self) -> core::num::NonZeroUsize {
-        qubit_io::nz!(Utf16::MAX_UNITS_PER_CHAR)
-    }
-
-    #[inline(always)]
+    #[inline]
     fn encode_len(&self, ch: &char) -> core::num::NonZeroUsize {
         qubit_io::nz!(Utf16::unit_len(*ch))
     }
 
-    #[inline(always)]
+    #[inline]
     unsafe fn decode(
         &mut self,
         input: &[u16],
-        index: usize,
-    ) -> CharsetDecodeResult<(char, core::num::NonZeroUsize)> {
-        let (ch, consumed) = decode_units_prefix(input, index)?;
-        debug_assert!(consumed.get() <= input.len().saturating_sub(index));
+        input_index: usize,
+    ) -> CharsetCodecDecodeResult<(char, core::num::NonZeroUsize)> {
+        let (ch, consumed) = decode_units_prefix(input, input_index)
+            .map_err(map_charset_decode_failure)?;
+        debug_assert!(
+            consumed.get() <= input.len().saturating_sub(input_index)
+        );
         Ok((ch, consumed))
     }
 
-    #[inline(always)]
+    #[inline]
     unsafe fn encode(
         &mut self,
         ch: &char,
         output: &mut [u16],
-        index: usize,
+        output_index: usize,
     ) -> CharsetEncodeResult<core::num::NonZeroUsize> {
-        let written = encode_units_char(*ch, output, index);
+        let written = encode_units_char(*ch, output, output_index);
         debug_assert_eq!(written, ch.len_utf16());
-        debug_assert!(written <= output.len().saturating_sub(index));
+        debug_assert!(written <= output.len().saturating_sub(output_index));
         Ok(qubit_io::nz!(written))
     }
 }
@@ -146,8 +158,11 @@ unsafe impl Codec for Utf16U16Codec {
 ///
 /// # Errors
 ///
-/// * `CharsetDecodeErrorKind::MalformedSequence` for invalid UTF-16 sequences
-///   (invalid high/low surrogate pairing).
+/// * `CharsetDecodeErrorKind::MalformedSequence` for invalid UTF-16 code-unit
+///   structure, such as invalid high/low surrogate pairing. Surrogates are
+///   valid UTF-16 code units only inside well-formed pairs, so malformed pair
+///   structure is reported as a sequence error rather than as an independently
+///   decoded scalar value.
 /// * `CharsetDecodeErrorKind::IncompleteSequence` when EOF appears before a
 ///   complete surrogate pair is available.
 ///
@@ -176,21 +191,17 @@ fn decode_units_prefix(
         match Utf16::compose_pair(first, second).and_then(Unicode::to_char) {
             Some(ch) => Ok((ch, qubit_io::nz!(2))),
             None => {
-                let kind = CharsetDecodeErrorKind::MalformedSequence {
-                    value: Some(second as u32),
-                };
+                let kind = CharsetDecodeErrorKind::malformed(second as u32);
                 Err(CharsetDecodeError::new(
                     Charset::UTF_16,
                     kind,
                     index.saturating_add(1),
                 )
-                .with_consumed(2))
+                .with_consumed(qubit_io::nz!(2)))
             }
         }
     } else if Utf16::is_low_surrogate(first) {
-        let kind = CharsetDecodeErrorKind::MalformedSequence {
-            value: Some(first as u32),
-        };
+        let kind = CharsetDecodeErrorKind::malformed(first as u32);
         Err(CharsetDecodeError::new(Charset::UTF_16, kind, index))
     } else {
         let ch = char::from_u32(first as u32)
@@ -200,6 +211,7 @@ fn decode_units_prefix(
 }
 
 /// Reads one UTF-16 unit from an already checked slice.
+#[inline]
 fn unit_at(input: &[u16], index: usize) -> u16 {
     debug_assert!(index < input.len());
     // SAFETY: Callers check sequence availability before reading the unit.

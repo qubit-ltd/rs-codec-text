@@ -5,6 +5,10 @@
 //
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
+use crate::error::{
+    CharsetCodecDecodeResult,
+    map_charset_decode_failure,
+};
 use crate::{
     Charset,
     CharsetCodec,
@@ -24,12 +28,19 @@ use qubit_codec::Codec;
 /// serialized bytes. Use [`crate::Utf32ByteCodec`] for byte streams with an
 /// explicit byte order.
 ///
+/// # Invariant
+///
+/// `u32` units are interpreted as host `u32` values that already contain
+/// UTF-32 scalar values. This codec does not define a serialized byte order.
+/// Data stored in files, sent over a network, or exchanged across byte streams
+/// must be serialized with [`crate::Utf32ByteCodec`] first.
+///
 /// # Examples
 ///
 /// ```rust
+/// use qubit_codec::Codec;
 /// use qubit_codec_text::{
 ///     CharsetCodec,
-///     Codec,
 ///     Charset,
 ///     Utf32,
 ///     Utf32U32Codec,
@@ -37,7 +48,10 @@ use qubit_codec::Codec;
 ///
 /// let mut codec = Utf32U32Codec;
 /// assert_eq!(Charset::UTF_32, codec.charset());
-/// assert_eq!(Utf32::MAX_UNITS_PER_CHAR, codec.max_units_per_value().get());
+/// assert_eq!(
+///     Utf32::MAX_UNITS_PER_CHAR,
+///     <Utf32U32Codec as Codec>::MAX_UNITS_PER_VALUE.get(),
+/// );
 ///
 /// let mut output = [0_u32; Utf32::MAX_UNITS_PER_CHAR];
 /// let written = codec.encode_len(&'中').get();
@@ -59,7 +73,7 @@ impl Utf32U32Codec {
     ///
     /// Returns [`Charset::UTF_32`].
     #[must_use]
-    #[inline(always)]
+    #[inline]
     pub const fn charset(self) -> Charset {
         Charset::UTF_32
     }
@@ -71,49 +85,47 @@ impl CharsetCodec for Utf32U32Codec {
     /// # Returns
     ///
     /// Returns [`Charset::UTF_32`].
-    #[inline(always)]
+    #[inline]
     fn charset(&self) -> Charset {
         Charset::UTF_32
     }
 }
 
-unsafe impl Codec for Utf32U32Codec {
+impl Codec for Utf32U32Codec {
     type Value = char;
     type Unit = u32;
     type DecodeError = CharsetDecodeError;
     type EncodeError = CharsetEncodeError;
 
-    #[inline(always)]
-    fn min_units_per_value(&self) -> core::num::NonZeroUsize {
-        core::num::NonZeroUsize::MIN
-    }
+    const MIN_UNITS_PER_VALUE: core::num::NonZeroUsize =
+        core::num::NonZeroUsize::MIN;
+    const MAX_UNITS_PER_VALUE: core::num::NonZeroUsize =
+        core::num::NonZeroUsize::MIN;
 
-    #[inline(always)]
-    fn max_units_per_value(&self) -> core::num::NonZeroUsize {
-        core::num::NonZeroUsize::MIN
-    }
-
-    #[inline(always)]
+    #[inline]
     unsafe fn decode(
         &mut self,
         input: &[u32],
-        index: usize,
-    ) -> CharsetDecodeResult<(char, core::num::NonZeroUsize)> {
-        let (ch, consumed) = decode_units_prefix(input, index)?;
-        debug_assert!(consumed.get() <= input.len().saturating_sub(index));
+        input_index: usize,
+    ) -> CharsetCodecDecodeResult<(char, core::num::NonZeroUsize)> {
+        let (ch, consumed) = decode_units_prefix(input, input_index)
+            .map_err(map_charset_decode_failure)?;
+        debug_assert!(
+            consumed.get() <= input.len().saturating_sub(input_index)
+        );
         Ok((ch, consumed))
     }
 
-    #[inline(always)]
+    #[inline]
     unsafe fn encode(
         &mut self,
         ch: &char,
         output: &mut [u32],
-        index: usize,
+        output_index: usize,
     ) -> CharsetEncodeResult<core::num::NonZeroUsize> {
-        let written = encode_units_char(*ch, output, index);
+        let written = encode_units_char(*ch, output, output_index);
         debug_assert_eq!(written, Utf32::MAX_UNITS_PER_CHAR);
-        debug_assert!(written <= output.len().saturating_sub(index));
+        debug_assert!(written <= output.len().saturating_sub(output_index));
         Ok(qubit_io::nz!(Utf32::MAX_UNITS_PER_CHAR))
     }
 }
