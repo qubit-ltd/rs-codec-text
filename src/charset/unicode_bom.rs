@@ -5,8 +5,10 @@
 //
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
+use qubit_codec::ByteOrder;
+
 use crate::{
-    ByteOrder,
+    BomDetectStatus,
     Charset,
 };
 
@@ -19,8 +21,8 @@ use crate::{
 /// # Examples
 ///
 /// ```rust
+/// use qubit_codec::ByteOrder;
 /// use qubit_codec_text::{
-///     ByteOrder,
 ///     Charset,
 ///     UnicodeBom,
 /// };
@@ -52,6 +54,15 @@ pub enum UnicodeBom {
 }
 
 impl UnicodeBom {
+    /// Supported BOMs in longest-prefix detection order.
+    const ALL: &'static [Self] = &[
+        Self::Utf32BigEndian,
+        Self::Utf32LittleEndian,
+        Self::Utf8,
+        Self::Utf16BigEndian,
+        Self::Utf16LittleEndian,
+    ];
+
     /// Detects a Unicode byte order mark at the beginning of `bytes`.
     ///
     /// # Parameters
@@ -67,18 +78,36 @@ impl UnicodeBom {
     /// such as `FF FE 00 00` are classified as UTF-32 little-endian when all
     /// four bytes are available.
     pub fn detect(bytes: &[u8]) -> Option<Self> {
-        if bytes.starts_with(&[0x00, 0x00, 0xfe, 0xff]) {
-            Some(Self::Utf32BigEndian)
-        } else if bytes.starts_with(&[0xff, 0xfe, 0x00, 0x00]) {
-            Some(Self::Utf32LittleEndian)
-        } else if bytes.starts_with(&[0xef, 0xbb, 0xbf]) {
-            Some(Self::Utf8)
-        } else if bytes.starts_with(&[0xfe, 0xff]) {
-            Some(Self::Utf16BigEndian)
-        } else if bytes.starts_with(&[0xff, 0xfe]) {
-            Some(Self::Utf16LittleEndian)
+        match Self::detect_progress(bytes, true) {
+            BomDetectStatus::Match(bom) => Some(bom),
+            BomDetectStatus::Pending | BomDetectStatus::None => None,
+        }
+    }
+
+    /// Detects a Unicode byte order mark with an explicit EOF signal.
+    ///
+    /// # Parameters
+    ///
+    /// - `bytes`: Bytes currently available from the beginning of the stream.
+    /// - `eof`: Whether no more bytes can arrive.
+    ///
+    /// # Returns
+    ///
+    /// Returns [`BomDetectStatus::Pending`] when the bytes are a valid prefix
+    /// of a longer BOM and EOF has not been reached, [`BomDetectStatus::Match`]
+    /// when a supported BOM can be selected, or [`BomDetectStatus::None`] when
+    /// no supported BOM can match.
+    pub fn detect_progress(bytes: &[u8], eof: bool) -> BomDetectStatus {
+        if let Some(bom) = detect_complete(bytes) {
+            if !eof && has_longer_possible_match(bytes, bom) {
+                BomDetectStatus::Pending
+            } else {
+                BomDetectStatus::Match(bom)
+            }
+        } else if !eof && is_possible_bom_prefix(bytes) {
+            BomDetectStatus::Pending
         } else {
-            None
+            BomDetectStatus::None
         }
     }
 
@@ -87,7 +116,7 @@ impl UnicodeBom {
     /// # Returns
     ///
     /// Returns a static byte slice containing the BOM bytes.
-    #[inline(always)]
+    #[inline]
     pub const fn bytes(self) -> &'static [u8] {
         match self {
             Self::Utf8 => &[0xef, 0xbb, 0xbf],
@@ -103,7 +132,7 @@ impl UnicodeBom {
     /// # Returns
     ///
     /// Returns the number of bytes in this BOM.
-    #[inline(always)]
+    #[inline]
     pub const fn byte_len(self) -> usize {
         match self {
             Self::Utf8 => 3,
@@ -118,7 +147,7 @@ impl UnicodeBom {
     ///
     /// Returns the corresponding [`Charset`], including fixed byte order for
     /// UTF-16 and UTF-32 BOMs.
-    #[inline(always)]
+    #[inline]
     pub const fn charset(self) -> Charset {
         match self {
             Self::Utf8 => Charset::UTF_8,
@@ -135,7 +164,7 @@ impl UnicodeBom {
     ///
     /// Returns `Some(ByteOrder)` for UTF-16 and UTF-32 BOMs. Returns `None` for
     /// UTF-8 because byte order does not apply.
-    #[inline(always)]
+    #[inline]
     pub const fn byte_order(self) -> Option<ByteOrder> {
         match self {
             Self::Utf8 => None,
@@ -147,4 +176,55 @@ impl UnicodeBom {
             }
         }
     }
+}
+
+/// Detects a complete BOM using longest-prefix order.
+///
+/// # Parameters
+///
+/// - `bytes`: Candidate stream prefix.
+///
+/// # Returns
+///
+/// Returns the longest supported BOM that is fully present in `bytes`.
+#[inline]
+fn detect_complete(bytes: &[u8]) -> Option<UnicodeBom> {
+    UnicodeBom::ALL
+        .iter()
+        .copied()
+        .find(|bom| bytes.starts_with(bom.bytes()))
+}
+
+/// Tests whether `bytes` may still become a supported BOM.
+///
+/// # Parameters
+///
+/// - `bytes`: Bytes currently available from the beginning of the stream.
+///
+/// # Returns
+///
+/// Returns `true` when `bytes` is a prefix of any supported BOM.
+#[inline]
+fn is_possible_bom_prefix(bytes: &[u8]) -> bool {
+    UnicodeBom::ALL
+        .iter()
+        .any(|bom| bom.bytes().starts_with(bytes))
+}
+
+/// Tests whether a currently matched BOM is ambiguous with a longer BOM.
+///
+/// # Parameters
+///
+/// - `bytes`: Bytes currently available from the beginning of the stream.
+/// - `matched`: BOM selected from the currently available bytes.
+///
+/// # Returns
+///
+/// Returns `true` when additional bytes could promote the match to a longer
+/// BOM.
+#[inline]
+fn has_longer_possible_match(bytes: &[u8], matched: UnicodeBom) -> bool {
+    UnicodeBom::ALL.iter().any(|bom| {
+        bom.byte_len() > matched.byte_len() && bom.bytes().starts_with(bytes)
+    })
 }
