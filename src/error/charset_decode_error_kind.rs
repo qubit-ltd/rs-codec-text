@@ -9,6 +9,7 @@ use thiserror::Error;
 
 /// Classifies failures detected while decoding encoded units into Unicode text.
 #[derive(Clone, Copy, Debug, Eq, Error, PartialEq)]
+#[non_exhaustive]
 pub enum CharsetDecodeErrorKind {
     /// The input units do not form a well-formed encoded sequence.
     #[error("The encoded text sequence is malformed.")]
@@ -16,32 +17,6 @@ pub enum CharsetDecodeErrorKind {
         /// Optional malformed raw value captured from the offending input
         /// unit.
         value: Option<u32>,
-    },
-
-    /// The requested input unit index is outside the input buffer.
-    #[error("The input unit index is outside the input buffer.")]
-    InvalidInputIndex {
-        /// Length of the input provided to the codec call.
-        input_len: usize,
-    },
-
-    /// The requested output character index is outside the output buffer.
-    #[error("The output character index is outside the output buffer.")]
-    InvalidOutputIndex {
-        /// Length of the output provided to the codec call.
-        output_len: usize,
-    },
-
-    /// The supplied output buffer is too small for finish output.
-    #[error(
-        "The output buffer is too small (required {required} values, available {available} values)."
-    )]
-    InsufficientOutput {
-        /// Total output values required by finish.
-        required: usize,
-
-        /// Total output values currently available from the requested index.
-        available: usize,
     },
 
     /// The closed input ended before a complete character was available.
@@ -68,6 +43,32 @@ pub enum CharsetDecodeErrorKind {
 }
 
 impl CharsetDecodeErrorKind {
+    /// Creates a malformed-sequence error with a captured raw value.
+    ///
+    /// # Parameters
+    ///
+    /// - `value`: Raw malformed unit or byte value observed by the decoder.
+    ///
+    /// # Returns
+    ///
+    /// Returns [`Self::MalformedSequence`] carrying `value`.
+    #[must_use]
+    #[inline]
+    pub const fn malformed(value: u32) -> Self {
+        Self::MalformedSequence { value: Some(value) }
+    }
+
+    /// Creates a malformed-sequence error without a captured raw value.
+    ///
+    /// # Returns
+    ///
+    /// Returns [`Self::MalformedSequence`] with no associated raw value.
+    #[must_use]
+    #[inline]
+    pub const fn malformed_unknown() -> Self {
+        Self::MalformedSequence { value: None }
+    }
+
     /// Returns the number of required input units for this kind, if available.
     ///
     /// # Returns
@@ -75,15 +76,13 @@ impl CharsetDecodeErrorKind {
     /// - `Some(required)` for [`Self::IncompleteSequence`];
     /// - `None` for all other variants.
     #[must_use]
-    #[inline(always)]
+    #[inline]
     pub const fn required(self) -> Option<usize> {
         match self {
             Self::IncompleteSequence { required, .. } => Some(required),
-            Self::MalformedSequence { .. }
-            | Self::InvalidInputIndex { .. }
-            | Self::InvalidOutputIndex { .. }
-            | Self::InsufficientOutput { .. }
-            | Self::InvalidCodePoint { .. } => None,
+            Self::MalformedSequence { .. } | Self::InvalidCodePoint { .. } => {
+                None
+            }
         }
     }
 
@@ -95,15 +94,13 @@ impl CharsetDecodeErrorKind {
     /// - `Some(available)` for [`Self::IncompleteSequence`];
     /// - `None` for all other variants.
     #[must_use]
-    #[inline(always)]
+    #[inline]
     pub const fn available(self) -> Option<usize> {
         match self {
             Self::IncompleteSequence { available, .. } => Some(available),
-            Self::MalformedSequence { .. }
-            | Self::InvalidInputIndex { .. }
-            | Self::InvalidOutputIndex { .. }
-            | Self::InsufficientOutput { .. }
-            | Self::InvalidCodePoint { .. } => None,
+            Self::MalformedSequence { .. } | Self::InvalidCodePoint { .. } => {
+                None
+            }
         }
     }
 
@@ -117,55 +114,12 @@ impl CharsetDecodeErrorKind {
     /// - `Some(value)` for [`Self::InvalidCodePoint`].
     /// - `None` for other variants.
     #[must_use]
-    #[inline(always)]
+    #[inline]
     pub const fn value(self) -> Option<u32> {
         match self {
             Self::MalformedSequence { value } => value,
             Self::InvalidCodePoint { value } => Some(value),
-            Self::IncompleteSequence { .. }
-            | Self::InvalidInputIndex { .. }
-            | Self::InvalidOutputIndex { .. }
-            | Self::InsufficientOutput { .. } => None,
-        }
-    }
-
-    /// Returns the input length when this error comes from an invalid input
-    /// index.
-    ///
-    /// # Returns
-    ///
-    /// - `Some(input_len)` for [`Self::InvalidInputIndex`];
-    /// - `None` for other variants.
-    #[must_use]
-    #[inline(always)]
-    pub const fn input_len(self) -> Option<usize> {
-        match self {
-            Self::InvalidInputIndex { input_len } => Some(input_len),
-            Self::MalformedSequence { .. }
-            | Self::IncompleteSequence { .. }
-            | Self::InvalidOutputIndex { .. }
-            | Self::InsufficientOutput { .. }
-            | Self::InvalidCodePoint { .. } => None,
-        }
-    }
-
-    /// Returns the output length when this error comes from an invalid output
-    /// index.
-    ///
-    /// # Returns
-    ///
-    /// - `Some(output_len)` for [`Self::InvalidOutputIndex`];
-    /// - `None` for other variants.
-    #[must_use]
-    #[inline(always)]
-    pub const fn output_len(self) -> Option<usize> {
-        match self {
-            Self::InvalidOutputIndex { output_len } => Some(output_len),
-            Self::MalformedSequence { .. }
-            | Self::InvalidInputIndex { .. }
-            | Self::IncompleteSequence { .. }
-            | Self::InsufficientOutput { .. }
-            | Self::InvalidCodePoint { .. } => None,
+            Self::IncompleteSequence { .. } => None,
         }
     }
 
@@ -175,7 +129,7 @@ impl CharsetDecodeErrorKind {
     ///
     /// Returns `true` for [`Self::IncompleteSequence`].
     #[must_use]
-    #[inline(always)]
+    #[inline]
     pub const fn is_incomplete(self) -> bool {
         matches!(self, Self::IncompleteSequence { .. })
     }
@@ -187,18 +141,16 @@ impl CharsetDecodeErrorKind {
     /// Returns `Some((required, available))` for [`Self::IncompleteSequence`],
     /// or `None` for all other variants.
     #[must_use]
-    #[inline(always)]
+    #[inline]
     pub const fn incomplete(self) -> Option<(usize, usize)> {
         match self {
             Self::IncompleteSequence {
                 required,
                 available,
             } => Some((required, available)),
-            Self::MalformedSequence { .. }
-            | Self::InvalidInputIndex { .. }
-            | Self::InvalidOutputIndex { .. }
-            | Self::InsufficientOutput { .. }
-            | Self::InvalidCodePoint { .. } => None,
+            Self::MalformedSequence { .. } | Self::InvalidCodePoint { .. } => {
+                None
+            }
         }
     }
 
@@ -210,7 +162,7 @@ impl CharsetDecodeErrorKind {
     /// values. Incomplete input is caller-owned tail data and is not
     /// treated as malformed input by buffered charset decoders.
     #[must_use]
-    #[inline(always)]
+    #[inline]
     pub const fn is_malformed_input(self) -> bool {
         matches!(
             self,
