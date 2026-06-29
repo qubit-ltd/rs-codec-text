@@ -344,10 +344,7 @@ assert_eq!(['A', 'é'], output);
 严格校验时：
 
 ```rust
-use qubit_codec::{
-    TranscodeError,
-    Transcoder,
-};
+use qubit_codec::Transcoder;
 use qubit_codec_text::{
     CharsetDecoder,
     CharsetDecodePolicy,
@@ -360,10 +357,6 @@ let mut output = ['\0'; 1];
 let error = decoder
     .transcode(&[0x80], 0, &mut output, 0)
     .expect_err("invalid UTF-8");
-let error = match error {
-    TranscodeError::Domain(error) => error,
-    other => panic!("expected charset decode error, got {other:?}"),
-};
 
 assert_eq!(0, error.index());
 ```
@@ -430,10 +423,7 @@ assert_eq!("😀".as_bytes(), &output[..progress.written()]);
 ASCII 输出的严格 unmappable 处理：
 
 ```rust
-use qubit_codec::{
-    TranscodeError,
-    Transcoder,
-};
+use qubit_codec::Transcoder;
 use qubit_codec_text::{
     AsciiCodec,
     CharsetEncodePolicy,
@@ -445,10 +435,6 @@ let mut encoder = CharsetEncoder::with_policy(AsciiCodec, CharsetEncodePolicy::r
 
 let mut output = [0_u8; 1];
 let error = encoder.transcode(&['é'], 0, &mut output, 0).expect_err("not ASCII");
-let error = match error {
-    TranscodeError::Domain(error) => error,
-    other => panic!("expected charset encode error, got {other:?}"),
-};
 
 assert_eq!(0, error.index());
 assert_eq!(Some('é' as u32), error.value());
@@ -547,10 +533,7 @@ encode hooks 交给内部 `TranscodeConvertEngine` 复用。
 `CharsetConvertError` 会区分源端解码失败和目标端编码失败：
 
 ```rust
-use qubit_codec::{
-    TranscodeError,
-    Transcoder,
-};
+use qubit_codec::Transcoder;
 use qubit_codec_text::{
     CharsetConvertError,
     CharsetConverter,
@@ -575,7 +558,7 @@ let error = converter
 
 assert!(matches!(
     error,
-    TranscodeError::Domain(CharsetConvertError::Decode(_)),
+    CharsetConvertError::Decode(_),
 ));
 ```
 
@@ -621,9 +604,13 @@ unmappable 字符会返回错误。
 | `MalformedSequence` | 缓冲区中存在单元，但对当前 charset 非法。 |
 | `IncompleteSequence` | 关闭输入在完整标量值出现前结束。 |
 | `InvalidCodePoint` | 解码出的数值不是 Unicode 标量值。 |
+| `InvalidInputIndex` | 调用方传入了大于输入长度的源 unit 下标。 |
+| `InvalidOutputIndex` | 调用方传入了大于输出长度的 value 下标。 |
+| `BufferTooSmall` | 输出缓冲区无法容纳解码值或替换值。 |
+| `OutputLengthOverflow` | 输出长度规划时发生算术溢出。 |
 
-非法输入/输出下标和调用方输出容量不足由 `qubit_codec::TranscodeError` 表达，不再属于
-`CharsetDecodeErrorKind`。
+facade 会把非法下标、输出不足和输出长度溢出等 transcode framework failure
+映射成 charset 错误种类。
 
 编码错误携带目标 charset、错误种类、下标和可选原始值。
 
@@ -631,8 +618,10 @@ unmappable 字符会返回错误。
 | --- | --- |
 | `InvalidCodePoint` | codec 被要求编码非标量码点。 |
 | `InvalidInputIndex` | 调用方传入了大于输入长度的字符下标。 |
+| `InvalidOutputIndex` | 调用方传入了大于输出长度的目标 unit 下标。 |
 | `UnmappableCharacter` | 字符无法用目标 charset 表示。 |
 | `BufferTooSmall` | 输出缓冲区无法容纳编码结果。 |
+| `OutputLengthOverflow` | 输出长度规划时发生算术溢出。 |
 
 常用 decode 访问器包括 `charset()`、`kind()`、`index()`、`required()`、
 `available()`、`value()` 和 `consumed()`。Encode 错误还会为 encode 侧下标失败暴露

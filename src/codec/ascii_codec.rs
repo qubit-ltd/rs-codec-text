@@ -7,17 +7,9 @@
 // =============================================================================
 use core::num::NonZeroUsize;
 
-use crate::error::{
-    CharsetCodecDecodeResult,
-    map_charset_decode_failure,
-};
+use crate::error::{CharsetCodecDecodeResult, map_charset_decode_failure};
 use crate::{
-    Ascii,
-    Charset,
-    CharsetCodec,
-    CharsetDecodeError,
-    CharsetDecodeErrorKind,
-    CharsetEncodeError,
+    Ascii, Charset, CharsetCodec, CharsetDecodeError, CharsetDecodeErrorKind, CharsetEncodeError,
     CharsetEncodeResult,
 };
 use qubit_codec::Codec;
@@ -77,8 +69,7 @@ impl Codec for AsciiCodec {
         debug_assert!(input_index < input.len());
 
         // SAFETY: The caller guarantees that `input_index` is readable.
-        let value =
-            unsafe { qubit_io::UncheckedSlice::read(input, input_index) };
+        let value = unsafe { qubit_io::UncheckedSlice::read(input, input_index) };
         if !Ascii::is_ascii_byte(value) {
             let kind = CharsetDecodeErrorKind::malformed(value as u32);
             return Err(map_charset_decode_failure(CharsetDecodeError::new(

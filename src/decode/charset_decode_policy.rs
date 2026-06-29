@@ -23,10 +23,7 @@ impl CharsetDecodePolicy {
     /// Creates a malformed-input policy.
     #[must_use]
     #[inline]
-    pub const fn new(
-        malformed_action: MalformedAction,
-        replacement: char,
-    ) -> Self {
+    pub const fn new(malformed_action: MalformedAction, replacement: char) -> Self {
         Self {
             malformed_action,
             replacement,

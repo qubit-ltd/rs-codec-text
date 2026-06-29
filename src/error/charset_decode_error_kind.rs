@@ -11,6 +11,36 @@ use thiserror::Error;
 #[derive(Clone, Copy, Debug, Eq, Error, PartialEq)]
 #[non_exhaustive]
 pub enum CharsetDecodeErrorKind {
+    /// The requested input unit index is outside the input buffer.
+    #[error("The input unit index is outside the input buffer.")]
+    InvalidInputIndex {
+        /// Length of the input provided to the codec call.
+        input_len: usize,
+    },
+
+    /// The requested output character index is outside the output buffer.
+    #[error("The output character index is outside the output buffer.")]
+    InvalidOutputIndex {
+        /// Length of the output provided to the codec call.
+        output_len: usize,
+    },
+
+    /// The supplied output buffer is too small for decoded characters.
+    #[error(
+        "The output buffer is too small (required {required} characters, available {available} characters)."
+    )]
+    BufferTooSmall {
+        /// Total output characters required.
+        required: usize,
+
+        /// Total output characters currently available.
+        available: usize,
+    },
+
+    /// Output length arithmetic overflowed.
+    #[error("The output length arithmetic overflowed.")]
+    OutputLengthOverflow,
+
     /// The input units do not form a well-formed encoded sequence.
     #[error("The encoded text sequence is malformed.")]
     MalformedSequence {
@@ -33,9 +63,7 @@ pub enum CharsetDecodeErrorKind {
     },
 
     /// The decoded numeric value is not a valid Unicode scalar value.
-    #[error(
-        "The decoded code point 0x{value:x} is not a valid Unicode scalar value."
-    )]
+    #[error("The decoded code point 0x{value:x} is not a valid Unicode scalar value.")]
     InvalidCodePoint {
         /// Raw decoded code-point value.
         value: u32,
@@ -80,9 +108,12 @@ impl CharsetDecodeErrorKind {
     pub const fn required(self) -> Option<usize> {
         match self {
             Self::IncompleteSequence { required, .. } => Some(required),
-            Self::MalformedSequence { .. } | Self::InvalidCodePoint { .. } => {
-                None
-            }
+            Self::BufferTooSmall { required, .. } => Some(required),
+            Self::InvalidInputIndex { .. }
+            | Self::InvalidOutputIndex { .. }
+            | Self::OutputLengthOverflow
+            | Self::MalformedSequence { .. }
+            | Self::InvalidCodePoint { .. } => None,
         }
     }
 
@@ -98,9 +129,12 @@ impl CharsetDecodeErrorKind {
     pub const fn available(self) -> Option<usize> {
         match self {
             Self::IncompleteSequence { available, .. } => Some(available),
-            Self::MalformedSequence { .. } | Self::InvalidCodePoint { .. } => {
-                None
-            }
+            Self::BufferTooSmall { available, .. } => Some(available),
+            Self::InvalidInputIndex { .. }
+            | Self::InvalidOutputIndex { .. }
+            | Self::OutputLengthOverflow
+            | Self::MalformedSequence { .. }
+            | Self::InvalidCodePoint { .. } => None,
         }
     }
 
@@ -119,7 +153,11 @@ impl CharsetDecodeErrorKind {
         match self {
             Self::MalformedSequence { value } => value,
             Self::InvalidCodePoint { value } => Some(value),
-            Self::IncompleteSequence { .. } => None,
+            Self::InvalidInputIndex { .. }
+            | Self::InvalidOutputIndex { .. }
+            | Self::BufferTooSmall { .. }
+            | Self::OutputLengthOverflow
+            | Self::IncompleteSequence { .. } => None,
         }
     }
 
@@ -148,9 +186,12 @@ impl CharsetDecodeErrorKind {
                 required,
                 available,
             } => Some((required, available)),
-            Self::MalformedSequence { .. } | Self::InvalidCodePoint { .. } => {
-                None
-            }
+            Self::InvalidInputIndex { .. }
+            | Self::InvalidOutputIndex { .. }
+            | Self::BufferTooSmall { .. }
+            | Self::OutputLengthOverflow
+            | Self::MalformedSequence { .. }
+            | Self::InvalidCodePoint { .. } => None,
         }
     }
 

@@ -1,22 +1,13 @@
-use qubit_codec::{
-    ByteOrder,
-    Codec,
-};
+use qubit_codec::{ByteOrder, Codec};
 use qubit_codec_text::{
-    Charset,
-    CharsetCodec,
-    CharsetDecodeErrorKind,
-    CharsetEncodeResult,
-    Utf32,
-    Utf32ByteCodec,
+    Charset, CharsetCodec, CharsetDecodeErrorKind, CharsetEncodeResult, Utf32, Utf32ByteCodec,
 };
 
 type DecodedCharResult = Result<
     (char, core::num::NonZeroUsize),
     qubit_codec::DecodeFailure<qubit_codec_text::CharsetDecodeError>,
 >;
-type DecodeFn =
-    unsafe fn(&mut Utf32ByteCodec, &[u8], usize) -> DecodedCharResult;
+type DecodeFn = unsafe fn(&mut Utf32ByteCodec, &[u8], usize) -> DecodedCharResult;
 type EncodeFn = unsafe fn(
     &mut Utf32ByteCodec,
     &char,
@@ -55,8 +46,7 @@ fn test_utf32_byte_codec_encodes_and_decodes_bytes() {
             .expect("encode UTF-32BE A")
             .get()
     });
-    let (decoded, consumed) =
-        unsafe { codec.decode(&output, 0) }.expect("decode UTF-32BE A");
+    let (decoded, consumed) = unsafe { codec.decode(&output, 0) }.expect("decode UTF-32BE A");
     assert_eq!('A', decoded);
     assert_eq!(4, consumed.get());
 }
@@ -79,8 +69,7 @@ fn test_utf32_byte_codec_reports_closed_tail_and_invalid_units() {
 fn test_utf32_byte_codec_direct_function_items_cover_trait_methods() {
     let mut codec = Utf32ByteCodec::new(ByteOrder::LittleEndian);
     let new_fn: fn(ByteOrder) -> Utf32ByteCodec = Utf32ByteCodec::new;
-    let byte_order: fn(Utf32ByteCodec) -> ByteOrder =
-        Utf32ByteCodec::byte_order;
+    let byte_order: fn(Utf32ByteCodec) -> ByteOrder = Utf32ByteCodec::byte_order;
     let inherent_charset: fn(Utf32ByteCodec) -> Charset =
         std::hint::black_box(Utf32ByteCodec::charset);
     let trait_charset: fn(&Utf32ByteCodec) -> Charset =
@@ -109,7 +98,6 @@ fn test_utf32_byte_codec_direct_function_items_cover_trait_methods() {
             .expect("encode bytes")
             .get()
     );
-    let (decoded, consumed) =
-        unsafe { decode(&mut codec, &output, 0) }.expect("decode bytes");
+    let (decoded, consumed) = unsafe { decode(&mut codec, &output, 0) }.expect("decode bytes");
     assert_eq!(('中', 4), (decoded, consumed.get()));
 }

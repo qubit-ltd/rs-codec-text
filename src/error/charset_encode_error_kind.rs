@@ -50,6 +50,20 @@ pub enum CharsetEncodeErrorKind {
         /// Total units currently available for the requested output index.
         available: usize,
     },
+
+    /// Output length arithmetic overflowed.
+    #[error("The output length arithmetic overflowed.")]
+    OutputLengthOverflow,
+
+    /// The closed input ended before a complete value was available.
+    #[error("The input is incomplete (required {required} units, available {available} units).")]
+    IncompleteInput {
+        /// Total units required to complete the value.
+        required: usize,
+
+        /// Total units currently available from the incomplete input index.
+        available: usize,
+    },
 }
 
 impl CharsetEncodeErrorKind {
@@ -68,7 +82,9 @@ impl CharsetEncodeErrorKind {
             Self::UnmappableCharacter { value, .. } => Some(value),
             Self::BufferTooSmall { .. }
             | Self::InvalidInputIndex { .. }
-            | Self::InvalidOutputIndex { .. } => None,
+            | Self::InvalidOutputIndex { .. }
+            | Self::OutputLengthOverflow
+            | Self::IncompleteInput { .. } => None,
         }
     }
 
@@ -82,11 +98,14 @@ impl CharsetEncodeErrorKind {
     #[inline]
     pub const fn required(self) -> Option<usize> {
         match self {
-            Self::BufferTooSmall { required, .. } => Some(required),
+            Self::BufferTooSmall { required, .. } | Self::IncompleteInput { required, .. } => {
+                Some(required)
+            }
             Self::InvalidInputIndex { .. }
             | Self::InvalidOutputIndex { .. }
             | Self::InvalidCodePoint { .. }
-            | Self::UnmappableCharacter { .. } => None,
+            | Self::UnmappableCharacter { .. }
+            | Self::OutputLengthOverflow => None,
         }
     }
 
@@ -101,11 +120,14 @@ impl CharsetEncodeErrorKind {
     #[inline]
     pub const fn available(self) -> Option<usize> {
         match self {
-            Self::BufferTooSmall { available, .. } => Some(available),
+            Self::BufferTooSmall { available, .. } | Self::IncompleteInput { available, .. } => {
+                Some(available)
+            }
             Self::InvalidInputIndex { .. }
             | Self::InvalidOutputIndex { .. }
             | Self::InvalidCodePoint { .. }
-            | Self::UnmappableCharacter { .. } => None,
+            | Self::UnmappableCharacter { .. }
+            | Self::OutputLengthOverflow => None,
         }
     }
 
@@ -124,7 +146,9 @@ impl CharsetEncodeErrorKind {
             Self::InvalidCodePoint { .. }
             | Self::UnmappableCharacter { .. }
             | Self::BufferTooSmall { .. }
-            | Self::InvalidOutputIndex { .. } => None,
+            | Self::InvalidOutputIndex { .. }
+            | Self::OutputLengthOverflow
+            | Self::IncompleteInput { .. } => None,
         }
     }
 
@@ -143,7 +167,9 @@ impl CharsetEncodeErrorKind {
             Self::InvalidCodePoint { .. }
             | Self::InvalidInputIndex { .. }
             | Self::UnmappableCharacter { .. }
-            | Self::BufferTooSmall { .. } => None,
+            | Self::BufferTooSmall { .. }
+            | Self::OutputLengthOverflow
+            | Self::IncompleteInput { .. } => None,
         }
     }
 }

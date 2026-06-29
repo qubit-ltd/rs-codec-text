@@ -5,32 +5,17 @@
 //
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
-use core::{
-    fmt,
-    num::NonZeroUsize,
-};
+use core::{fmt, num::NonZeroUsize};
 
 use qubit_codec::{
-    CapacityError,
-    TranscodeEncodeEngine,
-    TranscodeEncodeEngineError,
-    TranscodeEncoder,
-    TranscodeError,
-    TranscodeProgress,
+    CapacityError, TranscodeEncodeEngine, TranscodeEncoder, TranscodeError, TranscodeProgress,
     Transcoder,
 };
 
-use crate::{
-    CharsetCodec,
-    CharsetEncodeError,
-    UnmappableAction,
-};
+use crate::{CharsetCodec, CharsetEncodeError, UnmappableAction, map_charset_encode_error};
 
 use super::{
-    charset_encode_hooks::{
-        CharsetEncodeHooks,
-        replacement_len,
-    },
+    charset_encode_hooks::{CharsetEncodeHooks, replacement_len},
     charset_encode_policy::CharsetEncodePolicy,
 };
 
@@ -120,12 +105,8 @@ where
     ///
     /// Returns an error when `policy` uses replacement and the replacement
     /// character cannot be encoded by `codec`.
-    pub fn with_policy(
-        codec: C,
-        policy: CharsetEncodePolicy,
-    ) -> Result<Self, CharsetEncodeError> {
-        let (hooks, replacement_units_len) =
-            Self::create_hooks(&codec, policy)?;
+    pub fn with_policy(codec: C, policy: CharsetEncodePolicy) -> Result<Self, CharsetEncodeError> {
+        let (hooks, replacement_units_len) = Self::create_hooks(&codec, policy)?;
         Ok(Self {
             engine: TranscodeEncodeEngine::new(codec, hooks),
             policy,
@@ -208,19 +189,12 @@ where
     pub(crate) fn create_hooks(
         codec: &C,
         policy: CharsetEncodePolicy,
-    ) -> Result<
-        (CharsetEncodeHooks<C::Unit>, Option<NonZeroUsize>),
-        CharsetEncodeError,
-    > {
-        let hooks = CharsetEncodeHooks::new(
-            policy.unmappable_action(),
-            policy.replacement(),
-        );
+    ) -> Result<(CharsetEncodeHooks<C::Unit>, Option<NonZeroUsize>), CharsetEncodeError> {
+        let hooks = CharsetEncodeHooks::new(policy.unmappable_action(), policy.replacement());
         if policy.unmappable_action() != UnmappableAction::Replace {
             return Ok((hooks, None));
         }
-        let replacement_units_len =
-            replacement_len(codec, policy.replacement())?;
+        let replacement_units_len = replacement_len(codec, policy.replacement())?;
         Ok((hooks, Some(replacement_units_len)))
     }
 }
@@ -230,21 +204,29 @@ where
     C: CharsetCodec,
 {
     type Error = CharsetEncodeError;
+    type DomainError = CharsetEncodeError;
+
+    /// Maps transcode-layer failures into charset encode errors.
+    #[inline]
+    fn map_error(&self, error: TranscodeError<Self::DomainError>) -> Self::Error {
+        map_charset_encode_error(self.charset(), error)
+    }
 
     /// Returns the maximum number of target units needed for `input_len`
     /// characters.
     #[inline]
-    fn max_transcode_output_len(
-        &self,
-        input_len: usize,
-    ) -> Result<usize, CapacityError> {
-        self.engine.max_transcode_output_len(input_len)
+    fn max_transcode_output_len(&self, input_len: usize) -> Result<usize, CapacityError> {
+        self.engine
+            .max_transcode_output_len(input_len)
+            .map_err(|_| CapacityError::OutputLengthOverflow)
     }
 
     /// Returns the maximum target units emitted by finishing internal state.
     #[inline]
     fn max_finish_output_len(&self) -> Result<usize, CapacityError> {
-        self.engine.max_finish_output_len()
+        self.engine
+            .max_finish_output_len()
+            .map_err(|_| CapacityError::OutputLengthOverflow)
     }
 
     /// Returns the maximum target units emitted when resetting stream state.
@@ -255,14 +237,11 @@ where
 
     /// Runs encoder reset while keeping encoder policy.
     #[inline]
-    fn reset(
-        &mut self,
-        output: &mut [C::Unit],
-        output_index: usize,
-    ) -> Result<usize, TranscodeError<Self::Error>> {
+    fn reset(&mut self, output: &mut [C::Unit], output_index: usize) -> Result<usize, Self::Error> {
+        let charset = self.charset();
         self.engine
             .reset(output, output_index)
-            .map_err(|error| error.map_domain(map_encode_engine_error))
+            .map_err(|error| map_charset_encode_error(charset, error))
     }
 
     /// Encodes characters into the target charset while applying unmappable
@@ -274,10 +253,11 @@ where
         input_index: usize,
         output: &mut [C::Unit],
         output_index: usize,
-    ) -> Result<TranscodeProgress, TranscodeError<Self::Error>> {
+    ) -> Result<TranscodeProgress, Self::Error> {
+        let charset = self.charset();
         self.engine
             .transcode(input, input_index, output, output_index)
-            .map_err(|error| error.map_domain(map_encode_engine_error))
+            .map_err(|error| map_charset_encode_error(charset, error))
     }
 
     /// Finishes encoder-owned final output after EOF.
@@ -286,17 +266,15 @@ where
         &mut self,
         output: &mut [C::Unit],
         output_index: usize,
-    ) -> Result<usize, TranscodeError<Self::Error>> {
+    ) -> Result<usize, Self::Error> {
+        let charset = self.charset();
         self.engine
             .finish(output, output_index)
-            .map_err(|error| error.map_domain(map_encode_engine_error))
+            .map_err(|error| map_charset_encode_error(charset, error))
     }
 }
 
-impl<C> TranscodeEncoder<char, C::Unit> for CharsetEncoder<C> where
-    C: CharsetCodec
-{
-}
+impl<C> TranscodeEncoder<char, C::Unit> for CharsetEncoder<C> where C: CharsetCodec {}
 
 impl<C> fmt::Debug for CharsetEncoder<C>
 where
@@ -313,17 +291,5 @@ where
                 &self.replacement_units_len.map(NonZeroUsize::get),
             )
             .finish()
-    }
-}
-
-#[inline]
-fn map_encode_engine_error(
-    error: TranscodeEncodeEngineError<CharsetEncodeError, CharsetEncodeError>,
-) -> CharsetEncodeError {
-    match error {
-        TranscodeEncodeEngineError::CodecEncode { source, .. }
-        | TranscodeEncodeEngineError::CodecReset { source }
-        | TranscodeEncodeEngineError::CodecFlush { source } => source,
-        TranscodeEncodeEngineError::Hook(error) => error,
     }
 }

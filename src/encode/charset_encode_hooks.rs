@@ -5,23 +5,11 @@
 //
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
-use core::{
-    fmt,
-    marker::PhantomData,
-    num::NonZeroUsize,
-};
+use core::{fmt, marker::PhantomData, num::NonZeroUsize};
 
-use qubit_codec::{
-    EncodeUnencodableAction,
-    TranscodeEncodeHooks,
-};
+use qubit_codec::{CodecPhase, EncodeUnencodableAction, TranscodeEncodeHooks, TranscodeError};
 
-use crate::{
-    CharsetEncodeError,
-    CharsetEncodeErrorKind,
-    CharsetEncodeResult,
-    UnmappableAction,
-};
+use crate::{CharsetEncodeError, CharsetEncodeErrorKind, CharsetEncodeResult, UnmappableAction};
 
 use crate::CharsetCodec;
 
@@ -60,10 +48,7 @@ impl<Unit> CharsetEncodeHooks<Unit> {
     /// Returns hooks configured with no replacement output units.
     #[must_use]
     #[inline]
-    pub(crate) const fn new(
-        unmappable_action: UnmappableAction,
-        replacement: char,
-    ) -> Self {
+    pub(crate) const fn new(unmappable_action: UnmappableAction, replacement: char) -> Self {
         Self {
             unmappable_action,
             replacement,
@@ -76,8 +61,6 @@ impl<C> TranscodeEncodeHooks<C> for CharsetEncodeHooks<C::Unit>
 where
     C: CharsetCodec,
 {
-    type Error = CharsetEncodeError;
-
     /// Handles one character rejected by the charset codec.
     #[inline]
     fn handle_unencodable_encode(
@@ -85,24 +68,23 @@ where
         codec: &mut C,
         ch: &char,
         input_index: usize,
-    ) -> Result<EncodeUnencodableAction<char>, Self::Error> {
+    ) -> Result<EncodeUnencodableAction<char>, qubit_codec::TranscodeEncodeError<C>> {
         let ch = *ch;
         let error = unmappable_error(codec, ch, input_index);
         match self.unmappable_action {
-            UnmappableAction::Report => Err(error),
+            UnmappableAction::Report => Err(TranscodeError::domain(
+                error,
+                CodecPhase::Main,
+                Some(input_index),
+            )),
             UnmappableAction::Ignore => Ok(EncodeUnencodableAction::Skip),
-            UnmappableAction::Replace => {
-                Ok(EncodeUnencodableAction::replace(self.replacement))
-            }
+            UnmappableAction::Replace => Ok(EncodeUnencodableAction::replace(self.replacement)),
         }
     }
 }
 
 /// Returns the encoded width of a replacement character.
-pub(super) fn replacement_len<C>(
-    codec: &C,
-    ch: char,
-) -> CharsetEncodeResult<NonZeroUsize>
+pub(super) fn replacement_len<C>(codec: &C, ch: char) -> CharsetEncodeResult<NonZeroUsize>
 where
     C: CharsetCodec,
 {

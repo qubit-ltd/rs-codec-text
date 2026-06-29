@@ -68,5 +68,8 @@ serde_json = "1.0"
 default = []
 serde = ["dep:serde"]
 
+[patch.crates-io]
+qubit-io = { path = "../rs-io" }
+
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage)'] }

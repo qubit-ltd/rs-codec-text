@@ -372,10 +372,7 @@ assert_eq!(['A', 'é'], output);
 For strict validation:
 
 ```rust
-use qubit_codec::{
-    TranscodeError,
-    Transcoder,
-};
+use qubit_codec::Transcoder;
 use qubit_codec_text::{
     CharsetDecoder,
     CharsetDecodePolicy,
@@ -388,10 +385,6 @@ let mut output = ['\0'; 1];
 let error = decoder
     .transcode(&[0x80], 0, &mut output, 0)
     .expect_err("invalid UTF-8");
-let error = match error {
-    TranscodeError::Domain(error) => error,
-    other => panic!("expected charset decode error, got {other:?}"),
-};
 
 assert_eq!(0, error.index());
 ```
@@ -460,10 +453,7 @@ assert_eq!("😀".as_bytes(), &output[..progress.written()]);
 For ASCII output with strict unmappable handling:
 
 ```rust
-use qubit_codec::{
-    TranscodeError,
-    Transcoder,
-};
+use qubit_codec::Transcoder;
 use qubit_codec_text::{
     AsciiCodec,
     CharsetEncoder,
@@ -475,10 +465,6 @@ let mut encoder = CharsetEncoder::with_policy(AsciiCodec, CharsetEncodePolicy::r
 
 let mut output = [0_u8; 1];
 let error = encoder.transcode(&['é'], 0, &mut output, 0).expect_err("not ASCII");
-let error = match error {
-    TranscodeError::Domain(error) => error,
-    other => panic!("expected charset encode error, got {other:?}"),
-};
 
 assert_eq!(0, error.index());
 assert_eq!(Some('é' as u32), error.value());
@@ -580,10 +566,7 @@ validated once and the resulting encode hooks are reused by the internal
 failures:
 
 ```rust
-use qubit_codec::{
-    TranscodeError,
-    Transcoder,
-};
+use qubit_codec::Transcoder;
 use qubit_codec_text::{
     CharsetConvertError,
     CharsetConverter,
@@ -608,7 +591,7 @@ let error = converter
 
 assert!(matches!(
     error,
-    TranscodeError::Domain(CharsetConvertError::Decode(_)),
+    CharsetConvertError::Decode(_),
 ));
 ```
 
@@ -659,9 +642,13 @@ optional raw value.
 | `MalformedSequence` | Units are present but invalid for the charset. |
 | `IncompleteSequence` | Closed input ended before a full scalar value was available. |
 | `InvalidCodePoint` | Decoded numeric value is not a Unicode scalar value. |
+| `InvalidInputIndex` | Caller passed a source-unit index greater than input length. |
+| `InvalidOutputIndex` | Caller passed a value index greater than output length. |
+| `BufferTooSmall` | Output buffer cannot hold the decoded value or replacement. |
+| `OutputLengthOverflow` | Output length arithmetic overflowed during planning. |
 
-Invalid input/output indices and insufficient caller output are represented by
-`qubit_codec::TranscodeError`, not by `CharsetDecodeErrorKind`.
+The facade maps transcode framework failures such as invalid indices,
+insufficient output, and output-length overflow into charset error kinds.
 
 Encode errors carry the target charset, error kind, index, and optional raw
 value.
@@ -670,8 +657,10 @@ value.
 | --- | --- |
 | `InvalidCodePoint` | Codec was asked to encode a non-scalar code point. |
 | `InvalidInputIndex` | Caller passed a character index greater than input length. |
+| `InvalidOutputIndex` | Caller passed a target-unit index greater than output length. |
 | `UnmappableCharacter` | Character cannot be represented by the target charset. |
 | `BufferTooSmall` | Output buffer cannot hold the encoded value. |
+| `OutputLengthOverflow` | Output length arithmetic overflowed during planning. |
 
 Useful decode accessors include `charset()`, `kind()`, `index()`,
 `required()`, `available()`, `value()`, and `consumed()`. Encode errors also
