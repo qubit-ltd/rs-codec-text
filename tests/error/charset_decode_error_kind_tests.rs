@@ -68,8 +68,7 @@ fn test_charset_decode_error_kind_exposes_decode_policy_helpers() {
         required: 3,
         available: 1,
     };
-    let invalid_code_point =
-        CharsetDecodeErrorKind::InvalidCodePoint { value: 0x110000 };
+    let invalid_code_point = CharsetDecodeErrorKind::InvalidCodePoint { value: 0x110000 };
 
     assert!(!malformed.is_incomplete());
     assert!(incomplete.is_incomplete());

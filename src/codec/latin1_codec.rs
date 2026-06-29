@@ -9,12 +9,7 @@ use core::num::NonZeroUsize;
 
 use crate::error::CharsetCodecDecodeResult;
 use crate::{
-    Charset,
-    CharsetCodec,
-    CharsetDecodeError,
-    CharsetEncodeError,
-    CharsetEncodeResult,
-    Latin1,
+    Charset, CharsetCodec, CharsetDecodeError, CharsetEncodeError, CharsetEncodeResult, Latin1,
 };
 use qubit_codec::Codec;
 use qubit_io::UncheckedSlice;
@@ -86,8 +81,7 @@ impl Codec for Latin1Codec {
         debug_assert!(self.can_encode_value(ch));
         debug_assert!(output_index < output.len());
 
-        let value = Latin1::char_to_byte(*ch)
-            .expect("encodable Latin-1 character maps to byte");
+        let value = Latin1::char_to_byte(*ch).expect("encodable Latin-1 character maps to byte");
         // SAFETY: The caller guarantees that `ch` is encodable and
         // `output_index` is writable.
         unsafe {

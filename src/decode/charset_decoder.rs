@@ -6,28 +6,16 @@
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
 use qubit_codec::{
-    CapacityError,
-    Codec,
-    TranscodeDecodeEngine,
-    TranscodeDecodeEngineError,
-    TranscodeDecoder,
-    TranscodeError,
-    TranscodeProgress,
-    Transcoder,
+    CapacityError, Codec, TranscodeDecodeEngine, TranscodeDecoder, TranscodeError,
+    TranscodeProgress, Transcoder,
 };
 
 use crate::{
-    BomDetectStatus,
-    CharsetCodec,
-    CharsetDecodeError,
-    MalformedAction,
-    UnicodeBom,
+    BomDetectStatus, CharsetCodec, CharsetDecodeError, MalformedAction, UnicodeBom,
+    map_charset_decode_error,
 };
 
-use super::{
-    charset_decode_hooks::CharsetDecodeHooks,
-    charset_decode_policy::CharsetDecodePolicy,
-};
+use super::{charset_decode_hooks::CharsetDecodeHooks, charset_decode_policy::CharsetDecodePolicy};
 
 /// Converts units of one charset into Unicode scalar values.
 ///
@@ -85,10 +73,7 @@ where
     /// Returns a decoder configured with `policy`.
     #[must_use]
     pub fn with_policy(codec: C, policy: CharsetDecodePolicy) -> Self {
-        let hooks = CharsetDecodeHooks::new(
-            policy.malformed_action(),
-            policy.replacement(),
-        );
+        let hooks = CharsetDecodeHooks::new(policy.malformed_action(), policy.replacement());
         Self {
             engine: TranscodeDecodeEngine::new(codec, hooks),
             policy,
@@ -185,9 +170,7 @@ where
     pub fn detect_and_strip_bom(input: &[u8]) -> (Option<UnicodeBom>, &[u8]) {
         match Self::detect_and_strip_bom_progress(input, true) {
             (BomDetectStatus::Match(bom), stripped) => (Some(bom), stripped),
-            (BomDetectStatus::Pending | BomDetectStatus::None, stripped) => {
-                (None, stripped)
-            }
+            (BomDetectStatus::Pending | BomDetectStatus::None, stripped) => (None, stripped),
         }
     }
 
@@ -205,46 +188,46 @@ where
     /// slice for [`BomDetectStatus::Pending`] and [`BomDetectStatus::None`],
     /// or the input slice after the BOM prefix for [`BomDetectStatus::Match`].
     #[must_use]
-    pub fn detect_and_strip_bom_progress(
-        input: &[u8],
-        eof: bool,
-    ) -> (BomDetectStatus, &[u8]) {
+    pub fn detect_and_strip_bom_progress(input: &[u8], eof: bool) -> (BomDetectStatus, &[u8]) {
         match UnicodeBom::detect_progress(input, eof) {
             BomDetectStatus::Match(bom) => {
                 (BomDetectStatus::Match(bom), &input[bom.bytes().len()..])
             }
-            status @ (BomDetectStatus::Pending | BomDetectStatus::None) => {
-                (status, input)
-            }
+            status @ (BomDetectStatus::Pending | BomDetectStatus::None) => (status, input),
         }
     }
 }
 
-impl<C> TranscodeDecoder<C::Unit, char> for CharsetDecoder<C> where
-    C: CharsetCodec
-{
-}
+impl<C> TranscodeDecoder<C::Unit, char> for CharsetDecoder<C> where C: CharsetCodec {}
 
 impl<C> Transcoder<C::Unit, char> for CharsetDecoder<C>
 where
     C: CharsetCodec,
 {
     type Error = CharsetDecodeError;
+    type DomainError = CharsetDecodeError;
+
+    /// Maps transcode-layer failures into charset decode errors.
+    #[inline]
+    fn map_error(&self, error: TranscodeError<Self::DomainError>) -> Self::Error {
+        map_charset_decode_error(self.charset(), error)
+    }
 
     /// Returns the maximum number of characters decoded from `input_len` units.
     #[inline]
-    fn max_transcode_output_len(
-        &self,
-        input_len: usize,
-    ) -> Result<usize, CapacityError> {
-        self.engine.max_transcode_output_len(input_len)
+    fn max_transcode_output_len(&self, input_len: usize) -> Result<usize, CapacityError> {
+        self.engine
+            .max_transcode_output_len(input_len)
+            .map_err(|_| CapacityError::OutputLengthOverflow)
     }
 
     /// Returns the maximum number of characters emitted by finishing internal
     /// state.
     #[inline]
     fn max_finish_output_len(&self) -> Result<usize, CapacityError> {
-        self.engine.max_finish_output_len()
+        self.engine
+            .max_finish_output_len()
+            .map_err(|_| CapacityError::OutputLengthOverflow)
     }
 
     /// Returns the maximum characters emitted when resetting stream state.
@@ -255,14 +238,11 @@ where
 
     /// Runs decoder reset while keeping decoder policy.
     #[inline]
-    fn reset(
-        &mut self,
-        output: &mut [char],
-        output_index: usize,
-    ) -> Result<usize, TranscodeError<Self::Error>> {
+    fn reset(&mut self, output: &mut [char], output_index: usize) -> Result<usize, Self::Error> {
+        let charset = self.charset();
         self.engine
             .reset(output, output_index)
-            .map_err(|error| error.map_domain(map_decode_engine_error))
+            .map_err(|error| map_charset_decode_error(charset, error))
     }
 
     /// Decodes source units into Unicode scalar values while applying malformed
@@ -274,33 +254,19 @@ where
         input_index: usize,
         output: &mut [char],
         output_index: usize,
-    ) -> Result<TranscodeProgress, TranscodeError<Self::Error>> {
+    ) -> Result<TranscodeProgress, Self::Error> {
+        let charset = self.charset();
         self.engine
             .transcode(input, input_index, output, output_index)
-            .map_err(|error| error.map_domain(map_decode_engine_error))
+            .map_err(|error| map_charset_decode_error(charset, error))
     }
 
     /// Finishes decoder-owned final output after EOF.
     #[inline]
-    fn finish(
-        &mut self,
-        output: &mut [char],
-        output_index: usize,
-    ) -> Result<usize, TranscodeError<Self::Error>> {
+    fn finish(&mut self, output: &mut [char], output_index: usize) -> Result<usize, Self::Error> {
+        let charset = self.charset();
         self.engine
             .finish(output, output_index)
-            .map_err(|error| error.map_domain(map_decode_engine_error))
-    }
-}
-
-#[inline]
-fn map_decode_engine_error(
-    error: TranscodeDecodeEngineError<CharsetDecodeError, CharsetDecodeError>,
-) -> CharsetDecodeError {
-    match error {
-        TranscodeDecodeEngineError::CodecDecode { source, .. }
-        | TranscodeDecodeEngineError::CodecReset { source }
-        | TranscodeDecodeEngineError::CodecFlush { source } => source,
-        TranscodeDecodeEngineError::Hook(error) => error,
+            .map_err(|error| map_charset_decode_error(charset, error))
     }
 }
