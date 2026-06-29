@@ -21,9 +21,9 @@ below ordinary `str`, `String`, and `char` APIs. It provides:
 - Policy-aware `CharsetDecoder`, `CharsetEncoder`, and `CharsetConverter`
   wrappers.
 - Typed decode/encode/convert errors with precise buffer indices.
-- Essential `qubit-codec` primitives re-exported for callers:
-  `Codec`, `Transcoder`, `TranscodeProgress`, `TranscodeStatus`, `CapacityError`,
-  and `ByteOrder`.
+- Integration with `qubit-codec` traits and progress types. Import
+  `Codec`, `Transcoder`, `TranscodeProgress`, `TranscodeStatus`,
+  `CapacityError`, and `ByteOrder` directly from `qubit_codec`.
 
 This crate intentionally stays below `std::io` reader/writer adapters,
 automatic charset detection, normalization, segmentation, collation, display
@@ -71,8 +71,11 @@ width, and locale-aware text behavior.
 
 ### Focused Public API
 
-- **`prelude` module**: imports common charset, codec, error, and core transcoder
-  types.
+- **Top-level exports**: `qubit_codec_text` exports its charset, codec, policy,
+  and error types.
+- **Core traits and status types**: import `Codec`, `Transcoder`,
+  `TranscodeStatus`, `TranscodeProgress`, `CapacityError`, and `ByteOrder`
+  from `qubit_codec`.
 - **No stream I/O**: use `qubit-io-text` for reader and writer adapters.
 
 ## Documentation
@@ -85,21 +88,32 @@ width, and locale-aware text behavior.
 
 ```toml
 [dependencies]
-qubit-codec-text = "0.1"
+qubit-codec-text = "0.2"
+qubit-codec = "0.10"
 ```
 
-`qubit-codec` is the core runtime dependency. This crate re-exports only the
-core traits and status types that are part of normal text-codec calls; import
-generic engines, hooks, and adapters directly from `qubit-codec`.
+`qubit-codec` is the core runtime dependency. This crate does not re-export
+`qubit-codec` types; add or import `qubit-codec` directly when naming core
+traits, progress/status types, byte order, engines, hooks, or adapters.
+
+Enable the optional `serde` feature when `Charset` must be serialized in
+configuration or IPC payloads:
+
+```toml
+[dependencies]
+qubit-codec-text = { version = "0.2", features = ["serde"] }
+```
 
 ## Quick Start
 
 ```rust
-use qubit_codec_text::{
-    CharsetEncoder,
+use qubit_codec::{
     Codec,
     TranscodeStatus,
     Transcoder,
+};
+use qubit_codec_text::{
+    CharsetEncoder,
     UnicodeBom,
     Utf8,
     Utf8Codec,
@@ -144,7 +158,7 @@ assert_eq!("😀".as_bytes(), &output[..progress.written()]);
 | `Utf8Codec` | UTF-8 byte encoding and decoding |
 | `Utf16ByteCodec` / `Utf32ByteCodec` | Explicit-byte-order Unicode byte codecs |
 | `Utf16U16Codec` / `Utf32U32Codec` | Unit-oriented Unicode codecs |
-| `Codec<Value = char>` | Lowest-level complete-value codec trait re-exported from `qubit-codec` |
+| `qubit_codec::Codec<Value = char>` | Lowest-level complete-value codec trait implemented by text codecs |
 | `CharsetCodec` | Charset metadata attached to low-level text codec implementations |
 
 ### Converter Types
@@ -169,7 +183,7 @@ assert_eq!("😀".as_bytes(), &output[..progress.written()]);
 
 Codec implementations work against caller-provided input and output buffers.
 `CharsetDecoder` calls `Codec::decode` once at least
-`codec.min_units_per_value()` units are readable, and charset codecs report
+`Codec::MIN_UNITS_PER_VALUE` units are readable, and charset codecs report
 incomplete prefixes through `CharsetDecodeError`. `NeedInput` means the current
 units are a valid incomplete prefix left in the caller-owned input buffer; after
 EOF, the caller handles that tail before calling `finish()` to drain internal
@@ -211,6 +225,7 @@ Runtime dependencies are intentionally small:
 
 - `qubit-codec` provides shared byte-order and transcoder primitives.
 - `thiserror` provides the public error type implementations.
+- `serde` is optional and serializes `Charset` values as their stable `id`.
 
 ## License
 
