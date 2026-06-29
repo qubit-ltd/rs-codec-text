@@ -19,8 +19,9 @@ Qubit Text Codec 是一个低层编解码核心，服务于那些需要在 Rust 
 - ASCII、ISO-8859-1、UTF-8、UTF-16、UTF-32 的缓冲区级 codec。
 - 带策略的 `CharsetDecoder`、`CharsetEncoder` 和 `CharsetConverter`。
 - 带精确缓冲区下标的强类型 decode / encode / convert 错误。
-- 面向调用方重导出的必要 `qubit-codec` 原语：`Codec`、`Transcoder`、
-  `TranscodeProgress`、`TranscodeStatus`、`CapacityError` 和 `ByteOrder`。
+- 与 `qubit-codec` 的 trait 和进度类型集成。`Codec`、`Transcoder`、
+  `TranscodeProgress`、`TranscodeStatus`、`CapacityError` 和 `ByteOrder`
+  需要直接从 `qubit_codec` 导入。
 
 本库刻意停留在 `std::io` 读写适配器、自动 charset 检测、规范化、切分、
 排序、显示宽度和区域相关文本行为之下。
@@ -60,7 +61,10 @@ Qubit Text Codec 是一个低层编解码核心，服务于那些需要在 Rust 
 
 ### 聚焦的公开 API
 
-- **`prelude` 模块**：导入常用 charset、codec、error 和核心 transcoder 类型。
+- **顶层导出**：`qubit_codec_text` 导出自己的 charset、codec、策略和错误类型。
+- **核心 trait 与状态类型**：`Codec`、`Transcoder`、`TranscodeStatus`、
+  `TranscodeProgress`、`CapacityError` 和 `ByteOrder` 从 `qubit_codec`
+  导入。
 - **不包含 stream I/O**：reader 和 writer adapter 使用 `qubit-io-text`。
 
 ## 文档
@@ -73,21 +77,31 @@ Qubit Text Codec 是一个低层编解码核心，服务于那些需要在 Rust 
 
 ```toml
 [dependencies]
-qubit-codec-text = "0.1"
+qubit-codec-text = "0.2"
+qubit-codec = "0.10"
 ```
 
-`qubit-codec` 是核心运行时依赖。本库只重导出普通 text-codec 调用需要的
-core trait 和状态类型；通用 engine、hook、adapter 请直接从 `qubit-codec`
-引入。
+`qubit-codec` 是核心运行时依赖。本库不重导出 `qubit-codec` 类型；当代码需要命名
+core trait、进度/状态类型、字节序、engine、hook 或 adapter 时，请直接添加或导入
+`qubit-codec`。
+
+当需要在配置或进程间载荷中序列化 `Charset` 时，可启用可选的 `serde` feature：
+
+```toml
+[dependencies]
+qubit-codec-text = { version = "0.2", features = ["serde"] }
+```
 
 ## 快速开始
 
 ```rust
-use qubit_codec_text::{
-    CharsetEncoder,
+use qubit_codec::{
     Codec,
     TranscodeStatus,
     Transcoder,
+};
+use qubit_codec_text::{
+    CharsetEncoder,
     UnicodeBom,
     Utf8,
     Utf8Codec,
@@ -132,7 +146,7 @@ assert_eq!("😀".as_bytes(), &output[..progress.written()]);
 | `Utf8Codec` | UTF-8 byte 编码和解码 |
 | `Utf16ByteCodec` / `Utf32ByteCodec` | 显式字节序的 Unicode byte codec |
 | `Utf16U16Codec` / `Utf32U32Codec` | Unit-oriented Unicode codec |
-| `Codec<Value = char>` | 从 `qubit-codec` 重导出的最低层完整值 codec trait |
+| `qubit_codec::Codec<Value = char>` | 文本 codec 实现的最低层完整值 codec trait |
 | `CharsetCodec` | 附加在低层文本 codec 实现上的 charset 元数据 |
 
 ### Converter 类型
@@ -156,7 +170,7 @@ assert_eq!("😀".as_bytes(), &output[..progress.written()]);
 ## 性能考虑
 
 Codec 实现直接操作调用方提供的输入和输出缓冲区。`CharsetDecoder` 在至少有
-`codec.min_units_per_value()` 个可读单元时调用 `Codec::decode`，
+`Codec::MIN_UNITS_PER_VALUE` 个可读单元时调用 `Codec::decode`，
 charset codec 通过 `CharsetDecodeError` 报告不完整前缀。`NeedInput` 表示当前单元是
 合法但不完整的前缀，尾部仍留在调用方输入缓冲区中；到达 EOF 后，调用方先处理这个
 尾部，再调用 `finish()` 刷新内部暂存输出。内部实现上，`CharsetDecoder` 复用
@@ -195,6 +209,7 @@ RS_CI_SKIP_TOOLCHAIN_UPDATE=1 ./ci-check.sh
 
 - `qubit-codec` 提供共享字节序和 transcoder 原语。
 - `thiserror` 提供公共错误类型实现。
+- `serde` 是可选依赖，启用后 `Charset` 会按稳定 `id` 序列化。
 
 ## 许可证
 
