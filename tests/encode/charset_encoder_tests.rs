@@ -1,22 +1,24 @@
 use qubit_codec::{
+    CapacityError,
+    Codec,
     TranscodeEncoder,
     TranscodeError,
+    TranscodeProgress,
+    TranscodeStatus,
+    Transcoder,
 };
 use qubit_codec_text::{
     Charset,
     CharsetCodec,
     CharsetDecodeError,
     CharsetDecodeErrorKind,
-    CharsetDecodeResult,
     CharsetEncodeError,
     CharsetEncodeErrorKind,
     CharsetEncodePolicy,
     CharsetEncodeResult,
     CharsetEncoder,
-    Codec,
-    TranscodeStatus,
-    Transcoder,
     UnmappableAction,
+    Utf8Codec,
 };
 use std::{
     cell::Cell,
@@ -25,20 +27,17 @@ use std::{
 
 macro_rules! impl_test_codec {
     ($ty:ty, $max_units:expr, $can_encode:expr) => {
-        unsafe impl Codec for $ty {
+        impl Codec for $ty {
             type Value = char;
             type Unit = u8;
             type DecodeError = CharsetDecodeError;
             type EncodeError = CharsetEncodeError;
 
-            fn min_units_per_value(&self) -> core::num::NonZeroUsize {
-                core::num::NonZeroUsize::MIN
-            }
+            const MIN_UNITS_PER_VALUE: core::num::NonZeroUsize =
+                core::num::NonZeroUsize::MIN;
 
-            fn max_units_per_value(&self) -> core::num::NonZeroUsize {
-                core::num::NonZeroUsize::new($max_units)
-                    .expect("test maximum width is non-zero")
-            }
+            const MAX_UNITS_PER_VALUE: core::num::NonZeroUsize =
+                qubit_io::nz!($max_units);
 
             fn can_encode_value(&self, value: &char) -> bool {
                 let can_encode: fn(char) -> bool = $can_encode;
@@ -48,30 +47,35 @@ macro_rules! impl_test_codec {
             unsafe fn decode(
                 &mut self,
                 _input: &[u8],
-                index: usize,
-            ) -> CharsetDecodeResult<(char, core::num::NonZeroUsize)> {
-                let kind =
-                    CharsetDecodeErrorKind::MalformedSequence { value: None };
-                Err(CharsetDecodeError::new(self.charset(), kind, index))
+                input_index: usize,
+            ) -> Result<
+                (char, core::num::NonZeroUsize),
+                qubit_codec::DecodeFailure<
+                    qubit_codec_text::CharsetDecodeError,
+                >,
+            > {
+                let kind = CharsetDecodeErrorKind::malformed_unknown();
+                Err(CharsetDecodeError::new(self.charset(), kind, input_index)
+                    .into_codec_failure())
             }
 
             unsafe fn encode(
                 &mut self,
                 value: &char,
                 output: &mut [u8],
-                index: usize,
+                output_index: usize,
             ) -> CharsetEncodeResult<core::num::NonZeroUsize> {
                 debug_assert!(self.can_encode_value(value));
                 let required = self.encode_len(value).get();
                 debug_assert!(
-                    index
+                    output_index
                         .checked_add(required)
                         .is_some_and(|end| end <= output.len())
                 );
                 unsafe {
                     // SAFETY: The caller guarantees that `required` units are
-                    // writable from `index`.
-                    *output.as_mut_ptr().add(index) = *value as u8;
+                    // writable from `output_index`.
+                    *output.as_mut_ptr().add(output_index) = *value as u8;
                 }
                 Ok(core::num::NonZeroUsize::new(required)
                     .expect("test codec encode writes at least one unit"))
@@ -103,19 +107,17 @@ impl CharsetCodec for NonDefaultUnitCodec {
     }
 }
 
-unsafe impl Codec for NonDefaultUnitCodec {
+impl Codec for NonDefaultUnitCodec {
     type Value = char;
     type Unit = NonDefaultUnit;
     type DecodeError = CharsetDecodeError;
     type EncodeError = CharsetEncodeError;
 
-    fn min_units_per_value(&self) -> core::num::NonZeroUsize {
-        core::num::NonZeroUsize::MIN
-    }
+    const MIN_UNITS_PER_VALUE: core::num::NonZeroUsize =
+        core::num::NonZeroUsize::MIN;
 
-    fn max_units_per_value(&self) -> core::num::NonZeroUsize {
-        core::num::NonZeroUsize::MIN
-    }
+    const MAX_UNITS_PER_VALUE: core::num::NonZeroUsize =
+        core::num::NonZeroUsize::MIN;
 
     fn can_encode_value(&self, value: &char) -> bool {
         value.is_ascii()
@@ -124,23 +126,28 @@ unsafe impl Codec for NonDefaultUnitCodec {
     unsafe fn decode(
         &mut self,
         _input: &[NonDefaultUnit],
-        index: usize,
-    ) -> CharsetDecodeResult<(char, core::num::NonZeroUsize)> {
-        let kind = CharsetDecodeErrorKind::MalformedSequence { value: None };
-        Err(CharsetDecodeError::new(Charset::ASCII, kind, index))
+        input_index: usize,
+    ) -> Result<
+        (char, core::num::NonZeroUsize),
+        qubit_codec::DecodeFailure<qubit_codec_text::CharsetDecodeError>,
+    > {
+        let kind = CharsetDecodeErrorKind::malformed_unknown();
+        Err(CharsetDecodeError::new(Charset::ASCII, kind, input_index)
+            .into_codec_failure())
     }
 
     unsafe fn encode(
         &mut self,
         value: &char,
         output: &mut [NonDefaultUnit],
-        index: usize,
+        output_index: usize,
     ) -> CharsetEncodeResult<core::num::NonZeroUsize> {
         debug_assert!(self.can_encode_value(value));
-        debug_assert!(index < output.len());
+        debug_assert!(output_index < output.len());
         unsafe {
-            // SAFETY: The caller guarantees that `index` is writable.
-            *output.as_mut_ptr().add(index) = NonDefaultUnit(*value as u8);
+            // SAFETY: The caller guarantees that `output_index` is writable.
+            *output.as_mut_ptr().add(output_index) =
+                NonDefaultUnit(*value as u8);
         }
         Ok(core::num::NonZeroUsize::MIN)
     }
@@ -162,40 +169,46 @@ impl CharsetCodec for InvalidBangCodec {
     }
 }
 
-unsafe impl Codec for InvalidBangCodec {
+impl Codec for InvalidBangCodec {
     type Value = char;
     type Unit = u8;
     type DecodeError = CharsetDecodeError;
     type EncodeError = CharsetEncodeError;
 
-    fn min_units_per_value(&self) -> core::num::NonZeroUsize {
-        core::num::NonZeroUsize::MIN
-    }
+    const MIN_UNITS_PER_VALUE: core::num::NonZeroUsize =
+        core::num::NonZeroUsize::MIN;
 
-    fn max_units_per_value(&self) -> core::num::NonZeroUsize {
-        core::num::NonZeroUsize::MIN
-    }
+    const MAX_UNITS_PER_VALUE: core::num::NonZeroUsize =
+        core::num::NonZeroUsize::MIN;
 
     unsafe fn decode(
         &mut self,
         _input: &[u8],
-        index: usize,
-    ) -> CharsetDecodeResult<(char, core::num::NonZeroUsize)> {
-        let kind = CharsetDecodeErrorKind::MalformedSequence { value: None };
-        Err(CharsetDecodeError::new(self.charset(), kind, index))
+        input_index: usize,
+    ) -> Result<
+        (char, core::num::NonZeroUsize),
+        qubit_codec::DecodeFailure<qubit_codec_text::CharsetDecodeError>,
+    > {
+        let kind = CharsetDecodeErrorKind::malformed_unknown();
+        Err(CharsetDecodeError::new(self.charset(), kind, input_index)
+            .into_codec_failure())
     }
 
     unsafe fn encode(
         &mut self,
         value: &char,
         _output: &mut [u8],
-        index: usize,
+        output_index: usize,
     ) -> CharsetEncodeResult<core::num::NonZeroUsize> {
         if *value == '!' {
             let kind = CharsetEncodeErrorKind::InvalidCodePoint {
                 value: *value as u32,
             };
-            return Err(CharsetEncodeError::new(self.charset(), kind, index));
+            return Err(CharsetEncodeError::new(
+                self.charset(),
+                kind,
+                output_index,
+            ));
         }
         Ok(core::num::NonZeroUsize::MIN)
     }
@@ -210,19 +223,17 @@ impl CharsetCodec for FailingReplacementWriteCodec {
     }
 }
 
-unsafe impl Codec for FailingReplacementWriteCodec {
+impl Codec for FailingReplacementWriteCodec {
     type Value = char;
     type Unit = u8;
     type DecodeError = CharsetDecodeError;
     type EncodeError = CharsetEncodeError;
 
-    fn min_units_per_value(&self) -> core::num::NonZeroUsize {
-        core::num::NonZeroUsize::MIN
-    }
+    const MIN_UNITS_PER_VALUE: core::num::NonZeroUsize =
+        core::num::NonZeroUsize::MIN;
 
-    fn max_units_per_value(&self) -> core::num::NonZeroUsize {
-        core::num::NonZeroUsize::MIN
-    }
+    const MAX_UNITS_PER_VALUE: core::num::NonZeroUsize =
+        core::num::NonZeroUsize::MIN;
 
     fn can_encode_value(&self, value: &char) -> bool {
         *value == '!' || value.is_ascii()
@@ -231,22 +242,26 @@ unsafe impl Codec for FailingReplacementWriteCodec {
     unsafe fn decode(
         &mut self,
         _input: &[u8],
-        index: usize,
-    ) -> CharsetDecodeResult<(char, core::num::NonZeroUsize)> {
-        let kind = CharsetDecodeErrorKind::MalformedSequence { value: None };
-        Err(CharsetDecodeError::new(self.charset(), kind, index))
+        input_index: usize,
+    ) -> Result<
+        (char, core::num::NonZeroUsize),
+        qubit_codec::DecodeFailure<qubit_codec_text::CharsetDecodeError>,
+    > {
+        let kind = CharsetDecodeErrorKind::malformed_unknown();
+        Err(CharsetDecodeError::new(self.charset(), kind, input_index)
+            .into_codec_failure())
     }
 
     unsafe fn encode(
         &mut self,
         value: &char,
         _output: &mut [u8],
-        index: usize,
+        output_index: usize,
     ) -> CharsetEncodeResult<core::num::NonZeroUsize> {
         let kind = CharsetEncodeErrorKind::InvalidCodePoint {
             value: *value as u32,
         };
-        Err(CharsetEncodeError::new(self.charset(), kind, index))
+        Err(CharsetEncodeError::new(self.charset(), kind, output_index))
     }
 }
 
@@ -259,19 +274,17 @@ impl CharsetCodec for EncodeResetErrorCodec {
     }
 }
 
-unsafe impl Codec for EncodeResetErrorCodec {
+impl Codec for EncodeResetErrorCodec {
     type Value = char;
     type Unit = u8;
     type DecodeError = CharsetDecodeError;
     type EncodeError = CharsetEncodeError;
 
-    fn min_units_per_value(&self) -> core::num::NonZeroUsize {
-        core::num::NonZeroUsize::MIN
-    }
+    const MIN_UNITS_PER_VALUE: core::num::NonZeroUsize =
+        core::num::NonZeroUsize::MIN;
 
-    fn max_units_per_value(&self) -> core::num::NonZeroUsize {
-        core::num::NonZeroUsize::MIN
-    }
+    const MAX_UNITS_PER_VALUE: core::num::NonZeroUsize =
+        core::num::NonZeroUsize::MIN;
 
     fn can_encode_value(&self, value: &char) -> bool {
         value.is_ascii()
@@ -280,32 +293,36 @@ unsafe impl Codec for EncodeResetErrorCodec {
     unsafe fn decode(
         &mut self,
         _input: &[u8],
-        index: usize,
-    ) -> CharsetDecodeResult<(char, core::num::NonZeroUsize)> {
-        let kind = CharsetDecodeErrorKind::MalformedSequence { value: None };
-        Err(CharsetDecodeError::new(self.charset(), kind, index))
+        input_index: usize,
+    ) -> Result<
+        (char, core::num::NonZeroUsize),
+        qubit_codec::DecodeFailure<qubit_codec_text::CharsetDecodeError>,
+    > {
+        let kind = CharsetDecodeErrorKind::malformed_unknown();
+        Err(CharsetDecodeError::new(self.charset(), kind, input_index)
+            .into_codec_failure())
     }
 
     unsafe fn encode_reset(
         &mut self,
         _output: &mut [u8],
-        index: usize,
+        output_index: usize,
     ) -> CharsetEncodeResult<usize> {
         let kind = CharsetEncodeErrorKind::InvalidOutputIndex { output_len: 0 };
-        Err(CharsetEncodeError::new(self.charset(), kind, index))
+        Err(CharsetEncodeError::new(self.charset(), kind, output_index))
     }
 
     unsafe fn encode(
         &mut self,
         value: &char,
         output: &mut [u8],
-        index: usize,
+        output_index: usize,
     ) -> CharsetEncodeResult<core::num::NonZeroUsize> {
         debug_assert!(self.can_encode_value(value));
-        debug_assert!(index < output.len());
+        debug_assert!(output_index < output.len());
         unsafe {
-            // SAFETY: The caller guarantees that `index` is writable.
-            *output.as_mut_ptr().add(index) = *value as u8;
+            // SAFETY: The caller guarantees that `output_index` is writable.
+            *output.as_mut_ptr().add(output_index) = *value as u8;
         }
         Ok(core::num::NonZeroUsize::MIN)
     }
@@ -345,19 +362,17 @@ impl CharsetCodec for CountingAsciiEncoderCodec {
     }
 }
 
-unsafe impl Codec for CountingAsciiEncoderCodec {
+impl Codec for CountingAsciiEncoderCodec {
     type Value = char;
     type Unit = u8;
     type DecodeError = CharsetDecodeError;
     type EncodeError = CharsetEncodeError;
 
-    fn min_units_per_value(&self) -> core::num::NonZeroUsize {
-        core::num::NonZeroUsize::MIN
-    }
+    const MIN_UNITS_PER_VALUE: core::num::NonZeroUsize =
+        core::num::NonZeroUsize::MIN;
 
-    fn max_units_per_value(&self) -> core::num::NonZeroUsize {
-        core::num::NonZeroUsize::MIN
-    }
+    const MAX_UNITS_PER_VALUE: core::num::NonZeroUsize =
+        core::num::NonZeroUsize::MIN;
 
     fn can_encode_value(&self, value: &char) -> bool {
         let current = self.encode_calls.get();
@@ -368,22 +383,26 @@ unsafe impl Codec for CountingAsciiEncoderCodec {
     unsafe fn decode(
         &mut self,
         _input: &[u8],
-        index: usize,
-    ) -> CharsetDecodeResult<(char, core::num::NonZeroUsize)> {
-        let kind = CharsetDecodeErrorKind::MalformedSequence { value: None };
-        Err(CharsetDecodeError::new(self.charset(), kind, index))
+        input_index: usize,
+    ) -> Result<
+        (char, core::num::NonZeroUsize),
+        qubit_codec::DecodeFailure<qubit_codec_text::CharsetDecodeError>,
+    > {
+        let kind = CharsetDecodeErrorKind::malformed_unknown();
+        Err(CharsetDecodeError::new(self.charset(), kind, input_index)
+            .into_codec_failure())
     }
 
     unsafe fn encode(
         &mut self,
         value: &char,
         output: &mut [u8],
-        index: usize,
+        output_index: usize,
     ) -> CharsetEncodeResult<core::num::NonZeroUsize> {
-        debug_assert!(index < output.len());
+        debug_assert!(output_index < output.len());
         unsafe {
-            // SAFETY: The caller guarantees that `index` is writable.
-            *output.as_mut_ptr().add(index) = *value as u8;
+            // SAFETY: The caller guarantees that `output_index` is writable.
+            *output.as_mut_ptr().add(output_index) = *value as u8;
         }
         Ok(core::num::NonZeroUsize::MIN)
     }
@@ -393,12 +412,18 @@ unsafe impl Codec for CountingAsciiEncoderCodec {
 fn test_charset_encoder_exposes_configuration_and_bounds() {
     let mut encoder = CharsetEncoder::new(AsciiBytesCodec);
 
+    assert_eq!(Charset::ASCII, encoder.charset());
+    assert_eq!(&AsciiBytesCodec, encoder.codec());
+    assert_eq!(Charset::ASCII, encoder.codec_mut().charset());
     assert_eq!(UnmappableAction::Replace, encoder.unmappable_action());
     assert_eq!('?', encoder.replacement());
-    assert_eq!(Ok(3), encoder.max_output_len(3));
+    assert_eq!(Ok(3), encoder.max_transcode_output_len(3));
     assert_eq!(Ok(0), encoder.max_finish_output_len());
     assert_eq!(Ok(0), encoder.max_reset_output_len());
     encoder.reset(&mut [], 0).expect("reset");
+
+    let encoder = CharsetEncoder::new(AsciiBytesCodec);
+    assert_eq!(AsciiBytesCodec, encoder.into_codec());
 
     let encoder = CharsetEncoder::with_policy(
         AsciiBytesCodec,
@@ -408,6 +433,102 @@ fn test_charset_encoder_exposes_configuration_and_bounds() {
 
     assert_eq!('*', encoder.replacement());
     assert_eq!(UnmappableAction::Ignore, encoder.unmappable_action());
+}
+
+#[test]
+fn test_charset_encoder_transcoder_trait_methods_forward() {
+    type Encoder = CharsetEncoder<AsciiBytesCodec>;
+    type EncoderResult<T> = Result<T, TranscodeError<CharsetEncodeError>>;
+    type TranscodeFn = fn(
+        &mut Encoder,
+        &[char],
+        usize,
+        &mut [u8],
+        usize,
+    ) -> EncoderResult<TranscodeProgress>;
+    type OutputFn = fn(&mut Encoder, &mut [u8], usize) -> EncoderResult<usize>;
+
+    let mut encoder = CharsetEncoder::new(AsciiBytesCodec);
+    let input = ['A'];
+    let mut output = [0_u8; 1];
+    let max_transcode_output_len: fn(
+        &Encoder,
+        usize,
+    ) -> Result<usize, CapacityError> = std::hint::black_box(
+        <Encoder as Transcoder<char, u8>>::max_transcode_output_len,
+    );
+    let max_finish_output_len: fn(&Encoder) -> Result<usize, CapacityError> =
+        std::hint::black_box(
+            <Encoder as Transcoder<char, u8>>::max_finish_output_len,
+        );
+    let max_reset_output_len: fn(&Encoder) -> Result<usize, CapacityError> =
+        std::hint::black_box(
+            <Encoder as Transcoder<char, u8>>::max_reset_output_len,
+        );
+    let reset: OutputFn =
+        std::hint::black_box(<Encoder as Transcoder<char, u8>>::reset);
+    let transcode: TranscodeFn =
+        std::hint::black_box(<Encoder as Transcoder<char, u8>>::transcode);
+    let finish: OutputFn =
+        std::hint::black_box(<Encoder as Transcoder<char, u8>>::finish);
+
+    assert_eq!(Ok(1), max_transcode_output_len(&encoder, 1));
+    assert_eq!(Ok(0), max_finish_output_len(&encoder));
+    assert_eq!(Ok(0), max_reset_output_len(&encoder));
+    assert_eq!(Ok(0), reset(&mut encoder, &mut [], 0));
+    let progress = transcode(&mut encoder, &input, 0, &mut output, 0)
+        .expect("encoder should transcode through the trait");
+    assert_eq!(TranscodeStatus::Complete, progress.status());
+    assert_eq!([b'A'], output);
+    assert_eq!(Ok(0), finish(&mut encoder, &mut [], 0));
+}
+
+#[test]
+fn test_charset_encode_policy_constructors_and_default_for() {
+    let replace: fn(char) -> CharsetEncodePolicy =
+        std::hint::black_box(CharsetEncodePolicy::replace);
+    let ignore: fn() -> CharsetEncodePolicy =
+        std::hint::black_box(CharsetEncodePolicy::ignore);
+    let ignore_with_replacement: fn(char) -> CharsetEncodePolicy =
+        std::hint::black_box(CharsetEncodePolicy::ignore_with_replacement);
+    let report: fn() -> CharsetEncodePolicy =
+        std::hint::black_box(CharsetEncodePolicy::report);
+    let default: fn() -> CharsetEncodePolicy =
+        std::hint::black_box(CharsetEncodePolicy::default);
+
+    assert_eq!(UnmappableAction::Replace, replace('!').unmappable_action());
+    assert_eq!('!', replace('!').replacement());
+    assert_eq!(UnmappableAction::Ignore, ignore().unmappable_action());
+    assert_eq!(
+        CharsetEncodePolicy::DEFAULT_REPLACEMENT,
+        ignore().replacement()
+    );
+    assert_eq!(
+        UnmappableAction::Ignore,
+        ignore_with_replacement('*').unmappable_action()
+    );
+    assert_eq!('*', ignore_with_replacement('*').replacement());
+    assert_eq!(UnmappableAction::Report, report().unmappable_action());
+    assert_eq!(
+        CharsetEncodePolicy::DEFAULT_REPLACEMENT,
+        report().replacement()
+    );
+    assert_eq!(
+        default(),
+        CharsetEncodePolicy::default_for(&Utf8Codec).unwrap()
+    );
+    assert_eq!(
+        replace(CharsetEncodePolicy::DEFAULT_FALLBACK_REPLACEMENT),
+        CharsetEncodePolicy::default_for(&ReplacementFallbackCodec).unwrap()
+    );
+
+    let error =
+        CharsetEncodePolicy::default_for(&ReplacementAllUnencodableCodec)
+            .expect_err("codec cannot encode either default replacement");
+    assert_eq!(
+        Some(CharsetEncodePolicy::DEFAULT_FALLBACK_REPLACEMENT as u32),
+        error.value()
+    );
 }
 
 #[test]
@@ -624,13 +745,13 @@ fn test_charset_encoder_with_policy_reports_replacement_write_errors() {
 }
 
 #[test]
-fn test_charset_encoder_reset_maps_encode_reset_errors() {
+fn test_charset_encoder_reset_converts_encode_reset_errors() {
     let mut encoder = CharsetEncoder::new(EncodeResetErrorCodec);
     let mut output = [];
 
     let error = encoder
         .reset(&mut output, 0)
-        .expect_err("encode reset errors should be mapped through hooks");
+        .expect_err("encode reset errors should be converted");
 
     match error {
         TranscodeError::Domain(error) => {
@@ -716,31 +837,21 @@ fn test_charset_encoder_replacement_width_is_prevalidated() {
     assert_eq!(2, progress.read());
     assert_eq!(2, progress.written());
     assert_eq!(b"A*", &output);
-    assert_eq!(3, encode_calls.get());
+    assert_eq!(4, encode_calls.get());
 }
 
 #[test]
-fn test_charset_encoder_compares_configuration_and_formats_debug() {
-    let left = CharsetEncoder::with_policy(
+fn test_charset_encoder_exposes_configuration_and_formats_debug() {
+    let encoder = CharsetEncoder::with_policy(
         AsciiBytesCodec,
         CharsetEncodePolicy::replace('!'),
     )
     .expect("replacement should be encodable");
-    let right = CharsetEncoder::with_policy(
-        AsciiBytesCodec,
-        CharsetEncodePolicy::replace('!'),
-    )
-    .expect("replacement should be encodable");
-    let different = CharsetEncoder::with_policy(
-        AsciiBytesCodec,
-        CharsetEncodePolicy::ignore_with_replacement('!'),
-    )
-    .expect("replacement should be encodable");
 
-    assert_eq!(left, right);
-    assert_ne!(left, different);
+    assert_eq!(UnmappableAction::Replace, encoder.unmappable_action());
+    assert_eq!('!', encoder.replacement());
 
-    let debug = format!("{left:?}");
+    let debug = format!("{encoder:?}");
     assert!(debug.contains("CharsetEncoder"));
     assert!(debug.contains("replacement_units_len"));
 }

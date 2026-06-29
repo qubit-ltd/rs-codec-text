@@ -1,15 +1,17 @@
+use qubit_codec::Codec;
 use qubit_codec_text::{
     Charset,
     CharsetCodec,
     CharsetDecodeErrorKind,
-    CharsetDecodeResult,
     CharsetEncodeResult,
-    Codec,
     Utf8,
     Utf8Codec,
 };
 
-type DecodedCharResult = CharsetDecodeResult<(char, core::num::NonZeroUsize)>;
+type DecodedCharResult = Result<
+    (char, core::num::NonZeroUsize),
+    qubit_codec::DecodeFailure<qubit_codec_text::CharsetDecodeError>,
+>;
 type DecodeFn = unsafe fn(&mut Utf8Codec, &[u8], usize) -> DecodedCharResult;
 type EncodeFn = unsafe fn(
     &mut Utf8Codec,
@@ -23,8 +25,11 @@ fn test_utf8_codec_exposes_encoder_and_decoder_contracts() {
     let codec = Utf8Codec;
 
     assert_eq!(Charset::UTF_8, <Utf8Codec as CharsetCodec>::charset(&codec));
-    assert_eq!(1, codec.min_units_per_value().get());
-    assert_eq!(Utf8::MAX_UNITS_PER_CHAR, codec.max_units_per_value().get());
+    assert_eq!(1, <Utf8Codec as Codec>::MIN_UNITS_PER_VALUE.get());
+    assert_eq!(
+        Utf8::MAX_UNITS_PER_CHAR,
+        <Utf8Codec as Codec>::MAX_UNITS_PER_VALUE.get(),
+    );
     assert!(codec.can_encode_value(&'A'));
     assert_eq!(1, codec.encode_len(&'A').get());
 
@@ -63,23 +68,11 @@ fn test_utf8_codec_decodes_all_lengths_and_reports_closed_tail() {
 
     let error = unsafe { codec.decode(&[0xe4], 0) }
         .expect_err("partial three-byte prefix");
-    assert_eq!(
-        CharsetDecodeErrorKind::IncompleteSequence {
-            required: 3,
-            available: 1,
-        },
-        error.kind(),
-    );
+    assert_eq!(3, super::incomplete_required(error));
 
     let error = unsafe { codec.decode(&[0xf0, 0x90], 0) }
         .expect_err("partial four-byte prefix");
-    assert_eq!(
-        CharsetDecodeErrorKind::IncompleteSequence {
-            required: 4,
-            available: 2,
-        },
-        error.kind(),
-    );
+    assert_eq!(4, super::incomplete_required(error));
 }
 
 #[test]
@@ -104,6 +97,7 @@ fn test_utf8_codec_reports_malformed_sequences() {
     for (input, index, value) in cases {
         let error = unsafe { codec.decode(input, 0) }
             .expect_err("malformed UTF-8 should fail");
+        let error = super::invalid_source(error);
         assert_eq!(
             CharsetDecodeErrorKind::MalformedSequence { value },
             error.kind()
@@ -145,10 +139,8 @@ fn test_utf8_codec_direct_function_items_cover_trait_methods() {
     let inherent_charset: fn(Utf8Codec) -> Charset = Utf8Codec::charset;
     let trait_charset: fn(&Utf8Codec) -> Charset =
         <Utf8Codec as CharsetCodec>::charset;
-    let min_units: fn(&Utf8Codec) -> core::num::NonZeroUsize =
-        <Utf8Codec as Codec>::min_units_per_value;
-    let max_units: fn(&Utf8Codec) -> core::num::NonZeroUsize =
-        <Utf8Codec as Codec>::max_units_per_value;
+    let min_units = <Utf8Codec as Codec>::MIN_UNITS_PER_VALUE;
+    let max_units = <Utf8Codec as Codec>::MAX_UNITS_PER_VALUE;
     let encode_len: fn(&Utf8Codec, &char) -> core::num::NonZeroUsize =
         <Utf8Codec as Codec>::encode_len;
     let decode: DecodeFn = <Utf8Codec as Codec>::decode;
@@ -156,8 +148,8 @@ fn test_utf8_codec_direct_function_items_cover_trait_methods() {
 
     assert_eq!(Charset::UTF_8, inherent_charset(codec));
     assert_eq!(Charset::UTF_8, trait_charset(&codec));
-    assert_eq!(1, min_units(&codec).get());
-    assert_eq!(Utf8::MAX_UNITS_PER_CHAR, max_units(&codec).get());
+    assert_eq!(1, min_units.get());
+    assert_eq!(Utf8::MAX_UNITS_PER_CHAR, max_units.get());
     assert_eq!(4, encode_len(&codec, &'😀').get());
 
     let mut output = [0_u8; Utf8::MAX_BYTES_PER_CHAR];

@@ -1,6 +1,6 @@
+use qubit_codec::Codec;
 use qubit_codec_text::{
     CharsetCodec,
-    Codec,
     Utf8Codec,
 };
 

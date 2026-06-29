@@ -1,5 +1,6 @@
+use qubit_codec::ByteOrder;
 use qubit_codec_text::{
-    ByteOrder,
+    BomDetectStatus,
     Charset,
     UnicodeBom,
 };
@@ -47,4 +48,52 @@ fn test_unicode_bom_exposes_bytes_lengths_orders_and_charsets() {
         assert_eq!(Some(bom), UnicodeBom::detect(bytes));
     }
     assert_eq!(None, UnicodeBom::detect(&[0, 1, 2, 3]));
+}
+
+#[test]
+fn test_unicode_bom_detect_progress_reports_pending_prefixes() {
+    assert_eq!(
+        BomDetectStatus::Pending,
+        UnicodeBom::detect_progress(&[], false)
+    );
+    assert_eq!(
+        BomDetectStatus::None,
+        UnicodeBom::detect_progress(&[], true)
+    );
+    assert_eq!(
+        BomDetectStatus::Pending,
+        UnicodeBom::detect_progress(&[0xff], false)
+    );
+    assert_eq!(
+        BomDetectStatus::None,
+        UnicodeBom::detect_progress(&[0xff], true)
+    );
+    assert_eq!(
+        BomDetectStatus::Pending,
+        UnicodeBom::detect_progress(&[0xff, 0xfe], false)
+    );
+    assert_eq!(
+        BomDetectStatus::Match(UnicodeBom::Utf16LittleEndian),
+        UnicodeBom::detect_progress(&[0xff, 0xfe], true)
+    );
+    assert_eq!(
+        BomDetectStatus::Pending,
+        UnicodeBom::detect_progress(&[0xff, 0xfe, 0x00], false)
+    );
+    assert_eq!(
+        BomDetectStatus::Match(UnicodeBom::Utf32LittleEndian),
+        UnicodeBom::detect_progress(&[0xff, 0xfe, 0x00, 0x00], false)
+    );
+    assert_eq!(
+        BomDetectStatus::Match(UnicodeBom::Utf16LittleEndian),
+        UnicodeBom::detect_progress(&[0xff, 0xfe, 0x01], false)
+    );
+    assert_eq!(
+        BomDetectStatus::Pending,
+        UnicodeBom::detect_progress(&[0xef, 0xbb], false)
+    );
+    assert_eq!(
+        BomDetectStatus::None,
+        UnicodeBom::detect_progress(&[0xef, 0xbb], true)
+    );
 }

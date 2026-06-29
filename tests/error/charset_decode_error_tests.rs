@@ -1,20 +1,19 @@
-use qubit_codec::CodecDecodeErrorSignal;
+#[cfg(not(debug_assertions))]
+use qubit_codec::DecodeFailure;
 use qubit_codec_text::{
     Charset,
     CharsetDecodeError,
     CharsetDecodeErrorKind,
 };
+use std::num::NonZeroUsize;
 
 #[test]
 fn test_charset_decode_error_exposes_context() {
-    let kind = CharsetDecodeErrorKind::MalformedSequence { value: None };
+    let kind = CharsetDecodeErrorKind::malformed_unknown();
     let error = CharsetDecodeError::new(Charset::UTF_8, kind, 7);
 
     assert_eq!(Charset::UTF_8, error.charset());
-    assert_eq!(
-        CharsetDecodeErrorKind::MalformedSequence { value: None },
-        error.kind()
-    );
+    assert_eq!(CharsetDecodeErrorKind::malformed_unknown(), error.kind());
     assert_eq!(7, error.index());
     assert_eq!(None, error.value());
     assert_eq!(10, error.offset_by(3).index());
@@ -64,25 +63,13 @@ fn test_charset_decode_error_exposes_context() {
         "UTF-32 decoding error at index 5 for value 0x110000: The decoded code point 0x110000 is not a valid Unicode scalar value.",
         invalid.to_string(),
     );
-
-    let kind = CharsetDecodeErrorKind::InvalidInputIndex { input_len: 2 };
-    let invalid_index = CharsetDecodeError::new(Charset::UTF_8, kind, 3);
-    assert_eq!(Some(2), invalid_index.input_len());
-    assert_eq!(
-        "UTF-8 decoding error at index 3: The input unit index is outside the input buffer.",
-        invalid_index.to_string(),
-    );
-
-    let kind = CharsetDecodeErrorKind::InvalidOutputIndex { output_len: 2 };
-    let invalid_output = CharsetDecodeError::new(Charset::UTF_8, kind, 4);
-    assert_eq!(Some(2), invalid_output.output_len());
 }
 
 #[test]
 fn test_charset_decode_error_offset_saturates_on_overflow() {
     let error = CharsetDecodeError::new(
         Charset::UTF_8,
-        CharsetDecodeErrorKind::MalformedSequence { value: None },
+        CharsetDecodeErrorKind::malformed_unknown(),
         usize::MAX - 1,
     );
 
@@ -93,13 +80,12 @@ fn test_charset_decode_error_offset_saturates_on_overflow() {
 fn test_charset_decode_error_exposes_consumption_and_incomplete_details() {
     let malformed = CharsetDecodeError::new(
         Charset::UTF_8,
-        CharsetDecodeErrorKind::MalformedSequence { value: Some(0x80) },
+        CharsetDecodeErrorKind::malformed(0x80),
         4,
     )
-    .with_consumed(2);
-    assert_eq!(Some(2), malformed.consumed());
-    assert_eq!(core::num::NonZeroUsize::new(2), malformed.consumed_units(),);
-    assert_eq!(None, malformed.required_total());
+    .with_consumed(qubit_io::nz!(2));
+    assert_eq!(NonZeroUsize::new(2), malformed.consumed());
+    assert_eq!(None, malformed.required());
     assert_eq!(Some(0x80), malformed.value());
 
     let invalid_code_point = CharsetDecodeError::new(
@@ -107,7 +93,7 @@ fn test_charset_decode_error_exposes_consumption_and_incomplete_details() {
         CharsetDecodeErrorKind::InvalidCodePoint { value: 0x110000 },
         1,
     );
-    assert_eq!(Some(1), invalid_code_point.consumed());
+    assert_eq!(NonZeroUsize::new(1), invalid_code_point.consumed());
 
     let incomplete = CharsetDecodeError::new(
         Charset::UTF_16,
@@ -118,16 +104,65 @@ fn test_charset_decode_error_exposes_consumption_and_incomplete_details() {
         0,
     );
     assert_eq!(None, incomplete.consumed());
-    assert_eq!(None, incomplete.consumed_units());
     assert_eq!(Some(4), incomplete.required());
-    assert_eq!(Some(4), incomplete.required_total());
     assert_eq!(Some(1), incomplete.available());
+}
 
-    let invalid_index = CharsetDecodeError::new(
-        Charset::UTF_8,
-        CharsetDecodeErrorKind::InvalidInputIndex { input_len: 1 },
-        3,
+#[test]
+fn test_charset_decode_error_direct_function_items_cover_forwarders() {
+    let incomplete = CharsetDecodeError::new(
+        Charset::UTF_16,
+        CharsetDecodeErrorKind::IncompleteSequence {
+            required: 4,
+            available: 1,
+        },
+        0,
     );
-    assert_eq!(None, invalid_index.consumed());
-    assert_eq!(Some(1), invalid_index.input_len());
+    let invalid_value = CharsetDecodeError::new(
+        Charset::UTF_32,
+        CharsetDecodeErrorKind::InvalidCodePoint { value: 0x110000 },
+        1,
+    );
+
+    let required: fn(CharsetDecodeError) -> Option<usize> =
+        std::hint::black_box(CharsetDecodeError::required);
+    let available: fn(CharsetDecodeError) -> Option<usize> =
+        std::hint::black_box(CharsetDecodeError::available);
+    let value: fn(CharsetDecodeError) -> Option<u32> =
+        std::hint::black_box(CharsetDecodeError::value);
+
+    assert_eq!(Some(4), required(incomplete));
+    assert_eq!(Some(1), available(incomplete));
+    assert_eq!(Some(0x110000), value(invalid_value));
+}
+
+#[test]
+fn test_charset_decode_error_maps_zero_required_incomplete_as_invalid() {
+    let error = CharsetDecodeError::new(
+        Charset::UTF_8,
+        CharsetDecodeErrorKind::IncompleteSequence {
+            required: 0,
+            available: 0,
+        },
+        0,
+    );
+
+    #[cfg(debug_assertions)]
+    {
+        let panic = std::panic::catch_unwind(|| error.into_codec_failure());
+        assert!(panic.is_err());
+    }
+
+    #[cfg(not(debug_assertions))]
+    {
+        let failure = error.into_codec_failure();
+
+        assert_eq!(
+            DecodeFailure::Invalid {
+                source: error,
+                consumed: None,
+            },
+            failure,
+        );
+    }
 }

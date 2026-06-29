@@ -1,9 +1,14 @@
 use core::fmt::Debug;
 
-use qubit_codec::TranscodeError;
+use qubit_codec::{
+    ByteOrder,
+    Codec,
+    TranscodeError,
+    TranscodeStatus,
+    Transcoder,
+};
 use qubit_codec_text::{
     AsciiCodec,
-    ByteOrder,
     CharsetCodec,
     CharsetConvertError,
     CharsetConverter,
@@ -12,9 +17,6 @@ use qubit_codec_text::{
     CharsetDecoder,
     CharsetEncodePolicy,
     CharsetEncoder,
-    Codec,
-    TranscodeStatus,
-    Transcoder,
     Utf8Codec,
     Utf16ByteCodec,
     Utf16U16Codec,
@@ -65,6 +67,7 @@ fn test_utf8_codec_matches_std_boundaries_and_round_trip() {
         let std_error = std::str::from_utf8(input).unwrap_err();
         let codec_error = unsafe { codec.decode(input, 0) }
             .expect_err("malformed utf-8 should fail");
+        let codec_error = super::invalid_source(codec_error);
         assert_eq!(
             CharsetDecodeErrorKind::MalformedSequence { value },
             codec_error.kind(),
@@ -73,23 +76,17 @@ fn test_utf8_codec_matches_std_boundaries_and_round_trip() {
         assert_eq!(error_index, codec_error.index());
     }
 
-    for (input, required, available) in [
-        (&[0xe4][..], 3, 1),
-        (&[0xf0, 0x90][..], 4, 2),
-        (&[0xf4, 0x80, 0x80][..], 4, 3),
+    for (input, required) in [
+        (&[0xe4][..], 3),
+        (&[0xf0, 0x90][..], 4),
+        (&[0xf4, 0x80, 0x80][..], 4),
     ] {
         let std_error = std::str::from_utf8(input).unwrap_err();
         assert!(std_error.error_len().is_none());
 
         let error = unsafe { codec.decode(input, 0) }
             .expect_err("short input is incomplete");
-        assert_eq!(
-            CharsetDecodeErrorKind::IncompleteSequence {
-                required,
-                available
-            },
-            error.kind(),
-        );
+        assert_eq!(required, super::incomplete_required(error));
     }
 }
 
@@ -134,10 +131,11 @@ fn test_utf16_codecs_match_std_unit_round_trip() {
         let decode_result = unsafe { codec.decode(malformed, 0) };
         assert!(matches!(
             decode_result,
-            Err(ref error) if matches!(
-                error.kind(),
+            Err(qubit_codec::DecodeFailure::Invalid { ref source, .. })
+                if matches!(
+                source.kind(),
                 CharsetDecodeErrorKind::MalformedSequence { value: Some(value) }
-                    if value == offending
+                    if value == offending as u32
             ),
         ));
     }
@@ -145,13 +143,7 @@ fn test_utf16_codecs_match_std_unit_round_trip() {
     let partial = [0xd83d];
     let error = unsafe { codec.decode(&partial, 0) }
         .expect_err("partial high surrogate is incomplete");
-    assert_eq!(
-        CharsetDecodeErrorKind::IncompleteSequence {
-            required: 2,
-            available: 1,
-        },
-        error.kind(),
-    );
+    assert_eq!(2, super::incomplete_required(error));
 }
 
 #[test]
@@ -184,7 +176,8 @@ fn test_utf32_codecs_match_std_unit_round_trip() {
         assert_eq!(None, std::char::from_u32(invalid));
         assert!(matches!(
             unsafe { codec.decode(&[invalid], 0) },
-            Err(ref error) if matches!(error.kind(), CharsetDecodeErrorKind::InvalidCodePoint { .. }),
+            Err(qubit_codec::DecodeFailure::Invalid { ref source, .. })
+                if matches!(source.kind(), CharsetDecodeErrorKind::InvalidCodePoint { .. }),
         ));
     }
 }
@@ -339,15 +332,13 @@ fn test_charset_decoder_policies_handle_malformed_unicode_codecs() {
     assert_decoder_malformed_policies(
         Utf8Codec,
         &[0x80, b'A'],
-        CharsetDecodeErrorKind::MalformedSequence { value: Some(0x80) },
+        CharsetDecodeErrorKind::malformed(0x80),
         0,
     );
     assert_decoder_malformed_policies(
         Utf16U16Codec,
         &[utf16_low_surrogate, 'A' as u16],
-        CharsetDecodeErrorKind::MalformedSequence {
-            value: Some(utf16_low_surrogate as u32),
-        },
+        CharsetDecodeErrorKind::malformed(utf16_low_surrogate as u32),
         0,
     );
     assert_decoder_malformed_policies(
@@ -358,9 +349,7 @@ fn test_charset_decoder_policies_handle_malformed_unicode_codecs() {
             b'A',
             0,
         ],
-        CharsetDecodeErrorKind::MalformedSequence {
-            value: Some(utf16_low_surrogate as u32),
-        },
+        CharsetDecodeErrorKind::malformed(utf16_low_surrogate as u32),
         0,
     );
     assert_decoder_malformed_policies(
@@ -371,9 +360,7 @@ fn test_charset_decoder_policies_handle_malformed_unicode_codecs() {
             0,
             b'A',
         ],
-        CharsetDecodeErrorKind::MalformedSequence {
-            value: Some(utf16_low_surrogate as u32),
-        },
+        CharsetDecodeErrorKind::malformed(utf16_low_surrogate as u32),
         0,
     );
     assert_decoder_malformed_policies(
@@ -428,15 +415,13 @@ fn test_charset_converter_policies_handle_unicode_decode_and_encode_paths() {
     assert_converter_decode_policies(
         Utf8Codec,
         &[0x80, b'A'],
-        CharsetDecodeErrorKind::MalformedSequence { value: Some(0x80) },
+        CharsetDecodeErrorKind::malformed(0x80),
         0,
     );
     assert_converter_decode_policies(
         Utf16U16Codec,
         &[utf16_low_surrogate, 'A' as u16],
-        CharsetDecodeErrorKind::MalformedSequence {
-            value: Some(utf16_low_surrogate as u32),
-        },
+        CharsetDecodeErrorKind::malformed(utf16_low_surrogate as u32),
         0,
     );
     assert_converter_decode_policies(
@@ -447,9 +432,7 @@ fn test_charset_converter_policies_handle_unicode_decode_and_encode_paths() {
             b'A',
             0,
         ],
-        CharsetDecodeErrorKind::MalformedSequence {
-            value: Some(utf16_low_surrogate as u32),
-        },
+        CharsetDecodeErrorKind::malformed(utf16_low_surrogate as u32),
         0,
     );
     assert_converter_decode_policies(
@@ -460,9 +443,7 @@ fn test_charset_converter_policies_handle_unicode_decode_and_encode_paths() {
             0,
             b'A',
         ],
-        CharsetDecodeErrorKind::MalformedSequence {
-            value: Some(utf16_low_surrogate as u32),
-        },
+        CharsetDecodeErrorKind::malformed(utf16_low_surrogate as u32),
         0,
     );
     assert_converter_decode_policies(
@@ -551,12 +532,12 @@ fn test_charset_converter_policies_handle_unicode_decode_and_encode_paths() {
 
 fn decode_all_utf8(codec: &mut Utf8Codec, input: &[u8]) -> Vec<char> {
     let mut output = Vec::new();
-    let mut index = 0;
-    while index < input.len() {
-        match unsafe { codec.decode(input, index) } {
+    let mut input_index = 0;
+    while input_index < input.len() {
+        match unsafe { codec.decode(input, input_index) } {
             Ok((value, consumed)) => {
                 output.push(value);
-                index += consumed.get();
+                input_index += consumed.get();
             }
             status => panic!(
                 "expected complete utf8 decode for valid sequence, got {status:?}"
@@ -571,12 +552,12 @@ fn decode_all_utf16_units(
     input: &[u16],
 ) -> Vec<char> {
     let mut output = Vec::new();
-    let mut index = 0;
-    while index < input.len() {
-        match unsafe { codec.decode(input, index) } {
+    let mut input_index = 0;
+    while input_index < input.len() {
+        match unsafe { codec.decode(input, input_index) } {
             Ok((value, consumed)) => {
                 output.push(value);
-                index += consumed.get();
+                input_index += consumed.get();
             }
             status => panic!(
                 "expected complete utf16 decode for valid sequence, got {status:?}"
@@ -591,12 +572,12 @@ fn decode_all_utf16_bytes(
     input: &[u8],
 ) -> Vec<char> {
     let mut output = Vec::new();
-    let mut index = 0;
-    while index < input.len() {
-        match unsafe { codec.decode(input, index) } {
+    let mut input_index = 0;
+    while input_index < input.len() {
+        match unsafe { codec.decode(input, input_index) } {
             Ok((value, consumed)) => {
                 output.push(value);
-                index += consumed.get();
+                input_index += consumed.get();
             }
             status => {
                 panic!(
@@ -613,12 +594,12 @@ fn decode_all_utf32_units(
     input: &[u32],
 ) -> Vec<char> {
     let mut output = Vec::new();
-    let mut index = 0;
-    while index < input.len() {
-        match unsafe { codec.decode(input, index) } {
+    let mut input_index = 0;
+    while input_index < input.len() {
+        match unsafe { codec.decode(input, input_index) } {
             Ok((value, consumed)) => {
                 output.push(value);
-                index += consumed.get();
+                input_index += consumed.get();
             }
             status => panic!(
                 "expected complete utf32 decode for valid sequence, got {status:?}"
@@ -633,12 +614,12 @@ fn decode_all_utf32_bytes(
     input: &[u8],
 ) -> Vec<char> {
     let mut output = Vec::new();
-    let mut index = 0;
-    while index < input.len() {
-        match unsafe { codec.decode(input, index) } {
+    let mut input_index = 0;
+    while input_index < input.len() {
+        match unsafe { codec.decode(input, input_index) } {
             Ok((value, consumed)) => {
                 output.push(value);
-                index += consumed.get();
+                input_index += consumed.get();
             }
             status => {
                 panic!(
