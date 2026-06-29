@@ -8,11 +8,11 @@
 use core::{
     fmt,
     marker::PhantomData,
+    num::NonZeroUsize,
 };
 
 use qubit_codec::{
-    EncodeContext,
-    EncodePlan,
+    EncodeUnencodableAction,
     TranscodeEncodeHooks,
 };
 
@@ -23,7 +23,6 @@ use crate::{
     UnmappableAction,
 };
 
-use super::charset_encode_action::CharsetEncodeAction;
 use crate::CharsetCodec;
 
 /// Unmappable-input policy hooks used by [`super::CharsetEncoder`].
@@ -33,8 +32,6 @@ pub(crate) struct CharsetEncodeHooks<Unit> {
     pub(super) unmappable_action: UnmappableAction,
     /// Replacement character used by [`UnmappableAction::Replace`].
     pub(super) replacement: char,
-    /// Number of units needed for the configured replacement character.
-    pub(super) replacement_units_len: usize,
     /// Unit marker keeping hook identity tied to the concrete output unit
     /// type.
     unit: PhantomData<fn() -> Unit>,
@@ -46,20 +43,7 @@ impl<Unit> fmt::Debug for CharsetEncodeHooks<Unit> {
         f.debug_struct("CharsetEncodeHooks")
             .field("unmappable_action", &self.unmappable_action)
             .field("replacement", &self.replacement)
-            .field("replacement_units_len", &self.replacement_units_len)
             .finish()
-    }
-}
-
-impl<Unit> Eq for CharsetEncodeHooks<Unit> {}
-
-impl<Unit> PartialEq for CharsetEncodeHooks<Unit> {
-    /// Compares policy-visible hook state without requiring unit equality.
-    #[inline(always)]
-    fn eq(&self, other: &Self) -> bool {
-        self.unmappable_action == other.unmappable_action
-            && self.replacement == other.replacement
-            && self.replacement_units_len == other.replacement_units_len
     }
 }
 
@@ -75,7 +59,7 @@ impl<Unit> CharsetEncodeHooks<Unit> {
     ///
     /// Returns hooks configured with no replacement output units.
     #[must_use]
-    #[inline(always)]
+    #[inline]
     pub(crate) const fn new(
         unmappable_action: UnmappableAction,
         replacement: char,
@@ -83,23 +67,8 @@ impl<Unit> CharsetEncodeHooks<Unit> {
         Self {
             unmappable_action,
             replacement,
-            replacement_units_len: 0,
             unit: PhantomData,
         }
-    }
-
-    /// Records the replacement output width.
-    ///
-    /// # Parameters
-    ///
-    /// - `replacement_units_len`: Number of target units used by the
-    ///   replacement.
-    #[inline(always)]
-    pub(crate) const fn set_replacement_units_len(
-        &mut self,
-        replacement_units_len: usize,
-    ) {
-        self.replacement_units_len = replacement_units_len;
     }
 }
 
@@ -108,101 +77,42 @@ where
     C: CharsetCodec,
 {
     type Error = CharsetEncodeError;
-    type PlanAction = CharsetEncodeAction;
 
-    /// Prepares a charset-specific encoding plan.
+    /// Handles one character rejected by the charset codec.
     #[inline]
-    fn prepare_encode(
+    fn handle_unencodable_encode(
         &mut self,
         codec: &mut C,
         ch: &char,
         input_index: usize,
-    ) -> Result<EncodePlan<Self::PlanAction>, Self::Error> {
-        if codec.can_encode_value(ch) {
-            return Ok(EncodePlan::new(
-                codec.encode_len(ch).get(),
-                CharsetEncodeAction::WriteOriginal,
-            ));
-        }
-        let error = unmappable_error(codec, *ch, input_index);
+    ) -> Result<EncodeUnencodableAction<char>, Self::Error> {
+        let ch = *ch;
+        let error = unmappable_error(codec, ch, input_index);
         match self.unmappable_action {
             UnmappableAction::Report => Err(error),
-            UnmappableAction::Ignore => {
-                Ok(EncodePlan::new(0, CharsetEncodeAction::Skip))
+            UnmappableAction::Ignore => Ok(EncodeUnencodableAction::Skip),
+            UnmappableAction::Replace => {
+                Ok(EncodeUnencodableAction::replace(self.replacement))
             }
-            UnmappableAction::Replace if self.replacement_units_len == 0 => {
-                Ok(EncodePlan::new(0, CharsetEncodeAction::Skip))
-            }
-            UnmappableAction::Replace => Ok(EncodePlan::new(
-                self.replacement_units_len,
-                CharsetEncodeAction::WriteReplacement,
-            )),
         }
-    }
-
-    /// Writes one character according to a charset-specific plan.
-    #[inline]
-    unsafe fn write_encode(
-        &mut self,
-        codec: &mut C,
-        context: EncodeContext<'_, char, C::Unit>,
-        plan: EncodePlan<Self::PlanAction>,
-    ) -> Result<usize, Self::Error> {
-        match plan.action {
-            // SAFETY: The engine checked the exact capacity requested by
-            // `prepare_encode`.
-            CharsetEncodeAction::WriteOriginal => unsafe {
-                codec
-                    .encode(
-                        context.input_value,
-                        context.output,
-                        context.output_index,
-                    )
-                    .map(core::num::NonZeroUsize::get)
-            },
-            // SAFETY: The engine checked the replacement capacity reported by
-            // `prepare_encode`.
-            CharsetEncodeAction::WriteReplacement => unsafe {
-                codec
-                    .encode(
-                        &self.replacement,
-                        context.output,
-                        context.output_index,
-                    )
-                    .map(core::num::NonZeroUsize::get)
-            },
-            CharsetEncodeAction::Skip => Ok(0),
-        }
-    }
-
-    /// Maps charset encode reset errors unchanged.
-    #[inline(always)]
-    fn map_encode_reset_error(
-        &mut self,
-        _codec: &mut C,
-        error: CharsetEncodeError,
-    ) -> Self::Error {
-        error
     }
 }
 
 /// Returns the encoded width of a replacement character.
-#[inline(always)]
 pub(super) fn replacement_len<C>(
     codec: &C,
     ch: char,
-) -> CharsetEncodeResult<usize>
+) -> CharsetEncodeResult<NonZeroUsize>
 where
     C: CharsetCodec,
 {
     if !codec.can_encode_value(&ch) {
         return Err(unmappable_error(codec, ch, 0));
     }
-    Ok(codec.encode_len(&ch).get())
+    Ok(codec.encode_len(&ch))
 }
 
 /// Creates an unmappable-character error for `ch`.
-#[inline(always)]
 fn unmappable_error<C>(codec: &C, ch: char, index: usize) -> CharsetEncodeError
 where
     C: CharsetCodec,

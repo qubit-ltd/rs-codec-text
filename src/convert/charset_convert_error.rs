@@ -12,6 +12,7 @@ use crate::{
 
 /// Error reported while converting between two charsets.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, thiserror::Error)]
+#[non_exhaustive]
 pub enum CharsetConvertError {
     /// Source decoding failed.
     #[error("Failed to decode source charset: {0}")]
