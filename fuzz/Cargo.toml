@@ -1,0 +1,28 @@
+[package]
+name = "qubit-codec-text-fuzz"
+version = "0.0.0"
+edition = "2024"
+rust-version = "1.94"
+publish = false
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+qubit-codec = { version = "0.10", path = "../../rs-codec" }
+qubit-codec-text = { path = ".." }
+
+[[bin]]
+name = "utf8_decode"
+path = "fuzz_targets/utf8_decode.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "utf16_decode"
+path = "fuzz_targets/utf16_decode.rs"
+test = false
+doc = false
+bench = false
