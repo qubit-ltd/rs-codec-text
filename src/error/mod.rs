@@ -10,6 +10,10 @@ mod charset_decode_error_kind;
 mod charset_encode_error;
 mod charset_encode_error_kind;
 
+pub(crate) use charset_decode_error::{
+    CharsetCodecDecodeResult,
+    map_charset_decode_failure,
+};
 pub use charset_decode_error::{
     CharsetDecodeError,
     CharsetDecodeResult,

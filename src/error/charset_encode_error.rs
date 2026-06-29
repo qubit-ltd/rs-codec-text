@@ -5,8 +5,10 @@
 //
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
-use core::fmt;
-use std::error::Error;
+use core::{
+    error::Error,
+    fmt,
+};
 
 use crate::{
     Charset,
@@ -48,7 +50,7 @@ impl CharsetEncodeError {
     /// # Returns
     ///
     /// Returns an encoding error carrying the supplied context.
-    #[inline(always)]
+    #[inline]
     pub const fn new(
         charset: Charset,
         kind: CharsetEncodeErrorKind,
@@ -67,7 +69,7 @@ impl CharsetEncodeError {
     ///
     /// Returns `Some(required)` for [`CharsetEncodeErrorKind::BufferTooSmall`],
     /// otherwise `None`.
-    #[inline(always)]
+    #[inline]
     pub const fn required(self) -> Option<usize> {
         self.kind.required()
     }
@@ -78,7 +80,7 @@ impl CharsetEncodeError {
     ///
     /// Returns `Some(available)` for
     /// [`CharsetEncodeErrorKind::BufferTooSmall`], otherwise `None`.
-    #[inline(always)]
+    #[inline]
     pub const fn available(self) -> Option<usize> {
         self.kind.available()
     }
@@ -89,7 +91,7 @@ impl CharsetEncodeError {
     ///
     /// Returns `Some(output_len)` for
     /// [`CharsetEncodeErrorKind::InvalidOutputIndex`], otherwise `None`.
-    #[inline(always)]
+    #[inline]
     pub const fn output_len(self) -> Option<usize> {
         self.kind.output_len()
     }
@@ -99,7 +101,7 @@ impl CharsetEncodeError {
     /// # Returns
     ///
     /// Returns the stored [`Charset`].
-    #[inline(always)]
+    #[inline]
     pub const fn charset(self) -> Charset {
         self.charset
     }
@@ -109,7 +111,7 @@ impl CharsetEncodeError {
     /// # Returns
     ///
     /// Returns the stored [`CharsetEncodeErrorKind`].
-    #[inline(always)]
+    #[inline]
     pub const fn kind(self) -> CharsetEncodeErrorKind {
         self.kind
     }
@@ -119,7 +121,7 @@ impl CharsetEncodeError {
     /// # Returns
     ///
     /// Returns the stored index.
-    #[inline(always)]
+    #[inline]
     pub const fn index(self) -> usize {
         self.index
     }
@@ -130,7 +132,7 @@ impl CharsetEncodeError {
     ///
     /// Returns `Some(value)` when the error kind carries a raw code point or
     /// character value, or `None` for kinds without an associated value.
-    #[inline(always)]
+    #[inline]
     pub const fn value(self) -> Option<u32> {
         self.kind.value()
     }
@@ -147,7 +149,7 @@ impl CharsetEncodeError {
     ///
     /// If the shifted index cannot be represented, it is saturated to
     /// [`usize::MAX`].
-    #[inline(always)]
+    #[inline]
     pub const fn offset_by(self, base: usize) -> Self {
         Self {
             charset: self.charset,
