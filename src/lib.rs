@@ -18,14 +18,17 @@
 
 mod charset;
 mod codec;
+mod convert;
 mod decode;
 mod encode;
 mod error;
-
-pub mod prelude;
+mod util;
 pub use charset::{
     Ascii,
+    BomDetectStatus,
     Charset,
+    CharsetRegistrationError,
+    CharsetRegistrationErrorKind,
     Latin1,
     Unicode,
     UnicodeBom,
@@ -36,11 +39,7 @@ pub use charset::{
 pub use codec::{
     AsciiCodec,
     CharsetCodec,
-    CharsetConvertError,
-    CharsetConverter,
     Latin1Codec,
-    MalformedAction,
-    UnmappableAction,
 };
 pub use codec::{
     Utf8Codec,
@@ -48,6 +47,12 @@ pub use codec::{
     Utf16U16Codec,
     Utf32ByteCodec,
     Utf32U32Codec,
+};
+pub use convert::{
+    CharsetConvertError,
+    CharsetConverter,
+    MalformedAction,
+    UnmappableAction,
 };
 pub(crate) use decode::CharsetDecodeHooks;
 pub use decode::{
@@ -67,20 +72,7 @@ pub use error::{
     CharsetEncodeErrorKind,
     CharsetEncodeResult,
 };
-pub use qubit_codec::{
-    ByteOrder,
-    CapacityError,
-    Codec,
-    TranscodeConvertEngine,
-    TranscodeConvertHooks,
-    TranscodeConverter,
-    TranscodeDecodeEngine,
-    TranscodeDecodeHooks,
-    TranscodeDecoder,
-    TranscodeEncodeEngine,
-    TranscodeEncodeHooks,
-    TranscodeEncoder,
-    TranscodeProgress,
-    TranscodeStatus,
-    Transcoder,
+pub use util::{
+    normalize_label_loose,
+    normalize_label_whatwg,
 };

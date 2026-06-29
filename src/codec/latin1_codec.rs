@@ -7,16 +7,17 @@
 // =============================================================================
 use core::num::NonZeroUsize;
 
+use crate::error::CharsetCodecDecodeResult;
 use crate::{
     Charset,
     CharsetCodec,
     CharsetDecodeError,
-    CharsetDecodeResult,
     CharsetEncodeError,
     CharsetEncodeResult,
     Latin1,
 };
 use qubit_codec::Codec;
+use qubit_io::UncheckedSlice;
 
 /// Single-byte ISO-8859-1 codec for bytes.
 ///
@@ -30,7 +31,7 @@ impl Latin1Codec {
     /// # Returns
     ///
     /// Returns [`Charset::ISO_8859_1`].
-    #[inline(always)]
+    #[inline]
     #[must_use]
     pub const fn charset(self) -> Charset {
         Charset::ISO_8859_1
@@ -43,61 +44,54 @@ impl CharsetCodec for Latin1Codec {
     /// # Returns
     ///
     /// Returns [`Charset::ISO_8859_1`].
-    #[inline(always)]
+    #[inline]
     fn charset(&self) -> Charset {
         Charset::ISO_8859_1
     }
 }
 
-unsafe impl Codec for Latin1Codec {
+impl Codec for Latin1Codec {
     type Value = char;
     type Unit = u8;
     type DecodeError = CharsetDecodeError;
     type EncodeError = CharsetEncodeError;
 
-    #[inline(always)]
-    fn min_units_per_value(&self) -> NonZeroUsize {
-        NonZeroUsize::MIN
-    }
+    const MIN_UNITS_PER_VALUE: NonZeroUsize = NonZeroUsize::MIN;
+    const MAX_UNITS_PER_VALUE: NonZeroUsize = NonZeroUsize::MIN;
 
-    #[inline(always)]
-    fn max_units_per_value(&self) -> NonZeroUsize {
-        NonZeroUsize::MIN
-    }
-
-    #[inline(always)]
+    #[inline]
     fn can_encode_value(&self, value: &char) -> bool {
         Latin1::is_latin1_char(*value)
     }
 
-    #[inline(always)]
+    #[inline]
     unsafe fn decode(
         &mut self,
         input: &[u8],
-        index: usize,
-    ) -> CharsetDecodeResult<(char, NonZeroUsize)> {
-        debug_assert!(index < input.len());
-        // SAFETY: The caller guarantees that `index` is readable.
-        let value = unsafe { qubit_io::UncheckedSlice::read(input, index) };
+        input_index: usize,
+    ) -> CharsetCodecDecodeResult<(char, NonZeroUsize)> {
+        debug_assert!(input_index < input.len());
+        // SAFETY: The caller guarantees that `input_index` is readable.
+        let value = unsafe { UncheckedSlice::read(input, input_index) };
         Ok((Latin1::byte_to_char(value), NonZeroUsize::MIN))
     }
 
-    #[inline(always)]
+    #[inline]
     unsafe fn encode(
         &mut self,
         ch: &char,
         output: &mut [u8],
-        index: usize,
+        output_index: usize,
     ) -> CharsetEncodeResult<NonZeroUsize> {
         debug_assert!(self.can_encode_value(ch));
-        debug_assert!(index < output.len());
+        debug_assert!(output_index < output.len());
 
         let value = Latin1::char_to_byte(*ch)
             .expect("encodable Latin-1 character maps to byte");
-        // SAFETY: The caller guarantees that `ch` is encodable and `index` is
-        // writable.
+        // SAFETY: The caller guarantees that `ch` is encodable and
+        // `output_index` is writable.
         unsafe {
-            qubit_io::UncheckedSlice::write(output, index, value);
+            UncheckedSlice::write(output, output_index, value);
         }
         Ok(NonZeroUsize::MIN)
     }

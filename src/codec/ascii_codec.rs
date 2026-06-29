@@ -7,13 +7,16 @@
 // =============================================================================
 use core::num::NonZeroUsize;
 
+use crate::error::{
+    CharsetCodecDecodeResult,
+    map_charset_decode_failure,
+};
 use crate::{
     Ascii,
     Charset,
     CharsetCodec,
     CharsetDecodeError,
     CharsetDecodeErrorKind,
-    CharsetDecodeResult,
     CharsetEncodeError,
     CharsetEncodeResult,
 };
@@ -32,7 +35,7 @@ impl AsciiCodec {
     /// # Returns
     ///
     /// Returns [`Charset::ASCII`].
-    #[inline(always)]
+    #[inline]
     #[must_use]
     pub const fn charset(self) -> Charset {
         Charset::ASCII
@@ -45,66 +48,62 @@ impl CharsetCodec for AsciiCodec {
     /// # Returns
     ///
     /// Returns [`Charset::ASCII`].
-    #[inline(always)]
+    #[inline]
     fn charset(&self) -> Charset {
         Charset::ASCII
     }
 }
 
-unsafe impl Codec for AsciiCodec {
+impl Codec for AsciiCodec {
     type Value = char;
     type Unit = u8;
     type DecodeError = CharsetDecodeError;
     type EncodeError = CharsetEncodeError;
 
-    #[inline(always)]
-    fn min_units_per_value(&self) -> NonZeroUsize {
-        NonZeroUsize::MIN
-    }
+    const MIN_UNITS_PER_VALUE: NonZeroUsize = NonZeroUsize::MIN;
+    const MAX_UNITS_PER_VALUE: NonZeroUsize = NonZeroUsize::MIN;
 
-    #[inline(always)]
-    fn max_units_per_value(&self) -> NonZeroUsize {
-        NonZeroUsize::MIN
-    }
-
-    #[inline(always)]
+    #[inline]
     fn can_encode_value(&self, value: &char) -> bool {
         Ascii::is_ascii_char(*value)
     }
 
-    #[inline(always)]
+    #[inline]
     unsafe fn decode(
         &mut self,
         input: &[u8],
-        index: usize,
-    ) -> CharsetDecodeResult<(char, NonZeroUsize)> {
-        debug_assert!(index < input.len());
+        input_index: usize,
+    ) -> CharsetCodecDecodeResult<(char, NonZeroUsize)> {
+        debug_assert!(input_index < input.len());
 
-        // SAFETY: The caller guarantees that `index` is readable.
-        let value = unsafe { qubit_io::UncheckedSlice::read(input, index) };
+        // SAFETY: The caller guarantees that `input_index` is readable.
+        let value =
+            unsafe { qubit_io::UncheckedSlice::read(input, input_index) };
         if !Ascii::is_ascii_byte(value) {
-            let kind = CharsetDecodeErrorKind::MalformedSequence {
-                value: Some(value as u32),
-            };
-            return Err(CharsetDecodeError::new(Charset::ASCII, kind, index));
+            let kind = CharsetDecodeErrorKind::malformed(value as u32);
+            return Err(map_charset_decode_failure(CharsetDecodeError::new(
+                Charset::ASCII,
+                kind,
+                input_index,
+            )));
         }
         Ok((value as char, NonZeroUsize::MIN))
     }
 
-    #[inline(always)]
+    #[inline]
     unsafe fn encode(
         &mut self,
         ch: &char,
         output: &mut [u8],
-        index: usize,
+        output_index: usize,
     ) -> CharsetEncodeResult<NonZeroUsize> {
         debug_assert!(self.can_encode_value(ch));
-        debug_assert!(index < output.len());
+        debug_assert!(output_index < output.len());
 
-        // SAFETY: The caller guarantees that `ch` is encodable and `index` is
-        // writable.
+        // SAFETY: The caller guarantees that `ch` is encodable and
+        // `output_index` is writable.
         unsafe {
-            qubit_io::UncheckedSlice::write(output, index, *ch as u8);
+            qubit_io::UncheckedSlice::write(output, output_index, *ch as u8);
         }
         Ok(NonZeroUsize::MIN)
     }
