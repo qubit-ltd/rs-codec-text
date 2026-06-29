@@ -169,7 +169,7 @@ impl Unicode {
     ///
     /// Returns `true` for Unicode noncharacters such as `U+FDD0..=U+FDEF` and
     /// code points ending in `FFFE` or `FFFF`.
-    #[inline(always)]
+    #[inline]
     pub const fn is_noncharacter(value: u32) -> bool {
         Self::is_code_point(value)
             && ((value >= 0xfdd0 && value <= 0xfdef)
@@ -185,7 +185,7 @@ impl Unicode {
     /// # Returns
     ///
     /// Returns `true` for `U+0000..=U+001F`, `U+007F`, and `U+0080..=U+009F`.
-    #[inline(always)]
+    #[inline]
     pub const fn is_control(value: u32) -> bool {
         value <= 0x1f || (value >= 0x7f && value <= 0x9f)
     }
@@ -200,7 +200,7 @@ impl Unicode {
     ///
     /// Returns `Some(plane)` for Unicode code points, or `None` for values
     /// above `U+10FFFF`.
-    #[inline(always)]
+    #[inline]
     pub const fn plane(value: u32) -> Option<u32> {
         if Self::is_code_point(value) {
             Some(value >> 16)
@@ -219,7 +219,7 @@ impl Unicode {
     ///
     /// Returns `Some(char)` for valid Unicode scalar values and `None`
     /// otherwise.
-    #[inline(always)]
+    #[inline]
     pub fn to_char(value: u32) -> Option<char> {
         char::from_u32(value)
     }

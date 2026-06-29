@@ -5,8 +5,9 @@
 //
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
+use qubit_codec::ByteOrder;
+
 use crate::{
-    ByteOrder,
     Unicode,
     UnicodeBom,
 };
@@ -59,7 +60,6 @@ impl Utf32 {
     /// # Returns
     ///
     /// Returns `Some(ByteOrder)` for UTF-32 BOM prefixes, or `None` otherwise.
-    #[inline]
     pub fn detect_bom(bytes: &[u8]) -> Option<ByteOrder> {
         match UnicodeBom::detect(bytes) {
             Some(UnicodeBom::Utf32BigEndian) => Some(ByteOrder::BigEndian),

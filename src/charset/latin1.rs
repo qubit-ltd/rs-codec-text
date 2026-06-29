@@ -45,7 +45,7 @@ impl Latin1 {
     /// # Returns
     ///
     /// Returns `true` if `value` is in `U+0000..=U+00FF`.
-    #[inline(always)]
+    #[inline]
     #[must_use]
     pub const fn is_latin1_char(value: char) -> bool {
         value <= Self::MAX_CHAR
@@ -60,7 +60,7 @@ impl Latin1 {
     /// # Returns
     ///
     /// Returns `true` if `value` is in `0x00..=0xFF`.
-    #[inline(always)]
+    #[inline]
     #[must_use]
     pub const fn is_latin1_code_point(value: u32) -> bool {
         value <= Self::MAX_CODE_POINT
@@ -90,7 +90,7 @@ impl Latin1 {
     /// # Returns
     ///
     /// Returns `true` for tab, line feed, form feed, carriage return, or space.
-    #[inline(always)]
+    #[inline]
     #[must_use]
     pub const fn is_whitespace_char(value: char) -> bool {
         match Self::char_to_byte(value) {
@@ -108,7 +108,7 @@ impl Latin1 {
     /// # Returns
     ///
     /// Returns `true` for tab, line feed, form feed, carriage return, or space.
-    #[inline(always)]
+    #[inline]
     #[must_use]
     pub const fn is_whitespace_code_point(value: u32) -> bool {
         match Self::code_point_to_byte(value) {
@@ -144,7 +144,7 @@ impl Latin1 {
     /// # Returns
     ///
     /// Returns `true` if `value` is in the Latin-1 letter set.
-    #[inline(always)]
+    #[inline]
     #[must_use]
     pub const fn is_letter_char(value: char) -> bool {
         match Self::char_to_byte(value) {
@@ -162,7 +162,7 @@ impl Latin1 {
     /// # Returns
     ///
     /// Returns `true` if `value` is in the Latin-1 letter set.
-    #[inline(always)]
+    #[inline]
     #[must_use]
     pub const fn is_letter_code_point(value: u32) -> bool {
         match Self::code_point_to_byte(value) {
@@ -198,7 +198,7 @@ impl Latin1 {
     /// # Returns
     ///
     /// Returns `true` if `value` is an uppercase Latin-1 letter.
-    #[inline(always)]
+    #[inline]
     #[must_use]
     pub const fn is_uppercase_letter_char(value: char) -> bool {
         match Self::char_to_byte(value) {
@@ -216,7 +216,7 @@ impl Latin1 {
     /// # Returns
     ///
     /// Returns `true` if `value` is an uppercase Latin-1 letter.
-    #[inline(always)]
+    #[inline]
     #[must_use]
     pub const fn is_uppercase_letter_code_point(value: u32) -> bool {
         match Self::code_point_to_byte(value) {
@@ -254,7 +254,7 @@ impl Latin1 {
     /// # Returns
     ///
     /// Returns `true` if `value` is a lowercase Latin-1 letter.
-    #[inline(always)]
+    #[inline]
     #[must_use]
     pub const fn is_lowercase_letter_char(value: char) -> bool {
         match Self::char_to_byte(value) {
@@ -272,7 +272,7 @@ impl Latin1 {
     /// # Returns
     ///
     /// Returns `true` if `value` is a lowercase Latin-1 letter.
-    #[inline(always)]
+    #[inline]
     #[must_use]
     pub const fn is_lowercase_letter_code_point(value: u32) -> bool {
         match Self::code_point_to_byte(value) {
@@ -305,7 +305,7 @@ impl Latin1 {
     /// # Returns
     ///
     /// Returns `true` for `0..=9`.
-    #[inline(always)]
+    #[inline]
     #[must_use]
     pub const fn is_digit_char(value: char) -> bool {
         match Self::char_to_byte(value) {
@@ -323,7 +323,7 @@ impl Latin1 {
     /// # Returns
     ///
     /// Returns `true` for `0..=9`.
-    #[inline(always)]
+    #[inline]
     #[must_use]
     pub const fn is_digit_code_point(value: u32) -> bool {
         match Self::code_point_to_byte(value) {
@@ -356,7 +356,7 @@ impl Latin1 {
     /// # Returns
     ///
     /// Returns `true` for `0..=9`, `A..=F`, or `a..=f`.
-    #[inline(always)]
+    #[inline]
     #[must_use]
     pub const fn is_hex_digit_char(value: char) -> bool {
         match Self::char_to_byte(value) {
@@ -374,7 +374,7 @@ impl Latin1 {
     /// # Returns
     ///
     /// Returns `true` for `0..=9`, `A..=F`, or `a..=f`.
-    #[inline(always)]
+    #[inline]
     #[must_use]
     pub const fn is_hex_digit_code_point(value: u32) -> bool {
         match Self::code_point_to_byte(value) {
@@ -407,7 +407,7 @@ impl Latin1 {
     /// # Returns
     ///
     /// Returns `true` for `0..=7`.
-    #[inline(always)]
+    #[inline]
     #[must_use]
     pub const fn is_octal_digit_char(value: char) -> bool {
         match Self::char_to_byte(value) {
@@ -425,7 +425,7 @@ impl Latin1 {
     /// # Returns
     ///
     /// Returns `true` for `0..=7`.
-    #[inline(always)]
+    #[inline]
     #[must_use]
     pub const fn is_octal_digit_code_point(value: u32) -> bool {
         match Self::code_point_to_byte(value) {
@@ -458,7 +458,7 @@ impl Latin1 {
     /// # Returns
     ///
     /// Returns `true` for Latin-1 letters and `0..=9`.
-    #[inline(always)]
+    #[inline]
     #[must_use]
     pub const fn is_letter_or_digit_char(value: char) -> bool {
         match Self::char_to_byte(value) {
@@ -476,7 +476,7 @@ impl Latin1 {
     /// # Returns
     ///
     /// Returns `true` for Latin-1 letters and `0..=9`.
-    #[inline(always)]
+    #[inline]
     #[must_use]
     pub const fn is_letter_or_digit_code_point(value: u32) -> bool {
         match Self::code_point_to_byte(value) {
@@ -509,7 +509,7 @@ impl Latin1 {
     /// # Returns
     ///
     /// Returns `true` for Latin-1 characters outside control ranges.
-    #[inline(always)]
+    #[inline]
     #[must_use]
     pub const fn is_printable_char(value: char) -> bool {
         match Self::char_to_byte(value) {
@@ -527,7 +527,7 @@ impl Latin1 {
     /// # Returns
     ///
     /// Returns `true` for Latin-1 values outside control ranges.
-    #[inline(always)]
+    #[inline]
     #[must_use]
     pub const fn is_printable_code_point(value: u32) -> bool {
         match Self::code_point_to_byte(value) {
@@ -560,7 +560,7 @@ impl Latin1 {
     /// # Returns
     ///
     /// Returns `true` for C0 controls, DEL, or C1 controls.
-    #[inline(always)]
+    #[inline]
     #[must_use]
     pub const fn is_control_char(value: char) -> bool {
         match Self::char_to_byte(value) {
@@ -578,7 +578,7 @@ impl Latin1 {
     /// # Returns
     ///
     /// Returns `true` for C0 controls, DEL, or C1 controls.
-    #[inline(always)]
+    #[inline]
     #[must_use]
     pub const fn is_control_code_point(value: u32) -> bool {
         match Self::code_point_to_byte(value) {
@@ -648,7 +648,7 @@ impl Latin1 {
     ///
     /// Returns `true` if both Latin-1 characters match after lowercase
     /// conversion. Non-Latin-1 characters are compared unchanged.
-    #[inline(always)]
+    #[inline]
     #[must_use]
     pub const fn equals_ignore_case_char(left: char, right: char) -> bool {
         if left == right {
@@ -668,7 +668,7 @@ impl Latin1 {
     /// # Returns
     ///
     /// Returns `true` if both values match after Latin-1 lowercase conversion.
-    #[inline(always)]
+    #[inline]
     #[must_use]
     pub const fn equals_ignore_case_code_point(left: u32, right: u32) -> bool {
         if left == right {
@@ -712,7 +712,7 @@ impl Latin1 {
     ///
     /// Returns the uppercase Latin-1 equivalent when one exists; otherwise
     /// returns `value` unchanged.
-    #[inline(always)]
+    #[inline]
     #[must_use]
     pub const fn char_to_uppercase(value: char) -> char {
         match Self::char_to_byte(value) {
@@ -731,7 +731,7 @@ impl Latin1 {
     ///
     /// Returns the uppercase Latin-1 equivalent when one exists; otherwise
     /// returns `value` unchanged.
-    #[inline(always)]
+    #[inline]
     #[must_use]
     pub const fn code_point_to_uppercase(value: u32) -> u32 {
         match Self::code_point_to_byte(value) {
@@ -773,7 +773,7 @@ impl Latin1 {
     ///
     /// Returns the lowercase Latin-1 equivalent when one exists; otherwise
     /// returns `value` unchanged.
-    #[inline(always)]
+    #[inline]
     #[must_use]
     pub const fn char_to_lowercase(value: char) -> char {
         match Self::char_to_byte(value) {
@@ -792,7 +792,7 @@ impl Latin1 {
     ///
     /// Returns the lowercase Latin-1 equivalent when one exists; otherwise
     /// returns `value` unchanged.
-    #[inline(always)]
+    #[inline]
     #[must_use]
     pub const fn code_point_to_lowercase(value: u32) -> u32 {
         match Self::code_point_to_byte(value) {
@@ -811,7 +811,7 @@ impl Latin1 {
     ///
     /// Returns `Some(byte)` when `value` is in `U+0000..=U+00FF`; otherwise
     /// returns `None`.
-    #[inline(always)]
+    #[inline]
     #[must_use]
     pub const fn char_to_byte(value: char) -> Option<u8> {
         if Self::is_latin1_char(value) {
@@ -831,7 +831,7 @@ impl Latin1 {
     ///
     /// Returns `Some(byte)` when `value` is in `0x00..=0xFF`; otherwise
     /// returns `None`.
-    #[inline(always)]
+    #[inline]
     #[must_use]
     pub const fn code_point_to_byte(value: u32) -> Option<u8> {
         if Self::is_latin1_code_point(value) {
@@ -865,7 +865,7 @@ impl Latin1 {
     /// # Returns
     ///
     /// Returns `Some(0..=9)` for `0..=9`; otherwise returns `None`.
-    #[inline(always)]
+    #[inline]
     #[must_use]
     pub const fn char_to_digit(value: char) -> Option<u8> {
         match Self::char_to_byte(value) {
@@ -883,7 +883,7 @@ impl Latin1 {
     /// # Returns
     ///
     /// Returns `Some(0..=9)` for `0..=9`; otherwise returns `None`.
-    #[inline(always)]
+    #[inline]
     #[must_use]
     pub const fn code_point_to_digit(value: u32) -> Option<u8> {
         match Self::code_point_to_byte(value) {
@@ -918,7 +918,7 @@ impl Latin1 {
     ///
     /// Returns `Some(0..=15)` for ASCII hexadecimal digits; otherwise returns
     /// `None`.
-    #[inline(always)]
+    #[inline]
     #[must_use]
     pub const fn char_to_hex_digit(value: char) -> Option<u8> {
         match Self::char_to_byte(value) {
@@ -937,7 +937,7 @@ impl Latin1 {
     ///
     /// Returns `Some(0..=15)` for ASCII hexadecimal digits; otherwise returns
     /// `None`.
-    #[inline(always)]
+    #[inline]
     #[must_use]
     pub const fn code_point_to_hex_digit(value: u32) -> Option<u8> {
         match Self::code_point_to_byte(value) {
@@ -956,7 +956,7 @@ impl Latin1 {
     ///
     /// Returns `Some(char)` when `value` is in `0x00..=0xFF`; otherwise
     /// returns `None`.
-    #[inline(always)]
+    #[inline]
     #[must_use]
     pub const fn code_point_to_char(value: u32) -> Option<char> {
         if Self::is_latin1_code_point(value) {

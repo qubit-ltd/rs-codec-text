@@ -5,8 +5,9 @@
 //
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
+use qubit_codec::ByteOrder;
+
 use crate::{
-    ByteOrder,
     Unicode,
     UnicodeBom,
 };
@@ -125,7 +126,7 @@ impl Utf16 {
     /// # Returns
     ///
     /// Returns `Some(1)` or `Some(2)` for scalar values and `None` otherwise.
-    #[inline(always)]
+    #[inline]
     pub const fn unit_len_code_point(code_point: u32) -> Option<usize> {
         if !Unicode::is_scalar_value(code_point) {
             None
@@ -146,7 +147,7 @@ impl Utf16 {
     /// # Returns
     ///
     /// Returns `Some(code_point)` when the pair is valid, or `None` otherwise.
-    #[inline(always)]
+    #[inline]
     pub const fn compose_pair(high: u16, low: u16) -> Option<u32> {
         if Self::is_surrogate_pair(high, low) {
             let high_payload = (high as u32) - Unicode::HIGH_SURROGATE_MIN;
@@ -169,7 +170,7 @@ impl Utf16 {
     ///
     /// Returns `Some(high_surrogate)` for supplementary code points and `None`
     /// otherwise.
-    #[inline(always)]
+    #[inline]
     pub const fn high_surrogate(code_point: u32) -> Option<u16> {
         if Unicode::is_supplementary(code_point) {
             Some(
@@ -191,7 +192,7 @@ impl Utf16 {
     ///
     /// Returns `Some(low_surrogate)` for supplementary code points and `None`
     /// otherwise.
-    #[inline(always)]
+    #[inline]
     pub const fn low_surrogate(code_point: u32) -> Option<u16> {
         if Unicode::is_supplementary(code_point) {
             Some(
@@ -212,7 +213,6 @@ impl Utf16 {
     /// # Returns
     ///
     /// Returns `Some(ByteOrder)` for UTF-16 BOM prefixes, or `None` otherwise.
-    #[inline]
     pub fn detect_bom(bytes: &[u8]) -> Option<ByteOrder> {
         match UnicodeBom::detect(bytes) {
             Some(UnicodeBom::Utf16BigEndian) => Some(ByteOrder::BigEndian),
