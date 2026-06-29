@@ -5,12 +5,10 @@
 //
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
-use core::num::NonZeroUsize;
-
 use qubit_codec::{
     CapacityError,
-    DecodeAction,
     DecodeContext,
+    DecodeInvalidAction,
     TranscodeDecodeHooks,
 };
 
@@ -19,8 +17,6 @@ use crate::{
     CharsetDecodeError,
     MalformedAction,
 };
-
-use super::charset_decode_policy::CharsetDecodePolicy;
 
 /// Malformed-input policy hooks used by [`super::CharsetDecoder`].
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -43,7 +39,7 @@ impl CharsetDecodeHooks {
     ///
     /// Returns hooks carrying the supplied policy.
     #[must_use]
-    #[inline(always)]
+    #[inline]
     pub(crate) const fn new(
         malformed_action: MalformedAction,
         replacement: char,
@@ -52,32 +48,6 @@ impl CharsetDecodeHooks {
             malformed_action,
             replacement,
         }
-    }
-
-    /// Creates charset decode hooks from a public policy.
-    #[must_use]
-    #[inline(always)]
-    pub(crate) const fn from_policy(policy: CharsetDecodePolicy) -> Self {
-        Self::new(policy.malformed_action(), policy.replacement())
-    }
-
-    /// Returns a non-zero consumed-unit count bounded by visible input.
-    ///
-    /// # Parameters
-    ///
-    /// - `reported`: Units reported by the charset decode error.
-    /// - `available`: Units visible at the malformed input boundary.
-    ///
-    /// # Returns
-    ///
-    /// Returns a non-zero consumed-unit count.
-    #[must_use]
-    #[inline]
-    fn malformed_consumed(
-        reported: Option<usize>,
-        available: usize,
-    ) -> NonZeroUsize {
-        qubit_io::nz!(reported.unwrap_or(1).min(available).max(1))
     }
 }
 
@@ -88,8 +58,8 @@ where
     type Error = CharsetDecodeError;
 
     /// Returns the maximum number of characters decoded from `input_len` units.
-    #[inline(always)]
-    fn max_output_len(
+    #[inline]
+    fn max_transcode_output_len(
         &self,
         _codec: &C,
         input_len: usize,
@@ -98,45 +68,28 @@ where
     }
 
     /// Handles a charset decode failure during `transcode`.
-    fn handle_decode_error(
+    fn handle_invalid_decode(
         &mut self,
         _codec: &mut C,
         error: CharsetDecodeError,
-        context: DecodeContext,
-    ) -> Result<DecodeAction<char>, Self::Error> {
-        if let Some((required, available)) = error.kind().incomplete() {
-            debug_assert!(
-                required > available,
-                "incomplete error did not require more input"
-            );
-            return Ok(DecodeAction::NeedInput {
-                required_total: required,
-            });
-        }
+        _consumed: Option<core::num::NonZeroUsize>,
+        _context: DecodeContext,
+    ) -> Result<DecodeInvalidAction<char>, Self::Error> {
         if error.kind().is_malformed_input() {
-            let consumed = CharsetDecodeHooks::malformed_consumed(
-                error.consumed(),
-                context.available(),
-            );
+            let consumed = error
+                .consumed()
+                .expect("malformed decode errors carry consumed width");
             return match self.malformed_action {
                 MalformedAction::Report => Err(error),
-                MalformedAction::Ignore => Ok(DecodeAction::Skip { consumed }),
-                MalformedAction::Replace => Ok(DecodeAction::Emit {
+                MalformedAction::Ignore => {
+                    Ok(DecodeInvalidAction::Skip { consumed })
+                }
+                MalformedAction::Replace => Ok(DecodeInvalidAction::Emit {
                     value: self.replacement,
                     consumed,
                 }),
             };
         }
         Err(error)
-    }
-
-    /// Maps charset decode flush errors unchanged.
-    #[inline(always)]
-    fn map_decode_flush_error(
-        &mut self,
-        _codec: &mut C,
-        error: CharsetDecodeError,
-    ) -> Self::Error {
-        error
     }
 }

@@ -5,11 +5,15 @@
 //
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
-use core::fmt;
+use core::{
+    fmt,
+    num::NonZeroUsize,
+};
 
 use qubit_codec::{
     CapacityError,
     TranscodeEncodeEngine,
+    TranscodeEncodeEngineError,
     TranscodeEncoder,
     TranscodeError,
     TranscodeProgress,
@@ -40,7 +44,6 @@ use super::{
 ///
 /// - `C`: Low-level charset codec used to encode one character into target
 ///   storage units.
-#[derive(Clone)]
 pub struct CharsetEncoder<C>
 where
     C: CharsetCodec,
@@ -50,7 +53,7 @@ where
     /// Public unmappable-input policy metadata.
     policy: CharsetEncodePolicy,
     /// Number of units used by replacement policy.
-    replacement_units_len: usize,
+    replacement_units_len: Option<NonZeroUsize>,
 }
 
 impl<C> CharsetEncoder<C>
@@ -75,38 +78,39 @@ where
     ///
     /// Panics when neither [`CharsetEncodePolicy::DEFAULT_REPLACEMENT`] nor
     /// [`CharsetEncodePolicy::DEFAULT_FALLBACK_REPLACEMENT`] can be encoded by
-    /// `codec`.
-    /// Built-in codecs can always encode the fallback `?`; failure here means
-    /// the supplied codec cannot encode a minimal ASCII replacement. For custom
-    /// [`crate::CharsetCodec`] implementations, this indicates a broken codec
-    /// invariant rather than recoverable input data.
+    /// `codec`. This panic is intentional by design: reaching this branch means
+    /// the supplied codec implementation is wrong, because the API requires a
+    /// default replacement fallback that the codec can encode. Built-in codecs
+    /// can always encode the fallback `?`; custom [`crate::CharsetCodec`]
+    /// implementations that cannot encode it must fail fast during
+    /// construction rather than defer the invariant violation to user input.
     #[must_use]
     pub fn new(codec: C) -> Self {
-        let policy = CharsetEncodePolicy::default();
-        match Self::create_hooks(&codec, policy) {
-            Ok((hooks, replacement_units_len)) => Self {
-                engine: TranscodeEncodeEngine::new(codec, hooks),
-                policy,
-                replacement_units_len,
-            },
-            Err(default_error) => {
-                let fallback_policy = CharsetEncodePolicy::replace(
-                    CharsetEncodePolicy::DEFAULT_FALLBACK_REPLACEMENT,
-                );
-                match Self::create_hooks(&codec, fallback_policy) {
-                    Ok((hooks, replacement_units_len)) => Self {
-                        engine: TranscodeEncodeEngine::new(codec, hooks),
-                        policy: fallback_policy,
-                        replacement_units_len,
-                    },
-                    Err(_) => panic!(
-                        "cannot initialize CharsetEncoder for {:?}: neither {:?} nor {:?} is encodable ({default_error})",
-                        codec.charset(),
-                        CharsetEncodePolicy::DEFAULT_REPLACEMENT,
-                        CharsetEncodePolicy::DEFAULT_FALLBACK_REPLACEMENT,
-                    ),
-                }
-            }
+        let policy = CharsetEncodePolicy::default_for(&codec).unwrap_or_else(|error| {
+            // This panic is intentional. If default replacement selection gets
+            // here, the codec cannot encode even the required fallback `?`.
+            // That violates the codec invariant expected by this API, so
+            // construction fails fast to expose the broken codec implementation.
+            panic!(
+                "cannot initialize CharsetEncoder for {:?}: neither {:?} nor {:?} is encodable ({error})",
+                codec.charset(),
+                CharsetEncodePolicy::DEFAULT_REPLACEMENT,
+                CharsetEncodePolicy::DEFAULT_FALLBACK_REPLACEMENT,
+            )
+        });
+        let (hooks, replacement_units_len) = Self::create_hooks(&codec, policy)
+            // A policy chosen by `default_for` must be encodable; failing here
+            // can only mean the codec violates the replacement fallback
+            // invariant. This panic is deliberate for the same fail-fast reason
+            // as the default-policy panic above.
+            .expect(
+                "validated default encode policy should create hooks; \
+                 failure means the codec violated its replacement invariant",
+            );
+        Self {
+            engine: TranscodeEncodeEngine::new(codec, hooks),
+            policy,
+            replacement_units_len,
         }
     }
 
@@ -136,7 +140,7 @@ where
     /// Returns the action used when target encoding cannot represent a
     /// character.
     #[must_use]
-    #[inline(always)]
+    #[inline]
     pub const fn unmappable_action(&self) -> UnmappableAction {
         self.policy.unmappable_action()
     }
@@ -148,27 +152,76 @@ where
     /// Returns the character encoded when [`UnmappableAction::Replace`] is
     /// used.
     #[must_use]
-    #[inline(always)]
+    #[inline]
     pub const fn replacement(&self) -> char {
         self.policy.replacement()
+    }
+
+    /// Returns the charset encoded by the wrapped codec.
+    ///
+    /// # Returns
+    ///
+    /// Returns the charset reported by the low-level codec.
+    #[must_use]
+    #[inline]
+    pub fn charset(&self) -> crate::Charset {
+        self.codec().charset()
+    }
+
+    /// Returns the wrapped low-level codec.
+    ///
+    /// # Returns
+    ///
+    /// Returns a shared reference to the codec owned by this encoder.
+    #[must_use]
+    #[inline]
+    pub fn codec(&self) -> &C {
+        self.engine.codec()
+    }
+
+    /// Returns the wrapped low-level codec mutably.
+    ///
+    /// # Returns
+    ///
+    /// Returns a mutable reference to the codec owned by this encoder.
+    #[must_use]
+    #[inline]
+    pub fn codec_mut(&mut self) -> &mut C {
+        self.engine.codec_mut()
+    }
+
+    /// Consumes the encoder and returns its codec.
+    ///
+    /// Encoder policy and hook state are discarded.
+    ///
+    /// # Returns
+    ///
+    /// Returns the low-level codec owned by this encoder.
+    #[must_use]
+    #[inline]
+    pub fn into_codec(self) -> C {
+        let (codec, _) = self.engine.into_parts();
+        codec
     }
 
     /// Creates encode hooks for `policy`.
     pub(crate) fn create_hooks(
         codec: &C,
         policy: CharsetEncodePolicy,
-    ) -> Result<(CharsetEncodeHooks<C::Unit>, usize), CharsetEncodeError> {
-        let mut hooks = CharsetEncodeHooks::new(
+    ) -> Result<
+        (CharsetEncodeHooks<C::Unit>, Option<NonZeroUsize>),
+        CharsetEncodeError,
+    > {
+        let hooks = CharsetEncodeHooks::new(
             policy.unmappable_action(),
             policy.replacement(),
         );
         if policy.unmappable_action() != UnmappableAction::Replace {
-            return Ok((hooks, 0));
+            return Ok((hooks, None));
         }
         let replacement_units_len =
             replacement_len(codec, policy.replacement())?;
-        hooks.set_replacement_units_len(replacement_units_len);
-        Ok((hooks, replacement_units_len))
+        Ok((hooks, Some(replacement_units_len)))
     }
 }
 
@@ -180,36 +233,41 @@ where
 
     /// Returns the maximum number of target units needed for `input_len`
     /// characters.
-    #[inline(always)]
-    fn max_output_len(&self, input_len: usize) -> Result<usize, CapacityError> {
-        self.engine.max_output_len(input_len)
+    #[inline]
+    fn max_transcode_output_len(
+        &self,
+        input_len: usize,
+    ) -> Result<usize, CapacityError> {
+        self.engine.max_transcode_output_len(input_len)
     }
 
     /// Returns the maximum target units emitted by finishing internal state.
-    #[inline(always)]
+    #[inline]
     fn max_finish_output_len(&self) -> Result<usize, CapacityError> {
-        Ok(self.engine.max_finish_output_len())
+        self.engine.max_finish_output_len()
     }
 
     /// Returns the maximum target units emitted when resetting stream state.
-    #[inline(always)]
+    #[inline]
     fn max_reset_output_len(&self) -> Result<usize, CapacityError> {
-        Ok(self.engine.max_reset_output_len())
+        self.engine.max_reset_output_len()
     }
 
-    /// Clears hook-owned state while keeping encoder policy.
-    #[inline(always)]
+    /// Runs encoder reset while keeping encoder policy.
+    #[inline]
     fn reset(
         &mut self,
         output: &mut [C::Unit],
         output_index: usize,
     ) -> Result<usize, TranscodeError<Self::Error>> {
-        self.engine.reset(output, output_index)
+        self.engine
+            .reset(output, output_index)
+            .map_err(|error| error.map_domain(map_encode_engine_error))
     }
 
     /// Encodes characters into the target charset while applying unmappable
     /// policy.
-    #[inline(always)]
+    #[inline]
     fn transcode(
         &mut self,
         input: &[char],
@@ -219,35 +277,25 @@ where
     ) -> Result<TranscodeProgress, TranscodeError<Self::Error>> {
         self.engine
             .transcode(input, input_index, output, output_index)
+            .map_err(|error| error.map_domain(map_encode_engine_error))
     }
 
     /// Finishes encoder-owned final output after EOF.
-    #[inline(always)]
+    #[inline]
     fn finish(
         &mut self,
         output: &mut [C::Unit],
         output_index: usize,
     ) -> Result<usize, TranscodeError<Self::Error>> {
-        self.engine.finish(output, output_index)
+        self.engine
+            .finish(output, output_index)
+            .map_err(|error| error.map_domain(map_encode_engine_error))
     }
 }
 
 impl<C> TranscodeEncoder<char, C::Unit> for CharsetEncoder<C> where
     C: CharsetCodec
 {
-}
-
-impl<C> Eq for CharsetEncoder<C> where C: CharsetCodec + Eq {}
-
-impl<C> PartialEq for CharsetEncoder<C>
-where
-    C: CharsetCodec + PartialEq,
-{
-    /// Compares encoder configuration without leaking unit trait bounds.
-    #[inline(always)]
-    fn eq(&self, other: &Self) -> bool {
-        self.engine == other.engine && self.policy == other.policy
-    }
 }
 
 impl<C> fmt::Debug for CharsetEncoder<C>
@@ -260,7 +308,22 @@ where
             .field("engine", &self.engine)
             .field("unmappable_action", &self.unmappable_action())
             .field("replacement", &self.replacement())
-            .field("replacement_units_len", &self.replacement_units_len)
+            .field(
+                "replacement_units_len",
+                &self.replacement_units_len.map(NonZeroUsize::get),
+            )
             .finish()
+    }
+}
+
+#[inline]
+fn map_encode_engine_error(
+    error: TranscodeEncodeEngineError<CharsetEncodeError, CharsetEncodeError>,
+) -> CharsetEncodeError {
+    match error {
+        TranscodeEncodeEngineError::CodecEncode { source, .. }
+        | TranscodeEncodeEngineError::CodecReset { source }
+        | TranscodeEncodeEngineError::CodecFlush { source } => source,
+        TranscodeEncodeEngineError::Hook(error) => error,
     }
 }
