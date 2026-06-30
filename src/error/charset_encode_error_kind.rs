@@ -39,6 +39,14 @@ pub enum CharsetEncodeErrorKind {
         value: u32,
     },
 
+    /// The transcode layer rejected a value without exposing its raw scalar.
+    #[error("The input value cannot be encoded by the target encoding.")]
+    UnencodableValue,
+
+    /// The transcode layer reported a failure that is not valid for encoding.
+    #[error("The transcode framework reported an unexpected encode failure.")]
+    UnexpectedTranscodeFailure,
+
     /// The supplied output buffer is too small for the encoded character.
     #[error(
         "The output buffer is too small (required {required} units, available {available} units)."
@@ -85,6 +93,8 @@ impl CharsetEncodeErrorKind {
             Self::BufferTooSmall { .. }
             | Self::InvalidInputIndex { .. }
             | Self::InvalidOutputIndex { .. }
+            | Self::UnencodableValue
+            | Self::UnexpectedTranscodeFailure
             | Self::OutputLengthOverflow
             | Self::IncompleteInput { .. } => None,
         }
@@ -106,6 +116,8 @@ impl CharsetEncodeErrorKind {
             | Self::InvalidOutputIndex { .. }
             | Self::InvalidCodePoint { .. }
             | Self::UnmappableCharacter { .. }
+            | Self::UnencodableValue
+            | Self::UnexpectedTranscodeFailure
             | Self::OutputLengthOverflow => None,
         }
     }
@@ -127,6 +139,8 @@ impl CharsetEncodeErrorKind {
             | Self::InvalidOutputIndex { .. }
             | Self::InvalidCodePoint { .. }
             | Self::UnmappableCharacter { .. }
+            | Self::UnencodableValue
+            | Self::UnexpectedTranscodeFailure
             | Self::OutputLengthOverflow => None,
         }
     }
@@ -147,6 +161,8 @@ impl CharsetEncodeErrorKind {
             | Self::UnmappableCharacter { .. }
             | Self::BufferTooSmall { .. }
             | Self::InvalidOutputIndex { .. }
+            | Self::UnencodableValue
+            | Self::UnexpectedTranscodeFailure
             | Self::OutputLengthOverflow
             | Self::IncompleteInput { .. } => None,
         }
@@ -168,6 +184,8 @@ impl CharsetEncodeErrorKind {
             | Self::InvalidInputIndex { .. }
             | Self::UnmappableCharacter { .. }
             | Self::BufferTooSmall { .. }
+            | Self::UnencodableValue
+            | Self::UnexpectedTranscodeFailure
             | Self::OutputLengthOverflow
             | Self::IncompleteInput { .. } => None,
         }

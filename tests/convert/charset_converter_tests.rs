@@ -576,15 +576,38 @@ fn test_charset_converter_maps_transcode_failures() {
         u8,
     >>::map_failure(
         &converter,
-        TranscodeFailure::UnencodableValue { input_index: 7 },
+        TranscodeFailure::UnencodableValue {
+            input_index: 7,
+            value: Some('中' as u32),
+        },
     );
     match error {
         CharsetConvertError::Encode(error) => {
             assert_eq!(
-                CharsetEncodeErrorKind::UnmappableCharacter { value: 0 },
+                CharsetEncodeErrorKind::UnmappableCharacter {
+                    value: '中' as u32
+                },
                 error.kind(),
             );
             assert_eq!(7, error.index());
+        }
+        other => panic!("expected encode unencodable value, got {other:?}"),
+    }
+
+    let error = <CharsetConverter<Utf8Codec, AsciiBytesCodec> as Transcoder<
+        u8,
+        u8,
+    >>::map_failure(
+        &converter,
+        TranscodeFailure::UnencodableValue {
+            input_index: 8,
+            value: None,
+        },
+    );
+    match error {
+        CharsetConvertError::Encode(error) => {
+            assert_eq!(CharsetEncodeErrorKind::UnencodableValue, error.kind());
+            assert_eq!(8, error.index());
         }
         other => panic!("expected encode unencodable value, got {other:?}"),
     }

@@ -5,10 +5,7 @@
 //
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
-use crate::error::{
-    CharsetCodecDecodeResult,
-    map_charset_decode_failure,
-};
+use crate::error::CharsetCodecDecodeResult;
 use crate::{
     Charset,
     CharsetCodec,
@@ -146,7 +143,7 @@ impl Codec for Utf16ByteCodec {
     ) -> CharsetCodecDecodeResult<(char, NonZeroUsize)> {
         let (ch, consumed) =
             decode_bytes_prefix(input, input_index, self.byte_order)
-                .map_err(map_charset_decode_failure)?;
+                .map_err(CharsetDecodeError::into_codec_failure)?;
         debug_assert!(
             consumed.get() <= input.len().saturating_sub(input_index)
         );

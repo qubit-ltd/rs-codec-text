@@ -72,12 +72,6 @@ pub use error::{
     CharsetEncodeErrorKind,
     CharsetEncodeResult,
 };
-pub(crate) use error::{
-    map_charset_decode_error,
-    map_charset_decode_transcode_error,
-    map_charset_encode_error,
-    map_charset_encode_transcode_error,
-};
 pub use util::{
     normalize_label_loose,
     normalize_label_whatwg,

@@ -7,10 +7,7 @@
 // =============================================================================
 use core::num::NonZeroUsize;
 
-use crate::error::{
-    CharsetCodecDecodeResult,
-    map_charset_decode_failure,
-};
+use crate::error::CharsetCodecDecodeResult;
 use crate::{
     Charset,
     CharsetCodec,
@@ -105,7 +102,7 @@ impl Codec for Utf8Codec {
         input_index: usize,
     ) -> CharsetCodecDecodeResult<(char, NonZeroUsize)> {
         let (ch, consumed) = decode_prefix(input, input_index)
-            .map_err(map_charset_decode_failure)?;
+            .map_err(CharsetDecodeError::into_codec_failure)?;
         debug_assert!(
             consumed.get() <= input.len().saturating_sub(input_index)
         );

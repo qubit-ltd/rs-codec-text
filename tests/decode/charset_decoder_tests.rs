@@ -500,7 +500,10 @@ fn test_charset_decoder_maps_transcode_failures() {
     let error =
         <CharsetDecoder<Utf8Codec> as Transcoder<u8, char>>::map_failure(
             &decoder,
-            TranscodeFailure::UnencodableValue { input_index: 7 },
+            TranscodeFailure::UnencodableValue {
+                input_index: 7,
+                value: None,
+            },
         );
     assert_eq!(CharsetDecodeErrorKind::OutputLengthOverflow, error.kind());
     assert_eq!(usize::MAX, error.index());

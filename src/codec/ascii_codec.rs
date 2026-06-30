@@ -7,10 +7,7 @@
 // =============================================================================
 use core::num::NonZeroUsize;
 
-use crate::error::{
-    CharsetCodecDecodeResult,
-    map_charset_decode_failure,
-};
+use crate::error::CharsetCodecDecodeResult;
 use crate::{
     Ascii,
     Charset,
@@ -81,11 +78,10 @@ impl Codec for AsciiCodec {
             unsafe { qubit_io::UncheckedSlice::read(input, input_index) };
         if !Ascii::is_ascii_byte(value) {
             let kind = CharsetDecodeErrorKind::malformed(value as u32);
-            return Err(map_charset_decode_failure(CharsetDecodeError::new(
-                Charset::ASCII,
-                kind,
-                input_index,
-            )));
+            return Err(
+                CharsetDecodeError::new(Charset::ASCII, kind, input_index)
+                    .into_codec_failure(),
+            );
         }
         Ok((value as char, NonZeroUsize::MIN))
     }

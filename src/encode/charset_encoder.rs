@@ -24,8 +24,6 @@ use crate::{
     CharsetCodec,
     CharsetEncodeError,
     UnmappableAction,
-    map_charset_encode_error,
-    map_charset_encode_transcode_error,
 };
 
 use super::{
@@ -237,7 +235,7 @@ where
     /// Maps transcode-layer failures into charset encode errors.
     #[inline(always)]
     fn map_failure(&self, failure: TranscodeFailure) -> Self::Error {
-        map_charset_encode_error(self.charset(), failure)
+        CharsetEncodeError::map_transcode_failure(self.charset(), failure)
     }
 
     /// Returns charset-domain encode errors unchanged.
@@ -285,7 +283,7 @@ where
         let charset = self.charset();
         self.engine
             .reset(output, output_index)
-            .map_err(|error| map_charset_encode_transcode_error(charset, error))
+            .map_err(|error| CharsetEncodeError::map_transcode_error(charset, error))
     }
 
     /// Encodes characters into the target charset while applying unmappable
@@ -301,7 +299,7 @@ where
         let charset = self.charset();
         self.engine
             .transcode(input, input_index, output, output_index)
-            .map_err(|error| map_charset_encode_transcode_error(charset, error))
+            .map_err(|error| CharsetEncodeError::map_transcode_error(charset, error))
     }
 
     /// Finishes encoder-owned final output after EOF.
@@ -314,7 +312,7 @@ where
         let charset = self.charset();
         self.engine
             .finish(output, output_index)
-            .map_err(|error| map_charset_encode_transcode_error(charset, error))
+            .map_err(|error| CharsetEncodeError::map_transcode_error(charset, error))
     }
 }
 
