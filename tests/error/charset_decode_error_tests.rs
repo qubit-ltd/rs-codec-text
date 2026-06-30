@@ -1,5 +1,6 @@
 #[cfg(not(debug_assertions))]
 use qubit_codec::DecodeFailure;
+use qubit_codec::TranscodeFailure;
 use qubit_codec_text::{
     Charset,
     CharsetDecodeError,
@@ -178,4 +179,58 @@ fn test_charset_decode_error_maps_zero_required_incomplete_as_invalid() {
             failure,
         );
     }
+}
+
+#[test]
+fn test_charset_decode_error_maps_transcode_failures() {
+    let error = CharsetDecodeError::map_transcode_failure(
+        Charset::UTF_8,
+        TranscodeFailure::InsufficientOutput {
+            output_index: 2,
+            required: 3,
+            available: 1,
+        },
+    );
+    assert_eq!(
+        CharsetDecodeErrorKind::BufferTooSmall {
+            required: 3,
+            available: 1,
+        },
+        error.kind(),
+    );
+    assert_eq!(2, error.index());
+
+    let error = CharsetDecodeError::map_transcode_failure(
+        Charset::UTF_8,
+        TranscodeFailure::OutputLengthOverflow,
+    );
+    assert_eq!(CharsetDecodeErrorKind::OutputLengthOverflow, error.kind());
+    assert_eq!(usize::MAX, error.index());
+
+    let error = CharsetDecodeError::map_transcode_failure(
+        Charset::UTF_8,
+        TranscodeFailure::IncompleteInput {
+            input_index: 4,
+            required: 2,
+            available: 1,
+        },
+    );
+    assert_eq!(
+        CharsetDecodeErrorKind::IncompleteSequence {
+            required: 2,
+            available: 1,
+        },
+        error.kind(),
+    );
+    assert_eq!(4, error.index());
+
+    let error = CharsetDecodeError::map_transcode_failure(
+        Charset::UTF_8,
+        TranscodeFailure::UnencodableValue {
+            input_index: 0,
+            value: Some('中' as u32),
+        },
+    );
+    assert_eq!(CharsetDecodeErrorKind::OutputLengthOverflow, error.kind());
+    assert_eq!(usize::MAX, error.index());
 }

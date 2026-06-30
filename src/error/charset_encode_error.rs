@@ -60,7 +60,8 @@ impl CharsetEncodeError {
     /// Decode-only framework failures are reported as
     /// [`CharsetEncodeErrorKind::UnexpectedTranscodeFailure`] instead of
     /// being misreported as output-length overflow.
-    pub(crate) fn map_transcode_failure(
+    #[doc(hidden)]
+    pub fn map_transcode_failure(
         charset: Charset,
         error: TranscodeFailure,
     ) -> Self {
@@ -149,10 +150,9 @@ impl CharsetEncodeError {
         error: TranscodeError<Self>,
     ) -> Self {
         match error {
-            TranscodeError::Failure(failure) => Self::map_transcode_failure(
-                charset,
-                failure,
-            ),
+            TranscodeError::Failure(failure) => {
+                Self::map_transcode_failure(charset, failure)
+            }
             TranscodeError::Domain(error) => error.source,
         }
     }

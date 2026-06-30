@@ -6,6 +6,7 @@
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
 use qubit_codec::{
+    CapacityError,
     CodecPhase,
     DecodeContext,
     DecodeInvalidAction,
@@ -63,7 +64,7 @@ where
         &self,
         _codec: &C,
         input_len: usize,
-    ) -> Result<usize, TranscodeDecodeError<C>> {
+    ) -> Result<usize, CapacityError> {
         Ok(input_len)
     }
 
@@ -74,8 +75,7 @@ where
         error: &CharsetDecodeError,
         _consumed: Option<core::num::NonZeroUsize>,
         context: DecodeContext,
-    ) -> Result<DecodeInvalidAction<char>, qubit_codec::TranscodeDecodeError<C>>
-    {
+    ) -> Result<DecodeInvalidAction<char>, TranscodeDecodeError<C>> {
         if error.kind().is_malformed_input() {
             let consumed = error
                 .consumed()

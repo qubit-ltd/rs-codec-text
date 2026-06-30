@@ -4,7 +4,6 @@ use qubit_codec::{
     ByteOrder,
     Codec,
     TranscodeStatus,
-    Transcoder,
 };
 use qubit_codec_text::{
     AsciiCodec,

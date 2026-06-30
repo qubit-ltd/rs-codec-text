@@ -10,8 +10,7 @@ use qubit_codec::{
     Codec,
     TranscodeDecodeEngine,
     TranscodeDecoder,
-    TranscodeDomainError,
-    TranscodeFailure,
+    TranscodeError,
     TranscodeProgress,
     Transcoder,
 };
@@ -164,6 +163,92 @@ where
     pub const fn replacement(&self) -> char {
         self.policy.replacement()
     }
+
+    /// Runs decoder reset and maps transcode errors into charset decode
+    /// errors.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CharsetDecodeError`] when `output_index` is invalid, output
+    /// capacity is insufficient, or decoder reset emits a charset-domain
+    /// error.
+    #[inline]
+    pub fn reset(
+        &mut self,
+        output: &mut [char],
+        output_index: usize,
+    ) -> Result<usize, CharsetDecodeError> {
+        let charset = self.charset();
+        self.engine.reset(output, output_index).map_err(|error| {
+            CharsetDecodeError::map_transcode_error(charset, error)
+        })
+    }
+
+    /// Decodes source units into Unicode scalar values and maps transcode
+    /// errors into charset decode errors.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CharsetDecodeError`] when indices are invalid, output
+    /// capacity is insufficient, input is malformed under the configured
+    /// policy, or the codec reports another decode-domain error.
+    #[inline]
+    pub fn transcode(
+        &mut self,
+        input: &[C::Unit],
+        input_index: usize,
+        output: &mut [char],
+        output_index: usize,
+    ) -> Result<TranscodeProgress, CharsetDecodeError> {
+        let charset = self.charset();
+        self.engine
+            .transcode(input, input_index, output, output_index)
+            .map_err(|error| {
+                CharsetDecodeError::map_transcode_error(charset, error)
+            })
+    }
+
+    /// Finishes decoder-owned final output after EOF and maps transcode errors
+    /// into charset decode errors.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CharsetDecodeError`] when finalization output cannot be
+    /// written or when the codec reports a final decode-domain error.
+    #[inline]
+    pub fn finish(
+        &mut self,
+        output: &mut [char],
+        output_index: usize,
+    ) -> Result<usize, CharsetDecodeError> {
+        let charset = self.charset();
+        self.engine.finish(output, output_index).map_err(|error| {
+            CharsetDecodeError::map_transcode_error(charset, error)
+        })
+    }
+
+    /// Runs a complete `reset -> transcode -> finish` decode stream and maps
+    /// transcode errors into charset decode errors.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CharsetDecodeError`] when the supplied output buffer is too
+    /// small, the complete input ends with an incomplete sequence, or the
+    /// codec reports a charset-domain decode error.
+    #[inline]
+    pub fn transcode_complete_into(
+        &mut self,
+        input: &[C::Unit],
+        output: &mut [char],
+    ) -> Result<usize, CharsetDecodeError> {
+        let charset = self.charset();
+        <Self as Transcoder<C::Unit, char>>::transcode_complete_into(
+            self, input, output,
+        )
+        .map_err(|error| {
+            CharsetDecodeError::map_transcode_error(charset, error)
+        })
+    }
 }
 
 impl<C> CharsetDecoder<C>
@@ -221,52 +306,26 @@ where
     }
 }
 
-impl<C> TranscodeDecoder<C::Unit, char> for CharsetDecoder<C> where
-    C: CharsetCodec
-{
-    //  empty
-}
-
 impl<C> Transcoder<C::Unit, char> for CharsetDecoder<C>
 where
     C: CharsetCodec,
 {
-    type Error = CharsetDecodeError;
     type DomainError = CharsetDecodeError;
 
-    /// Maps transcode-layer failures into charset decode errors.
-    #[inline(always)]
-    fn map_failure(&self, failure: TranscodeFailure) -> Self::Error {
-        CharsetDecodeError::map_transcode_failure(self.charset(), failure)
-    }
-
-    /// Returns charset-domain decode errors unchanged.
-    #[inline(always)]
-    fn map_domain_error(
-        &self,
-        error: TranscodeDomainError<Self::DomainError>,
-    ) -> Self::Error {
-        error.source
-    }
-
     /// Returns the maximum number of characters decoded from `input_len` units.
-    #[inline]
+    #[inline(always)]
     fn max_transcode_output_len(
         &self,
         input_len: usize,
     ) -> Result<usize, CapacityError> {
-        self.engine
-            .max_transcode_output_len(input_len)
-            .map_err(|_| CapacityError::OutputLengthOverflow)
+        self.engine.max_transcode_output_len(input_len)
     }
 
     /// Returns the maximum number of characters emitted by finishing internal
     /// state.
-    #[inline]
+    #[inline(always)]
     fn max_finish_output_len(&self) -> Result<usize, CapacityError> {
-        self.engine
-            .max_finish_output_len()
-            .map_err(|_| CapacityError::OutputLengthOverflow)
+        self.engine.max_finish_output_len()
     }
 
     /// Returns the maximum characters emitted when resetting stream state.
@@ -276,44 +335,43 @@ where
     }
 
     /// Runs decoder reset while keeping decoder policy.
-    #[inline]
+    #[inline(always)]
     fn reset(
         &mut self,
         output: &mut [char],
         output_index: usize,
-    ) -> Result<usize, Self::Error> {
-        let charset = self.charset();
-        self.engine
-            .reset(output, output_index)
-            .map_err(|error| CharsetDecodeError::map_transcode_error(charset, error))
+    ) -> Result<usize, TranscodeError<Self::DomainError>> {
+        self.engine.reset(output, output_index)
     }
 
     /// Decodes source units into Unicode scalar values while applying malformed
     /// policy.
-    #[inline]
+    #[inline(always)]
     fn transcode(
         &mut self,
         input: &[C::Unit],
         input_index: usize,
         output: &mut [char],
         output_index: usize,
-    ) -> Result<TranscodeProgress, Self::Error> {
-        let charset = self.charset();
+    ) -> Result<TranscodeProgress, TranscodeError<Self::DomainError>> {
         self.engine
             .transcode(input, input_index, output, output_index)
-            .map_err(|error| CharsetDecodeError::map_transcode_error(charset, error))
     }
 
     /// Finishes decoder-owned final output after EOF.
-    #[inline]
+    #[inline(always)]
     fn finish(
         &mut self,
         output: &mut [char],
         output_index: usize,
-    ) -> Result<usize, Self::Error> {
-        let charset = self.charset();
-        self.engine
-            .finish(output, output_index)
-            .map_err(|error| CharsetDecodeError::map_transcode_error(charset, error))
+    ) -> Result<usize, TranscodeError<Self::DomainError>> {
+        self.engine.finish(output, output_index)
     }
+}
+
+impl<C> TranscodeDecoder<C::Unit, char> for CharsetDecoder<C>
+where
+    C: CharsetCodec,
+{
+    //  empty
 }

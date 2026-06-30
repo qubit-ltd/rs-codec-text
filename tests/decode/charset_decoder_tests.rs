@@ -1,11 +1,8 @@
 use qubit_codec::{
     CapacityError,
     Codec,
-    CodecPhase,
     TranscodeDecoder,
-    TranscodeDomainError,
     TranscodeError,
-    TranscodeFailure,
     TranscodeProgress,
     TranscodeStatus,
     Transcoder,
@@ -375,7 +372,7 @@ fn test_charset_decoder_exposes_configuration_and_bounds() {
 #[test]
 fn test_charset_decoder_transcoder_trait_methods_forward() {
     type Decoder = CharsetDecoder<Utf8Codec>;
-    type DecoderResult<T> = Result<T, CharsetDecodeError>;
+    type DecoderResult<T> = Result<T, TranscodeError<CharsetDecodeError>>;
     type TranscodeFn = fn(
         &mut Decoder,
         &[u8],
@@ -418,137 +415,6 @@ fn test_charset_decoder_transcoder_trait_methods_forward() {
     assert_eq!(TranscodeStatus::Complete, progress.status());
     assert_eq!(['A'], output);
     assert_eq!(Ok(0), finish(&mut decoder, &mut [], 0));
-}
-
-#[test]
-fn test_charset_decoder_maps_transcode_failures() {
-    let decoder = CharsetDecoder::new(Utf8Codec);
-
-    let error =
-        <CharsetDecoder<Utf8Codec> as Transcoder<u8, char>>::map_failure(
-            &decoder,
-            TranscodeFailure::InvalidInputIndex {
-                index: 3,
-                input_len: 2,
-            },
-        );
-    assert_eq!(Charset::UTF_8, error.charset());
-    assert_eq!(
-        CharsetDecodeErrorKind::InvalidInputIndex { input_len: 2 },
-        error.kind(),
-    );
-    assert_eq!(3, error.index());
-
-    let error =
-        <CharsetDecoder<Utf8Codec> as Transcoder<u8, char>>::map_failure(
-            &decoder,
-            TranscodeFailure::InvalidOutputIndex {
-                index: 4,
-                output_len: 1,
-            },
-        );
-    assert_eq!(
-        CharsetDecodeErrorKind::InvalidOutputIndex { output_len: 1 },
-        error.kind(),
-    );
-    assert_eq!(4, error.index());
-
-    let error =
-        <CharsetDecoder<Utf8Codec> as Transcoder<u8, char>>::map_failure(
-            &decoder,
-            TranscodeFailure::InsufficientOutput {
-                output_index: 5,
-                required: 2,
-                available: 1,
-            },
-        );
-    assert_eq!(
-        CharsetDecodeErrorKind::BufferTooSmall {
-            required: 2,
-            available: 1,
-        },
-        error.kind(),
-    );
-    assert_eq!(5, error.index());
-
-    let error =
-        <CharsetDecoder<Utf8Codec> as Transcoder<u8, char>>::map_failure(
-            &decoder,
-            TranscodeFailure::OutputLengthOverflow,
-        );
-    assert_eq!(CharsetDecodeErrorKind::OutputLengthOverflow, error.kind());
-    assert_eq!(usize::MAX, error.index());
-
-    let error =
-        <CharsetDecoder<Utf8Codec> as Transcoder<u8, char>>::map_failure(
-            &decoder,
-            TranscodeFailure::IncompleteInput {
-                input_index: 6,
-                required: 4,
-                available: 2,
-            },
-        );
-    assert_eq!(
-        CharsetDecodeErrorKind::IncompleteSequence {
-            required: 4,
-            available: 2,
-        },
-        error.kind(),
-    );
-    assert_eq!(6, error.index());
-
-    let error =
-        <CharsetDecoder<Utf8Codec> as Transcoder<u8, char>>::map_failure(
-            &decoder,
-            TranscodeFailure::UnencodableValue {
-                input_index: 7,
-                value: None,
-            },
-        );
-    assert_eq!(CharsetDecodeErrorKind::OutputLengthOverflow, error.kind());
-    assert_eq!(usize::MAX, error.index());
-
-    let error =
-        <CharsetDecoder<Utf8Codec> as Transcoder<u8, char>>::map_failure(
-            &decoder,
-            TranscodeFailure::TrailingInput {
-                consumed: 1,
-                remaining: 1,
-            },
-        );
-    assert_eq!(CharsetDecodeErrorKind::OutputLengthOverflow, error.kind());
-    assert_eq!(usize::MAX, error.index());
-}
-
-#[test]
-fn test_charset_decoder_maps_domain_and_intermediate_transcode_errors() {
-    let decoder = CharsetDecoder::new(Utf8Codec);
-    let domain = CharsetDecodeError::new(
-        Charset::UTF_8,
-        CharsetDecodeErrorKind::malformed_unknown(),
-        9,
-    );
-
-    let error =
-        <CharsetDecoder<Utf8Codec> as Transcoder<u8, char>>::map_domain_error(
-            &decoder,
-            TranscodeDomainError {
-                source: domain,
-                phase: CodecPhase::Main,
-                input_index: Some(9),
-            },
-        );
-    assert_eq!(domain, error);
-
-    let error = <CharsetDecoder<Utf8Codec> as Transcoder<u8, char>>::map_transcode_error(
-        &decoder,
-        TranscodeError::Domain(TranscodeDomainError {
-            source: domain,
-            phase: CodecPhase::Flush,
-            input_index: None,
-        }),
-    );
-    assert_eq!(domain, error);
 }
 
 #[test]

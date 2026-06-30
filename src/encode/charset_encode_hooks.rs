@@ -5,11 +5,7 @@
 //
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
-use core::{
-    fmt,
-    marker::PhantomData,
-    num::NonZeroUsize,
-};
+use core::num::NonZeroUsize;
 
 use qubit_codec::{
     CodecPhase,
@@ -28,29 +24,16 @@ use crate::{
 use crate::CharsetCodec;
 
 /// Unmappable-input policy hooks used by [`super::CharsetEncoder`].
-#[derive(Clone)]
-pub(crate) struct CharsetEncodeHooks<Unit> {
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub(crate) struct CharsetEncodeHooks {
     /// Action used for unmappable input characters.
     pub(super) unmappable_action: UnmappableAction,
     /// Replacement character used by [`UnmappableAction::Replace`].
     pub(super) replacement: char,
-    /// Unit marker keeping hook identity tied to the concrete output unit
-    /// type.
-    unit: PhantomData<fn() -> Unit>,
 }
 
-impl<Unit> fmt::Debug for CharsetEncodeHooks<Unit> {
-    /// Formats hooks without requiring unit values to implement [`fmt::Debug`].
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("CharsetEncodeHooks")
-            .field("unmappable_action", &self.unmappable_action)
-            .field("replacement", &self.replacement)
-            .finish()
-    }
-}
-
-impl<Unit> CharsetEncodeHooks<Unit> {
-    /// Creates charset encode hooks without replacement output units.
+impl CharsetEncodeHooks {
+    /// Creates charset encode hooks.
     ///
     /// # Parameters
     ///
@@ -59,7 +42,7 @@ impl<Unit> CharsetEncodeHooks<Unit> {
     ///
     /// # Returns
     ///
-    /// Returns hooks configured with no replacement output units.
+    /// Returns hooks configured with the supplied policy.
     #[must_use]
     #[inline]
     pub(crate) const fn new(
@@ -69,12 +52,11 @@ impl<Unit> CharsetEncodeHooks<Unit> {
         Self {
             unmappable_action,
             replacement,
-            unit: PhantomData,
         }
     }
 }
 
-impl<C> TranscodeEncodeHooks<C> for CharsetEncodeHooks<C::Unit>
+impl<C> TranscodeEncodeHooks<C> for CharsetEncodeHooks
 where
     C: CharsetCodec,
 {
