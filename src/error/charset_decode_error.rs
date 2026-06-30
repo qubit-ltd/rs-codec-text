@@ -69,7 +69,8 @@ impl CharsetDecodeError {
     /// failures retain their original indices and sizes. Encode-only framework
     /// failures are reported as
     /// [`CharsetDecodeErrorKind::OutputLengthOverflow`].
-    pub(crate) fn map_transcode_failure(
+    #[doc(hidden)]
+    pub fn map_transcode_failure(
         charset: Charset,
         error: TranscodeFailure,
     ) -> Self {
@@ -146,10 +147,9 @@ impl CharsetDecodeError {
         error: TranscodeError<Self>,
     ) -> Self {
         match error {
-            TranscodeError::Failure(failure) => Self::map_transcode_failure(
-                charset,
-                failure,
-            ),
+            TranscodeError::Failure(failure) => {
+                Self::map_transcode_failure(charset, failure)
+            }
             TranscodeError::Domain(error) => error.source,
         }
     }

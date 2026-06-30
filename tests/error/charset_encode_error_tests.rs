@@ -1,3 +1,4 @@
+use qubit_codec::TranscodeFailure;
 use qubit_codec_text::{
     Charset,
     CharsetEncodeError,
@@ -121,4 +122,69 @@ fn test_charset_encode_error_direct_function_items_cover_forwarders() {
         0,
     );
     assert_eq!(Some('中' as u32), value(unmappable));
+}
+
+#[test]
+fn test_charset_encode_error_maps_transcode_failures() {
+    let error = CharsetEncodeError::map_transcode_failure(
+        Charset::UTF_8,
+        TranscodeFailure::OutputLengthOverflow,
+    );
+    assert_eq!(CharsetEncodeErrorKind::OutputLengthOverflow, error.kind());
+    assert_eq!(usize::MAX, error.index());
+
+    let error = CharsetEncodeError::map_transcode_failure(
+        Charset::UTF_8,
+        TranscodeFailure::IncompleteInput {
+            input_index: 3,
+            required: 4,
+            available: 1,
+        },
+    );
+    assert_eq!(
+        CharsetEncodeErrorKind::IncompleteInput {
+            required: 4,
+            available: 1,
+        },
+        error.kind(),
+    );
+    assert_eq!(3, error.index());
+
+    let error = CharsetEncodeError::map_transcode_failure(
+        Charset::UTF_8,
+        TranscodeFailure::UnencodableValue {
+            input_index: 5,
+            value: Some('中' as u32),
+        },
+    );
+    assert_eq!(
+        CharsetEncodeErrorKind::UnmappableCharacter {
+            value: '中' as u32
+        },
+        error.kind(),
+    );
+    assert_eq!(5, error.index());
+
+    let error = CharsetEncodeError::map_transcode_failure(
+        Charset::UTF_8,
+        TranscodeFailure::UnencodableValue {
+            input_index: 6,
+            value: None,
+        },
+    );
+    assert_eq!(CharsetEncodeErrorKind::UnencodableValue, error.kind());
+    assert_eq!(6, error.index());
+
+    let error = CharsetEncodeError::map_transcode_failure(
+        Charset::UTF_8,
+        TranscodeFailure::TrailingInput {
+            consumed: 1,
+            remaining: 2,
+        },
+    );
+    assert_eq!(
+        CharsetEncodeErrorKind::UnexpectedTranscodeFailure,
+        error.kind(),
+    );
+    assert_eq!(usize::MAX, error.index());
 }

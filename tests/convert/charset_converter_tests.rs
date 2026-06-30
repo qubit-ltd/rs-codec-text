@@ -4,13 +4,12 @@ use std::{
 };
 
 use qubit_codec::{
+    CapacityError,
     Codec,
-    CodecPhase,
     ConvertError,
     TranscodeConverter,
-    TranscodeDomainError,
     TranscodeError,
-    TranscodeFailure,
+    TranscodeProgress,
     TranscodeStatus,
     Transcoder,
 };
@@ -436,235 +435,83 @@ fn test_charset_converter_is_transcode_converter() {
 }
 
 #[test]
-fn test_charset_converter_maps_transcode_failures() {
-    let converter = CharsetConverter::from_codecs(Utf8Codec, AsciiBytesCodec);
+fn test_charset_converter_transcoder_trait_methods_forward() {
+    type Converter = CharsetConverter<Utf8Codec, Utf16U16Codec>;
+    type ConverterResult<T> = Result<
+        T,
+        TranscodeError<ConvertError<CharsetDecodeError, CharsetEncodeError>>,
+    >;
+    type TranscodeFn = fn(
+        &mut Converter,
+        &[u8],
+        usize,
+        &mut [u16],
+        usize,
+    ) -> ConverterResult<TranscodeProgress>;
+    type OutputFn =
+        fn(&mut Converter, &mut [u16], usize) -> ConverterResult<usize>;
 
-    let error = <CharsetConverter<Utf8Codec, AsciiBytesCodec> as Transcoder<
-        u8,
-        u8,
-    >>::map_failure(
-        &converter,
-        TranscodeFailure::InvalidInputIndex {
-            index: 3,
-            input_len: 2,
-        },
+    let mut converter = CharsetConverter::from_codecs(Utf8Codec, Utf16U16Codec);
+    let mut output = [0_u16; 1];
+    let max_transcode_output_len: fn(
+        &Converter,
+        usize,
+    ) -> Result<usize, CapacityError> = std::hint::black_box(
+        <Converter as Transcoder<u8, u16>>::max_transcode_output_len,
     );
-    match error {
-        CharsetConvertError::Decode(error) => {
-            assert_eq!(Charset::UTF_8, error.charset());
-            assert_eq!(
-                CharsetDecodeErrorKind::InvalidInputIndex { input_len: 2 },
-                error.kind(),
-            );
-            assert_eq!(3, error.index());
-        }
-        other => panic!("expected decode invalid input index, got {other:?}"),
-    }
+    let max_finish_output_len: fn(&Converter) -> Result<usize, CapacityError> =
+        std::hint::black_box(
+            <Converter as Transcoder<u8, u16>>::max_finish_output_len,
+        );
+    let max_reset_output_len: fn(&Converter) -> Result<usize, CapacityError> =
+        std::hint::black_box(
+            <Converter as Transcoder<u8, u16>>::max_reset_output_len,
+        );
+    let reset: OutputFn =
+        std::hint::black_box(<Converter as Transcoder<u8, u16>>::reset);
+    let transcode: TranscodeFn =
+        std::hint::black_box(<Converter as Transcoder<u8, u16>>::transcode);
+    let finish: OutputFn =
+        std::hint::black_box(<Converter as Transcoder<u8, u16>>::finish);
 
-    let error = <CharsetConverter<Utf8Codec, AsciiBytesCodec> as Transcoder<
-        u8,
-        u8,
-    >>::map_failure(
-        &converter,
-        TranscodeFailure::IncompleteInput {
-            input_index: 4,
-            required: 3,
-            available: 1,
-        },
-    );
-    match error {
-        CharsetConvertError::Decode(error) => {
-            assert_eq!(
-                CharsetDecodeErrorKind::IncompleteSequence {
-                    required: 3,
-                    available: 1,
-                },
-                error.kind(),
-            );
-            assert_eq!(4, error.index());
-        }
-        other => panic!("expected decode incomplete input, got {other:?}"),
-    }
-
-    let error = <CharsetConverter<Utf8Codec, AsciiBytesCodec> as Transcoder<
-        u8,
-        u8,
-    >>::map_failure(
-        &converter,
-        TranscodeFailure::TrailingInput {
-            consumed: 1,
-            remaining: 1,
-        },
-    );
-    match error {
-        CharsetConvertError::Decode(error) => {
-            assert_eq!(
-                CharsetDecodeErrorKind::OutputLengthOverflow,
-                error.kind()
-            );
-            assert_eq!(usize::MAX, error.index());
-        }
-        other => panic!("expected decode trailing input, got {other:?}"),
-    }
-
-    let error = <CharsetConverter<Utf8Codec, AsciiBytesCodec> as Transcoder<
-        u8,
-        u8,
-    >>::map_failure(
-        &converter,
-        TranscodeFailure::InvalidOutputIndex {
-            index: 5,
-            output_len: 2,
-        },
-    );
-    match error {
-        CharsetConvertError::Encode(error) => {
-            assert_eq!(Charset::ASCII, error.charset());
-            assert_eq!(
-                CharsetEncodeErrorKind::InvalidOutputIndex { output_len: 2 },
-                error.kind(),
-            );
-            assert_eq!(5, error.index());
-        }
-        other => panic!("expected encode invalid output index, got {other:?}"),
-    }
-
-    let error = <CharsetConverter<Utf8Codec, AsciiBytesCodec> as Transcoder<
-        u8,
-        u8,
-    >>::map_failure(
-        &converter,
-        TranscodeFailure::InsufficientOutput {
-            output_index: 6,
-            required: 2,
-            available: 0,
-        },
-    );
-    match error {
-        CharsetConvertError::Encode(error) => {
-            assert_eq!(
-                CharsetEncodeErrorKind::BufferTooSmall {
-                    required: 2,
-                    available: 0,
-                },
-                error.kind(),
-            );
-            assert_eq!(6, error.index());
-        }
-        other => panic!("expected encode insufficient output, got {other:?}"),
-    }
-
-    let error = <CharsetConverter<Utf8Codec, AsciiBytesCodec> as Transcoder<
-        u8,
-        u8,
-    >>::map_failure(
-        &converter, TranscodeFailure::OutputLengthOverflow
-    );
-    match error {
-        CharsetConvertError::Encode(error) => {
-            assert_eq!(
-                CharsetEncodeErrorKind::OutputLengthOverflow,
-                error.kind()
-            );
-            assert_eq!(usize::MAX, error.index());
-        }
-        other => panic!("expected encode output overflow, got {other:?}"),
-    }
-
-    let error = <CharsetConverter<Utf8Codec, AsciiBytesCodec> as Transcoder<
-        u8,
-        u8,
-    >>::map_failure(
-        &converter,
-        TranscodeFailure::UnencodableValue {
-            input_index: 7,
-            value: Some('中' as u32),
-        },
-    );
-    match error {
-        CharsetConvertError::Encode(error) => {
-            assert_eq!(
-                CharsetEncodeErrorKind::UnmappableCharacter {
-                    value: '中' as u32
-                },
-                error.kind(),
-            );
-            assert_eq!(7, error.index());
-        }
-        other => panic!("expected encode unencodable value, got {other:?}"),
-    }
-
-    let error = <CharsetConverter<Utf8Codec, AsciiBytesCodec> as Transcoder<
-        u8,
-        u8,
-    >>::map_failure(
-        &converter,
-        TranscodeFailure::UnencodableValue {
-            input_index: 8,
-            value: None,
-        },
-    );
-    match error {
-        CharsetConvertError::Encode(error) => {
-            assert_eq!(CharsetEncodeErrorKind::UnencodableValue, error.kind());
-            assert_eq!(8, error.index());
-        }
-        other => panic!("expected encode unencodable value, got {other:?}"),
-    }
+    assert_eq!(Ok(2), max_transcode_output_len(&converter, 1));
+    assert_eq!(Ok(0), max_finish_output_len(&converter));
+    assert_eq!(Ok(0), max_reset_output_len(&converter));
+    assert_eq!(Ok(0), reset(&mut converter, &mut [], 0));
+    let progress = transcode(&mut converter, b"A", 0, &mut output, 0)
+        .expect("converter should transcode through the trait");
+    assert_eq!(TranscodeStatus::Complete, progress.status());
+    assert_eq!(['A' as u16], output);
+    assert_eq!(Ok(0), finish(&mut converter, &mut [], 0));
 }
 
 #[test]
-fn test_charset_converter_maps_domain_and_intermediate_transcode_errors() {
-    let converter = CharsetConverter::from_codecs(Utf8Codec, AsciiBytesCodec);
-    let decode = CharsetDecodeError::new(
-        Charset::UTF_8,
-        CharsetDecodeErrorKind::malformed_unknown(),
-        8,
-    );
-    let encode = CharsetEncodeError::new(
-        Charset::ASCII,
-        CharsetEncodeErrorKind::InvalidCodePoint { value: 0x110000 },
-        9,
-    );
+fn test_charset_converter_complete_into_maps_framework_errors() {
+    let mut converter = CharsetConverter::from_codecs(Utf8Codec, Utf16U16Codec);
+    let mut output = [0_u16; 4];
 
-    let error = <CharsetConverter<Utf8Codec, AsciiBytesCodec> as Transcoder<
-        u8,
-        u8,
-    >>::map_domain_error(
-        &converter,
-        TranscodeDomainError {
-            source: ConvertError::decode(decode),
-            phase: CodecPhase::Main,
-            input_index: Some(8),
-        },
-    );
-    assert_eq!(CharsetConvertError::Decode(decode), error);
+    let written = converter
+        .transcode_complete_into(b"AB", &mut output)
+        .expect("complete conversion should write all characters");
 
-    let error = <CharsetConverter<Utf8Codec, AsciiBytesCodec> as Transcoder<
-        u8,
-        u8,
-    >>::map_domain_error(
-        &converter,
-        TranscodeDomainError {
-            source: ConvertError::encode(encode),
-            phase: CodecPhase::Flush,
-            input_index: None,
-        },
-    );
-    assert_eq!(CharsetConvertError::Encode(encode), error);
+    assert_eq!(2, written);
+    assert_eq!(['A' as u16, 'B' as u16], output[..written]);
 
-    let error = <CharsetConverter<Utf8Codec, AsciiBytesCodec> as Transcoder<
-        u8,
-        u8,
-    >>::map_transcode_error(
-        &converter,
-        TranscodeError::Domain(TranscodeDomainError {
-            source: ConvertError::decode(decode),
-            phase: CodecPhase::Reset,
-            input_index: None,
-        }),
-    );
-    assert_eq!(CharsetConvertError::Decode(decode), error);
+    let mut short_output = [0_u16; 2];
+    let error = converter
+        .transcode_complete_into(b"AB", &mut short_output)
+        .expect_err("complete conversion maps insufficient output");
+
+    match error {
+        CharsetConvertError::Encode(error) => {
+            assert!(matches!(
+                error.kind(),
+                CharsetEncodeErrorKind::BufferTooSmall { .. },
+            ));
+            assert_eq!(0, error.index());
+        }
+        other => panic!("expected encode capacity error, got {other:?}"),
+    }
 }
 
 #[test]

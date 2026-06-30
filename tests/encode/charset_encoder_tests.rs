@@ -1,11 +1,8 @@
 use qubit_codec::{
     CapacityError,
     Codec,
-    CodecPhase,
-    TranscodeDomainError,
     TranscodeEncoder,
     TranscodeError,
-    TranscodeFailure,
     TranscodeProgress,
     TranscodeStatus,
     Transcoder,
@@ -156,11 +153,77 @@ impl Codec for NonDefaultUnitCodec {
     }
 }
 
+#[derive(Clone, Copy, Default, Eq, PartialEq)]
+struct NonDebugUnit(u8);
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct NonDebugUnitCodec;
+
+impl CharsetCodec for NonDebugUnitCodec {
+    fn charset(&self) -> Charset {
+        Charset::ASCII
+    }
+}
+
+impl Codec for NonDebugUnitCodec {
+    type Value = char;
+    type Unit = NonDebugUnit;
+    type DecodeError = CharsetDecodeError;
+    type EncodeError = CharsetEncodeError;
+
+    const MIN_UNITS_PER_VALUE: core::num::NonZeroUsize =
+        core::num::NonZeroUsize::MIN;
+
+    const MAX_UNITS_PER_VALUE: core::num::NonZeroUsize =
+        core::num::NonZeroUsize::MIN;
+
+    fn can_encode_value(&self, value: &char) -> bool {
+        value.is_ascii()
+    }
+
+    unsafe fn decode(
+        &mut self,
+        _input: &[NonDebugUnit],
+        input_index: usize,
+    ) -> Result<
+        (char, core::num::NonZeroUsize),
+        qubit_codec::DecodeFailure<qubit_codec_text::CharsetDecodeError>,
+    > {
+        let kind = CharsetDecodeErrorKind::malformed_unknown();
+        Err(CharsetDecodeError::new(Charset::ASCII, kind, input_index)
+            .into_codec_failure())
+    }
+
+    unsafe fn encode(
+        &mut self,
+        value: &char,
+        output: &mut [NonDebugUnit],
+        output_index: usize,
+    ) -> CharsetEncodeResult<core::num::NonZeroUsize> {
+        debug_assert!(self.can_encode_value(value));
+        debug_assert!(output_index < output.len());
+        unsafe {
+            // SAFETY: The caller guarantees that `output_index` is writable.
+            *output.as_mut_ptr().add(output_index) = NonDebugUnit(*value as u8);
+        }
+        Ok(core::num::NonZeroUsize::MIN)
+    }
+}
+
 #[test]
 fn test_charset_encoder_is_transcode_encoder() {
     fn assert_transcode_encoder<T: TranscodeEncoder<char, u8>>() {}
 
     assert_transcode_encoder::<CharsetEncoder<AsciiBytesCodec>>();
+}
+
+#[test]
+fn test_charset_encoder_debug_does_not_require_unit_debug() {
+    let encoder = CharsetEncoder::new(NonDebugUnitCodec);
+
+    let debug = format!("{encoder:?}");
+
+    assert!(debug.contains("CharsetEncoder"));
 }
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -441,7 +504,7 @@ fn test_charset_encoder_exposes_configuration_and_bounds() {
 #[test]
 fn test_charset_encoder_transcoder_trait_methods_forward() {
     type Encoder = CharsetEncoder<AsciiBytesCodec>;
-    type EncoderResult<T> = Result<T, CharsetEncodeError>;
+    type EncoderResult<T> = Result<T, TranscodeError<CharsetEncodeError>>;
     type TranscodeFn = fn(
         &mut Encoder,
         &[char],
@@ -487,47 +550,22 @@ fn test_charset_encoder_transcoder_trait_methods_forward() {
 }
 
 #[test]
-fn test_charset_encoder_maps_transcode_failures() {
-    let encoder = CharsetEncoder::new(AsciiBytesCodec);
+fn test_charset_encoder_complete_into_maps_framework_errors() {
+    let mut encoder = CharsetEncoder::new(AsciiBytesCodec);
+    let mut output = [0_u8; 2];
 
-    let error =
-        <CharsetEncoder<AsciiBytesCodec> as Transcoder<char, u8>>::map_failure(
-            &encoder,
-            TranscodeFailure::InvalidInputIndex {
-                index: 3,
-                input_len: 2,
-            },
-        );
-    assert_eq!(Charset::ASCII, error.charset());
-    assert_eq!(
-        CharsetEncodeErrorKind::InvalidInputIndex { input_len: 2 },
-        error.kind(),
-    );
-    assert_eq!(3, error.index());
+    let written = encoder
+        .transcode_complete_into(&['A', 'B'], &mut output)
+        .expect("complete encode should write all characters");
 
-    let error =
-        <CharsetEncoder<AsciiBytesCodec> as Transcoder<char, u8>>::map_failure(
-            &encoder,
-            TranscodeFailure::InvalidOutputIndex {
-                index: 4,
-                output_len: 1,
-            },
-        );
-    assert_eq!(
-        CharsetEncodeErrorKind::InvalidOutputIndex { output_len: 1 },
-        error.kind(),
-    );
-    assert_eq!(4, error.index());
+    assert_eq!(2, written);
+    assert_eq!(b"AB", &output);
 
-    let error =
-        <CharsetEncoder<AsciiBytesCodec> as Transcoder<char, u8>>::map_failure(
-            &encoder,
-            TranscodeFailure::InsufficientOutput {
-                output_index: 5,
-                required: 2,
-                available: 1,
-            },
-        );
+    let mut short_output = [0_u8; 1];
+    let error = encoder
+        .transcode_complete_into(&['A', 'B'], &mut short_output)
+        .expect_err("complete encode maps insufficient output");
+
     assert_eq!(
         CharsetEncodeErrorKind::BufferTooSmall {
             required: 2,
@@ -535,105 +573,7 @@ fn test_charset_encoder_maps_transcode_failures() {
         },
         error.kind(),
     );
-    assert_eq!(5, error.index());
-
-    let error =
-        <CharsetEncoder<AsciiBytesCodec> as Transcoder<char, u8>>::map_failure(
-            &encoder,
-            TranscodeFailure::OutputLengthOverflow,
-        );
-    assert_eq!(CharsetEncodeErrorKind::OutputLengthOverflow, error.kind());
-    assert_eq!(usize::MAX, error.index());
-
-    let error =
-        <CharsetEncoder<AsciiBytesCodec> as Transcoder<char, u8>>::map_failure(
-            &encoder,
-            TranscodeFailure::IncompleteInput {
-                input_index: 6,
-                required: 4,
-                available: 2,
-            },
-        );
-    assert_eq!(
-        CharsetEncodeErrorKind::IncompleteInput {
-            required: 4,
-            available: 2,
-        },
-        error.kind(),
-    );
-    assert_eq!(6, error.index());
-
-    let error =
-        <CharsetEncoder<AsciiBytesCodec> as Transcoder<char, u8>>::map_failure(
-            &encoder,
-            TranscodeFailure::UnencodableValue {
-                input_index: 7,
-                value: Some('中' as u32),
-            },
-        );
-    assert_eq!(
-        CharsetEncodeErrorKind::UnmappableCharacter {
-            value: '中' as u32
-        },
-        error.kind(),
-    );
-    assert_eq!(7, error.index());
-
-    let error =
-        <CharsetEncoder<AsciiBytesCodec> as Transcoder<char, u8>>::map_failure(
-            &encoder,
-            TranscodeFailure::UnencodableValue {
-                input_index: 8,
-                value: None,
-            },
-        );
-    assert_eq!(CharsetEncodeErrorKind::UnencodableValue, error.kind());
-    assert_eq!(8, error.index());
-
-    let error =
-        <CharsetEncoder<AsciiBytesCodec> as Transcoder<char, u8>>::map_failure(
-            &encoder,
-            TranscodeFailure::TrailingInput {
-                consumed: 1,
-                remaining: 1,
-            },
-        );
-    assert_eq!(
-        CharsetEncodeErrorKind::UnexpectedTranscodeFailure,
-        error.kind()
-    );
-    assert_eq!(usize::MAX, error.index());
-}
-
-#[test]
-fn test_charset_encoder_maps_domain_and_intermediate_transcode_errors() {
-    let encoder = CharsetEncoder::new(AsciiBytesCodec);
-    let domain = CharsetEncodeError::new(
-        Charset::ASCII,
-        CharsetEncodeErrorKind::InvalidCodePoint { value: 0x110000 },
-        9,
-    );
-
-    let error =
-        <CharsetEncoder<AsciiBytesCodec> as Transcoder<char, u8>>::map_domain_error(
-            &encoder,
-            TranscodeDomainError {
-                source: domain,
-                phase: CodecPhase::Main,
-                input_index: Some(9),
-            },
-        );
-    assert_eq!(domain, error);
-
-    let error = <CharsetEncoder<AsciiBytesCodec> as Transcoder<char, u8>>::map_transcode_error(
-        &encoder,
-        TranscodeError::Domain(TranscodeDomainError {
-            source: domain,
-            phase: CodecPhase::Flush,
-            input_index: None,
-        }),
-    );
-    assert_eq!(domain, error);
+    assert_eq!(0, error.index());
 }
 
 #[test]
@@ -989,5 +929,5 @@ fn test_charset_encoder_exposes_configuration_and_formats_debug() {
 
     let debug = format!("{encoder:?}");
     assert!(debug.contains("CharsetEncoder"));
-    assert!(debug.contains("replacement_units_len"));
+    assert!(debug.contains("policy"));
 }

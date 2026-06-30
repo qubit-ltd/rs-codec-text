@@ -78,10 +78,12 @@ impl Codec for AsciiCodec {
             unsafe { qubit_io::UncheckedSlice::read(input, input_index) };
         if !Ascii::is_ascii_byte(value) {
             let kind = CharsetDecodeErrorKind::malformed(value as u32);
-            return Err(
-                CharsetDecodeError::new(Charset::ASCII, kind, input_index)
-                    .into_codec_failure(),
-            );
+            return Err(CharsetDecodeError::new(
+                Charset::ASCII,
+                kind,
+                input_index,
+            )
+            .into_codec_failure());
         }
         Ok((value as char, NonZeroUsize::MIN))
     }
