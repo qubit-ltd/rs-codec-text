@@ -13,6 +13,14 @@ fn test_charset_encode_error_kind_displays_messages() {
             .to_string(),
     );
     assert_eq!(
+        "The input value cannot be encoded by the target encoding.",
+        CharsetEncodeErrorKind::UnencodableValue.to_string(),
+    );
+    assert_eq!(
+        "The transcode framework reported an unexpected encode failure.",
+        CharsetEncodeErrorKind::UnexpectedTranscodeFailure.to_string(),
+    );
+    assert_eq!(
         "The input character index is outside the input buffer.",
         CharsetEncodeErrorKind::InvalidInputIndex { input_len: 0 }.to_string(),
     );
@@ -89,4 +97,30 @@ fn test_charset_encode_error_kind_displays_messages() {
     assert_eq!(Some(2), incomplete.required());
     assert_eq!(Some(1), incomplete.available());
     assert_eq!(None, incomplete.value());
+
+    assert_eq!(None, CharsetEncodeErrorKind::UnencodableValue.required());
+    assert_eq!(None, CharsetEncodeErrorKind::UnencodableValue.available());
+    assert_eq!(None, CharsetEncodeErrorKind::UnencodableValue.value());
+    assert_eq!(None, CharsetEncodeErrorKind::UnencodableValue.input_len());
+    assert_eq!(None, CharsetEncodeErrorKind::UnencodableValue.output_len());
+    assert_eq!(
+        None,
+        CharsetEncodeErrorKind::UnexpectedTranscodeFailure.required()
+    );
+    assert_eq!(
+        None,
+        CharsetEncodeErrorKind::UnexpectedTranscodeFailure.available()
+    );
+    assert_eq!(
+        None,
+        CharsetEncodeErrorKind::UnexpectedTranscodeFailure.value()
+    );
+    assert_eq!(
+        None,
+        CharsetEncodeErrorKind::UnexpectedTranscodeFailure.input_len()
+    );
+    assert_eq!(
+        None,
+        CharsetEncodeErrorKind::UnexpectedTranscodeFailure.output_len()
+    );
 }

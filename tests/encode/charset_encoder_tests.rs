@@ -566,13 +566,29 @@ fn test_charset_encoder_maps_transcode_failures() {
     let error =
         <CharsetEncoder<AsciiBytesCodec> as Transcoder<char, u8>>::map_failure(
             &encoder,
-            TranscodeFailure::UnencodableValue { input_index: 7 },
+            TranscodeFailure::UnencodableValue {
+                input_index: 7,
+                value: Some('中' as u32),
+            },
         );
     assert_eq!(
-        CharsetEncodeErrorKind::UnmappableCharacter { value: 0 },
+        CharsetEncodeErrorKind::UnmappableCharacter {
+            value: '中' as u32
+        },
         error.kind(),
     );
     assert_eq!(7, error.index());
+
+    let error =
+        <CharsetEncoder<AsciiBytesCodec> as Transcoder<char, u8>>::map_failure(
+            &encoder,
+            TranscodeFailure::UnencodableValue {
+                input_index: 8,
+                value: None,
+            },
+        );
+    assert_eq!(CharsetEncodeErrorKind::UnencodableValue, error.kind());
+    assert_eq!(8, error.index());
 
     let error =
         <CharsetEncoder<AsciiBytesCodec> as Transcoder<char, u8>>::map_failure(
@@ -582,7 +598,10 @@ fn test_charset_encoder_maps_transcode_failures() {
                 remaining: 1,
             },
         );
-    assert_eq!(CharsetEncodeErrorKind::OutputLengthOverflow, error.kind());
+    assert_eq!(
+        CharsetEncodeErrorKind::UnexpectedTranscodeFailure,
+        error.kind()
+    );
     assert_eq!(usize::MAX, error.index());
 }
 

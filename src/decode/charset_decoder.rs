@@ -22,8 +22,6 @@ use crate::{
     CharsetDecodeError,
     MalformedAction,
     UnicodeBom,
-    map_charset_decode_error,
-    map_charset_decode_transcode_error,
 };
 
 use super::{
@@ -70,6 +68,7 @@ where
     ///
     /// Returns a decoder whose malformed action is [`MalformedAction::Replace`]
     /// and whose replacement character is `U+FFFD`.
+    #[inline(always)]
     #[must_use]
     pub fn new(codec: C) -> Self {
         Self::with_policy(codec, CharsetDecodePolicy::default())
@@ -102,8 +101,8 @@ where
     /// # Returns
     ///
     /// Returns the charset reported by the low-level codec.
+    #[inline(always)]
     #[must_use]
-    #[inline]
     pub fn charset(&self) -> crate::Charset {
         self.codec().charset()
     }
@@ -113,8 +112,8 @@ where
     /// # Returns
     ///
     /// Returns a shared reference to the codec owned by this decoder.
+    #[inline(always)]
     #[must_use]
-    #[inline]
     pub fn codec(&self) -> &C {
         self.engine.codec()
     }
@@ -124,8 +123,8 @@ where
     /// # Returns
     ///
     /// Returns a mutable reference to the codec owned by this decoder.
+    #[inline(always)]
     #[must_use]
-    #[inline]
     pub fn codec_mut(&mut self) -> &mut C {
         self.engine.codec_mut()
     }
@@ -149,8 +148,8 @@ where
     /// # Returns
     ///
     /// Returns the action used when source input is malformed.
+    #[inline(always)]
     #[must_use]
-    #[inline]
     pub const fn malformed_action(&self) -> MalformedAction {
         self.policy.malformed_action()
     }
@@ -160,8 +159,8 @@ where
     /// # Returns
     ///
     /// Returns the character emitted when [`MalformedAction::Replace`] is used.
+    #[inline(always)]
     #[must_use]
-    #[inline]
     pub const fn replacement(&self) -> char {
         self.policy.replacement()
     }
@@ -225,6 +224,7 @@ where
 impl<C> TranscodeDecoder<C::Unit, char> for CharsetDecoder<C> where
     C: CharsetCodec
 {
+    //  empty
 }
 
 impl<C> Transcoder<C::Unit, char> for CharsetDecoder<C>
@@ -235,13 +235,13 @@ where
     type DomainError = CharsetDecodeError;
 
     /// Maps transcode-layer failures into charset decode errors.
-    #[inline]
+    #[inline(always)]
     fn map_failure(&self, failure: TranscodeFailure) -> Self::Error {
-        map_charset_decode_error(self.charset(), failure)
+        CharsetDecodeError::map_transcode_failure(self.charset(), failure)
     }
 
     /// Returns charset-domain decode errors unchanged.
-    #[inline]
+    #[inline(always)]
     fn map_domain_error(
         &self,
         error: TranscodeDomainError<Self::DomainError>,
@@ -270,7 +270,7 @@ where
     }
 
     /// Returns the maximum characters emitted when resetting stream state.
-    #[inline]
+    #[inline(always)]
     fn max_reset_output_len(&self) -> Result<usize, CapacityError> {
         self.engine.max_reset_output_len()
     }
@@ -285,7 +285,7 @@ where
         let charset = self.charset();
         self.engine
             .reset(output, output_index)
-            .map_err(|error| map_charset_decode_transcode_error(charset, error))
+            .map_err(|error| CharsetDecodeError::map_transcode_error(charset, error))
     }
 
     /// Decodes source units into Unicode scalar values while applying malformed
@@ -301,7 +301,7 @@ where
         let charset = self.charset();
         self.engine
             .transcode(input, input_index, output, output_index)
-            .map_err(|error| map_charset_decode_transcode_error(charset, error))
+            .map_err(|error| CharsetDecodeError::map_transcode_error(charset, error))
     }
 
     /// Finishes decoder-owned final output after EOF.
@@ -314,6 +314,6 @@ where
         let charset = self.charset();
         self.engine
             .finish(output, output_index)
-            .map_err(|error| map_charset_decode_transcode_error(charset, error))
+            .map_err(|error| CharsetDecodeError::map_transcode_error(charset, error))
     }
 }

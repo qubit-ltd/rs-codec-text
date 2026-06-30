@@ -17,8 +17,6 @@ use crate::{
     CharsetEncoder,
     MalformedAction,
     UnmappableAction,
-    map_charset_decode_error,
-    map_charset_encode_error,
 };
 use qubit_codec::{
     CapacityError,
@@ -507,20 +505,14 @@ fn map_charset_convert_error(
     target_charset: crate::Charset,
     error: TranscodeError<ConvertError<CharsetDecodeError, CharsetEncodeError>>,
 ) -> CharsetConvertError {
-    if let TranscodeError::Failure(failure) = error {
-        return map_charset_convert_failure(
-            source_charset,
-            target_charset,
-            failure,
-        );
+    match error {
+        TranscodeError::Failure(failure) => {
+            map_charset_convert_failure(source_charset, target_charset, failure)
+        }
+        TranscodeError::Domain(error) => {
+            map_charset_convert_domain_error(target_charset, error)
+        }
     }
-    if let TranscodeError::Domain(error) = error {
-        return map_charset_convert_domain_error(target_charset, error);
-    }
-    CharsetConvertError::Encode(map_charset_encode_error(
-        target_charset,
-        TranscodeFailure::OutputLengthOverflow,
-    ))
 }
 
 #[inline]
@@ -533,15 +525,20 @@ fn map_charset_convert_failure(
         TranscodeFailure::InvalidInputIndex { .. }
         | TranscodeFailure::IncompleteInput { .. }
         | TranscodeFailure::TrailingInput { .. } => {
-            CharsetConvertError::Decode(map_charset_decode_error(
+            CharsetConvertError::Decode(CharsetDecodeError::map_transcode_failure(
                 source_charset,
                 failure,
             ))
         }
-        _ => CharsetConvertError::Encode(map_charset_encode_error(
-            target_charset,
-            failure,
-        )),
+        TranscodeFailure::InvalidOutputIndex { .. }
+        | TranscodeFailure::InsufficientOutput { .. }
+        | TranscodeFailure::OutputLengthOverflow
+        | TranscodeFailure::UnencodableValue { .. } => {
+            CharsetConvertError::Encode(CharsetEncodeError::map_transcode_failure(
+                target_charset,
+                failure,
+            ))
+        }
     }
 }
 
@@ -558,7 +555,7 @@ fn map_charset_convert_domain_error(
     if let ConvertError::Encode(error) = error.source {
         return CharsetConvertError::Encode(error);
     }
-    CharsetConvertError::Encode(map_charset_encode_error(
+    CharsetConvertError::Encode(CharsetEncodeError::map_transcode_failure(
         target_charset,
         TranscodeFailure::OutputLengthOverflow,
     ))

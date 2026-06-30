@@ -5,10 +5,7 @@
 //
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
-use crate::error::{
-    CharsetCodecDecodeResult,
-    map_charset_decode_failure,
-};
+use crate::error::CharsetCodecDecodeResult;
 use crate::{
     Charset,
     CharsetCodec,
@@ -109,7 +106,7 @@ impl Codec for Utf32U32Codec {
         input_index: usize,
     ) -> CharsetCodecDecodeResult<(char, core::num::NonZeroUsize)> {
         let (ch, consumed) = decode_units_prefix(input, input_index)
-            .map_err(map_charset_decode_failure)?;
+            .map_err(CharsetDecodeError::into_codec_failure)?;
         debug_assert!(
             consumed.get() <= input.len().saturating_sub(input_index)
         );

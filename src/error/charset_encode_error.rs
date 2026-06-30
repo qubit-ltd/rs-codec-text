@@ -42,91 +42,121 @@ pub struct CharsetEncodeError {
 /// - `T`: Successful value produced by an encoding operation.
 pub type CharsetEncodeResult<T> = Result<T, CharsetEncodeError>;
 
-/// Maps a transcode-layer failure into a charset encode error.
-#[inline]
-pub(crate) fn map_charset_encode_error(
-    charset: Charset,
-    error: TranscodeFailure,
-) -> CharsetEncodeError {
-    match error {
-        TranscodeFailure::InvalidInputIndex { index, input_len } => {
-            CharsetEncodeError::new(
+impl CharsetEncodeError {
+    /// Maps a transcode-layer failure into a charset encode error.
+    ///
+    /// # Parameters
+    ///
+    /// - `charset`: Target charset being encoded.
+    /// - `error`: Framework failure reported by the transcode layer.
+    ///
+    /// # Returns
+    ///
+    /// Returns the charset-level representation of `error`. Buffer and index
+    /// failures retain their original indices and sizes. Unencodable values
+    /// with a raw scalar become
+    /// [`CharsetEncodeErrorKind::UnmappableCharacter`]; unencodable values
+    /// without one become [`CharsetEncodeErrorKind::UnencodableValue`].
+    /// Decode-only framework failures are reported as
+    /// [`CharsetEncodeErrorKind::UnexpectedTranscodeFailure`] instead of
+    /// being misreported as output-length overflow.
+    pub(crate) fn map_transcode_failure(
+        charset: Charset,
+        error: TranscodeFailure,
+    ) -> Self {
+        use TranscodeFailure::{
+            IncompleteInput,
+            InsufficientOutput,
+            InvalidInputIndex,
+            InvalidOutputIndex,
+            OutputLengthOverflow,
+            TrailingInput,
+            UnencodableValue,
+        };
+
+        match error {
+            InvalidInputIndex { index, input_len } => Self::new(
                 charset,
                 CharsetEncodeErrorKind::InvalidInputIndex { input_len },
                 index,
-            )
-        }
-        TranscodeFailure::InvalidOutputIndex { index, output_len } => {
-            CharsetEncodeError::new(
+            ),
+            InvalidOutputIndex { index, output_len } => Self::new(
                 charset,
                 CharsetEncodeErrorKind::InvalidOutputIndex { output_len },
                 index,
-            )
-        }
-        TranscodeFailure::InsufficientOutput {
-            output_index,
-            required,
-            available,
-        } => CharsetEncodeError::new(
-            charset,
-            CharsetEncodeErrorKind::BufferTooSmall {
+            ),
+            InsufficientOutput {
+                output_index,
                 required,
                 available,
-            },
-            output_index,
-        ),
-        TranscodeFailure::OutputLengthOverflow => CharsetEncodeError::new(
-            charset,
-            CharsetEncodeErrorKind::OutputLengthOverflow,
-            usize::MAX,
-        ),
-        TranscodeFailure::IncompleteInput {
-            input_index,
-            required,
-            available,
-        } => CharsetEncodeError::new(
-            charset,
-            CharsetEncodeErrorKind::IncompleteInput {
-                required,
-                available,
-            },
-            input_index,
-        ),
-        TranscodeFailure::UnencodableValue { input_index } => {
-            CharsetEncodeError::new(
+            } => Self::new(
                 charset,
-                CharsetEncodeErrorKind::UnmappableCharacter { value: 0 },
+                CharsetEncodeErrorKind::BufferTooSmall {
+                    required,
+                    available,
+                },
+                output_index,
+            ),
+            OutputLengthOverflow => Self::new(
+                charset,
+                CharsetEncodeErrorKind::OutputLengthOverflow,
+                usize::MAX,
+            ),
+            IncompleteInput {
                 input_index,
-            )
+                required,
+                available,
+            } => Self::new(
+                charset,
+                CharsetEncodeErrorKind::IncompleteInput {
+                    required,
+                    available,
+                },
+                input_index,
+            ),
+            UnencodableValue { input_index, value } => Self::new(
+                charset,
+                match value {
+                    Some(value) => {
+                        CharsetEncodeErrorKind::UnmappableCharacter { value }
+                    }
+                    None => CharsetEncodeErrorKind::UnencodableValue,
+                },
+                input_index,
+            ),
+            TrailingInput { .. } => Self::new(
+                charset,
+                CharsetEncodeErrorKind::UnexpectedTranscodeFailure,
+                usize::MAX,
+            ),
         }
-        _ => CharsetEncodeError::new(
-            charset,
-            CharsetEncodeErrorKind::OutputLengthOverflow,
-            usize::MAX,
-        ),
     }
-}
 
-/// Maps an intermediate transcode error into a charset encode error.
-#[inline]
-pub(crate) fn map_charset_encode_transcode_error(
-    charset: Charset,
-    error: TranscodeError<CharsetEncodeError>,
-) -> CharsetEncodeError {
-    if let TranscodeError::Failure(failure) = error {
-        return map_charset_encode_error(charset, failure);
+    /// Maps an intermediate transcode error into a charset encode error.
+    ///
+    /// # Parameters
+    ///
+    /// - `charset`: Target charset being encoded.
+    /// - `error`: Intermediate transcode error returned by the encode engine.
+    ///
+    /// # Returns
+    ///
+    /// Returns mapped framework failures and forwards charset-domain errors
+    /// unchanged.
+    #[inline]
+    pub(crate) fn map_transcode_error(
+        charset: Charset,
+        error: TranscodeError<Self>,
+    ) -> Self {
+        match error {
+            TranscodeError::Failure(failure) => Self::map_transcode_failure(
+                charset,
+                failure,
+            ),
+            TranscodeError::Domain(error) => error.source,
+        }
     }
-    if let TranscodeError::Domain(error) = error {
-        return error.source;
-    }
-    CharsetEncodeError::new(
-        charset,
-        CharsetEncodeErrorKind::OutputLengthOverflow,
-        usize::MAX,
-    )
-}
 
-impl CharsetEncodeError {
     /// Creates an encoding error.
     ///
     /// # Parameters
