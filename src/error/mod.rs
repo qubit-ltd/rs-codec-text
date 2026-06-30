@@ -11,10 +11,22 @@ mod charset_encode_error;
 mod charset_encode_error_kind;
 
 pub(crate) use charset_decode_error::{
-    CharsetCodecDecodeResult, map_charset_decode_error, map_charset_decode_failure,
+    CharsetCodecDecodeResult,
+    map_charset_decode_error,
+    map_charset_decode_failure,
+    map_charset_decode_transcode_error,
 };
-pub use charset_decode_error::{CharsetDecodeError, CharsetDecodeResult};
+pub use charset_decode_error::{
+    CharsetDecodeError,
+    CharsetDecodeResult,
+};
 pub use charset_decode_error_kind::CharsetDecodeErrorKind;
-pub(crate) use charset_encode_error::map_charset_encode_error;
-pub use charset_encode_error::{CharsetEncodeError, CharsetEncodeResult};
+pub use charset_encode_error::{
+    CharsetEncodeError,
+    CharsetEncodeResult,
+};
+pub(crate) use charset_encode_error::{
+    map_charset_encode_error,
+    map_charset_encode_transcode_error,
+};
 pub use charset_encode_error_kind::CharsetEncodeErrorKind;
