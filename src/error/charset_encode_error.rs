@@ -5,10 +5,19 @@
 //
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
-use core::{error::Error, fmt};
+use core::{
+    error::Error,
+    fmt,
+};
 
-use crate::{Charset, CharsetEncodeErrorKind};
-use qubit_codec::TranscodeError;
+use crate::{
+    Charset,
+    CharsetEncodeErrorKind,
+};
+use qubit_codec::{
+    TranscodeError,
+    TranscodeFailure,
+};
 
 /// Error reported by a charset encoder.
 ///
@@ -33,24 +42,28 @@ pub struct CharsetEncodeError {
 /// - `T`: Successful value produced by an encoding operation.
 pub type CharsetEncodeResult<T> = Result<T, CharsetEncodeError>;
 
-/// Maps a transcode-layer error into a charset encode error.
+/// Maps a transcode-layer failure into a charset encode error.
 #[inline]
 pub(crate) fn map_charset_encode_error(
     charset: Charset,
-    error: TranscodeError<CharsetEncodeError>,
+    error: TranscodeFailure,
 ) -> CharsetEncodeError {
     match error {
-        TranscodeError::InvalidInputIndex { index, len } => CharsetEncodeError::new(
-            charset,
-            CharsetEncodeErrorKind::InvalidInputIndex { input_len: len },
-            index,
-        ),
-        TranscodeError::InvalidOutputIndex { index, len } => CharsetEncodeError::new(
-            charset,
-            CharsetEncodeErrorKind::InvalidOutputIndex { output_len: len },
-            index,
-        ),
-        TranscodeError::InsufficientOutput {
+        TranscodeFailure::InvalidInputIndex { index, input_len } => {
+            CharsetEncodeError::new(
+                charset,
+                CharsetEncodeErrorKind::InvalidInputIndex { input_len },
+                index,
+            )
+        }
+        TranscodeFailure::InvalidOutputIndex { index, output_len } => {
+            CharsetEncodeError::new(
+                charset,
+                CharsetEncodeErrorKind::InvalidOutputIndex { output_len },
+                index,
+            )
+        }
+        TranscodeFailure::InsufficientOutput {
             output_index,
             required,
             available,
@@ -62,12 +75,12 @@ pub(crate) fn map_charset_encode_error(
             },
             output_index,
         ),
-        TranscodeError::OutputLengthOverflow => CharsetEncodeError::new(
+        TranscodeFailure::OutputLengthOverflow => CharsetEncodeError::new(
             charset,
             CharsetEncodeErrorKind::OutputLengthOverflow,
             usize::MAX,
         ),
-        TranscodeError::IncompleteInput {
+        TranscodeFailure::IncompleteInput {
             input_index,
             required,
             available,
@@ -79,18 +92,38 @@ pub(crate) fn map_charset_encode_error(
             },
             input_index,
         ),
-        TranscodeError::UnencodableValue { input_index } => CharsetEncodeError::new(
-            charset,
-            CharsetEncodeErrorKind::UnmappableCharacter { value: 0 },
-            input_index,
-        ),
-        TranscodeError::Domain { source, .. } => source,
+        TranscodeFailure::UnencodableValue { input_index } => {
+            CharsetEncodeError::new(
+                charset,
+                CharsetEncodeErrorKind::UnmappableCharacter { value: 0 },
+                input_index,
+            )
+        }
         _ => CharsetEncodeError::new(
             charset,
             CharsetEncodeErrorKind::OutputLengthOverflow,
             usize::MAX,
         ),
     }
+}
+
+/// Maps an intermediate transcode error into a charset encode error.
+#[inline]
+pub(crate) fn map_charset_encode_transcode_error(
+    charset: Charset,
+    error: TranscodeError<CharsetEncodeError>,
+) -> CharsetEncodeError {
+    if let TranscodeError::Failure(failure) = error {
+        return map_charset_encode_error(charset, failure);
+    }
+    if let TranscodeError::Domain(error) = error {
+        return error.source;
+    }
+    CharsetEncodeError::new(
+        charset,
+        CharsetEncodeErrorKind::OutputLengthOverflow,
+        usize::MAX,
+    )
 }
 
 impl CharsetEncodeError {
@@ -106,7 +139,11 @@ impl CharsetEncodeError {
     ///
     /// Returns an encoding error carrying the supplied context.
     #[inline]
-    pub const fn new(charset: Charset, kind: CharsetEncodeErrorKind, index: usize) -> Self {
+    pub const fn new(
+        charset: Charset,
+        kind: CharsetEncodeErrorKind,
+        index: usize,
+    ) -> Self {
         Self {
             charset,
             kind,

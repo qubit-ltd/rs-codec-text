@@ -32,6 +32,13 @@ fn test_charset_decode_error_kind_displays_messages() {
     assert_eq!(Some(5), incomplete.required());
     assert_eq!(Some(3), incomplete.available());
 
+    let buffer = CharsetDecodeErrorKind::BufferTooSmall {
+        required: 4,
+        available: 1,
+    };
+    assert_eq!(Some(4), buffer.required());
+    assert_eq!(Some(1), buffer.available());
+
     let invalid = CharsetDecodeErrorKind::InvalidCodePoint { value: 0xd800 };
     assert_eq!(None, invalid.required());
     assert_eq!(None, invalid.available());
@@ -68,7 +75,8 @@ fn test_charset_decode_error_kind_exposes_decode_policy_helpers() {
         required: 3,
         available: 1,
     };
-    let invalid_code_point = CharsetDecodeErrorKind::InvalidCodePoint { value: 0x110000 };
+    let invalid_code_point =
+        CharsetDecodeErrorKind::InvalidCodePoint { value: 0x110000 };
 
     assert!(!malformed.is_incomplete());
     assert!(incomplete.is_incomplete());

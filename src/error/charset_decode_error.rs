@@ -5,11 +5,22 @@
 //
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
-use core::{error::Error, fmt, num::NonZeroUsize};
+use core::{
+    error::Error,
+    fmt,
+    num::NonZeroUsize,
+};
 
-use qubit_codec::{DecodeFailure, TranscodeError};
+use qubit_codec::{
+    DecodeFailure,
+    TranscodeError,
+    TranscodeFailure,
+};
 
-use crate::{Charset, CharsetDecodeErrorKind};
+use crate::{
+    Charset,
+    CharsetDecodeErrorKind,
+};
 
 /// Error reported by a charset decoder.
 ///
@@ -41,26 +52,41 @@ pub struct CharsetDecodeError {
 pub type CharsetDecodeResult<T> = Result<T, CharsetDecodeError>;
 
 /// Result type returned by [`qubit_codec::Codec`] charset decoders.
-pub(crate) type CharsetCodecDecodeResult<T> = Result<T, DecodeFailure<CharsetDecodeError>>;
+pub(crate) type CharsetCodecDecodeResult<T> =
+    Result<T, DecodeFailure<CharsetDecodeError>>;
 
-/// Maps a transcode-layer error into a charset decode error.
+/// Creates the decode-side overflow error used for impossible framework paths.
+#[inline]
+fn output_length_overflow(charset: Charset) -> CharsetDecodeError {
+    CharsetDecodeError::new(
+        charset,
+        CharsetDecodeErrorKind::OutputLengthOverflow,
+        usize::MAX,
+    )
+}
+
+/// Maps a transcode-layer failure into a charset decode error.
 #[inline]
 pub(crate) fn map_charset_decode_error(
     charset: Charset,
-    error: TranscodeError<CharsetDecodeError>,
+    error: TranscodeFailure,
 ) -> CharsetDecodeError {
     match error {
-        TranscodeError::InvalidInputIndex { index, len } => CharsetDecodeError::new(
-            charset,
-            CharsetDecodeErrorKind::InvalidInputIndex { input_len: len },
-            index,
-        ),
-        TranscodeError::InvalidOutputIndex { index, len } => CharsetDecodeError::new(
-            charset,
-            CharsetDecodeErrorKind::InvalidOutputIndex { output_len: len },
-            index,
-        ),
-        TranscodeError::InsufficientOutput {
+        TranscodeFailure::InvalidInputIndex { index, input_len } => {
+            CharsetDecodeError::new(
+                charset,
+                CharsetDecodeErrorKind::InvalidInputIndex { input_len },
+                index,
+            )
+        }
+        TranscodeFailure::InvalidOutputIndex { index, output_len } => {
+            CharsetDecodeError::new(
+                charset,
+                CharsetDecodeErrorKind::InvalidOutputIndex { output_len },
+                index,
+            )
+        }
+        TranscodeFailure::InsufficientOutput {
             output_index,
             required,
             available,
@@ -72,12 +98,12 @@ pub(crate) fn map_charset_decode_error(
             },
             output_index,
         ),
-        TranscodeError::OutputLengthOverflow => CharsetDecodeError::new(
+        TranscodeFailure::OutputLengthOverflow => CharsetDecodeError::new(
             charset,
             CharsetDecodeErrorKind::OutputLengthOverflow,
             usize::MAX,
         ),
-        TranscodeError::IncompleteInput {
+        TranscodeFailure::IncompleteInput {
             input_index,
             required,
             available,
@@ -89,18 +115,23 @@ pub(crate) fn map_charset_decode_error(
             },
             input_index,
         ),
-        TranscodeError::UnencodableValue { .. } => CharsetDecodeError::new(
-            charset,
-            CharsetDecodeErrorKind::OutputLengthOverflow,
-            usize::MAX,
-        ),
-        TranscodeError::Domain { source, .. } => source,
-        _ => CharsetDecodeError::new(
-            charset,
-            CharsetDecodeErrorKind::OutputLengthOverflow,
-            usize::MAX,
-        ),
+        _ => output_length_overflow(charset),
     }
+}
+
+/// Maps an intermediate transcode error into a charset decode error.
+#[inline]
+pub(crate) fn map_charset_decode_transcode_error(
+    charset: Charset,
+    error: TranscodeError<CharsetDecodeError>,
+) -> CharsetDecodeError {
+    if let TranscodeError::Failure(failure) = error {
+        return map_charset_decode_error(charset, failure);
+    }
+    if let TranscodeError::Domain(error) = error {
+        return error.source;
+    }
+    output_length_overflow(charset)
 }
 
 /// Maps a charset decode error into codec-level flow or domain failure.
@@ -113,7 +144,9 @@ pub(crate) fn map_charset_decode_failure(
             DecodeFailure::incomplete(required)
         } else {
             #[cfg(debug_assertions)]
-            panic!("incomplete charset decode errors must require non-zero units",);
+            panic!(
+                "incomplete charset decode errors must require non-zero units",
+            );
             #[cfg(not(debug_assertions))]
             {
                 DecodeFailure::invalid_without_consumed(error)
@@ -139,14 +172,20 @@ impl CharsetDecodeError {
     ///
     /// Returns a decoding error carrying the supplied context.
     #[inline]
-    pub const fn new(charset: Charset, kind: CharsetDecodeErrorKind, index: usize) -> Self {
+    pub const fn new(
+        charset: Charset,
+        kind: CharsetDecodeErrorKind,
+        index: usize,
+    ) -> Self {
         Self {
             charset,
             kind,
             index,
             consumed: match kind {
                 CharsetDecodeErrorKind::MalformedSequence { .. }
-                | CharsetDecodeErrorKind::InvalidCodePoint { .. } => Some(NonZeroUsize::MIN),
+                | CharsetDecodeErrorKind::InvalidCodePoint { .. } => {
+                    Some(NonZeroUsize::MIN)
+                }
                 CharsetDecodeErrorKind::InvalidInputIndex { .. }
                 | CharsetDecodeErrorKind::InvalidOutputIndex { .. }
                 | CharsetDecodeErrorKind::BufferTooSmall { .. }
