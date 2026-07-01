@@ -7,8 +7,15 @@
 // =============================================================================
 use crate::error::CharsetCodecDecodeResult;
 use crate::{
-    Charset, CharsetCodec, CharsetDecodeError, CharsetDecodeErrorKind, CharsetDecodeResult,
-    CharsetEncodeError, CharsetEncodeResult, Unicode, Utf32,
+    Charset,
+    CharsetCodec,
+    CharsetDecodeError,
+    CharsetDecodeErrorKind,
+    CharsetDecodeResult,
+    CharsetEncodeError,
+    CharsetEncodeResult,
+    Unicode,
+    Utf32,
 };
 use qubit_codec::Codec;
 
@@ -87,8 +94,10 @@ impl Codec for Utf32U32Codec {
     type DecodeError = CharsetDecodeError;
     type EncodeError = CharsetEncodeError;
 
-    const MIN_UNITS_PER_VALUE: core::num::NonZeroUsize = core::num::NonZeroUsize::MIN;
-    const MAX_UNITS_PER_VALUE: core::num::NonZeroUsize = core::num::NonZeroUsize::MIN;
+    const MIN_UNITS_PER_VALUE: core::num::NonZeroUsize =
+        core::num::NonZeroUsize::MIN;
+    const MAX_UNITS_PER_VALUE: core::num::NonZeroUsize =
+        core::num::NonZeroUsize::MIN;
 
     #[inline]
     unsafe fn decode(
@@ -98,7 +107,9 @@ impl Codec for Utf32U32Codec {
     ) -> CharsetCodecDecodeResult<(char, core::num::NonZeroUsize)> {
         let (ch, consumed) = decode_units_prefix(input, input_index)
             .map_err(CharsetDecodeError::into_codec_failure)?;
-        debug_assert!(consumed.get() <= input.len().saturating_sub(input_index));
+        debug_assert!(
+            consumed.get() <= input.len().saturating_sub(input_index)
+        );
         Ok((ch, consumed))
     }
 

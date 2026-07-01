@@ -6,12 +6,25 @@
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
 use crate::{
-    CharsetCodec, CharsetDecodeError, CharsetDecodeHooks, CharsetDecodePolicy, CharsetEncodeError,
-    CharsetEncodeHooks, CharsetEncodePolicy, CharsetEncoder, MalformedAction, UnmappableAction,
+    CharsetCodec,
+    CharsetDecodeError,
+    CharsetDecodeHooks,
+    CharsetDecodePolicy,
+    CharsetEncodeError,
+    CharsetEncodeHooks,
+    CharsetEncodePolicy,
+    CharsetEncoder,
+    MalformedAction,
+    UnmappableAction,
 };
 use qubit_codec::engine::TranscodeConvertEngine;
 use qubit_codec::{
-    CapacityError, ConvertError, TranscodeConverter, TranscodeError, TranscodeProgress, Transcoder,
+    CapacityError,
+    ConvertError,
+    TranscodeConverter,
+    TranscodeError,
+    TranscodeProgress,
+    Transcoder,
 };
 
 /// Converts units encoded with one charset into units encoded with another
@@ -65,7 +78,8 @@ where
     E::Unit: Clone,
 {
     /// Common buffered converter engine.
-    engine: TranscodeConvertEngine<D, E, CharsetDecodeHooks, CharsetEncodeHooks>,
+    engine:
+        TranscodeConvertEngine<D, E, CharsetDecodeHooks, CharsetEncodeHooks>,
     /// Public malformed-input policy metadata.
     decode_policy: CharsetDecodePolicy,
     /// Public unmappable-input policy metadata.
@@ -104,7 +118,8 @@ where
     #[must_use]
     pub fn from_codecs(source: D, target: E) -> Self {
         let decode_policy = CharsetDecodePolicy::default();
-        let (encode_policy, encode_hooks) = Self::default_encode_policy(&target);
+        let (encode_policy, encode_hooks) =
+            Self::default_encode_policy(&target);
         Self {
             engine: TranscodeConvertEngine::new(
                 source,
@@ -143,7 +158,8 @@ where
         decode_policy: CharsetDecodePolicy,
         encode_policy: CharsetEncodePolicy,
     ) -> Result<Self, CharsetEncodeError> {
-        let encode_hooks = CharsetEncoder::<E>::create_hooks(&target, encode_policy)?;
+        let encode_hooks =
+            CharsetEncoder::<E>::create_hooks(&target, encode_policy)?;
         Ok(Self {
             engine: TranscodeConvertEngine::new(
                 source,
@@ -319,8 +335,13 @@ where
         &mut self,
         output: &mut [E::Unit],
         output_index: usize,
-    ) -> Result<usize, TranscodeError<ConvertError<CharsetDecodeError, CharsetEncodeError>, char>>
-    {
+    ) -> Result<
+        usize,
+        TranscodeError<
+            ConvertError<CharsetDecodeError, CharsetEncodeError>,
+            char,
+        >,
+    > {
         self.engine.reset(output, output_index)
     }
 
@@ -339,7 +360,10 @@ where
         output_index: usize,
     ) -> Result<
         TranscodeProgress,
-        TranscodeError<ConvertError<CharsetDecodeError, CharsetEncodeError>, char>,
+        TranscodeError<
+            ConvertError<CharsetDecodeError, CharsetEncodeError>,
+            char,
+        >,
     > {
         self.engine
             .transcode(input, input_index, output, output_index)
@@ -356,8 +380,13 @@ where
         &mut self,
         output: &mut [E::Unit],
         output_index: usize,
-    ) -> Result<usize, TranscodeError<ConvertError<CharsetDecodeError, CharsetEncodeError>, char>>
-    {
+    ) -> Result<
+        usize,
+        TranscodeError<
+            ConvertError<CharsetDecodeError, CharsetEncodeError>,
+            char,
+        >,
+    > {
         self.engine.finish(output, output_index)
     }
 
@@ -373,9 +402,16 @@ where
         &mut self,
         input: &[D::Unit],
         output: &mut [E::Unit],
-    ) -> Result<usize, TranscodeError<ConvertError<CharsetDecodeError, CharsetEncodeError>, char>>
-    {
-        <Self as Transcoder<D::Unit, E::Unit>>::transcode_complete_into(self, input, output)
+    ) -> Result<
+        usize,
+        TranscodeError<
+            ConvertError<CharsetDecodeError, CharsetEncodeError>,
+            char,
+        >,
+    > {
+        <Self as Transcoder<D::Unit, E::Unit>>::transcode_complete_into(
+            self, input, output,
+        )
     }
 
     /// Returns the default encode policy that can be represented by `target`.
@@ -386,7 +422,9 @@ where
     /// can be encoded by `target`. This panic is intentional: reaching this
     /// branch means the target codec implementation violates the replacement
     /// fallback invariant and should fail fast.
-    fn default_encode_policy(target: &E) -> (CharsetEncodePolicy, CharsetEncodeHooks) {
+    fn default_encode_policy(
+        target: &E,
+    ) -> (CharsetEncodePolicy, CharsetEncodeHooks) {
         let policy = CharsetEncodePolicy::default_for(target).unwrap_or_else(|error| {
             // This panic is intentional. If default replacement selection gets
             // here, the target codec cannot encode even the required fallback
@@ -423,7 +461,10 @@ where
 
     /// Returns the target-side upper bound for converted output units.
     #[inline]
-    fn max_transcode_output_len(&self, input_len: usize) -> Result<usize, CapacityError> {
+    fn max_transcode_output_len(
+        &self,
+        input_len: usize,
+    ) -> Result<usize, CapacityError> {
         self.engine.max_transcode_output_len(input_len)
     }
 
@@ -447,7 +488,8 @@ where
         &mut self,
         output: &mut [E::Unit],
         output_index: usize,
-    ) -> Result<usize, TranscodeError<Self::DomainError, Self::FailureValue>> {
+    ) -> Result<usize, TranscodeError<Self::DomainError, Self::FailureValue>>
+    {
         self.engine.reset(output, output_index)
     }
 
@@ -465,7 +507,10 @@ where
         input_index: usize,
         output: &mut [E::Unit],
         output_index: usize,
-    ) -> Result<TranscodeProgress, TranscodeError<Self::DomainError, Self::FailureValue>> {
+    ) -> Result<
+        TranscodeProgress,
+        TranscodeError<Self::DomainError, Self::FailureValue>,
+    > {
         self.engine
             .transcode(input, input_index, output, output_index)
     }
@@ -491,7 +536,8 @@ where
         &mut self,
         output: &mut [E::Unit],
         output_index: usize,
-    ) -> Result<usize, TranscodeError<Self::DomainError, Self::FailureValue>> {
+    ) -> Result<usize, TranscodeError<Self::DomainError, Self::FailureValue>>
+    {
         self.engine.finish(output, output_index)
     }
 }
