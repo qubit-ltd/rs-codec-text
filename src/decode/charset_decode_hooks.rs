@@ -5,21 +5,10 @@
 //
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
-use qubit_codec::{
-    CapacityError,
-    CodecPhase,
-    DecodeContext,
-    DecodeInvalidAction,
-    TranscodeDecodeError,
-    TranscodeDecodeHooks,
-    TranscodeError,
-};
+use qubit_codec::engine::{DecodeContext, DecodeInvalidAction, TranscodeDecodeHooks};
+use qubit_codec::{CapacityError, CodecPhase, TranscodeDecodeError, TranscodeError};
 
-use crate::{
-    CharsetCodec,
-    CharsetDecodeError,
-    MalformedAction,
-};
+use crate::{CharsetCodec, CharsetDecodeError, MalformedAction};
 
 /// Malformed-input policy hooks used by [`super::CharsetDecoder`].
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -43,10 +32,7 @@ impl CharsetDecodeHooks {
     /// Returns hooks carrying the supplied policy.
     #[must_use]
     #[inline]
-    pub(crate) const fn new(
-        malformed_action: MalformedAction,
-        replacement: char,
-    ) -> Self {
+    pub(crate) const fn new(malformed_action: MalformedAction, replacement: char) -> Self {
         Self {
             malformed_action,
             replacement,
@@ -86,9 +72,7 @@ where
                     CodecPhase::Main,
                     Some(context.input_index()),
                 )),
-                MalformedAction::Ignore => {
-                    Ok(DecodeInvalidAction::Skip { consumed })
-                }
+                MalformedAction::Ignore => Ok(DecodeInvalidAction::Skip { consumed }),
                 MalformedAction::Replace => Ok(DecodeInvalidAction::Emit {
                     value: self.replacement,
                     consumed,

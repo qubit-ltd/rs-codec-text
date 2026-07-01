@@ -5,21 +5,10 @@
 //
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
-use core::num::NonZeroUsize;
+use qubit_codec::engine::{EncodeUnencodableAction, TranscodeEncodeHooks};
+use qubit_codec::{CodecPhase, TranscodeError};
 
-use qubit_codec::{
-    CodecPhase,
-    EncodeUnencodableAction,
-    TranscodeEncodeHooks,
-    TranscodeError,
-};
-
-use crate::{
-    CharsetEncodeError,
-    CharsetEncodeErrorKind,
-    CharsetEncodeResult,
-    UnmappableAction,
-};
+use crate::{CharsetEncodeError, CharsetEncodeErrorKind, CharsetEncodeResult, UnmappableAction};
 
 use crate::CharsetCodec;
 
@@ -45,10 +34,7 @@ impl CharsetEncodeHooks {
     /// Returns hooks configured with the supplied policy.
     #[must_use]
     #[inline]
-    pub(crate) const fn new(
-        unmappable_action: UnmappableAction,
-        replacement: char,
-    ) -> Self {
+    pub(crate) const fn new(unmappable_action: UnmappableAction, replacement: char) -> Self {
         Self {
             unmappable_action,
             replacement,
@@ -67,10 +53,7 @@ where
         codec: &mut C,
         ch: &char,
         input_index: usize,
-    ) -> Result<
-        EncodeUnencodableAction<char>,
-        qubit_codec::TranscodeEncodeError<C>,
-    > {
+    ) -> Result<EncodeUnencodableAction<char>, qubit_codec::TranscodeEncodeError<C>> {
         let ch = *ch;
         let error = unmappable_error(codec, ch, input_index);
         match self.unmappable_action {
@@ -80,18 +63,13 @@ where
                 Some(input_index),
             )),
             UnmappableAction::Ignore => Ok(EncodeUnencodableAction::Skip),
-            UnmappableAction::Replace => {
-                Ok(EncodeUnencodableAction::replace(self.replacement))
-            }
+            UnmappableAction::Replace => Ok(EncodeUnencodableAction::replace(self.replacement)),
         }
     }
 }
 
 /// Returns the encoded width of a replacement character.
-pub(super) fn replacement_len<C>(
-    codec: &C,
-    ch: char,
-) -> CharsetEncodeResult<NonZeroUsize>
+pub(super) fn replacement_len<C>(codec: &C, ch: char) -> CharsetEncodeResult<usize>
 where
     C: CharsetCodec,
 {

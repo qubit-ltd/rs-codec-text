@@ -5,22 +5,11 @@
 //
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
-use core::{
-    error::Error,
-    fmt,
-    num::NonZeroUsize,
-};
+use core::{error::Error, fmt, num::NonZeroUsize};
 
-use qubit_codec::{
-    DecodeFailure,
-    TranscodeError,
-    TranscodeFailure,
-};
+use qubit_codec::{DecodeFailure, TranscodeFailure};
 
-use crate::{
-    Charset,
-    CharsetDecodeErrorKind,
-};
+use crate::{Charset, CharsetDecodeErrorKind};
 
 /// Error reported by a charset decoder.
 ///
@@ -52,8 +41,7 @@ pub struct CharsetDecodeError {
 pub type CharsetDecodeResult<T> = Result<T, CharsetDecodeError>;
 
 /// Result type returned by [`qubit_codec::Codec`] charset decoders.
-pub(crate) type CharsetCodecDecodeResult<T> =
-    Result<T, DecodeFailure<CharsetDecodeError>>;
+pub(crate) type CharsetCodecDecodeResult<T> = Result<T, DecodeFailure<CharsetDecodeError>>;
 
 impl CharsetDecodeError {
     /// Maps a transcode-layer failure into a charset decode error.
@@ -70,15 +58,9 @@ impl CharsetDecodeError {
     /// failures are reported as
     /// [`CharsetDecodeErrorKind::OutputLengthOverflow`].
     #[doc(hidden)]
-    pub fn map_transcode_failure(
-        charset: Charset,
-        error: TranscodeFailure,
-    ) -> Self {
+    pub fn map_transcode_failure(charset: Charset, error: TranscodeFailure) -> Self {
         use TranscodeFailure::{
-            IncompleteInput,
-            InsufficientOutput,
-            InvalidInputIndex,
-            InvalidOutputIndex,
+            IncompleteInput, InsufficientOutput, InvalidInputIndex, InvalidOutputIndex,
             OutputLengthOverflow,
         };
 
@@ -130,30 +112,6 @@ impl CharsetDecodeError {
         }
     }
 
-    /// Maps an intermediate transcode error into a charset decode error.
-    ///
-    /// # Parameters
-    ///
-    /// - `charset`: Charset being decoded.
-    /// - `error`: Intermediate transcode error returned by the decode engine.
-    ///
-    /// # Returns
-    ///
-    /// Returns mapped framework failures and forwards charset-domain errors
-    /// unchanged.
-    #[inline]
-    pub(crate) fn map_transcode_error(
-        charset: Charset,
-        error: TranscodeError<Self>,
-    ) -> Self {
-        match error {
-            TranscodeError::Failure(failure) => {
-                Self::map_transcode_failure(charset, failure)
-            }
-            TranscodeError::Domain(error) => error.source,
-        }
-    }
-
     /// Creates a decoding error.
     ///
     /// # Parameters
@@ -166,20 +124,14 @@ impl CharsetDecodeError {
     ///
     /// Returns a decoding error carrying the supplied context.
     #[inline]
-    pub const fn new(
-        charset: Charset,
-        kind: CharsetDecodeErrorKind,
-        index: usize,
-    ) -> Self {
+    pub const fn new(charset: Charset, kind: CharsetDecodeErrorKind, index: usize) -> Self {
         Self {
             charset,
             kind,
             index,
             consumed: match kind {
                 CharsetDecodeErrorKind::MalformedSequence { .. }
-                | CharsetDecodeErrorKind::InvalidCodePoint { .. } => {
-                    Some(NonZeroUsize::MIN)
-                }
+                | CharsetDecodeErrorKind::InvalidCodePoint { .. } => Some(NonZeroUsize::MIN),
                 CharsetDecodeErrorKind::InvalidInputIndex { .. }
                 | CharsetDecodeErrorKind::InvalidOutputIndex { .. }
                 | CharsetDecodeErrorKind::BufferTooSmall { .. }
@@ -219,18 +171,16 @@ impl CharsetDecodeError {
                 DecodeFailure::incomplete(required)
             } else {
                 #[cfg(debug_assertions)]
-                panic!(
-                    "incomplete charset decode errors must require non-zero units",
-                );
+                panic!("incomplete charset decode errors must require non-zero units",);
                 #[cfg(not(debug_assertions))]
                 {
-                    DecodeFailure::invalid_without_consumed(self)
+                    DecodeFailure::invalid_unknown(self)
                 }
             }
         } else if let Some(consumed) = self.consumed() {
             DecodeFailure::invalid(self, consumed)
         } else {
-            DecodeFailure::invalid_without_consumed(self)
+            DecodeFailure::invalid_unknown(self)
         }
     }
 

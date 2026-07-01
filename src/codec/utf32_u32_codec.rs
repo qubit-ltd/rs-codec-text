@@ -7,15 +7,8 @@
 // =============================================================================
 use crate::error::CharsetCodecDecodeResult;
 use crate::{
-    Charset,
-    CharsetCodec,
-    CharsetDecodeError,
-    CharsetDecodeErrorKind,
-    CharsetDecodeResult,
-    CharsetEncodeError,
-    CharsetEncodeResult,
-    Unicode,
-    Utf32,
+    Charset, CharsetCodec, CharsetDecodeError, CharsetDecodeErrorKind, CharsetDecodeResult,
+    CharsetEncodeError, CharsetEncodeResult, Unicode, Utf32,
 };
 use qubit_codec::Codec;
 
@@ -51,7 +44,7 @@ use qubit_codec::Codec;
 /// );
 ///
 /// let mut output = [0_u32; Utf32::MAX_UNITS_PER_CHAR];
-/// let written = codec.encode_len(&'中').get();
+/// let written = codec.encode_len(&'中');
 /// unsafe {
 ///     codec.encode(&'中', &mut output, 0).expect("buffer fits");
 /// }
@@ -94,10 +87,8 @@ impl Codec for Utf32U32Codec {
     type DecodeError = CharsetDecodeError;
     type EncodeError = CharsetEncodeError;
 
-    const MIN_UNITS_PER_VALUE: core::num::NonZeroUsize =
-        core::num::NonZeroUsize::MIN;
-    const MAX_UNITS_PER_VALUE: core::num::NonZeroUsize =
-        core::num::NonZeroUsize::MIN;
+    const MIN_UNITS_PER_VALUE: core::num::NonZeroUsize = core::num::NonZeroUsize::MIN;
+    const MAX_UNITS_PER_VALUE: core::num::NonZeroUsize = core::num::NonZeroUsize::MIN;
 
     #[inline]
     unsafe fn decode(
@@ -107,9 +98,7 @@ impl Codec for Utf32U32Codec {
     ) -> CharsetCodecDecodeResult<(char, core::num::NonZeroUsize)> {
         let (ch, consumed) = decode_units_prefix(input, input_index)
             .map_err(CharsetDecodeError::into_codec_failure)?;
-        debug_assert!(
-            consumed.get() <= input.len().saturating_sub(input_index)
-        );
+        debug_assert!(consumed.get() <= input.len().saturating_sub(input_index));
         Ok((ch, consumed))
     }
 
@@ -119,11 +108,11 @@ impl Codec for Utf32U32Codec {
         ch: &char,
         output: &mut [u32],
         output_index: usize,
-    ) -> CharsetEncodeResult<core::num::NonZeroUsize> {
+    ) -> CharsetEncodeResult<usize> {
         let written = encode_units_char(*ch, output, output_index);
         debug_assert_eq!(written, Utf32::MAX_UNITS_PER_CHAR);
         debug_assert!(written <= output.len().saturating_sub(output_index));
-        Ok(qubit_io::nz!(Utf32::MAX_UNITS_PER_CHAR))
+        Ok(Utf32::MAX_UNITS_PER_CHAR)
     }
 }
 
