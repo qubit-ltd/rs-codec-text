@@ -1,5 +1,9 @@
 use qubit_codec::TranscodeFailure;
-use qubit_codec_text::{Charset, CharsetEncodeError, CharsetEncodeErrorKind};
+use qubit_codec_text::{
+    Charset,
+    CharsetEncodeError,
+    CharsetEncodeErrorKind,
+};
 
 #[test]
 fn test_charset_encode_error_exposes_context() {
@@ -41,7 +45,7 @@ fn test_charset_encode_error_exposes_context() {
     );
 
     let kind = CharsetEncodeErrorKind::UnmappableCharacter {
-        value: '中' as u32
+        value: '中' as u32,
     };
     let unmappable = CharsetEncodeError::new(GBK, kind, 4);
     assert_eq!(GBK, unmappable.charset());

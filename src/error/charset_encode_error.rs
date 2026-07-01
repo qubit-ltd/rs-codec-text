@@ -5,9 +5,15 @@
 //
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
-use core::{error::Error, fmt};
+use core::{
+    error::Error,
+    fmt,
+};
 
-use crate::{Charset, CharsetEncodeErrorKind};
+use crate::{
+    Charset,
+    CharsetEncodeErrorKind,
+};
 use qubit_codec::TranscodeFailure;
 
 /// Error reported by a charset encoder.
@@ -52,10 +58,18 @@ impl CharsetEncodeError {
     /// [`CharsetEncodeErrorKind::UnexpectedTranscodeFailure`] instead of
     /// being misreported as output-length overflow.
     #[doc(hidden)]
-    pub fn map_transcode_failure(charset: Charset, error: TranscodeFailure<char>) -> Self {
+    pub fn map_transcode_failure(
+        charset: Charset,
+        error: TranscodeFailure<char>,
+    ) -> Self {
         use TranscodeFailure::{
-            IncompleteInput, InsufficientOutput, InvalidInputIndex, InvalidOutputIndex,
-            OutputLengthOverflow, TrailingInput, UnencodableValue,
+            IncompleteInput,
+            InsufficientOutput,
+            InvalidInputIndex,
+            InvalidOutputIndex,
+            OutputLengthOverflow,
+            TrailingInput,
+            UnencodableValue,
         };
 
         match error {
@@ -101,9 +115,11 @@ impl CharsetEncodeError {
             UnencodableValue { input_index, value } => Self::new(
                 charset,
                 match value {
-                    Some(value) => CharsetEncodeErrorKind::UnmappableCharacter {
-                        value: value as u32,
-                    },
+                    Some(value) => {
+                        CharsetEncodeErrorKind::UnmappableCharacter {
+                            value: value as u32,
+                        }
+                    }
                     None => CharsetEncodeErrorKind::UnencodableValue,
                 },
                 input_index,
@@ -128,7 +144,11 @@ impl CharsetEncodeError {
     ///
     /// Returns an encoding error carrying the supplied context.
     #[inline]
-    pub const fn new(charset: Charset, kind: CharsetEncodeErrorKind, index: usize) -> Self {
+    pub const fn new(
+        charset: Charset,
+        kind: CharsetEncodeErrorKind,
+        index: usize,
+    ) -> Self {
         Self {
             charset,
             kind,

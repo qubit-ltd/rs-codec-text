@@ -6,12 +6,25 @@
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
 use qubit_codec::engine::TranscodeEncodeEngine;
-use qubit_codec::{CapacityError, TranscodeEncoder, TranscodeError, TranscodeProgress, Transcoder};
+use qubit_codec::{
+    CapacityError,
+    TranscodeEncoder,
+    TranscodeError,
+    TranscodeProgress,
+    Transcoder,
+};
 
-use crate::{CharsetCodec, CharsetEncodeError, UnmappableAction};
+use crate::{
+    CharsetCodec,
+    CharsetEncodeError,
+    UnmappableAction,
+};
 
 use super::{
-    charset_encode_hooks::{CharsetEncodeHooks, replacement_len},
+    charset_encode_hooks::{
+        CharsetEncodeHooks,
+        replacement_len,
+    },
     charset_encode_policy::CharsetEncodePolicy,
 };
 
@@ -99,7 +112,10 @@ where
     ///
     /// Returns an error when `policy` uses replacement and the replacement
     /// character cannot be encoded by `codec`.
-    pub fn with_policy(codec: C, policy: CharsetEncodePolicy) -> Result<Self, CharsetEncodeError> {
+    pub fn with_policy(
+        codec: C,
+        policy: CharsetEncodePolicy,
+    ) -> Result<Self, CharsetEncodeError> {
         let hooks = Self::create_hooks(&codec, policy)?;
         Ok(Self {
             engine: TranscodeEncodeEngine::new(codec, hooks),
@@ -208,7 +224,8 @@ where
         input_index: usize,
         output: &mut [C::Unit],
         output_index: usize,
-    ) -> Result<TranscodeProgress, TranscodeError<CharsetEncodeError, char>> {
+    ) -> Result<TranscodeProgress, TranscodeError<CharsetEncodeError, char>>
+    {
         self.engine
             .transcode(input, input_index, output, output_index)
     }
@@ -241,7 +258,9 @@ where
         input: &[char],
         output: &mut [C::Unit],
     ) -> Result<usize, TranscodeError<CharsetEncodeError, char>> {
-        <Self as Transcoder<char, C::Unit>>::transcode_complete_into(self, input, output)
+        <Self as Transcoder<char, C::Unit>>::transcode_complete_into(
+            self, input, output,
+        )
     }
 
     /// Creates encode hooks for `policy`.
@@ -249,7 +268,10 @@ where
         codec: &C,
         policy: CharsetEncodePolicy,
     ) -> Result<CharsetEncodeHooks, CharsetEncodeError> {
-        let hooks = CharsetEncodeHooks::new(policy.unmappable_action(), policy.replacement());
+        let hooks = CharsetEncodeHooks::new(
+            policy.unmappable_action(),
+            policy.replacement(),
+        );
         if policy.unmappable_action() != UnmappableAction::Replace {
             return Ok(hooks);
         }
@@ -268,7 +290,10 @@ where
     /// Returns the maximum number of target units needed for `input_len`
     /// characters.
     #[inline(always)]
-    fn max_transcode_output_len(&self, input_len: usize) -> Result<usize, CapacityError> {
+    fn max_transcode_output_len(
+        &self,
+        input_len: usize,
+    ) -> Result<usize, CapacityError> {
         self.engine.max_transcode_output_len(input_len)
     }
 
@@ -290,7 +315,8 @@ where
         &mut self,
         output: &mut [C::Unit],
         output_index: usize,
-    ) -> Result<usize, TranscodeError<Self::DomainError, Self::FailureValue>> {
+    ) -> Result<usize, TranscodeError<Self::DomainError, Self::FailureValue>>
+    {
         self.engine.reset(output, output_index)
     }
 
@@ -303,7 +329,10 @@ where
         input_index: usize,
         output: &mut [C::Unit],
         output_index: usize,
-    ) -> Result<TranscodeProgress, TranscodeError<Self::DomainError, Self::FailureValue>> {
+    ) -> Result<
+        TranscodeProgress,
+        TranscodeError<Self::DomainError, Self::FailureValue>,
+    > {
         self.engine
             .transcode(input, input_index, output, output_index)
     }
@@ -314,7 +343,8 @@ where
         &mut self,
         output: &mut [C::Unit],
         output_index: usize,
-    ) -> Result<usize, TranscodeError<Self::DomainError, Self::FailureValue>> {
+    ) -> Result<usize, TranscodeError<Self::DomainError, Self::FailureValue>>
+    {
         self.engine.finish(output, output_index)
     }
 }

@@ -1,5 +1,9 @@
 use qubit_codec::ByteOrder;
-use qubit_codec_text::{BomDetectStatus, Charset, UnicodeBom};
+use qubit_codec_text::{
+    BomDetectStatus,
+    Charset,
+    UnicodeBom,
+};
 
 #[test]
 fn test_unicode_bom_exposes_bytes_lengths_orders_and_charsets() {
