@@ -7,32 +7,15 @@
 // =============================================================================
 use core::{
     fmt,
-    hash::{
-        Hash,
-        Hasher,
-    },
+    hash::{Hash, Hasher},
 };
-use std::sync::{
-    OnceLock,
-    RwLock,
-    RwLockReadGuard,
-    RwLockWriteGuard,
-};
+use std::sync::{OnceLock, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 use qubit_codec::ByteOrder;
 #[cfg(feature = "serde")]
-use serde::{
-    Deserialize,
-    Deserializer,
-    Serialize,
-    Serializer,
-    de,
-};
+use serde::{Deserialize, Deserializer, Serialize, Serializer, de};
 
-use crate::{
-    normalize_label_loose,
-    normalize_label_whatwg,
-};
+use crate::{normalize_label_loose, normalize_label_whatwg};
 
 use super::charset_registration_error::CharsetRegistrationError;
 
@@ -285,10 +268,7 @@ impl Charset {
     /// [`crate::normalize_label_loose`], which trims ASCII whitespace, folds
     /// ASCII case, and ignores `-` / `_` separators.
     pub fn from_label(label: &str) -> Option<Self> {
-        Self::from_normalized_label(
-            &normalize_label_loose(label),
-            LabelNormalization::Loose,
-        )
+        Self::from_normalized_label(&normalize_label_loose(label), LabelNormalization::Loose)
     }
 
     /// Finds a built-in or registered charset by WHATWG-style label matching.
@@ -310,10 +290,7 @@ impl Charset {
     /// label table, and it does not remap charset semantics such as treating
     /// `iso-8859-1` as Windows-1252.
     pub fn from_whatwg_label(label: &str) -> Option<Self> {
-        Self::from_normalized_label(
-            &normalize_label_whatwg(label),
-            LabelNormalization::Whatwg,
-        )
+        Self::from_normalized_label(&normalize_label_whatwg(label), LabelNormalization::Whatwg)
     }
 
     /// Returns the stable normalized charset identifier.
@@ -426,24 +403,20 @@ impl Charset {
     /// Returns the first built-in or registered charset whose labels normalize
     /// to `label`, or `None` when no charset matches.
     #[inline]
-    fn from_normalized_label(
-        label: &str,
-        normalization: LabelNormalization,
-    ) -> Option<Self> {
+    fn from_normalized_label(label: &str, normalization: LabelNormalization) -> Option<Self> {
         if label.is_empty() {
             return None;
         }
         Self::BUILTINS
             .iter()
             .copied()
-            .find(|charset| {
-                charset.matches_normalized_label(label, normalization)
-            })
+            .find(|charset| charset.matches_normalized_label(label, normalization))
             .or_else(|| {
                 let registry = read_registry();
-                registry.iter().copied().find(|charset| {
-                    charset.matches_normalized_label(label, normalization)
-                })
+                registry
+                    .iter()
+                    .copied()
+                    .find(|charset| charset.matches_normalized_label(label, normalization))
             })
     }
 
@@ -459,14 +432,9 @@ impl Charset {
     ///
     /// Returns `true` when any descriptor label normalizes to `label`.
     #[inline]
-    fn matches_normalized_label(
-        self,
-        label: &str,
-        normalization: LabelNormalization,
-    ) -> bool {
-        charset_labels(self).any(|candidate| {
-            label_matches_normalized(candidate, label, normalization)
-        })
+    fn matches_normalized_label(self, label: &str, normalization: LabelNormalization) -> bool {
+        charset_labels(self)
+            .any(|candidate| label_matches_normalized(candidate, label, normalization))
     }
 }
 
@@ -561,8 +529,7 @@ impl<'de> Deserialize<'de> for Charset {
         D: Deserializer<'de>,
     {
         let id = <&str>::deserialize(deserializer)?;
-        Self::from_label(id)
-            .ok_or_else(|| de::Error::custom(format!("unknown charset `{id}`")))
+        Self::from_label(id).ok_or_else(|| de::Error::custom(format!("unknown charset `{id}`")))
     }
 }
 
@@ -636,8 +603,7 @@ fn charset_labels(charset: Charset) -> impl Iterator<Item = &'static str> {
 /// `None` when all labels can be used for lookup.
 #[inline]
 fn invalid_label_for(candidate: Charset) -> Option<&'static str> {
-    charset_labels(candidate)
-        .find(|label| normalize_label_loose(label).is_empty())
+    charset_labels(candidate).find(|label| normalize_label_loose(label).is_empty())
 }
 
 /// Validates a descriptor against built-ins and a registry snapshot.
@@ -701,9 +667,7 @@ fn descriptor_exists(candidate: Charset, registered: &[Charset]) -> bool {
 /// Returns `true` when id, display name, and alias list are identical.
 #[inline]
 fn same_descriptor(left: Charset, right: Charset) -> bool {
-    left.id == right.id
-        && left.name == right.name
-        && left.aliases == right.aliases
+    left.id == right.id && left.name == right.name && left.aliases == right.aliases
 }
 
 /// Finds a label conflict for `candidate`.
@@ -717,10 +681,7 @@ fn same_descriptor(left: Charset, right: Charset) -> bool {
 ///
 /// Returns the conflicting candidate label and existing charset, or `None`
 /// when all candidate labels are available.
-fn conflict_for(
-    candidate: Charset,
-    registered: &[Charset],
-) -> Option<(&'static str, Charset)> {
+fn conflict_for(candidate: Charset, registered: &[Charset]) -> Option<(&'static str, Charset)> {
     for label in charset_labels(candidate) {
         let normalized = normalize_label_loose(label);
         if let Some(existing) = Charset::BUILTINS
@@ -728,10 +689,7 @@ fn conflict_for(
             .copied()
             .chain(registered.iter().copied())
             .find(|existing| {
-                existing.matches_normalized_label(
-                    &normalized,
-                    LabelNormalization::Loose,
-                )
+                existing.matches_normalized_label(&normalized, LabelNormalization::Loose)
             })
         {
             return Some((label, existing));
@@ -758,12 +716,8 @@ fn label_matches_normalized(
     normalization: LabelNormalization,
 ) -> bool {
     match normalization {
-        LabelNormalization::Loose => {
-            loose_label_matches_normalized(candidate, normalized)
-        }
-        LabelNormalization::Whatwg => {
-            whatwg_label_matches_normalized(candidate, normalized)
-        }
+        LabelNormalization::Loose => loose_label_matches_normalized(candidate, normalized),
+        LabelNormalization::Whatwg => whatwg_label_matches_normalized(candidate, normalized),
     }
 }
 

@@ -7,10 +7,7 @@
 // =============================================================================
 use qubit_codec::ByteOrder;
 
-use crate::{
-    BomDetectStatus,
-    Charset,
-};
+use crate::{BomDetectStatus, Charset};
 
 /// Unicode byte order marks supported by this crate.
 ///
@@ -168,12 +165,8 @@ impl UnicodeBom {
     pub const fn byte_order(self) -> Option<ByteOrder> {
         match self {
             Self::Utf8 => None,
-            Self::Utf16BigEndian | Self::Utf32BigEndian => {
-                Some(ByteOrder::BigEndian)
-            }
-            Self::Utf16LittleEndian | Self::Utf32LittleEndian => {
-                Some(ByteOrder::LittleEndian)
-            }
+            Self::Utf16BigEndian | Self::Utf32BigEndian => Some(ByteOrder::BigEndian),
+            Self::Utf16LittleEndian | Self::Utf32LittleEndian => Some(ByteOrder::LittleEndian),
         }
     }
 }
@@ -224,7 +217,7 @@ fn is_possible_bom_prefix(bytes: &[u8]) -> bool {
 /// BOM.
 #[inline]
 fn has_longer_possible_match(bytes: &[u8], matched: UnicodeBom) -> bool {
-    UnicodeBom::ALL.iter().any(|bom| {
-        bom.byte_len() > matched.byte_len() && bom.bytes().starts_with(bytes)
-    })
+    UnicodeBom::ALL
+        .iter()
+        .any(|bom| bom.byte_len() > matched.byte_len() && bom.bytes().starts_with(bytes))
 }

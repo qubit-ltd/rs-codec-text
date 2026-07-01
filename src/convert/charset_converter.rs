@@ -5,29 +5,13 @@
 //
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
-use super::charset_convert_error::CharsetConvertError;
 use crate::{
-    CharsetCodec,
-    CharsetDecodeError,
-    CharsetDecodeHooks,
-    CharsetDecodePolicy,
-    CharsetEncodeError,
-    CharsetEncodeHooks,
-    CharsetEncodePolicy,
-    CharsetEncoder,
-    MalformedAction,
-    UnmappableAction,
+    CharsetCodec, CharsetDecodeError, CharsetDecodeHooks, CharsetDecodePolicy, CharsetEncodeError,
+    CharsetEncodeHooks, CharsetEncodePolicy, CharsetEncoder, MalformedAction, UnmappableAction,
 };
+use qubit_codec::engine::TranscodeConvertEngine;
 use qubit_codec::{
-    CapacityError,
-    ConvertError,
-    TranscodeConvertEngine,
-    TranscodeConverter,
-    TranscodeDomainError,
-    TranscodeError,
-    TranscodeFailure,
-    TranscodeProgress,
-    Transcoder,
+    CapacityError, ConvertError, TranscodeConverter, TranscodeError, TranscodeProgress, Transcoder,
 };
 
 /// Converts units encoded with one charset into units encoded with another
@@ -81,12 +65,7 @@ where
     E::Unit: Clone,
 {
     /// Common buffered converter engine.
-    engine: TranscodeConvertEngine<
-        D,
-        E,
-        CharsetDecodeHooks,
-        CharsetEncodeHooks,
-    >,
+    engine: TranscodeConvertEngine<D, E, CharsetDecodeHooks, CharsetEncodeHooks>,
     /// Public malformed-input policy metadata.
     decode_policy: CharsetDecodePolicy,
     /// Public unmappable-input policy metadata.
@@ -125,8 +104,7 @@ where
     #[must_use]
     pub fn from_codecs(source: D, target: E) -> Self {
         let decode_policy = CharsetDecodePolicy::default();
-        let (encode_policy, encode_hooks) =
-            Self::default_encode_policy(&target);
+        let (encode_policy, encode_hooks) = Self::default_encode_policy(&target);
         Self {
             engine: TranscodeConvertEngine::new(
                 source,
@@ -165,8 +143,7 @@ where
         decode_policy: CharsetDecodePolicy,
         encode_policy: CharsetEncodePolicy,
     ) -> Result<Self, CharsetEncodeError> {
-        let encode_hooks =
-            CharsetEncoder::<E>::create_hooks(&target, encode_policy)?;
+        let encode_hooks = CharsetEncoder::<E>::create_hooks(&target, encode_policy)?;
         Ok(Self {
             engine: TranscodeConvertEngine::new(
                 source,
@@ -330,33 +307,28 @@ where
         self.encode_policy.replacement()
     }
 
-    /// Resets converter state and maps transcode errors into charset convert
-    /// errors.
+    /// Resets converter state.
     ///
     /// # Errors
     ///
-    /// Returns [`CharsetConvertError`] when reset output cannot be written or
-    /// when source decode reset or target encode reset reports a charset
-    /// domain error.
+    /// Returns [`TranscodeError`] when reset output cannot be written or when
+    /// source decode reset or target encode reset reports a charset-domain
+    /// error.
     #[inline]
     pub fn reset(
         &mut self,
         output: &mut [E::Unit],
         output_index: usize,
-    ) -> Result<usize, CharsetConvertError> {
-        let source_charset = self.source_charset();
-        let target_charset = self.target_charset();
-        self.engine.reset(output, output_index).map_err(|error| {
-            map_charset_convert_error(source_charset, target_charset, error)
-        })
+    ) -> Result<usize, TranscodeError<ConvertError<CharsetDecodeError, CharsetEncodeError>, char>>
+    {
+        self.engine.reset(output, output_index)
     }
 
-    /// Converts source units into target units and maps transcode errors into
-    /// charset convert errors.
+    /// Converts source units into target units.
     ///
     /// # Errors
     ///
-    /// Returns [`CharsetConvertError`] when source decoding or target encoding
+    /// Returns [`TranscodeError`] when source decoding or target encoding
     /// fails, or when framework-level index and capacity checks fail.
     #[inline]
     pub fn transcode(
@@ -365,42 +337,35 @@ where
         input_index: usize,
         output: &mut [E::Unit],
         output_index: usize,
-    ) -> Result<TranscodeProgress, CharsetConvertError> {
-        let source_charset = self.source_charset();
-        let target_charset = self.target_charset();
+    ) -> Result<
+        TranscodeProgress,
+        TranscodeError<ConvertError<CharsetDecodeError, CharsetEncodeError>, char>,
+    > {
         self.engine
             .transcode(input, input_index, output, output_index)
-            .map_err(|error| {
-                map_charset_convert_error(source_charset, target_charset, error)
-            })
     }
 
-    /// Finishes retained converter output and maps transcode errors into
-    /// charset convert errors.
+    /// Finishes retained converter output.
     ///
     /// # Errors
     ///
-    /// Returns [`CharsetConvertError`] when pending or final decoded values
+    /// Returns [`TranscodeError`] when pending or final decoded values
     /// cannot be encoded or written to the target output buffer.
     #[inline]
     pub fn finish(
         &mut self,
         output: &mut [E::Unit],
         output_index: usize,
-    ) -> Result<usize, CharsetConvertError> {
-        let source_charset = self.source_charset();
-        let target_charset = self.target_charset();
-        self.engine.finish(output, output_index).map_err(|error| {
-            map_charset_convert_error(source_charset, target_charset, error)
-        })
+    ) -> Result<usize, TranscodeError<ConvertError<CharsetDecodeError, CharsetEncodeError>, char>>
+    {
+        self.engine.finish(output, output_index)
     }
 
-    /// Runs a complete `reset -> transcode -> finish` conversion stream and
-    /// maps transcode errors into charset convert errors.
+    /// Runs a complete `reset -> transcode -> finish` conversion stream.
     ///
     /// # Errors
     ///
-    /// Returns [`CharsetConvertError`] when source decoding or target encoding
+    /// Returns [`TranscodeError`] when source decoding or target encoding
     /// fails, when complete input ends with an incomplete source sequence, or
     /// when the supplied output buffer is too small.
     #[inline]
@@ -408,15 +373,9 @@ where
         &mut self,
         input: &[D::Unit],
         output: &mut [E::Unit],
-    ) -> Result<usize, CharsetConvertError> {
-        let source_charset = self.source_charset();
-        let target_charset = self.target_charset();
-        <Self as Transcoder<D::Unit, E::Unit>>::transcode_complete_into(
-            self, input, output,
-        )
-        .map_err(|error| {
-            map_charset_convert_error(source_charset, target_charset, error)
-        })
+    ) -> Result<usize, TranscodeError<ConvertError<CharsetDecodeError, CharsetEncodeError>, char>>
+    {
+        <Self as Transcoder<D::Unit, E::Unit>>::transcode_complete_into(self, input, output)
     }
 
     /// Returns the default encode policy that can be represented by `target`.
@@ -427,9 +386,7 @@ where
     /// can be encoded by `target`. This panic is intentional: reaching this
     /// branch means the target codec implementation violates the replacement
     /// fallback invariant and should fail fast.
-    fn default_encode_policy(
-        target: &E,
-    ) -> (CharsetEncodePolicy, CharsetEncodeHooks) {
+    fn default_encode_policy(target: &E) -> (CharsetEncodePolicy, CharsetEncodeHooks) {
         let policy = CharsetEncodePolicy::default_for(target).unwrap_or_else(|error| {
             // This panic is intentional. If default replacement selection gets
             // here, the target codec cannot encode even the required fallback
@@ -462,13 +419,11 @@ where
     E::Unit: Clone,
 {
     type DomainError = ConvertError<CharsetDecodeError, CharsetEncodeError>;
+    type FailureValue = char;
 
     /// Returns the target-side upper bound for converted output units.
     #[inline]
-    fn max_transcode_output_len(
-        &self,
-        input_len: usize,
-    ) -> Result<usize, CapacityError> {
+    fn max_transcode_output_len(&self, input_len: usize) -> Result<usize, CapacityError> {
         self.engine.max_transcode_output_len(input_len)
     }
 
@@ -492,7 +447,7 @@ where
         &mut self,
         output: &mut [E::Unit],
         output_index: usize,
-    ) -> Result<usize, TranscodeError<Self::DomainError>> {
+    ) -> Result<usize, TranscodeError<Self::DomainError, Self::FailureValue>> {
         self.engine.reset(output, output_index)
     }
 
@@ -510,7 +465,7 @@ where
         input_index: usize,
         output: &mut [E::Unit],
         output_index: usize,
-    ) -> Result<TranscodeProgress, TranscodeError<Self::DomainError>> {
+    ) -> Result<TranscodeProgress, TranscodeError<Self::DomainError, Self::FailureValue>> {
         self.engine
             .transcode(input, input_index, output, output_index)
     }
@@ -536,7 +491,7 @@ where
         &mut self,
         output: &mut [E::Unit],
         output_index: usize,
-    ) -> Result<usize, TranscodeError<Self::DomainError>> {
+    ) -> Result<usize, TranscodeError<Self::DomainError, Self::FailureValue>> {
         self.engine.finish(output, output_index)
     }
 }
@@ -548,70 +503,4 @@ where
     E::Unit: Clone,
 {
     // empty
-}
-
-#[inline]
-fn map_charset_convert_error(
-    source_charset: crate::Charset,
-    target_charset: crate::Charset,
-    error: TranscodeError<ConvertError<CharsetDecodeError, CharsetEncodeError>>,
-) -> CharsetConvertError {
-    match error {
-        TranscodeError::Failure(failure) => {
-            map_charset_convert_failure(source_charset, target_charset, failure)
-        }
-        TranscodeError::Domain(error) => {
-            map_charset_convert_domain_error(target_charset, error)
-        }
-    }
-}
-
-#[inline]
-fn map_charset_convert_failure(
-    source_charset: crate::Charset,
-    target_charset: crate::Charset,
-    failure: TranscodeFailure,
-) -> CharsetConvertError {
-    match failure {
-        TranscodeFailure::InvalidInputIndex { .. }
-        | TranscodeFailure::IncompleteInput { .. }
-        | TranscodeFailure::TrailingInput { .. } => {
-            CharsetConvertError::Decode(
-                CharsetDecodeError::map_transcode_failure(
-                    source_charset,
-                    failure,
-                ),
-            )
-        }
-        TranscodeFailure::InvalidOutputIndex { .. }
-        | TranscodeFailure::InsufficientOutput { .. }
-        | TranscodeFailure::OutputLengthOverflow
-        | TranscodeFailure::UnencodableValue { .. } => {
-            CharsetConvertError::Encode(
-                CharsetEncodeError::map_transcode_failure(
-                    target_charset,
-                    failure,
-                ),
-            )
-        }
-    }
-}
-
-#[inline]
-fn map_charset_convert_domain_error(
-    target_charset: crate::Charset,
-    error: TranscodeDomainError<
-        ConvertError<CharsetDecodeError, CharsetEncodeError>,
-    >,
-) -> CharsetConvertError {
-    match error.source {
-        ConvertError::Decode(error) => CharsetConvertError::Decode(error),
-        ConvertError::Encode(error) => CharsetConvertError::Encode(error),
-        _ => CharsetConvertError::Encode(
-            CharsetEncodeError::map_transcode_failure(
-                target_charset,
-                TranscodeFailure::OutputLengthOverflow,
-            ),
-        ),
-    }
 }

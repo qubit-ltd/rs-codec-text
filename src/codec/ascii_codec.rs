@@ -9,12 +9,7 @@ use core::num::NonZeroUsize;
 
 use crate::error::CharsetCodecDecodeResult;
 use crate::{
-    Ascii,
-    Charset,
-    CharsetCodec,
-    CharsetDecodeError,
-    CharsetDecodeErrorKind,
-    CharsetEncodeError,
+    Ascii, Charset, CharsetCodec, CharsetDecodeError, CharsetDecodeErrorKind, CharsetEncodeError,
     CharsetEncodeResult,
 };
 use qubit_codec::Codec;
@@ -74,16 +69,12 @@ impl Codec for AsciiCodec {
         debug_assert!(input_index < input.len());
 
         // SAFETY: The caller guarantees that `input_index` is readable.
-        let value =
-            unsafe { qubit_io::UncheckedSlice::read(input, input_index) };
+        let value = unsafe { qubit_io::UncheckedSlice::read(input, input_index) };
         if !Ascii::is_ascii_byte(value) {
             let kind = CharsetDecodeErrorKind::malformed(value as u32);
-            return Err(CharsetDecodeError::new(
-                Charset::ASCII,
-                kind,
-                input_index,
-            )
-            .into_codec_failure());
+            return Err(
+                CharsetDecodeError::new(Charset::ASCII, kind, input_index).into_codec_failure()
+            );
         }
         Ok((value as char, NonZeroUsize::MIN))
     }
@@ -94,7 +85,7 @@ impl Codec for AsciiCodec {
         ch: &char,
         output: &mut [u8],
         output_index: usize,
-    ) -> CharsetEncodeResult<NonZeroUsize> {
+    ) -> CharsetEncodeResult<usize> {
         debug_assert!(self.can_encode_value(ch));
         debug_assert!(output_index < output.len());
 
@@ -103,6 +94,6 @@ impl Codec for AsciiCodec {
         unsafe {
             qubit_io::UncheckedSlice::write(output, output_index, *ch as u8);
         }
-        Ok(NonZeroUsize::MIN)
+        Ok(1)
     }
 }
