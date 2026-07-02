@@ -65,7 +65,7 @@ where
             TranscodeError::Failure(failure) => {
                 CharsetDecodeError::map_transcode_failure(charset, failure)
             }
-            TranscodeError::Domain(error) => error.source,
+            TranscodeError::Domain(error) => error.into_source(),
         })?;
     Ok(output[..written].iter().collect())
 }

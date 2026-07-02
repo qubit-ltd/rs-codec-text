@@ -153,9 +153,9 @@ assert_eq!("😀".as_bytes(), &output[..progress.written()]);
 
 | 类型 | 用途 |
 |------|------|
-| `CharsetDecoder<C>` | 实现 `TranscodeDecoder<C::Unit, char>` 的有状态缓冲区 decoder，并复用 `TranscodeDecodeEngine` 处理解码迭代和 progress 报告 |
-| `CharsetEncoder<C>` | 实现 `TranscodeEncoder<char, C::Unit>` 的有状态缓冲区 encoder，并复用 `TranscodeEncodeEngine` 的公共循环 |
-| `CharsetConverter<D, E>` | 在两个 charset codec 之间 decode + encode，并实现 `TranscodeConverter<D::Unit, E::Unit>` |
+| `CharsetDecoder<C>` | 实现 `TranscodeDecoder<Input = C::Unit, Output = char>` 的有状态缓冲区 decoder，并复用 `TranscodeDecodeEngine` 处理解码迭代和 progress 报告 |
+| `CharsetEncoder<C>` | 实现 `TranscodeEncoder<Input = char, Output = C::Unit>` 的有状态缓冲区 encoder，并复用 `TranscodeEncodeEngine` 的公共循环 |
+| `CharsetConverter<D, E>` | 在两个 charset codec 之间 decode + encode，并实现 `TranscodeConverter<Input = D::Unit, Output = E::Unit>` |
 | `MalformedAction` | Malformed input 处理策略 |
 | `UnmappableAction` | 无法编码输出字符的处理策略 |
 

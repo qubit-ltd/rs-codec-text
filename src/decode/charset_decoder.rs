@@ -227,9 +227,7 @@ where
         input: &[C::Unit],
         output: &mut [char],
     ) -> Result<usize, TranscodeError<CharsetDecodeError>> {
-        <Self as Transcoder<C::Unit, char>>::transcode_complete_into(
-            self, input, output,
-        )
+        <Self as Transcoder>::transcode_complete_into(self, input, output)
     }
 }
 
@@ -288,10 +286,12 @@ where
     }
 }
 
-impl<C> Transcoder<C::Unit, char> for CharsetDecoder<C>
+impl<C> Transcoder for CharsetDecoder<C>
 where
     C: CharsetCodec,
 {
+    type Input = C::Unit;
+    type Output = char;
     type DomainError = CharsetDecodeError;
     type FailureValue = ();
 
@@ -352,7 +352,7 @@ where
     }
 }
 
-impl<C> TranscodeDecoder<C::Unit, char> for CharsetDecoder<C>
+impl<C> TranscodeDecoder for CharsetDecoder<C>
 where
     C: CharsetCodec,
 {

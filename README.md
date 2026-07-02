@@ -165,9 +165,9 @@ assert_eq!("😀".as_bytes(), &output[..progress.written()]);
 
 | Type | Purpose |
 |------|---------|
-| `CharsetDecoder<C>` | Stateful buffer decoder implementing `TranscodeDecoder<C::Unit, char>` and reusing `TranscodeDecodeEngine` for decode iteration and progress reporting |
-| `CharsetEncoder<C>` | Stateful buffer encoder implementing `TranscodeEncoder<char, C::Unit>` and reusing `TranscodeEncodeEngine` for its buffered loop |
-| `CharsetConverter<D, E>` | Decode and encode between two charset codecs, implementing `TranscodeConverter<D::Unit, E::Unit>` |
+| `CharsetDecoder<C>` | Stateful buffer decoder implementing `TranscodeDecoder<Input = C::Unit, Output = char>` and reusing `TranscodeDecodeEngine` for decode iteration and progress reporting |
+| `CharsetEncoder<C>` | Stateful buffer encoder implementing `TranscodeEncoder<Input = char, Output = C::Unit>` and reusing `TranscodeEncodeEngine` for its buffered loop |
+| `CharsetConverter<D, E>` | Decode and encode between two charset codecs, implementing `TranscodeConverter<Input = D::Unit, Output = E::Unit>` |
 | `MalformedAction` | Policy for malformed input |
 | `UnmappableAction` | Policy for unencodable output characters |
 

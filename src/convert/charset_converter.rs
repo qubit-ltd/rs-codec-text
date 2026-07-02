@@ -409,9 +409,7 @@ where
             char,
         >,
     > {
-        <Self as Transcoder<D::Unit, E::Unit>>::transcode_complete_into(
-            self, input, output,
-        )
+        <Self as Transcoder>::transcode_complete_into(self, input, output)
     }
 
     /// Returns the default encode policy that can be represented by `target`.
@@ -450,12 +448,14 @@ where
     }
 }
 
-impl<D, E> Transcoder<D::Unit, E::Unit> for CharsetConverter<D, E>
+impl<D, E> Transcoder for CharsetConverter<D, E>
 where
     D: CharsetCodec,
     E: CharsetCodec,
     E::Unit: Clone,
 {
+    type Input = D::Unit;
+    type Output = E::Unit;
     type DomainError = ConvertError<CharsetDecodeError, CharsetEncodeError>;
     type FailureValue = char;
 
@@ -542,7 +542,7 @@ where
     }
 }
 
-impl<D, E> TranscodeConverter<D::Unit, E::Unit> for CharsetConverter<D, E>
+impl<D, E> TranscodeConverter for CharsetConverter<D, E>
 where
     D: CharsetCodec,
     E: CharsetCodec,

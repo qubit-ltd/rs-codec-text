@@ -12,7 +12,6 @@ use qubit_codec::engine::{
 };
 use qubit_codec::{
     CapacityError,
-    CodecPhase,
     TranscodeDecodeError,
     TranscodeError,
 };
@@ -83,10 +82,9 @@ where
                 .consumed()
                 .expect("malformed decode errors carry consumed width");
             return match self.malformed_action {
-                MalformedAction::Report => Err(TranscodeError::domain(
+                MalformedAction::Report => Err(TranscodeError::domain_main(
                     *error,
-                    CodecPhase::Main,
-                    Some(context.input_index()),
+                    context.input_index(),
                 )),
                 MalformedAction::Ignore => {
                     Ok(DecodeInvalidAction::Skip { consumed })
@@ -97,10 +95,6 @@ where
                 }),
             };
         }
-        Err(TranscodeError::domain(
-            *error,
-            CodecPhase::Main,
-            Some(context.input_index()),
-        ))
+        Err(TranscodeError::domain_main(*error, context.input_index()))
     }
 }

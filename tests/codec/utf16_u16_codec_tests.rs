@@ -29,10 +29,10 @@ fn test_utf16_u16_codec_exposes_encoder_and_decoder_contracts() {
         Charset::UTF_16,
         <Utf16U16Codec as CharsetCodec>::charset(&codec)
     );
-    assert_eq!(1, <Utf16U16Codec as Codec>::MIN_UNITS_PER_VALUE.get());
+    assert_eq!(1, <Utf16U16Codec as Codec>::MIN_UNITS_PER_VALUE);
     assert_eq!(
         Utf16::MAX_UNITS_PER_CHAR,
-        <Utf16U16Codec as Codec>::MAX_UNITS_PER_VALUE.get(),
+        <Utf16U16Codec as Codec>::MAX_UNITS_PER_VALUE,
     );
     assert!(codec.can_encode_value(&'A'));
     assert_eq!(1, codec.encode_len(&'A'));
@@ -111,8 +111,8 @@ fn test_utf16_u16_codec_direct_function_items_cover_trait_methods() {
 
     assert_eq!(Charset::UTF_16, inherent_charset(codec));
     assert_eq!(Charset::UTF_16, trait_charset(&codec));
-    assert_eq!(1, min_units.get());
-    assert_eq!(Utf16::MAX_UNITS_PER_CHAR, max_units.get());
+    assert_eq!(1, min_units);
+    assert_eq!(Utf16::MAX_UNITS_PER_CHAR, max_units);
     assert_eq!(2, encode_len(&codec, &'😀'));
 
     let mut output = [0_u16; Utf16::MAX_UNITS_PER_CHAR];

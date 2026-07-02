@@ -55,7 +55,7 @@ impl DecodeTranscodeErrorSource for TranscodeError<CharsetDecodeError> {
                     failure,
                 )
             }
-            TranscodeError::Domain(error) => error.source,
+            TranscodeError::Domain(error) => error.into_source(),
         }
     }
 }
@@ -75,11 +75,9 @@ impl Codec for InvalidInputErrorCodec {
     type DecodeError = CharsetDecodeError;
     type EncodeError = CharsetEncodeError;
 
-    const MIN_UNITS_PER_VALUE: core::num::NonZeroUsize =
-        core::num::NonZeroUsize::MIN;
+    const MIN_UNITS_PER_VALUE: usize = 1;
 
-    const MAX_UNITS_PER_VALUE: core::num::NonZeroUsize =
-        core::num::NonZeroUsize::MIN;
+    const MAX_UNITS_PER_VALUE: usize = 1;
 
     unsafe fn decode(
         &mut self,
@@ -109,7 +107,10 @@ impl Codec for InvalidInputErrorCodec {
 
 #[test]
 fn test_charset_decoder_is_transcode_decoder() {
-    fn assert_transcode_decoder<T: TranscodeDecoder<u8, char>>() {}
+    fn assert_transcode_decoder<
+        T: TranscodeDecoder<Input = u8, Output = char>,
+    >() {
+    }
 
     assert_transcode_decoder::<CharsetDecoder<Utf8Codec>>();
 }
@@ -129,10 +130,9 @@ impl Codec for PendingInvalidInputErrorCodec {
     type DecodeError = CharsetDecodeError;
     type EncodeError = CharsetEncodeError;
 
-    const MIN_UNITS_PER_VALUE: core::num::NonZeroUsize =
-        core::num::NonZeroUsize::MIN;
+    const MIN_UNITS_PER_VALUE: usize = 1;
 
-    const MAX_UNITS_PER_VALUE: core::num::NonZeroUsize = qubit_io::nz!(2);
+    const MAX_UNITS_PER_VALUE: usize = 2;
 
     unsafe fn decode(
         &mut self,
@@ -214,11 +214,9 @@ impl Codec for MalformedWithoutConsumedCodec {
     type DecodeError = CharsetDecodeError;
     type EncodeError = CharsetEncodeError;
 
-    const MIN_UNITS_PER_VALUE: core::num::NonZeroUsize =
-        core::num::NonZeroUsize::MIN;
+    const MIN_UNITS_PER_VALUE: usize = 1;
 
-    const MAX_UNITS_PER_VALUE: core::num::NonZeroUsize =
-        core::num::NonZeroUsize::MIN;
+    const MAX_UNITS_PER_VALUE: usize = 1;
 
     unsafe fn decode(
         &mut self,
@@ -252,10 +250,9 @@ impl Codec for IncompletePrefixCodec {
     type DecodeError = CharsetDecodeError;
     type EncodeError = CharsetEncodeError;
 
-    const MIN_UNITS_PER_VALUE: core::num::NonZeroUsize =
-        core::num::NonZeroUsize::MIN;
+    const MIN_UNITS_PER_VALUE: usize = 1;
 
-    const MAX_UNITS_PER_VALUE: core::num::NonZeroUsize = qubit_io::nz!(2);
+    const MAX_UNITS_PER_VALUE: usize = 2;
 
     unsafe fn decode(
         &mut self,
@@ -292,11 +289,9 @@ impl Codec for IncompleteAsInvalidCodec {
     type DecodeError = CharsetDecodeError;
     type EncodeError = CharsetEncodeError;
 
-    const MIN_UNITS_PER_VALUE: core::num::NonZeroUsize =
-        core::num::NonZeroUsize::MIN;
+    const MIN_UNITS_PER_VALUE: usize = 1;
 
-    const MAX_UNITS_PER_VALUE: core::num::NonZeroUsize =
-        core::num::NonZeroUsize::MIN;
+    const MAX_UNITS_PER_VALUE: usize = 1;
 
     unsafe fn decode(
         &mut self,
@@ -333,11 +328,9 @@ impl Codec for DecodeFlushErrorCodec {
     type DecodeError = CharsetDecodeError;
     type EncodeError = CharsetEncodeError;
 
-    const MIN_UNITS_PER_VALUE: core::num::NonZeroUsize =
-        core::num::NonZeroUsize::MIN;
+    const MIN_UNITS_PER_VALUE: usize = 1;
 
-    const MAX_UNITS_PER_VALUE: core::num::NonZeroUsize =
-        core::num::NonZeroUsize::MIN;
+    const MAX_UNITS_PER_VALUE: usize = 1;
 
     unsafe fn decode(
         &mut self,
@@ -350,7 +343,7 @@ impl Codec for DecodeFlushErrorCodec {
         Ok(('A', core::num::NonZeroUsize::MIN))
     }
 
-    unsafe fn decode_flush(
+    unsafe fn decode_finish(
         &mut self,
         _output: &mut [char],
         output_index: usize,
@@ -422,23 +415,17 @@ fn test_charset_decoder_transcoder_trait_methods_forward() {
     let max_transcode_output_len: fn(
         &Decoder,
         usize,
-    ) -> Result<usize, CapacityError> = std::hint::black_box(
-        <Decoder as Transcoder<u8, char>>::max_transcode_output_len,
-    );
+    ) -> Result<usize, CapacityError> =
+        std::hint::black_box(<Decoder as Transcoder>::max_transcode_output_len);
     let max_finish_output_len: fn(&Decoder) -> Result<usize, CapacityError> =
-        std::hint::black_box(
-            <Decoder as Transcoder<u8, char>>::max_finish_output_len,
-        );
+        std::hint::black_box(<Decoder as Transcoder>::max_finish_output_len);
     let max_reset_output_len: fn(&Decoder) -> Result<usize, CapacityError> =
-        std::hint::black_box(
-            <Decoder as Transcoder<u8, char>>::max_reset_output_len,
-        );
-    let reset: OutputFn =
-        std::hint::black_box(<Decoder as Transcoder<u8, char>>::reset);
+        std::hint::black_box(<Decoder as Transcoder>::max_reset_output_len);
+    let reset: OutputFn = std::hint::black_box(<Decoder as Transcoder>::reset);
     let transcode: TranscodeFn =
-        std::hint::black_box(<Decoder as Transcoder<u8, char>>::transcode);
+        std::hint::black_box(<Decoder as Transcoder>::transcode);
     let finish: OutputFn =
-        std::hint::black_box(<Decoder as Transcoder<u8, char>>::finish);
+        std::hint::black_box(<Decoder as Transcoder>::finish);
 
     assert_eq!(Ok(1), max_transcode_output_len(&decoder, 1));
     assert_eq!(Ok(0), max_finish_output_len(&decoder));
@@ -1046,7 +1033,7 @@ fn test_charset_decoder_propagates_non_malformed_invalid_decode_errors() {
 }
 
 #[test]
-fn test_charset_decoder_finish_converts_decode_flush_errors() {
+fn test_charset_decoder_finish_converts_decode_finish_errors() {
     let mut decoder = CharsetDecoder::new(DecodeFlushErrorCodec);
     let mut output = [];
 

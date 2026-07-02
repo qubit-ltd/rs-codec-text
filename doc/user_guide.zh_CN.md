@@ -564,7 +564,7 @@ assert!(matches!(
 
 ## 进度与缓冲
 
-`qubit_codec::Transcoder<Input, Output>` 表示把一个逻辑输入流转换为一个逻辑输出流。
+`qubit_codec::Transcoder` 通过关联类型 `Input` 和 `Output` 表示把一个逻辑输入流转换为一个逻辑输出流。
 对每段可用输入调用 `transcode()`，到达 EOF 后调用 `finish()`，并在它返回 `NeedOutput`
 时继续提供输出空间。复用同一个实例处理下一个逻辑流前，应先调用 `reset()`。它有四个核心方法：
 

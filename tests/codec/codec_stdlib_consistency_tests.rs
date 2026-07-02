@@ -58,7 +58,7 @@ impl DecodeTranscodeErrorSource for TranscodeError<CharsetDecodeError> {
                     failure,
                 )
             }
-            TranscodeError::Domain(error) => error.source,
+            TranscodeError::Domain(error) => error.into_source(),
         }
     }
 }
@@ -71,7 +71,7 @@ fn map_convert_error(
 ) -> CharsetConvertError {
     match error {
         TranscodeError::Failure(failure) => map_convert_failure(failure),
-        TranscodeError::Domain(error) => match error.source {
+        TranscodeError::Domain(error) => match error.into_source() {
             ConvertError::Decode(error) => CharsetConvertError::Decode(error),
             ConvertError::Encode(error) => CharsetConvertError::Encode(error),
             _ => CharsetConvertError::Encode(CharsetEncodeError::new(

@@ -597,8 +597,8 @@ assert!(matches!(
 
 ## Progress and Buffering
 
-`qubit_codec::Transcoder<Input, Output>` models one
-logical input stream converted into one logical output stream. Call
+`qubit_codec::Transcoder` models one logical input stream converted into one
+logical output stream through its associated `Input` and `Output` types. Call
 `transcode()` for each available segment, then call `finish()` after EOF and
 continue while it reports `NeedOutput`. Call `reset()` before reusing the same
 instance for another logical stream. It has four central methods:
