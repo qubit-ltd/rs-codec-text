@@ -5,13 +5,11 @@
 //
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
+use qubit_codec::TranscodeError;
 use qubit_codec::engine::{
+    EncodeContext,
     EncodeUnencodableAction,
     TranscodeEncodeHooks,
-};
-use qubit_codec::{
-    CodecPhase,
-    TranscodeError,
 };
 
 use crate::{
@@ -65,20 +63,18 @@ where
     fn handle_unencodable_encode(
         &mut self,
         codec: &mut C,
-        ch: &char,
-        input_index: usize,
+        context: &EncodeContext<'_, char, C::Unit>,
     ) -> Result<
         EncodeUnencodableAction<char>,
         qubit_codec::TranscodeEncodeError<C>,
     > {
-        let ch = *ch;
+        let ch = *context.input_value();
+        let input_index = context.input_index();
         let error = unmappable_error(codec, ch, input_index);
         match self.unmappable_action {
-            UnmappableAction::Report => Err(TranscodeError::domain(
-                error,
-                CodecPhase::Main,
-                Some(input_index),
-            )),
+            UnmappableAction::Report => {
+                Err(TranscodeError::domain_main(error, input_index))
+            }
             UnmappableAction::Ignore => Ok(EncodeUnencodableAction::Skip),
             UnmappableAction::Replace => {
                 Ok(EncodeUnencodableAction::replace(self.replacement))

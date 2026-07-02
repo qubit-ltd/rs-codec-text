@@ -25,10 +25,10 @@ fn test_utf8_codec_exposes_encoder_and_decoder_contracts() {
     let codec = Utf8Codec;
 
     assert_eq!(Charset::UTF_8, <Utf8Codec as CharsetCodec>::charset(&codec));
-    assert_eq!(1, <Utf8Codec as Codec>::MIN_UNITS_PER_VALUE.get());
+    assert_eq!(1, <Utf8Codec as Codec>::MIN_UNITS_PER_VALUE);
     assert_eq!(
         Utf8::MAX_UNITS_PER_CHAR,
-        <Utf8Codec as Codec>::MAX_UNITS_PER_VALUE.get(),
+        <Utf8Codec as Codec>::MAX_UNITS_PER_VALUE,
     );
     assert!(codec.can_encode_value(&'A'));
     assert_eq!(1, codec.encode_len(&'A'));
@@ -142,8 +142,8 @@ fn test_utf8_codec_direct_function_items_cover_trait_methods() {
 
     assert_eq!(Charset::UTF_8, inherent_charset(codec));
     assert_eq!(Charset::UTF_8, trait_charset(&codec));
-    assert_eq!(1, min_units.get());
-    assert_eq!(Utf8::MAX_UNITS_PER_CHAR, max_units.get());
+    assert_eq!(1, min_units);
+    assert_eq!(Utf8::MAX_UNITS_PER_CHAR, max_units);
     assert_eq!(4, encode_len(&codec, &'😀'));
 
     let mut output = [0_u8; Utf8::MAX_BYTES_PER_CHAR];

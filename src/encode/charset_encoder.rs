@@ -258,9 +258,7 @@ where
         input: &[char],
         output: &mut [C::Unit],
     ) -> Result<usize, TranscodeError<CharsetEncodeError, char>> {
-        <Self as Transcoder<char, C::Unit>>::transcode_complete_into(
-            self, input, output,
-        )
+        <Self as Transcoder>::transcode_complete_into(self, input, output)
     }
 
     /// Creates encode hooks for `policy`.
@@ -280,10 +278,12 @@ where
     }
 }
 
-impl<C> Transcoder<char, C::Unit> for CharsetEncoder<C>
+impl<C> Transcoder for CharsetEncoder<C>
 where
     C: CharsetCodec,
 {
+    type Input = char;
+    type Output = C::Unit;
     type DomainError = CharsetEncodeError;
     type FailureValue = char;
 
@@ -349,7 +349,7 @@ where
     }
 }
 
-impl<C> TranscodeEncoder<char, C::Unit> for CharsetEncoder<C>
+impl<C> TranscodeEncoder for CharsetEncoder<C>
 where
     C: CharsetCodec,
 {

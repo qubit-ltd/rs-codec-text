@@ -60,7 +60,7 @@ impl EncodeTranscodeErrorSource for TranscodeError<CharsetEncodeError, char> {
                     failure,
                 )
             }
-            TranscodeError::Domain(error) => error.source,
+            TranscodeError::Domain(error) => error.into_source(),
         }
     }
 }
@@ -73,11 +73,9 @@ macro_rules! impl_test_codec {
             type DecodeError = CharsetDecodeError;
             type EncodeError = CharsetEncodeError;
 
-            const MIN_UNITS_PER_VALUE: core::num::NonZeroUsize =
-                core::num::NonZeroUsize::MIN;
+            const MIN_UNITS_PER_VALUE: usize = 1;
 
-            const MAX_UNITS_PER_VALUE: core::num::NonZeroUsize =
-                qubit_io::nz!($max_units);
+            const MAX_UNITS_PER_VALUE: usize = $max_units;
 
             fn can_encode_value(&self, value: &char) -> bool {
                 let can_encode: fn(char) -> bool = $can_encode;
@@ -152,11 +150,9 @@ impl Codec for NonDefaultUnitCodec {
     type DecodeError = CharsetDecodeError;
     type EncodeError = CharsetEncodeError;
 
-    const MIN_UNITS_PER_VALUE: core::num::NonZeroUsize =
-        core::num::NonZeroUsize::MIN;
+    const MIN_UNITS_PER_VALUE: usize = 1;
 
-    const MAX_UNITS_PER_VALUE: core::num::NonZeroUsize =
-        core::num::NonZeroUsize::MIN;
+    const MAX_UNITS_PER_VALUE: usize = 1;
 
     fn can_encode_value(&self, value: &char) -> bool {
         value.is_ascii()
@@ -210,11 +206,9 @@ impl Codec for NonDebugUnitCodec {
     type DecodeError = CharsetDecodeError;
     type EncodeError = CharsetEncodeError;
 
-    const MIN_UNITS_PER_VALUE: core::num::NonZeroUsize =
-        core::num::NonZeroUsize::MIN;
+    const MIN_UNITS_PER_VALUE: usize = 1;
 
-    const MAX_UNITS_PER_VALUE: core::num::NonZeroUsize =
-        core::num::NonZeroUsize::MIN;
+    const MAX_UNITS_PER_VALUE: usize = 1;
 
     fn can_encode_value(&self, value: &char) -> bool {
         value.is_ascii()
@@ -251,7 +245,10 @@ impl Codec for NonDebugUnitCodec {
 
 #[test]
 fn test_charset_encoder_is_transcode_encoder() {
-    fn assert_transcode_encoder<T: TranscodeEncoder<char, u8>>() {}
+    fn assert_transcode_encoder<
+        T: TranscodeEncoder<Input = char, Output = u8>,
+    >() {
+    }
 
     assert_transcode_encoder::<CharsetEncoder<AsciiBytesCodec>>();
 }
@@ -280,11 +277,9 @@ impl Codec for InvalidBangCodec {
     type DecodeError = CharsetDecodeError;
     type EncodeError = CharsetEncodeError;
 
-    const MIN_UNITS_PER_VALUE: core::num::NonZeroUsize =
-        core::num::NonZeroUsize::MIN;
+    const MIN_UNITS_PER_VALUE: usize = 1;
 
-    const MAX_UNITS_PER_VALUE: core::num::NonZeroUsize =
-        core::num::NonZeroUsize::MIN;
+    const MAX_UNITS_PER_VALUE: usize = 1;
 
     unsafe fn decode(
         &mut self,
@@ -334,11 +329,9 @@ impl Codec for FailingReplacementWriteCodec {
     type DecodeError = CharsetDecodeError;
     type EncodeError = CharsetEncodeError;
 
-    const MIN_UNITS_PER_VALUE: core::num::NonZeroUsize =
-        core::num::NonZeroUsize::MIN;
+    const MIN_UNITS_PER_VALUE: usize = 1;
 
-    const MAX_UNITS_PER_VALUE: core::num::NonZeroUsize =
-        core::num::NonZeroUsize::MIN;
+    const MAX_UNITS_PER_VALUE: usize = 1;
 
     fn can_encode_value(&self, value: &char) -> bool {
         *value == '!' || value.is_ascii()
@@ -385,11 +378,9 @@ impl Codec for EncodeResetErrorCodec {
     type DecodeError = CharsetDecodeError;
     type EncodeError = CharsetEncodeError;
 
-    const MIN_UNITS_PER_VALUE: core::num::NonZeroUsize =
-        core::num::NonZeroUsize::MIN;
+    const MIN_UNITS_PER_VALUE: usize = 1;
 
-    const MAX_UNITS_PER_VALUE: core::num::NonZeroUsize =
-        core::num::NonZeroUsize::MIN;
+    const MAX_UNITS_PER_VALUE: usize = 1;
 
     fn can_encode_value(&self, value: &char) -> bool {
         value.is_ascii()
@@ -473,11 +464,9 @@ impl Codec for CountingAsciiEncoderCodec {
     type DecodeError = CharsetDecodeError;
     type EncodeError = CharsetEncodeError;
 
-    const MIN_UNITS_PER_VALUE: core::num::NonZeroUsize =
-        core::num::NonZeroUsize::MIN;
+    const MIN_UNITS_PER_VALUE: usize = 1;
 
-    const MAX_UNITS_PER_VALUE: core::num::NonZeroUsize =
-        core::num::NonZeroUsize::MIN;
+    const MAX_UNITS_PER_VALUE: usize = 1;
 
     fn can_encode_value(&self, value: &char) -> bool {
         let current = self.encode_calls.get();
@@ -559,23 +548,17 @@ fn test_charset_encoder_transcoder_trait_methods_forward() {
     let max_transcode_output_len: fn(
         &Encoder,
         usize,
-    ) -> Result<usize, CapacityError> = std::hint::black_box(
-        <Encoder as Transcoder<char, u8>>::max_transcode_output_len,
-    );
+    ) -> Result<usize, CapacityError> =
+        std::hint::black_box(<Encoder as Transcoder>::max_transcode_output_len);
     let max_finish_output_len: fn(&Encoder) -> Result<usize, CapacityError> =
-        std::hint::black_box(
-            <Encoder as Transcoder<char, u8>>::max_finish_output_len,
-        );
+        std::hint::black_box(<Encoder as Transcoder>::max_finish_output_len);
     let max_reset_output_len: fn(&Encoder) -> Result<usize, CapacityError> =
-        std::hint::black_box(
-            <Encoder as Transcoder<char, u8>>::max_reset_output_len,
-        );
-    let reset: OutputFn =
-        std::hint::black_box(<Encoder as Transcoder<char, u8>>::reset);
+        std::hint::black_box(<Encoder as Transcoder>::max_reset_output_len);
+    let reset: OutputFn = std::hint::black_box(<Encoder as Transcoder>::reset);
     let transcode: TranscodeFn =
-        std::hint::black_box(<Encoder as Transcoder<char, u8>>::transcode);
+        std::hint::black_box(<Encoder as Transcoder>::transcode);
     let finish: OutputFn =
-        std::hint::black_box(<Encoder as Transcoder<char, u8>>::finish);
+        std::hint::black_box(<Encoder as Transcoder>::finish);
 
     assert_eq!(Ok(1), max_transcode_output_len(&encoder, 1));
     assert_eq!(Ok(0), max_finish_output_len(&encoder));

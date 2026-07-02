@@ -39,7 +39,7 @@ use qubit_io::UncheckedSlice;
 /// assert_eq!(Charset::UTF_8, codec.charset());
 /// assert_eq!(
 ///     Utf8::MAX_UNITS_PER_CHAR,
-///     <Utf8Codec as Codec>::MAX_UNITS_PER_VALUE.get(),
+///     <Utf8Codec as Codec>::MAX_UNITS_PER_VALUE,
 /// );
 ///
 /// let mut output = [0_u8; Utf8::MAX_BYTES_PER_CHAR];
@@ -86,9 +86,8 @@ impl Codec for Utf8Codec {
     type DecodeError = CharsetDecodeError;
     type EncodeError = CharsetEncodeError;
 
-    const MIN_UNITS_PER_VALUE: NonZeroUsize = NonZeroUsize::MIN;
-    const MAX_UNITS_PER_VALUE: NonZeroUsize =
-        qubit_io::nz!(Utf8::MAX_UNITS_PER_CHAR);
+    const MIN_UNITS_PER_VALUE: usize = 1;
+    const MAX_UNITS_PER_VALUE: usize = Utf8::MAX_UNITS_PER_CHAR;
 
     #[inline]
     fn encode_len(&self, ch: &char) -> usize {

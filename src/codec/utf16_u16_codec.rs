@@ -48,7 +48,7 @@ use qubit_io::UncheckedSlice;
 /// assert_eq!(Charset::UTF_16, codec.charset());
 /// assert_eq!(
 ///     Utf16::MAX_UNITS_PER_CHAR,
-///     <Utf16U16Codec as Codec>::MAX_UNITS_PER_VALUE.get(),
+///     <Utf16U16Codec as Codec>::MAX_UNITS_PER_VALUE,
 /// );
 ///
 /// let mut output = [0_u16; Utf16::MAX_UNITS_PER_CHAR];
@@ -95,10 +95,8 @@ impl Codec for Utf16U16Codec {
     type DecodeError = CharsetDecodeError;
     type EncodeError = CharsetEncodeError;
 
-    const MIN_UNITS_PER_VALUE: core::num::NonZeroUsize =
-        core::num::NonZeroUsize::MIN;
-    const MAX_UNITS_PER_VALUE: core::num::NonZeroUsize =
-        qubit_io::nz!(Utf16::MAX_UNITS_PER_CHAR);
+    const MIN_UNITS_PER_VALUE: usize = 1;
+    const MAX_UNITS_PER_VALUE: usize = Utf16::MAX_UNITS_PER_CHAR;
 
     #[inline]
     fn encode_len(&self, ch: &char) -> usize {

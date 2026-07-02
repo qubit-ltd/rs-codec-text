@@ -47,7 +47,7 @@ use qubit_io::UncheckedSlice;
 /// assert_eq!(Charset::UTF_32BE, codec.charset());
 /// assert_eq!(
 ///     Utf32::MAX_BYTES_PER_CHAR,
-///     <Utf32ByteCodec as Codec>::MAX_UNITS_PER_VALUE.get(),
+///     <Utf32ByteCodec as Codec>::MAX_UNITS_PER_VALUE,
 /// );
 ///
 /// let mut output = [0_u8; Utf32::MAX_BYTES_PER_CHAR];
@@ -125,9 +125,8 @@ impl Codec for Utf32ByteCodec {
     type DecodeError = CharsetDecodeError;
     type EncodeError = CharsetEncodeError;
 
-    const MIN_UNITS_PER_VALUE: core::num::NonZeroUsize = qubit_io::nz!(4);
-    const MAX_UNITS_PER_VALUE: core::num::NonZeroUsize =
-        qubit_io::nz!(Utf32::MAX_BYTES_PER_CHAR);
+    const MIN_UNITS_PER_VALUE: usize = 4;
+    const MAX_UNITS_PER_VALUE: usize = Utf32::MAX_BYTES_PER_CHAR;
 
     #[inline]
     unsafe fn decode(

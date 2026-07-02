@@ -27,8 +27,8 @@ fn test_ascii_codec_exposes_identity_and_limits() {
         Charset::ASCII,
         <AsciiCodec as CharsetCodec>::charset(&codec)
     );
-    assert_eq!(1, <AsciiCodec as Codec>::MIN_UNITS_PER_VALUE.get());
-    assert_eq!(1, <AsciiCodec as Codec>::MAX_UNITS_PER_VALUE.get());
+    assert_eq!(1, <AsciiCodec as Codec>::MIN_UNITS_PER_VALUE);
+    assert_eq!(1, <AsciiCodec as Codec>::MAX_UNITS_PER_VALUE);
     assert!(codec.can_encode_value(&'A'));
     assert!(!codec.can_encode_value(&'é'));
     assert_eq!(1, codec.encode_len(&'A'));
@@ -83,8 +83,8 @@ fn test_ascii_codec_direct_function_items_cover_trait_methods() {
 
     assert_eq!(Charset::ASCII, inherent_charset(codec));
     assert_eq!(Charset::ASCII, trait_charset(&codec));
-    assert_eq!(1, min_units.get());
-    assert_eq!(1, max_units.get());
+    assert_eq!(1, min_units);
+    assert_eq!(1, max_units);
     assert!(can_encode_value(&codec, &'Z'));
     assert_eq!(1, encode_len(&codec, &'Z'));
 

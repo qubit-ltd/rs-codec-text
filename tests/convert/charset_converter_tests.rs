@@ -40,7 +40,7 @@ fn map_convert_error(
 ) -> CharsetConvertError {
     match error {
         TranscodeError::Failure(failure) => map_convert_failure(failure),
-        TranscodeError::Domain(error) => match error.source {
+        TranscodeError::Domain(error) => match error.into_source() {
             ConvertError::Decode(error) => CharsetConvertError::Decode(error),
             ConvertError::Encode(error) => CharsetConvertError::Encode(error),
             _ => CharsetConvertError::Encode(CharsetEncodeError::new(
@@ -93,11 +93,9 @@ impl Codec for AsciiBytesCodec {
     type DecodeError = CharsetDecodeError;
     type EncodeError = CharsetEncodeError;
 
-    const MIN_UNITS_PER_VALUE: core::num::NonZeroUsize =
-        core::num::NonZeroUsize::MIN;
+    const MIN_UNITS_PER_VALUE: usize = 1;
 
-    const MAX_UNITS_PER_VALUE: core::num::NonZeroUsize =
-        core::num::NonZeroUsize::MIN;
+    const MAX_UNITS_PER_VALUE: usize = 1;
 
     fn can_encode_value(&self, value: &char) -> bool {
         value.is_ascii()
@@ -175,10 +173,10 @@ impl Codec for CountingEncodeProbeCodec {
     type DecodeError = CharsetDecodeError;
     type EncodeError = CharsetEncodeError;
 
-    const MIN_UNITS_PER_VALUE: core::num::NonZeroUsize =
+    const MIN_UNITS_PER_VALUE: usize =
         <AsciiBytesCodec as Codec>::MIN_UNITS_PER_VALUE;
 
-    const MAX_UNITS_PER_VALUE: core::num::NonZeroUsize =
+    const MAX_UNITS_PER_VALUE: usize =
         <AsciiBytesCodec as Codec>::MAX_UNITS_PER_VALUE;
 
     fn can_encode_value(&self, value: &char) -> bool {
@@ -225,11 +223,9 @@ impl Codec for NonDefaultUnitCodec {
     type DecodeError = CharsetDecodeError;
     type EncodeError = CharsetEncodeError;
 
-    const MIN_UNITS_PER_VALUE: core::num::NonZeroUsize =
-        core::num::NonZeroUsize::MIN;
+    const MIN_UNITS_PER_VALUE: usize = 1;
 
-    const MAX_UNITS_PER_VALUE: core::num::NonZeroUsize =
-        core::num::NonZeroUsize::MIN;
+    const MAX_UNITS_PER_VALUE: usize = 1;
 
     fn can_encode_value(&self, value: &char) -> bool {
         value.is_ascii()
@@ -298,10 +294,10 @@ impl<const MODE: u8> Codec for FailingLifecycleCodec<MODE> {
     type DecodeError = CharsetDecodeError;
     type EncodeError = CharsetEncodeError;
 
-    const MIN_UNITS_PER_VALUE: core::num::NonZeroUsize =
+    const MIN_UNITS_PER_VALUE: usize =
         <AsciiBytesCodec as Codec>::MIN_UNITS_PER_VALUE;
 
-    const MAX_UNITS_PER_VALUE: core::num::NonZeroUsize =
+    const MAX_UNITS_PER_VALUE: usize =
         <AsciiBytesCodec as Codec>::MAX_UNITS_PER_VALUE;
 
     fn can_encode_value(&self, value: &char) -> bool {
@@ -339,7 +335,7 @@ impl<const MODE: u8> Codec for FailingLifecycleCodec<MODE> {
         Ok(0)
     }
 
-    unsafe fn decode_flush(
+    unsafe fn decode_finish(
         &mut self,
         _output: &mut [char],
         output_index: usize,
@@ -361,7 +357,7 @@ impl<const MODE: u8> Codec for FailingLifecycleCodec<MODE> {
         Ok(0)
     }
 
-    unsafe fn encode_flush(
+    unsafe fn encode_finish(
         &mut self,
         _output: &mut [u8],
         output_index: usize,
@@ -395,11 +391,9 @@ impl Codec for RejectingEncodeCodec {
     type DecodeError = CharsetDecodeError;
     type EncodeError = CharsetEncodeError;
 
-    const MIN_UNITS_PER_VALUE: core::num::NonZeroUsize =
-        core::num::NonZeroUsize::MIN;
+    const MIN_UNITS_PER_VALUE: usize = 1;
 
-    const MAX_UNITS_PER_VALUE: core::num::NonZeroUsize =
-        core::num::NonZeroUsize::MIN;
+    const MAX_UNITS_PER_VALUE: usize = 1;
 
     fn can_encode_value(&self, _value: &char) -> bool {
         false
@@ -437,11 +431,9 @@ impl Codec for ReplacementFallbackCodec {
     type DecodeError = CharsetDecodeError;
     type EncodeError = CharsetEncodeError;
 
-    const MIN_UNITS_PER_VALUE: core::num::NonZeroUsize =
-        core::num::NonZeroUsize::MIN;
+    const MIN_UNITS_PER_VALUE: usize = 1;
 
-    const MAX_UNITS_PER_VALUE: core::num::NonZeroUsize =
-        core::num::NonZeroUsize::MIN;
+    const MAX_UNITS_PER_VALUE: usize = 1;
 
     fn can_encode_value(&self, value: &char) -> bool {
         *value == '?' || value.is_ascii()
@@ -476,7 +468,10 @@ impl Codec for ReplacementFallbackCodec {
 
 #[test]
 fn test_charset_converter_is_transcode_converter() {
-    fn assert_transcode_converter<T: TranscodeConverter<u8, u16>>() {}
+    fn assert_transcode_converter<
+        T: TranscodeConverter<Input = u8, Output = u16>,
+    >() {
+    }
 
     assert_transcode_converter::<CharsetConverter<Utf8Codec, Utf16U16Codec>>();
 }
@@ -507,22 +502,18 @@ fn test_charset_converter_transcoder_trait_methods_forward() {
         &Converter,
         usize,
     ) -> Result<usize, CapacityError> = std::hint::black_box(
-        <Converter as Transcoder<u8, u16>>::max_transcode_output_len,
+        <Converter as Transcoder>::max_transcode_output_len,
     );
     let max_finish_output_len: fn(&Converter) -> Result<usize, CapacityError> =
-        std::hint::black_box(
-            <Converter as Transcoder<u8, u16>>::max_finish_output_len,
-        );
+        std::hint::black_box(<Converter as Transcoder>::max_finish_output_len);
     let max_reset_output_len: fn(&Converter) -> Result<usize, CapacityError> =
-        std::hint::black_box(
-            <Converter as Transcoder<u8, u16>>::max_reset_output_len,
-        );
+        std::hint::black_box(<Converter as Transcoder>::max_reset_output_len);
     let reset: OutputFn =
-        std::hint::black_box(<Converter as Transcoder<u8, u16>>::reset);
+        std::hint::black_box(<Converter as Transcoder>::reset);
     let transcode: TranscodeFn =
-        std::hint::black_box(<Converter as Transcoder<u8, u16>>::transcode);
+        std::hint::black_box(<Converter as Transcoder>::transcode);
     let finish: OutputFn =
-        std::hint::black_box(<Converter as Transcoder<u8, u16>>::finish);
+        std::hint::black_box(<Converter as Transcoder>::finish);
 
     assert_eq!(Ok(2), max_transcode_output_len(&converter, 1));
     assert_eq!(Ok(0), max_finish_output_len(&converter));
@@ -1009,7 +1000,7 @@ fn test_charset_converter_maps_source_decode_reset_error() {
 }
 
 #[test]
-fn test_charset_converter_maps_source_decode_flush_error() {
+fn test_charset_converter_maps_source_decode_finish_error() {
     let mut converter = CharsetConverter::from_codecs(
         FailingLifecycleCodec::<1>,
         AsciiBytesCodec,
@@ -1063,7 +1054,7 @@ fn test_charset_converter_maps_target_encode_reset_error() {
 }
 
 #[test]
-fn test_charset_converter_maps_target_encode_flush_error() {
+fn test_charset_converter_maps_target_encode_finish_error() {
     let mut converter = CharsetConverter::from_codecs(
         AsciiBytesCodec,
         FailingLifecycleCodec::<3>,

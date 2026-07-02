@@ -29,10 +29,10 @@ fn test_utf32_u32_codec_exposes_encoder_and_decoder_contracts() {
         Charset::UTF_32,
         <Utf32U32Codec as CharsetCodec>::charset(&codec)
     );
-    assert_eq!(1, <Utf32U32Codec as Codec>::MIN_UNITS_PER_VALUE.get());
+    assert_eq!(1, <Utf32U32Codec as Codec>::MIN_UNITS_PER_VALUE);
     assert_eq!(
         Utf32::MAX_UNITS_PER_CHAR,
-        <Utf32U32Codec as Codec>::MAX_UNITS_PER_VALUE.get(),
+        <Utf32U32Codec as Codec>::MAX_UNITS_PER_VALUE,
     );
     assert!(codec.can_encode_value(&'A'));
     assert_eq!(1, codec.encode_len(&'A'));
@@ -86,8 +86,8 @@ fn test_utf32_u32_codec_direct_function_items_cover_trait_methods() {
 
     assert_eq!(Charset::UTF_32, inherent_charset(codec));
     assert_eq!(Charset::UTF_32, trait_charset(&codec));
-    assert_eq!(1, min_units.get());
-    assert_eq!(Utf32::MAX_UNITS_PER_CHAR, max_units.get());
+    assert_eq!(1, min_units);
+    assert_eq!(Utf32::MAX_UNITS_PER_CHAR, max_units);
     assert_eq!(1, encode_len(&codec, &'中'));
 
     let mut output = [0_u32; Utf32::MAX_UNITS_PER_CHAR];
