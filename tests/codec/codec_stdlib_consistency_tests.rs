@@ -3,8 +3,8 @@ use core::fmt::Debug;
 use qubit_codec::{
     ByteOrder,
     Codec,
-    ConvertError,
-    TranscodeError,
+    TranscodeConvertError,
+    TranscodeDecodeError,
     TranscodeFailure,
     TranscodeStatus,
 };
@@ -19,7 +19,6 @@ use qubit_codec_text::{
     CharsetDecodePolicy,
     CharsetDecoder,
     CharsetEncodeError,
-    CharsetEncodeErrorKind,
     CharsetEncodePolicy,
     CharsetEncoder,
     Utf8Codec,
@@ -35,7 +34,7 @@ trait DecodeTranscodeErrorView {
     fn index(&self) -> usize;
 }
 
-impl DecodeTranscodeErrorView for TranscodeError<CharsetDecodeError> {
+impl DecodeTranscodeErrorView for TranscodeDecodeError<CharsetDecodeError> {
     fn kind(&self) -> CharsetDecodeErrorKind {
         self.as_charset_error().kind()
     }
@@ -49,41 +48,42 @@ trait DecodeTranscodeErrorSource {
     fn as_charset_error(&self) -> CharsetDecodeError;
 }
 
-impl DecodeTranscodeErrorSource for TranscodeError<CharsetDecodeError> {
+impl DecodeTranscodeErrorSource for TranscodeDecodeError<CharsetDecodeError> {
     fn as_charset_error(&self) -> CharsetDecodeError {
         match self.clone() {
-            TranscodeError::Failure(failure) => {
+            TranscodeDecodeError::Failure(failure) => {
                 CharsetDecodeError::map_transcode_failure(
                     Charset::UTF_8,
                     failure,
                 )
             }
-            TranscodeError::Domain(error) => error.into_source(),
+            TranscodeDecodeError::Domain(error) => error.into_source(),
         }
     }
 }
 
 fn map_convert_error(
-    error: TranscodeError<
-        ConvertError<CharsetDecodeError, CharsetEncodeError>,
-        char,
-    >,
+    error: TranscodeConvertError<CharsetDecodeError, CharsetEncodeError, char>,
 ) -> CharsetConvertError {
     match error {
-        TranscodeError::Failure(failure) => map_convert_failure(failure),
-        TranscodeError::Domain(error) => match error.into_source() {
-            ConvertError::Decode(error) => CharsetConvertError::Decode(error),
-            ConvertError::Encode(error) => CharsetConvertError::Encode(error),
-            _ => CharsetConvertError::Encode(CharsetEncodeError::new(
+        TranscodeConvertError::Failure(failure) => map_convert_failure(failure),
+        TranscodeConvertError::DecodeDomain(error) => {
+            CharsetConvertError::Decode(error.into_source())
+        }
+        TranscodeConvertError::EncodeDomain(error) => {
+            CharsetConvertError::Encode(error.into_source())
+        }
+        TranscodeConvertError::Unencodable { input_index, value } => {
+            CharsetConvertError::Encode(CharsetEncodeError::map_unencodable(
                 Charset::UTF_8,
-                CharsetEncodeErrorKind::UnexpectedTranscodeFailure,
-                usize::MAX,
-            )),
-        },
+                input_index,
+                value,
+            ))
+        }
     }
 }
 
-fn map_convert_failure(failure: TranscodeFailure<char>) -> CharsetConvertError {
+fn map_convert_failure(failure: TranscodeFailure) -> CharsetConvertError {
     match failure {
         TranscodeFailure::InvalidInputIndex { .. }
         | TranscodeFailure::IncompleteInput { .. }
@@ -91,14 +91,13 @@ fn map_convert_failure(failure: TranscodeFailure<char>) -> CharsetConvertError {
             CharsetConvertError::Decode(
                 CharsetDecodeError::map_transcode_failure(
                     Charset::UTF_8,
-                    failure.map_value(|_| ()),
+                    failure,
                 ),
             )
         }
         TranscodeFailure::InvalidOutputIndex { .. }
         | TranscodeFailure::InsufficientOutput { .. }
-        | TranscodeFailure::OutputLengthOverflow
-        | TranscodeFailure::UnencodableValue { .. } => {
+        | TranscodeFailure::OutputLengthOverflow => {
             CharsetConvertError::Encode(
                 CharsetEncodeError::map_transcode_failure(
                     Charset::UTF_8,
@@ -727,6 +726,10 @@ fn assert_utf16_byte_codec_round_trip(order: ByteOrder) {
         .flat_map(|unit| match order {
             ByteOrder::LittleEndian => unit.to_le_bytes().to_vec(),
             ByteOrder::BigEndian => unit.to_be_bytes().to_vec(),
+            ByteOrder::NativeEndian if cfg!(target_endian = "big") => {
+                unit.to_be_bytes().to_vec()
+            }
+            ByteOrder::NativeEndian => unit.to_le_bytes().to_vec(),
         })
         .collect();
 
@@ -750,6 +753,10 @@ fn assert_utf32_byte_codec_round_trip(order: ByteOrder) {
         .flat_map(|value| match order {
             ByteOrder::LittleEndian => value.to_le_bytes(),
             ByteOrder::BigEndian => value.to_be_bytes(),
+            ByteOrder::NativeEndian if cfg!(target_endian = "big") => {
+                value.to_be_bytes()
+            }
+            ByteOrder::NativeEndian => value.to_le_bytes(),
         })
         .collect();
 
@@ -1011,6 +1018,10 @@ fn encode_utf16_bytes(chars: &[char], order: ByteOrder) -> Vec<u8> {
         .flat_map(|unit| match order {
             ByteOrder::LittleEndian => unit.to_le_bytes(),
             ByteOrder::BigEndian => unit.to_be_bytes(),
+            ByteOrder::NativeEndian if cfg!(target_endian = "big") => {
+                unit.to_be_bytes()
+            }
+            ByteOrder::NativeEndian => unit.to_le_bytes(),
         })
         .collect()
 }
@@ -1025,6 +1036,10 @@ fn encode_utf32_bytes(chars: &[char], order: ByteOrder) -> Vec<u8> {
         .flat_map(|unit| match order {
             ByteOrder::LittleEndian => unit.to_le_bytes(),
             ByteOrder::BigEndian => unit.to_be_bytes(),
+            ByteOrder::NativeEndian if cfg!(target_endian = "big") => {
+                unit.to_be_bytes()
+            }
+            ByteOrder::NativeEndian => unit.to_le_bytes(),
         })
         .collect()
 }

@@ -1,8 +1,8 @@
 use qubit_codec::{
     CapacityError,
     Codec,
+    TranscodeDecodeError,
     TranscodeDecoder,
-    TranscodeError,
     TranscodeProgress,
     TranscodeStatus,
     Transcoder,
@@ -26,13 +26,15 @@ use qubit_codec_text::{
     Utf32U32Codec,
 };
 
-trait DecodeTranscodeErrorView {
+trait DecodeTranscodeDecodeErrorView {
     fn kind(&self) -> CharsetDecodeErrorKind;
 
     fn index(&self) -> usize;
 }
 
-impl DecodeTranscodeErrorView for TranscodeError<CharsetDecodeError> {
+impl DecodeTranscodeDecodeErrorView
+    for TranscodeDecodeError<CharsetDecodeError>
+{
     fn kind(&self) -> CharsetDecodeErrorKind {
         self.as_charset_error().kind()
     }
@@ -42,20 +44,22 @@ impl DecodeTranscodeErrorView for TranscodeError<CharsetDecodeError> {
     }
 }
 
-trait DecodeTranscodeErrorSource {
+trait DecodeTranscodeDecodeErrorSource {
     fn as_charset_error(&self) -> CharsetDecodeError;
 }
 
-impl DecodeTranscodeErrorSource for TranscodeError<CharsetDecodeError> {
+impl DecodeTranscodeDecodeErrorSource
+    for TranscodeDecodeError<CharsetDecodeError>
+{
     fn as_charset_error(&self) -> CharsetDecodeError {
         match self.clone() {
-            TranscodeError::Failure(failure) => {
+            TranscodeDecodeError::Failure(failure) => {
                 CharsetDecodeError::map_transcode_failure(
                     Charset::UTF_8,
                     failure,
                 )
             }
-            TranscodeError::Domain(error) => error.into_source(),
+            TranscodeDecodeError::Domain(error) => error.into_source(),
         }
     }
 }
@@ -399,7 +403,7 @@ fn test_charset_decoder_exposes_configuration_and_bounds() {
 #[test]
 fn test_charset_decoder_transcoder_trait_methods_forward() {
     type Decoder = CharsetDecoder<Utf8Codec>;
-    type DecoderResult<T> = Result<T, TranscodeError<CharsetDecodeError>>;
+    type DecoderResult<T> = Result<T, TranscodeDecodeError<CharsetDecodeError>>;
     type TranscodeFn = fn(
         &mut Decoder,
         &[u8],

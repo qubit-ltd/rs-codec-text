@@ -150,13 +150,8 @@ fn test_charset_encode_error_maps_transcode_failures() {
     );
     assert_eq!(3, error.index());
 
-    let error = CharsetEncodeError::map_transcode_failure(
-        Charset::UTF_8,
-        TranscodeFailure::UnencodableValue {
-            input_index: 5,
-            value: Some('中'),
-        },
-    );
+    let error =
+        CharsetEncodeError::map_unencodable(Charset::UTF_8, 5, Some('中'));
     assert_eq!(
         CharsetEncodeErrorKind::UnmappableCharacter {
             value: '中' as u32
@@ -165,13 +160,7 @@ fn test_charset_encode_error_maps_transcode_failures() {
     );
     assert_eq!(5, error.index());
 
-    let error = CharsetEncodeError::map_transcode_failure(
-        Charset::UTF_8,
-        TranscodeFailure::UnencodableValue {
-            input_index: 6,
-            value: None,
-        },
-    );
+    let error = CharsetEncodeError::map_unencodable(Charset::UTF_8, 6, None);
     assert_eq!(CharsetEncodeErrorKind::UnencodableValue, error.kind());
     assert_eq!(6, error.index());
 

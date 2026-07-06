@@ -20,9 +20,8 @@ use crate::{
 use qubit_codec::engine::TranscodeConvertEngine;
 use qubit_codec::{
     CapacityError,
-    ConvertError,
+    TranscodeConvertError,
     TranscodeConverter,
-    TranscodeError,
     TranscodeProgress,
     Transcoder,
 };
@@ -327,9 +326,9 @@ where
     ///
     /// # Errors
     ///
-    /// Returns [`TranscodeError`] when reset output cannot be written or when
-    /// source decode reset or target encode reset reports a charset-domain
-    /// error.
+    /// Returns a transcode convert error when reset output cannot be written or
+    /// when source decode reset or target encode reset reports a
+    /// charset-domain error.
     #[inline]
     pub fn reset(
         &mut self,
@@ -337,10 +336,7 @@ where
         output_index: usize,
     ) -> Result<
         usize,
-        TranscodeError<
-            ConvertError<CharsetDecodeError, CharsetEncodeError>,
-            char,
-        >,
+        TranscodeConvertError<CharsetDecodeError, CharsetEncodeError, char>,
     > {
         self.engine.reset(output, output_index)
     }
@@ -349,8 +345,9 @@ where
     ///
     /// # Errors
     ///
-    /// Returns [`TranscodeError`] when source decoding or target encoding
-    /// fails, or when framework-level index and capacity checks fail.
+    /// Returns a transcode convert error when source decoding or target
+    /// encoding fails, or when framework-level index and capacity checks
+    /// fail.
     #[inline]
     pub fn transcode(
         &mut self,
@@ -360,10 +357,7 @@ where
         output_index: usize,
     ) -> Result<
         TranscodeProgress,
-        TranscodeError<
-            ConvertError<CharsetDecodeError, CharsetEncodeError>,
-            char,
-        >,
+        TranscodeConvertError<CharsetDecodeError, CharsetEncodeError, char>,
     > {
         self.engine
             .transcode(input, input_index, output, output_index)
@@ -373,7 +367,7 @@ where
     ///
     /// # Errors
     ///
-    /// Returns [`TranscodeError`] when pending or final decoded values
+    /// Returns a transcode convert error when pending or final decoded values
     /// cannot be encoded or written to the target output buffer.
     #[inline]
     pub fn finish(
@@ -382,10 +376,7 @@ where
         output_index: usize,
     ) -> Result<
         usize,
-        TranscodeError<
-            ConvertError<CharsetDecodeError, CharsetEncodeError>,
-            char,
-        >,
+        TranscodeConvertError<CharsetDecodeError, CharsetEncodeError, char>,
     > {
         self.engine.finish(output, output_index)
     }
@@ -394,9 +385,9 @@ where
     ///
     /// # Errors
     ///
-    /// Returns [`TranscodeError`] when source decoding or target encoding
-    /// fails, when complete input ends with an incomplete source sequence, or
-    /// when the supplied output buffer is too small.
+    /// Returns a transcode convert error when source decoding or target
+    /// encoding fails, when complete input ends with an incomplete source
+    /// sequence, or when the supplied output buffer is too small.
     #[inline]
     pub fn transcode_complete_into(
         &mut self,
@@ -404,10 +395,7 @@ where
         output: &mut [E::Unit],
     ) -> Result<
         usize,
-        TranscodeError<
-            ConvertError<CharsetDecodeError, CharsetEncodeError>,
-            char,
-        >,
+        TranscodeConvertError<CharsetDecodeError, CharsetEncodeError, char>,
     > {
         <Self as Transcoder>::transcode_complete_into(self, input, output)
     }
@@ -456,8 +444,8 @@ where
 {
     type Input = D::Unit;
     type Output = E::Unit;
-    type DomainError = ConvertError<CharsetDecodeError, CharsetEncodeError>;
-    type FailureValue = char;
+    type Error =
+        TranscodeConvertError<CharsetDecodeError, CharsetEncodeError, char>;
 
     /// Returns the target-side upper bound for converted output units.
     #[inline]
@@ -488,8 +476,7 @@ where
         &mut self,
         output: &mut [E::Unit],
         output_index: usize,
-    ) -> Result<usize, TranscodeError<Self::DomainError, Self::FailureValue>>
-    {
+    ) -> Result<usize, Self::Error> {
         self.engine.reset(output, output_index)
     }
 
@@ -507,10 +494,7 @@ where
         input_index: usize,
         output: &mut [E::Unit],
         output_index: usize,
-    ) -> Result<
-        TranscodeProgress,
-        TranscodeError<Self::DomainError, Self::FailureValue>,
-    > {
+    ) -> Result<TranscodeProgress, Self::Error> {
         self.engine
             .transcode(input, input_index, output, output_index)
     }
@@ -536,8 +520,7 @@ where
         &mut self,
         output: &mut [E::Unit],
         output_index: usize,
-    ) -> Result<usize, TranscodeError<Self::DomainError, Self::FailureValue>>
-    {
+    ) -> Result<usize, Self::Error> {
         self.engine.finish(output, output_index)
     }
 }
@@ -548,5 +531,7 @@ where
     E: CharsetCodec,
     E::Unit: Clone,
 {
-    // empty
+    type DecodeError = CharsetDecodeError;
+    type EncodeError = CharsetEncodeError;
+    type Value = char;
 }

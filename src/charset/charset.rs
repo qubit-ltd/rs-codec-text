@@ -362,6 +362,10 @@ impl Charset {
         match byte_order {
             ByteOrder::LittleEndian => Self::UTF_16LE,
             ByteOrder::BigEndian => Self::UTF_16BE,
+            ByteOrder::NativeEndian if cfg!(target_endian = "little") => {
+                Self::UTF_16LE
+            }
+            ByteOrder::NativeEndian => Self::UTF_16BE,
         }
     }
 
@@ -380,6 +384,10 @@ impl Charset {
         match byte_order {
             ByteOrder::LittleEndian => Self::UTF_32LE,
             ByteOrder::BigEndian => Self::UTF_32BE,
+            ByteOrder::NativeEndian if cfg!(target_endian = "little") => {
+                Self::UTF_32LE
+            }
+            ByteOrder::NativeEndian => Self::UTF_32BE,
         }
     }
 

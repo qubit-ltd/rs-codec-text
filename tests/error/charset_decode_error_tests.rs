@@ -114,8 +114,9 @@ fn test_charset_decode_error_exposes_consumption_and_incomplete_details() {
         2,
     );
     assert_eq!(
-        qubit_codec::DecodeFailure::InvalidUnknown {
+        qubit_codec::DecodeFailure::Invalid {
             source: invalid_index,
+            consumed: None,
         },
         invalid_index.into_codec_failure(),
     );
@@ -225,9 +226,9 @@ fn test_charset_decode_error_maps_transcode_failures() {
 
     let error = CharsetDecodeError::map_transcode_failure(
         Charset::UTF_8,
-        TranscodeFailure::UnencodableValue {
-            input_index: 0,
-            value: None,
+        TranscodeFailure::TrailingInput {
+            consumed: 0,
+            remaining: 1,
         },
     );
     assert_eq!(CharsetDecodeErrorKind::OutputLengthOverflow, error.kind());

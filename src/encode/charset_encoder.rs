@@ -8,8 +8,8 @@
 use qubit_codec::engine::TranscodeEncodeEngine;
 use qubit_codec::{
     CapacityError,
+    TranscodeEncodeError,
     TranscodeEncoder,
-    TranscodeError,
     TranscodeProgress,
     Transcoder,
 };
@@ -198,7 +198,7 @@ where
     ///
     /// # Errors
     ///
-    /// Returns [`TranscodeError`] when `output_index` is invalid, output
+    /// Returns a transcode encode error when `output_index` is invalid, output
     /// capacity is insufficient, or encoder reset emits a charset-domain
     /// error.
     #[inline]
@@ -206,7 +206,7 @@ where
         &mut self,
         output: &mut [C::Unit],
         output_index: usize,
-    ) -> Result<usize, TranscodeError<CharsetEncodeError, char>> {
+    ) -> Result<usize, TranscodeEncodeError<CharsetEncodeError, char>> {
         self.engine.reset(output, output_index)
     }
 
@@ -214,7 +214,7 @@ where
     ///
     /// # Errors
     ///
-    /// Returns [`TranscodeError`] when indices are invalid, output
+    /// Returns a transcode encode error when indices are invalid, output
     /// capacity is insufficient, a character is unmappable under the
     /// configured policy, or the codec reports another encode-domain error.
     #[inline]
@@ -224,7 +224,7 @@ where
         input_index: usize,
         output: &mut [C::Unit],
         output_index: usize,
-    ) -> Result<TranscodeProgress, TranscodeError<CharsetEncodeError, char>>
+    ) -> Result<TranscodeProgress, TranscodeEncodeError<CharsetEncodeError, char>>
     {
         self.engine
             .transcode(input, input_index, output, output_index)
@@ -234,14 +234,14 @@ where
     ///
     /// # Errors
     ///
-    /// Returns [`TranscodeError`] when finalization output cannot be
+    /// Returns a transcode encode error when finalization output cannot be
     /// written or when the codec reports a final encode-domain error.
     #[inline]
     pub fn finish(
         &mut self,
         output: &mut [C::Unit],
         output_index: usize,
-    ) -> Result<usize, TranscodeError<CharsetEncodeError, char>> {
+    ) -> Result<usize, TranscodeEncodeError<CharsetEncodeError, char>> {
         self.engine.finish(output, output_index)
     }
 
@@ -249,7 +249,7 @@ where
     ///
     /// # Errors
     ///
-    /// Returns [`TranscodeError`] when the supplied output buffer is too
+    /// Returns a transcode encode error when the supplied output buffer is too
     /// small, a character cannot be represented under the configured policy,
     /// or the codec reports a charset-domain encode error.
     #[inline]
@@ -257,7 +257,7 @@ where
         &mut self,
         input: &[char],
         output: &mut [C::Unit],
-    ) -> Result<usize, TranscodeError<CharsetEncodeError, char>> {
+    ) -> Result<usize, TranscodeEncodeError<CharsetEncodeError, char>> {
         <Self as Transcoder>::transcode_complete_into(self, input, output)
     }
 
@@ -284,8 +284,7 @@ where
 {
     type Input = char;
     type Output = C::Unit;
-    type DomainError = CharsetEncodeError;
-    type FailureValue = char;
+    type Error = TranscodeEncodeError<CharsetEncodeError, char>;
 
     /// Returns the maximum number of target units needed for `input_len`
     /// characters.
@@ -315,8 +314,7 @@ where
         &mut self,
         output: &mut [C::Unit],
         output_index: usize,
-    ) -> Result<usize, TranscodeError<Self::DomainError, Self::FailureValue>>
-    {
+    ) -> Result<usize, Self::Error> {
         self.engine.reset(output, output_index)
     }
 
@@ -329,10 +327,7 @@ where
         input_index: usize,
         output: &mut [C::Unit],
         output_index: usize,
-    ) -> Result<
-        TranscodeProgress,
-        TranscodeError<Self::DomainError, Self::FailureValue>,
-    > {
+    ) -> Result<TranscodeProgress, Self::Error> {
         self.engine
             .transcode(input, input_index, output, output_index)
     }
@@ -343,8 +338,7 @@ where
         &mut self,
         output: &mut [C::Unit],
         output_index: usize,
-    ) -> Result<usize, TranscodeError<Self::DomainError, Self::FailureValue>>
-    {
+    ) -> Result<usize, Self::Error> {
         self.engine.finish(output, output_index)
     }
 }
@@ -353,5 +347,5 @@ impl<C> TranscodeEncoder for CharsetEncoder<C>
 where
     C: CharsetCodec,
 {
-    //  empty
+    type EncodeError = CharsetEncodeError;
 }
