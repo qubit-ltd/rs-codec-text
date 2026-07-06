@@ -6,9 +6,8 @@ use std::{
 use qubit_codec::{
     CapacityError,
     Codec,
-    ConvertError,
+    TranscodeConvertError,
     TranscodeConverter,
-    TranscodeError,
     TranscodeFailure,
     TranscodeProgress,
     TranscodeStatus,
@@ -33,26 +32,27 @@ use qubit_codec_text::{
 };
 
 fn map_convert_error(
-    error: TranscodeError<
-        ConvertError<CharsetDecodeError, CharsetEncodeError>,
-        char,
-    >,
+    error: TranscodeConvertError<CharsetDecodeError, CharsetEncodeError, char>,
 ) -> CharsetConvertError {
     match error {
-        TranscodeError::Failure(failure) => map_convert_failure(failure),
-        TranscodeError::Domain(error) => match error.into_source() {
-            ConvertError::Decode(error) => CharsetConvertError::Decode(error),
-            ConvertError::Encode(error) => CharsetConvertError::Encode(error),
-            _ => CharsetConvertError::Encode(CharsetEncodeError::new(
+        TranscodeConvertError::Failure(failure) => map_convert_failure(failure),
+        TranscodeConvertError::DecodeDomain(error) => {
+            CharsetConvertError::Decode(error.into_source())
+        }
+        TranscodeConvertError::EncodeDomain(error) => {
+            CharsetConvertError::Encode(error.into_source())
+        }
+        TranscodeConvertError::Unencodable { input_index, value } => {
+            CharsetConvertError::Encode(CharsetEncodeError::map_unencodable(
                 Charset::UTF_8,
-                CharsetEncodeErrorKind::UnexpectedTranscodeFailure,
-                usize::MAX,
-            )),
-        },
+                input_index,
+                value,
+            ))
+        }
     }
 }
 
-fn map_convert_failure(failure: TranscodeFailure<char>) -> CharsetConvertError {
+fn map_convert_failure(failure: TranscodeFailure) -> CharsetConvertError {
     match failure {
         TranscodeFailure::InvalidInputIndex { .. }
         | TranscodeFailure::IncompleteInput { .. }
@@ -60,14 +60,13 @@ fn map_convert_failure(failure: TranscodeFailure<char>) -> CharsetConvertError {
             CharsetConvertError::Decode(
                 CharsetDecodeError::map_transcode_failure(
                     Charset::UTF_8,
-                    failure.map_value(|_| ()),
+                    failure,
                 ),
             )
         }
         TranscodeFailure::InvalidOutputIndex { .. }
         | TranscodeFailure::InsufficientOutput { .. }
-        | TranscodeFailure::OutputLengthOverflow
-        | TranscodeFailure::UnencodableValue { .. } => {
+        | TranscodeFailure::OutputLengthOverflow => {
             CharsetConvertError::Encode(
                 CharsetEncodeError::map_transcode_failure(
                     Charset::UTF_8,
@@ -481,10 +480,7 @@ fn test_charset_converter_transcoder_trait_methods_forward() {
     type Converter = CharsetConverter<Utf8Codec, Utf16U16Codec>;
     type ConverterResult<T> = Result<
         T,
-        TranscodeError<
-            ConvertError<CharsetDecodeError, CharsetEncodeError>,
-            char,
-        >,
+        TranscodeConvertError<CharsetDecodeError, CharsetEncodeError, char>,
     >;
     type TranscodeFn = fn(
         &mut Converter,

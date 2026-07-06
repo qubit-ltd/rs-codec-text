@@ -50,17 +50,14 @@ impl CharsetEncodeError {
     /// # Returns
     ///
     /// Returns the charset-level representation of `error`. Buffer and index
-    /// failures retain their original indices and sizes. Unencodable values
-    /// with a raw scalar become
-    /// [`CharsetEncodeErrorKind::UnmappableCharacter`]; unencodable values
-    /// without one become [`CharsetEncodeErrorKind::UnencodableValue`].
+    /// failures retain their original indices and sizes.
     /// Decode-only framework failures are reported as
     /// [`CharsetEncodeErrorKind::UnexpectedTranscodeFailure`] instead of
     /// being misreported as output-length overflow.
     #[doc(hidden)]
     pub fn map_transcode_failure(
         charset: Charset,
-        error: TranscodeFailure<char>,
+        error: TranscodeFailure,
     ) -> Self {
         use TranscodeFailure::{
             IncompleteInput,
@@ -69,7 +66,6 @@ impl CharsetEncodeError {
             InvalidOutputIndex,
             OutputLengthOverflow,
             TrailingInput,
-            UnencodableValue,
         };
 
         match error {
@@ -112,24 +108,32 @@ impl CharsetEncodeError {
                 },
                 input_index,
             ),
-            UnencodableValue { input_index, value } => Self::new(
-                charset,
-                match value {
-                    Some(value) => {
-                        CharsetEncodeErrorKind::UnmappableCharacter {
-                            value: value as u32,
-                        }
-                    }
-                    None => CharsetEncodeErrorKind::UnencodableValue,
-                },
-                input_index,
-            ),
             TrailingInput { .. } => Self::new(
                 charset,
                 CharsetEncodeErrorKind::UnexpectedTranscodeFailure,
                 usize::MAX,
             ),
         }
+    }
+
+    /// Maps a transcode-layer unencodable value into a charset encode error.
+    #[doc(hidden)]
+    #[must_use]
+    pub fn map_unencodable(
+        charset: Charset,
+        input_index: usize,
+        value: Option<char>,
+    ) -> Self {
+        Self::new(
+            charset,
+            match value {
+                Some(value) => CharsetEncodeErrorKind::UnmappableCharacter {
+                    value: value as u32,
+                },
+                None => CharsetEncodeErrorKind::UnencodableValue,
+            },
+            input_index,
+        )
     }
 
     /// Creates an encoding error.

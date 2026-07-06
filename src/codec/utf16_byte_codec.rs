@@ -292,6 +292,7 @@ fn read_ordered_u16(input: &[u8], index: usize, byte_order: ByteOrder) -> u16 {
     match byte_order {
         ByteOrder::BigEndian => u16::from_be_bytes(bytes),
         ByteOrder::LittleEndian => u16::from_le_bytes(bytes),
+        ByteOrder::NativeEndian => u16::from_ne_bytes(bytes),
     }
 }
 
@@ -314,6 +315,7 @@ fn write_ordered_u16(
     let bytes = match byte_order {
         ByteOrder::BigEndian => unit.to_be_bytes(),
         ByteOrder::LittleEndian => unit.to_le_bytes(),
+        ByteOrder::NativeEndian => unit.to_ne_bytes(),
     };
     // SAFETY: The caller guarantees that two bytes are writable from `index`.
     unsafe {

@@ -248,6 +248,7 @@ fn read_ordered_u32(input: &[u8], index: usize, byte_order: ByteOrder) -> u32 {
     match byte_order {
         ByteOrder::BigEndian => u32::from_be_bytes(bytes),
         ByteOrder::LittleEndian => u32::from_le_bytes(bytes),
+        ByteOrder::NativeEndian => u32::from_ne_bytes(bytes),
     }
 }
 
@@ -270,6 +271,7 @@ fn write_ordered_u32(
     let bytes = match byte_order {
         ByteOrder::BigEndian => unit.to_be_bytes(),
         ByteOrder::LittleEndian => unit.to_le_bytes(),
+        ByteOrder::NativeEndian => unit.to_ne_bytes(),
     };
     // SAFETY: The caller guarantees that four bytes are writable from `index`.
     unsafe {

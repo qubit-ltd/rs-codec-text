@@ -9,7 +9,7 @@ use proptest::{
 };
 use qubit_codec::{
     ByteOrder,
-    TranscodeError,
+    TranscodeDecodeError,
     Transcoder,
 };
 use qubit_codec_text::{
@@ -62,10 +62,10 @@ where
     let written = decoder
         .transcode_complete_into(input, &mut output)
         .map_err(|error| match error {
-            TranscodeError::Failure(failure) => {
+            TranscodeDecodeError::Failure(failure) => {
                 CharsetDecodeError::map_transcode_failure(charset, failure)
             }
-            TranscodeError::Domain(error) => error.into_source(),
+            TranscodeDecodeError::Domain(error) => error.into_source(),
         })?;
     Ok(output[..written].iter().collect())
 }

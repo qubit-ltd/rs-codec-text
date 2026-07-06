@@ -1,8 +1,8 @@
 use qubit_codec::{
     CapacityError,
     Codec,
+    TranscodeEncodeError,
     TranscodeEncoder,
-    TranscodeError,
     TranscodeProgress,
     TranscodeStatus,
     Transcoder,
@@ -25,7 +25,7 @@ use std::{
     rc::Rc,
 };
 
-trait EncodeTranscodeErrorView {
+trait EncodeTranscodeEncodeErrorView {
     fn kind(&self) -> CharsetEncodeErrorKind;
 
     fn index(&self) -> usize;
@@ -33,7 +33,9 @@ trait EncodeTranscodeErrorView {
     fn value(&self) -> Option<u32>;
 }
 
-impl EncodeTranscodeErrorView for TranscodeError<CharsetEncodeError, char> {
+impl EncodeTranscodeEncodeErrorView
+    for TranscodeEncodeError<CharsetEncodeError, char>
+{
     fn kind(&self) -> CharsetEncodeErrorKind {
         self.as_charset_error().kind()
     }
@@ -47,20 +49,29 @@ impl EncodeTranscodeErrorView for TranscodeError<CharsetEncodeError, char> {
     }
 }
 
-trait EncodeTranscodeErrorSource {
+trait EncodeTranscodeEncodeErrorSource {
     fn as_charset_error(&self) -> CharsetEncodeError;
 }
 
-impl EncodeTranscodeErrorSource for TranscodeError<CharsetEncodeError, char> {
+impl EncodeTranscodeEncodeErrorSource
+    for TranscodeEncodeError<CharsetEncodeError, char>
+{
     fn as_charset_error(&self) -> CharsetEncodeError {
         match self.clone() {
-            TranscodeError::Failure(failure) => {
+            TranscodeEncodeError::Failure(failure) => {
                 CharsetEncodeError::map_transcode_failure(
                     Charset::ASCII,
                     failure,
                 )
             }
-            TranscodeError::Domain(error) => error.into_source(),
+            TranscodeEncodeError::Unencodable { input_index, value } => {
+                CharsetEncodeError::map_unencodable(
+                    Charset::ASCII,
+                    input_index,
+                    value,
+                )
+            }
+            TranscodeEncodeError::Domain(error) => error.into_source(),
         }
     }
 }
@@ -532,7 +543,8 @@ fn test_charset_encoder_exposes_configuration_and_bounds() {
 #[test]
 fn test_charset_encoder_transcoder_trait_methods_forward() {
     type Encoder = CharsetEncoder<AsciiBytesCodec>;
-    type EncoderResult<T> = Result<T, TranscodeError<CharsetEncodeError, char>>;
+    type EncoderResult<T> =
+        Result<T, TranscodeEncodeError<CharsetEncodeError, char>>;
     type TranscodeFn = fn(
         &mut Encoder,
         &[char],

@@ -9,8 +9,8 @@ use qubit_codec::engine::TranscodeDecodeEngine;
 use qubit_codec::{
     CapacityError,
     Codec,
+    TranscodeDecodeError,
     TranscodeDecoder,
-    TranscodeError,
     TranscodeProgress,
     Transcoder,
 };
@@ -168,7 +168,7 @@ where
     ///
     /// # Errors
     ///
-    /// Returns [`TranscodeError`] when `output_index` is invalid, output
+    /// Returns a transcode decode error when `output_index` is invalid, output
     /// capacity is insufficient, or decoder reset emits a charset-domain
     /// error.
     #[inline]
@@ -176,7 +176,7 @@ where
         &mut self,
         output: &mut [char],
         output_index: usize,
-    ) -> Result<usize, TranscodeError<CharsetDecodeError>> {
+    ) -> Result<usize, TranscodeDecodeError<CharsetDecodeError>> {
         self.engine.reset(output, output_index)
     }
 
@@ -184,7 +184,7 @@ where
     ///
     /// # Errors
     ///
-    /// Returns [`TranscodeError`] when indices are invalid, output
+    /// Returns a transcode decode error when indices are invalid, output
     /// capacity is insufficient, input is malformed under the configured
     /// policy, or the codec reports another decode-domain error.
     #[inline]
@@ -194,7 +194,8 @@ where
         input_index: usize,
         output: &mut [char],
         output_index: usize,
-    ) -> Result<TranscodeProgress, TranscodeError<CharsetDecodeError>> {
+    ) -> Result<TranscodeProgress, TranscodeDecodeError<CharsetDecodeError>>
+    {
         self.engine
             .transcode(input, input_index, output, output_index)
     }
@@ -203,14 +204,14 @@ where
     ///
     /// # Errors
     ///
-    /// Returns [`TranscodeError`] when finalization output cannot be
+    /// Returns a transcode decode error when finalization output cannot be
     /// written or when the codec reports a final decode-domain error.
     #[inline]
     pub fn finish(
         &mut self,
         output: &mut [char],
         output_index: usize,
-    ) -> Result<usize, TranscodeError<CharsetDecodeError>> {
+    ) -> Result<usize, TranscodeDecodeError<CharsetDecodeError>> {
         self.engine.finish(output, output_index)
     }
 
@@ -218,7 +219,7 @@ where
     ///
     /// # Errors
     ///
-    /// Returns [`TranscodeError`] when the supplied output buffer is too
+    /// Returns a transcode decode error when the supplied output buffer is too
     /// small, the complete input ends with an incomplete sequence, or the
     /// codec reports a charset-domain decode error.
     #[inline]
@@ -226,7 +227,7 @@ where
         &mut self,
         input: &[C::Unit],
         output: &mut [char],
-    ) -> Result<usize, TranscodeError<CharsetDecodeError>> {
+    ) -> Result<usize, TranscodeDecodeError<CharsetDecodeError>> {
         <Self as Transcoder>::transcode_complete_into(self, input, output)
     }
 }
@@ -292,8 +293,7 @@ where
 {
     type Input = C::Unit;
     type Output = char;
-    type DomainError = CharsetDecodeError;
-    type FailureValue = ();
+    type Error = TranscodeDecodeError<CharsetDecodeError>;
 
     /// Returns the maximum number of characters decoded from `input_len` units.
     #[inline(always)]
@@ -323,7 +323,7 @@ where
         &mut self,
         output: &mut [char],
         output_index: usize,
-    ) -> Result<usize, TranscodeError<Self::DomainError>> {
+    ) -> Result<usize, Self::Error> {
         self.engine.reset(output, output_index)
     }
 
@@ -336,7 +336,7 @@ where
         input_index: usize,
         output: &mut [char],
         output_index: usize,
-    ) -> Result<TranscodeProgress, TranscodeError<Self::DomainError>> {
+    ) -> Result<TranscodeProgress, Self::Error> {
         self.engine
             .transcode(input, input_index, output, output_index)
     }
@@ -347,7 +347,7 @@ where
         &mut self,
         output: &mut [char],
         output_index: usize,
-    ) -> Result<usize, TranscodeError<Self::DomainError>> {
+    ) -> Result<usize, Self::Error> {
         self.engine.finish(output, output_index)
     }
 }
@@ -356,5 +356,5 @@ impl<C> TranscodeDecoder for CharsetDecoder<C>
 where
     C: CharsetCodec,
 {
-    //  empty
+    type DecodeError = CharsetDecodeError;
 }
