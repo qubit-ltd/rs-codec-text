@@ -5,7 +5,10 @@
 //
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
-use qubit_codec::TranscodeEncodeError;
+use qubit_codec::{
+    TranscodeEncodeError,
+    TranscodeEncodeErrorOf,
+};
 use qubit_codec::engine::{
     EncodeContext,
     EncodeUnencodableAction,
@@ -64,10 +67,7 @@ where
         &mut self,
         codec: &mut C,
         context: &EncodeContext<'_, char, C::Unit>,
-    ) -> Result<
-        EncodeUnencodableAction<char>,
-        TranscodeEncodeError<CharsetEncodeError, char>,
-    > {
+    ) -> Result<EncodeUnencodableAction<char>, TranscodeEncodeErrorOf<C>> {
         let ch = *context.input_value();
         let input_index = context.input_index();
         let error = unmappable_error(codec, ch, input_index);

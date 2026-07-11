@@ -4,6 +4,7 @@ use qubit_codec::{
     ByteOrder,
     Codec,
     TranscodeConvertError,
+    TranscodeConvertErrorOf,
     TranscodeDecodeError,
     TranscodeFailure,
     TranscodeStatus,
@@ -63,7 +64,7 @@ impl DecodeTranscodeErrorSource for TranscodeDecodeError<CharsetDecodeError> {
 }
 
 fn map_convert_error(
-    error: TranscodeConvertError<CharsetDecodeError, CharsetEncodeError, char>,
+    error: TranscodeConvertErrorOf<Utf8Codec, Utf16U16Codec>,
 ) -> CharsetConvertError {
     match error {
         TranscodeConvertError::Failure(failure) => map_convert_failure(failure),
