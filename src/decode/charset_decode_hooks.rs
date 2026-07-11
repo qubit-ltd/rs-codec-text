@@ -13,6 +13,7 @@ use qubit_codec::engine::{
 use qubit_codec::{
     CapacityError,
     TranscodeDecodeError,
+    TranscodeDecodeErrorOf,
 };
 
 use crate::{
@@ -75,10 +76,7 @@ where
         error: &CharsetDecodeError,
         _consumed: Option<core::num::NonZeroUsize>,
         context: DecodeContext,
-    ) -> Result<
-        DecodeInvalidAction<char>,
-        TranscodeDecodeError<CharsetDecodeError>,
-    > {
+    ) -> Result<DecodeInvalidAction<char>, TranscodeDecodeErrorOf<C>> {
         if error.kind().is_malformed_input() {
             let consumed = error
                 .consumed()

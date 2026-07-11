@@ -20,7 +20,7 @@ use crate::{
 use qubit_codec::engine::TranscodeConvertEngine;
 use qubit_codec::{
     CapacityError,
-    TranscodeConvertError,
+    TranscodeConvertErrorOf,
     TranscodeConverter,
     TranscodeProgress,
     Transcoder,
@@ -334,10 +334,7 @@ where
         &mut self,
         output: &mut [E::Unit],
         output_index: usize,
-    ) -> Result<
-        usize,
-        TranscodeConvertError<CharsetDecodeError, CharsetEncodeError, char>,
-    > {
+    ) -> Result<usize, TranscodeConvertErrorOf<D, E>> {
         self.engine.reset(output, output_index)
     }
 
@@ -355,10 +352,7 @@ where
         input_index: usize,
         output: &mut [E::Unit],
         output_index: usize,
-    ) -> Result<
-        TranscodeProgress,
-        TranscodeConvertError<CharsetDecodeError, CharsetEncodeError, char>,
-    > {
+    ) -> Result<TranscodeProgress, TranscodeConvertErrorOf<D, E>> {
         self.engine
             .transcode(input, input_index, output, output_index)
     }
@@ -374,10 +368,7 @@ where
         &mut self,
         output: &mut [E::Unit],
         output_index: usize,
-    ) -> Result<
-        usize,
-        TranscodeConvertError<CharsetDecodeError, CharsetEncodeError, char>,
-    > {
+    ) -> Result<usize, TranscodeConvertErrorOf<D, E>> {
         self.engine.finish(output, output_index)
     }
 
@@ -393,10 +384,7 @@ where
         &mut self,
         input: &[D::Unit],
         output: &mut [E::Unit],
-    ) -> Result<
-        usize,
-        TranscodeConvertError<CharsetDecodeError, CharsetEncodeError, char>,
-    > {
+    ) -> Result<usize, TranscodeConvertErrorOf<D, E>> {
         <Self as Transcoder>::transcode_complete_into(self, input, output)
     }
 
@@ -444,8 +432,7 @@ where
 {
     type Input = D::Unit;
     type Output = E::Unit;
-    type Error =
-        TranscodeConvertError<CharsetDecodeError, CharsetEncodeError, char>;
+    type Error = TranscodeConvertErrorOf<D, E>;
 
     /// Returns the target-side upper bound for converted output units.
     #[inline]

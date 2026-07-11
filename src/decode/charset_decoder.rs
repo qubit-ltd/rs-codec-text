@@ -9,7 +9,7 @@ use qubit_codec::engine::TranscodeDecodeEngine;
 use qubit_codec::{
     CapacityError,
     Codec,
-    TranscodeDecodeError,
+    TranscodeDecodeErrorOf,
     TranscodeDecoder,
     TranscodeProgress,
     Transcoder,
@@ -176,7 +176,7 @@ where
         &mut self,
         output: &mut [char],
         output_index: usize,
-    ) -> Result<usize, TranscodeDecodeError<CharsetDecodeError>> {
+    ) -> Result<usize, TranscodeDecodeErrorOf<C>> {
         self.engine.reset(output, output_index)
     }
 
@@ -194,8 +194,7 @@ where
         input_index: usize,
         output: &mut [char],
         output_index: usize,
-    ) -> Result<TranscodeProgress, TranscodeDecodeError<CharsetDecodeError>>
-    {
+    ) -> Result<TranscodeProgress, TranscodeDecodeErrorOf<C>> {
         self.engine
             .transcode(input, input_index, output, output_index)
     }
@@ -211,7 +210,7 @@ where
         &mut self,
         output: &mut [char],
         output_index: usize,
-    ) -> Result<usize, TranscodeDecodeError<CharsetDecodeError>> {
+    ) -> Result<usize, TranscodeDecodeErrorOf<C>> {
         self.engine.finish(output, output_index)
     }
 
@@ -227,7 +226,7 @@ where
         &mut self,
         input: &[C::Unit],
         output: &mut [char],
-    ) -> Result<usize, TranscodeDecodeError<CharsetDecodeError>> {
+    ) -> Result<usize, TranscodeDecodeErrorOf<C>> {
         <Self as Transcoder>::transcode_complete_into(self, input, output)
     }
 }
@@ -293,7 +292,7 @@ where
 {
     type Input = C::Unit;
     type Output = char;
-    type Error = TranscodeDecodeError<CharsetDecodeError>;
+    type Error = TranscodeDecodeErrorOf<C>;
 
     /// Returns the maximum number of characters decoded from `input_len` units.
     #[inline(always)]

@@ -7,6 +7,7 @@ use qubit_codec::{
     CapacityError,
     Codec,
     TranscodeConvertError,
+    TranscodeConvertErrorOf,
     TranscodeConverter,
     TranscodeFailure,
     TranscodeProgress,
@@ -32,7 +33,7 @@ use qubit_codec_text::{
 };
 
 fn map_convert_error(
-    error: TranscodeConvertError<CharsetDecodeError, CharsetEncodeError, char>,
+    error: TranscodeConvertErrorOf<Utf8Codec, Utf16U16Codec>,
 ) -> CharsetConvertError {
     match error {
         TranscodeConvertError::Failure(failure) => map_convert_failure(failure),
@@ -478,10 +479,8 @@ fn test_charset_converter_is_transcode_converter() {
 #[test]
 fn test_charset_converter_transcoder_trait_methods_forward() {
     type Converter = CharsetConverter<Utf8Codec, Utf16U16Codec>;
-    type ConverterResult<T> = Result<
-        T,
-        TranscodeConvertError<CharsetDecodeError, CharsetEncodeError, char>,
-    >;
+    type ConverterResult<T> =
+        Result<T, TranscodeConvertErrorOf<Utf8Codec, Utf16U16Codec>>;
     type TranscodeFn = fn(
         &mut Converter,
         &[u8],

@@ -2,6 +2,7 @@ use qubit_codec::{
     CapacityError,
     Codec,
     TranscodeDecodeError,
+    TranscodeDecodeErrorOf,
     TranscodeDecoder,
     TranscodeProgress,
     TranscodeStatus,
@@ -403,7 +404,7 @@ fn test_charset_decoder_exposes_configuration_and_bounds() {
 #[test]
 fn test_charset_decoder_transcoder_trait_methods_forward() {
     type Decoder = CharsetDecoder<Utf8Codec>;
-    type DecoderResult<T> = Result<T, TranscodeDecodeError<CharsetDecodeError>>;
+    type DecoderResult<T> = Result<T, TranscodeDecodeErrorOf<Utf8Codec>>;
     type TranscodeFn = fn(
         &mut Decoder,
         &[u8],

@@ -2,6 +2,7 @@ use qubit_codec::{
     CapacityError,
     Codec,
     TranscodeEncodeError,
+    TranscodeEncodeErrorOf,
     TranscodeEncoder,
     TranscodeProgress,
     TranscodeStatus,
@@ -543,8 +544,7 @@ fn test_charset_encoder_exposes_configuration_and_bounds() {
 #[test]
 fn test_charset_encoder_transcoder_trait_methods_forward() {
     type Encoder = CharsetEncoder<AsciiBytesCodec>;
-    type EncoderResult<T> =
-        Result<T, TranscodeEncodeError<CharsetEncodeError, char>>;
+    type EncoderResult<T> = Result<T, TranscodeEncodeErrorOf<AsciiBytesCodec>>;
     type TranscodeFn = fn(
         &mut Encoder,
         &[char],
