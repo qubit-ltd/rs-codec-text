@@ -5,14 +5,14 @@
 //
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
-use qubit_codec::{
-    TranscodeEncodeError,
-    TranscodeEncodeErrorOf,
-};
 use qubit_codec::engine::{
     EncodeContext,
     EncodeUnencodableAction,
     TranscodeEncodeHooks,
+};
+use qubit_codec::{
+    TranscodeEncodeError,
+    TranscodeEncodeErrorOf,
 };
 
 use crate::{
