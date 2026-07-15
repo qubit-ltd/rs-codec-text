@@ -510,8 +510,8 @@ fn test_charset_converter_transcoder_trait_methods_forward() {
     let finish: OutputFn =
         std::hint::black_box(<Converter as Transcoder>::finish);
 
-    assert_eq!(Ok(2), max_transcode_output_len(&converter, 1));
-    assert_eq!(Ok(0), max_finish_output_len(&converter));
+    assert_eq!(Ok(4), max_transcode_output_len(&converter, 1));
+    assert_eq!(Ok(2), max_finish_output_len(&converter));
     assert_eq!(Ok(0), max_reset_output_len(&converter));
     assert_eq!(Ok(0), reset(&mut converter, &mut [], 0));
     let progress = transcode(&mut converter, b"A", 0, &mut output, 0)
@@ -524,7 +524,10 @@ fn test_charset_converter_transcoder_trait_methods_forward() {
 #[test]
 fn test_charset_converter_complete_into_maps_framework_errors() {
     let mut converter = CharsetConverter::from_codecs(Utf8Codec, Utf16U16Codec);
-    let mut output = [0_u16; 4];
+    let output_len = converter
+        .max_total_output_len(2)
+        .expect("complete conversion bound should fit usize");
+    let mut output = vec![0_u16; output_len];
 
     let written = converter
         .transcode_complete_into(b"AB", &mut output)
@@ -573,8 +576,8 @@ fn test_charset_converter_exposes_configuration_and_bounds() {
         CharsetEncodePolicy::DEFAULT_REPLACEMENT,
         converter.replacement()
     );
-    assert_eq!(Ok(6), converter.max_transcode_output_len(3));
-    assert_eq!(Ok(0), converter.max_finish_output_len());
+    assert_eq!(Ok(8), converter.max_transcode_output_len(3));
+    assert_eq!(Ok(2), converter.max_finish_output_len());
     assert_eq!(Ok(0), converter.max_reset_output_len());
 
     converter.reset(&mut [], 0).expect("reset");
@@ -661,7 +664,7 @@ fn test_charset_converter_from_codecs_converts_available_ascii_without_finish()
     assert_eq!(4, progress.read());
     assert_eq!(4, progress.written());
     assert_eq!(['A' as u16, 'B' as u16, 'C' as u16, 'D' as u16], output);
-    assert_eq!(Ok(0), converter.max_finish_output_len());
+    assert_eq!(Ok(2), converter.max_finish_output_len());
 
     let written = converter
         .finish(&mut output, 0)
@@ -875,14 +878,14 @@ fn test_charset_converter_finish_does_not_finalize_incomplete_source_input() {
     ));
     assert_eq!(0, progress.read());
     assert_eq!(0, progress.written());
-    assert_eq!(Ok(0), converter.max_finish_output_len());
+    assert_eq!(Ok(2), converter.max_finish_output_len());
 
     let written = converter
         .finish(&mut output, 0)
         .expect("finish does not process caller-owned incomplete source input");
     assert_eq!(0, written);
     assert_eq!(0, output[0]);
-    assert_eq!(Ok(0), converter.max_finish_output_len());
+    assert_eq!(Ok(2), converter.max_finish_output_len());
 }
 
 #[test]
@@ -898,13 +901,13 @@ fn test_charset_converter_finish_has_no_output_for_incomplete_source_input() {
         progress.status(),
         TranscodeStatus::NeedInput { .. }
     ));
-    assert_eq!(Ok(0), converter.max_finish_output_len());
+    assert_eq!(Ok(2), converter.max_finish_output_len());
 
     let written = converter
         .finish(&mut output, 0)
         .expect("finish has no decoder-owned replacement output");
     assert_eq!(0, written);
-    assert_eq!(Ok(0), converter.max_finish_output_len());
+    assert_eq!(Ok(2), converter.max_finish_output_len());
 }
 
 #[test]
@@ -926,7 +929,7 @@ fn test_charset_converter_finish_does_not_report_incomplete_source_input() {
         progress.status(),
         TranscodeStatus::NeedInput { .. }
     ));
-    assert_eq!(Ok(0), converter.max_finish_output_len());
+    assert_eq!(Ok(2), converter.max_finish_output_len());
 
     let written = converter
         .finish(&mut output, 0)
