@@ -88,8 +88,8 @@ width, and locale-aware text behavior.
 
 ```toml
 [dependencies]
-qubit-codec-text = "0.2"
-qubit-codec = "0.10"
+qubit-codec-text = "0.3"
+qubit-codec = "0.11"
 ```
 
 `qubit-codec` is the core runtime dependency. This crate does not re-export
@@ -101,7 +101,7 @@ configuration or IPC payloads:
 
 ```toml
 [dependencies]
-qubit-codec-text = { version = "0.2", features = ["serde"] }
+qubit-codec-text = { version = "0.3", features = ["serde"] }
 ```
 
 ## Quick Start

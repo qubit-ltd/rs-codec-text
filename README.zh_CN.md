@@ -77,8 +77,8 @@ Qubit Text Codec 是一个低层编解码核心，服务于那些需要在 Rust 
 
 ```toml
 [dependencies]
-qubit-codec-text = "0.2"
-qubit-codec = "0.10"
+qubit-codec-text = "0.3"
+qubit-codec = "0.11"
 ```
 
 `qubit-codec` 是核心运行时依赖。本库不重导出 `qubit-codec` 类型；当代码需要命名
@@ -89,7 +89,7 @@ core trait、进度/状态类型、字节序、engine、hook 或 adapter 时，�
 
 ```toml
 [dependencies]
-qubit-codec-text = { version = "0.2", features = ["serde"] }
+qubit-codec-text = { version = "0.3", features = ["serde"] }
 ```
 
 ## 快速开始
