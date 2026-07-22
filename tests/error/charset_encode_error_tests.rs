@@ -176,4 +176,14 @@ fn test_charset_encode_error_maps_transcode_failures() {
         error.kind(),
     );
     assert_eq!(usize::MAX, error.index());
+
+    let error = CharsetEncodeError::map_transcode_failure(
+        Charset::UTF_8,
+        TranscodeFailure::FinishAfterFinish,
+    );
+    assert_eq!(
+        CharsetEncodeErrorKind::UnexpectedTranscodeFailure,
+        error.kind(),
+    );
+    assert_eq!(usize::MAX, error.index());
 }

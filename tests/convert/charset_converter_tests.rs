@@ -66,6 +66,7 @@ fn map_convert_failure(failure: TranscodeFailure) -> CharsetConvertError {
             )
         }
         TranscodeFailure::InvalidOutputIndex { .. }
+        | TranscodeFailure::InvalidOutputRange { .. }
         | TranscodeFailure::InsufficientOutput { .. }
         | TranscodeFailure::OutputLengthOverflow => {
             CharsetConvertError::Encode(
@@ -75,6 +76,9 @@ fn map_convert_failure(failure: TranscodeFailure) -> CharsetConvertError {
                 ),
             )
         }
+        _ => CharsetConvertError::Decode(
+            CharsetDecodeError::map_transcode_failure(Charset::UTF_8, failure),
+        ),
     }
 }
 

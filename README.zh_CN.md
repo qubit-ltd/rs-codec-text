@@ -187,8 +187,11 @@ unmappable 策略，并复用 `TranscodeEncodeEngine` 处理输入迭代和输�
 ### 运行测试
 
 ```bash
-# 运行测试
+# 使用默认 feature 集运行测试
 cargo test
+
+# 使用项目声明的全部 feature 运行测试
+cargo test --all-features
 
 # 运行覆盖率报告
 ./coverage.sh

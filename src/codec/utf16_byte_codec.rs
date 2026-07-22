@@ -210,7 +210,7 @@ fn decode_bytes_prefix(
         }
         let second = read_ordered_u16(input, index + 2, byte_order);
         match Utf16::compose_pair(first, second).and_then(Unicode::to_char) {
-            Some(ch) => Ok((ch, qubit_io::nz!(4))),
+            Some(ch) => Ok((ch, qubit_codec::nz!(4))),
             None => {
                 let kind = CharsetDecodeErrorKind::malformed(second as u32);
                 Err(CharsetDecodeError::new(
@@ -218,17 +218,17 @@ fn decode_bytes_prefix(
                     kind,
                     index.saturating_add(2),
                 )
-                .with_consumed(qubit_io::nz!(4)))
+                .with_consumed(qubit_codec::nz!(4)))
             }
         }
     } else if Utf16::is_low_surrogate(first) {
         let kind = CharsetDecodeErrorKind::malformed(first as u32);
         Err(CharsetDecodeError::new(charset, kind, index)
-            .with_consumed(qubit_io::nz!(2)))
+            .with_consumed(qubit_codec::nz!(2)))
     } else {
         let ch = char::from_u32(first as u32)
             .expect("non-surrogate UTF-16 unit is a scalar value");
-        Ok((ch, qubit_io::nz!(2)))
+        Ok((ch, qubit_codec::nz!(2)))
     }
 }
 

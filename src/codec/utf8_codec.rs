@@ -178,7 +178,7 @@ fn decode_prefix(
     };
     let ch = Unicode::to_char(code_point)
         .expect("well-formed UTF-8 decodes to a Unicode scalar");
-    Ok((ch, qubit_io::nz!(length)))
+    Ok((ch, qubit_codec::nz!(length)))
 }
 
 /// Encodes one Unicode scalar value into UTF-8 at `index` in `output`.
@@ -346,7 +346,7 @@ fn validate_second_byte(input: &[u8], index: usize) -> CharsetDecodeResult<u8> {
         Err(malformed_byte_error(
             second,
             index.saturating_add(1),
-            qubit_io::nz!(2),
+            qubit_codec::nz!(2),
         ))
     }
 }
