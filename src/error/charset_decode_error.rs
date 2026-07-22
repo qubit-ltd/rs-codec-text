@@ -67,7 +67,7 @@ impl CharsetDecodeError {
     /// Returns the charset-level representation of `error`. Buffer and index
     /// failures retain their original indices and sizes. Encode-only framework
     /// failures are reported as
-    /// [`CharsetDecodeErrorKind::OutputLengthOverflow`].
+    /// [`CharsetDecodeErrorKind::UnexpectedTranscodeFailure`].
     #[doc(hidden)]
     pub fn map_transcode_failure(
         charset: Charset,
@@ -123,7 +123,7 @@ impl CharsetDecodeError {
             ),
             _ => Self::new(
                 charset,
-                CharsetDecodeErrorKind::OutputLengthOverflow,
+                CharsetDecodeErrorKind::UnexpectedTranscodeFailure,
                 usize::MAX,
             ),
         }
@@ -159,6 +159,7 @@ impl CharsetDecodeError {
                 | CharsetDecodeErrorKind::InvalidOutputIndex { .. }
                 | CharsetDecodeErrorKind::BufferTooSmall { .. }
                 | CharsetDecodeErrorKind::OutputLengthOverflow
+                | CharsetDecodeErrorKind::UnexpectedTranscodeFailure
                 | CharsetDecodeErrorKind::IncompleteSequence { .. } => None,
             },
         }

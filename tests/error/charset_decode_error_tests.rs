@@ -84,7 +84,7 @@ fn test_charset_decode_error_exposes_consumption_and_incomplete_details() {
         CharsetDecodeErrorKind::malformed(0x80),
         4,
     )
-    .with_consumed(qubit_io::nz!(2));
+    .with_consumed(qubit_codec::nz!(2));
     assert_eq!(NonZeroUsize::new(2), malformed.consumed());
     assert_eq!(None, malformed.required());
     assert_eq!(Some(0x80), malformed.value());
@@ -209,6 +209,20 @@ fn test_charset_decode_error_maps_transcode_failures() {
 
     let error = CharsetDecodeError::map_transcode_failure(
         Charset::UTF_8,
+        TranscodeFailure::InvalidOutputRange {
+            output_index: 1,
+            range_len: 2,
+            output_len: 2,
+        },
+    );
+    assert_eq!(
+        CharsetDecodeErrorKind::UnexpectedTranscodeFailure,
+        error.kind(),
+    );
+    assert_eq!(usize::MAX, error.index());
+
+    let error = CharsetDecodeError::map_transcode_failure(
+        Charset::UTF_8,
         TranscodeFailure::IncompleteInput {
             input_index: 4,
             required: 2,
@@ -231,6 +245,9 @@ fn test_charset_decode_error_maps_transcode_failures() {
             remaining: 1,
         },
     );
-    assert_eq!(CharsetDecodeErrorKind::OutputLengthOverflow, error.kind());
+    assert_eq!(
+        CharsetDecodeErrorKind::UnexpectedTranscodeFailure,
+        error.kind(),
+    );
     assert_eq!(usize::MAX, error.index());
 }

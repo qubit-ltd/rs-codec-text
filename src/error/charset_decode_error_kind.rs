@@ -41,6 +41,11 @@ pub enum CharsetDecodeErrorKind {
     #[error("The output length arithmetic overflowed.")]
     OutputLengthOverflow,
 
+    /// The transcode layer reported a framework failure that has no
+    /// charset-specific decode representation.
+    #[error("The transcode layer reported an unexpected framework failure.")]
+    UnexpectedTranscodeFailure,
+
     /// The input units do not form a well-formed encoded sequence.
     #[error("The encoded text sequence is malformed.")]
     MalformedSequence {
@@ -114,6 +119,7 @@ impl CharsetDecodeErrorKind {
             Self::InvalidInputIndex { .. }
             | Self::InvalidOutputIndex { .. }
             | Self::OutputLengthOverflow
+            | Self::UnexpectedTranscodeFailure
             | Self::MalformedSequence { .. }
             | Self::InvalidCodePoint { .. } => None,
         }
@@ -135,6 +141,7 @@ impl CharsetDecodeErrorKind {
             Self::InvalidInputIndex { .. }
             | Self::InvalidOutputIndex { .. }
             | Self::OutputLengthOverflow
+            | Self::UnexpectedTranscodeFailure
             | Self::MalformedSequence { .. }
             | Self::InvalidCodePoint { .. } => None,
         }
@@ -159,6 +166,7 @@ impl CharsetDecodeErrorKind {
             | Self::InvalidOutputIndex { .. }
             | Self::BufferTooSmall { .. }
             | Self::OutputLengthOverflow
+            | Self::UnexpectedTranscodeFailure
             | Self::IncompleteSequence { .. } => None,
         }
     }
@@ -192,6 +200,7 @@ impl CharsetDecodeErrorKind {
             | Self::InvalidOutputIndex { .. }
             | Self::BufferTooSmall { .. }
             | Self::OutputLengthOverflow
+            | Self::UnexpectedTranscodeFailure
             | Self::MalformedSequence { .. }
             | Self::InvalidCodePoint { .. } => None,
         }

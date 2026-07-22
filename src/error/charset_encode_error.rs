@@ -113,6 +113,11 @@ impl CharsetEncodeError {
                 CharsetEncodeErrorKind::UnexpectedTranscodeFailure,
                 usize::MAX,
             ),
+            _ => Self::new(
+                charset,
+                CharsetEncodeErrorKind::UnexpectedTranscodeFailure,
+                usize::MAX,
+            ),
         }
     }
 

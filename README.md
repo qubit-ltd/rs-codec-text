@@ -203,8 +203,11 @@ This project keeps charset behavior covered by integration tests under `tests/`.
 ### Running Tests
 
 ```bash
-# Run tests
+# Run tests with the default feature set
 cargo test
+
+# Run tests with all declared features
+cargo test --all-features
 
 # Run with coverage report
 ./coverage.sh

@@ -188,11 +188,11 @@ fn decode_bytes_prefix(
     debug_assert!(UncheckedSlice::range_fits(input.len(), index, 4));
     let unit = read_ordered_u32(input, index, byte_order);
     match Unicode::to_char(unit) {
-        Some(ch) => Ok((ch, qubit_io::nz!(4))),
+        Some(ch) => Ok((ch, qubit_codec::nz!(4))),
         None => {
             let kind = CharsetDecodeErrorKind::InvalidCodePoint { value: unit };
             Err(CharsetDecodeError::new(charset, kind, index)
-                .with_consumed(qubit_io::nz!(4)))
+                .with_consumed(qubit_codec::nz!(4)))
         }
     }
 }

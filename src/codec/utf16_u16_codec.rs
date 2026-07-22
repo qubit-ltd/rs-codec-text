@@ -184,7 +184,7 @@ fn decode_units_prefix(
         }
         let second = unit_at(input, index + 1);
         match Utf16::compose_pair(first, second).and_then(Unicode::to_char) {
-            Some(ch) => Ok((ch, qubit_io::nz!(2))),
+            Some(ch) => Ok((ch, qubit_codec::nz!(2))),
             None => {
                 let kind = CharsetDecodeErrorKind::malformed(second as u32);
                 Err(CharsetDecodeError::new(
@@ -192,7 +192,7 @@ fn decode_units_prefix(
                     kind,
                     index.saturating_add(1),
                 )
-                .with_consumed(qubit_io::nz!(2)))
+                .with_consumed(qubit_codec::nz!(2)))
             }
         }
     } else if Utf16::is_low_surrogate(first) {

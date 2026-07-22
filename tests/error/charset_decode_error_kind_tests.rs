@@ -18,6 +18,10 @@ fn test_charset_decode_error_kind_displays_messages() {
         "The decoded code point 0xd800 is not a valid Unicode scalar value.",
         CharsetDecodeErrorKind::InvalidCodePoint { value: 0xd800 }.to_string(),
     );
+    assert_eq!(
+        "The transcode layer reported an unexpected framework failure.",
+        CharsetDecodeErrorKind::UnexpectedTranscodeFailure.to_string(),
+    );
 
     assert_eq!(None, CharsetDecodeErrorKind::malformed_unknown().required());
     assert_eq!(
@@ -46,6 +50,10 @@ fn test_charset_decode_error_kind_displays_messages() {
     assert_eq!(None, CharsetDecodeErrorKind::malformed_unknown().value());
     assert_eq!(Some(0x41), CharsetDecodeErrorKind::malformed(0x41).value());
     assert_eq!(Some(0xd800), invalid.value());
+    assert_eq!(
+        None,
+        CharsetDecodeErrorKind::UnexpectedTranscodeFailure.value(),
+    );
     assert_eq!(
         None,
         CharsetDecodeErrorKind::IncompleteSequence {
