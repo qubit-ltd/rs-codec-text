@@ -11,7 +11,4 @@ mod utf32_byte_codec_tests;
 mod utf32_u32_codec_tests;
 mod utf8_codec_tests;
 
-pub(crate) use assertions_tests::{
-    incomplete_required,
-    invalid_source,
-};
+pub(crate) use assertions_tests::{incomplete_required, invalid_source};

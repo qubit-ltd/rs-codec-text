@@ -6,24 +6,12 @@
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
 use crate::{
-    CharsetCodec,
-    CharsetDecodeError,
-    CharsetDecodeHooks,
-    CharsetDecodePolicy,
-    CharsetEncodeError,
-    CharsetEncodeHooks,
-    CharsetEncodePolicy,
-    CharsetEncoder,
-    MalformedAction,
-    UnmappableAction,
+    CharsetCodec, CharsetDecodeError, CharsetDecodeHooks, CharsetDecodePolicy, CharsetEncodeError,
+    CharsetEncodeHooks, CharsetEncodePolicy, CharsetEncoder, MalformedAction, UnmappableAction,
 };
 use qubit_codec::engine::TranscodeConvertEngine;
 use qubit_codec::{
-    CapacityError,
-    TranscodeConvertErrorOf,
-    TranscodeConverter,
-    TranscodeProgress,
-    Transcoder,
+    CapacityError, TranscodeConvertErrorOf, TranscodeConverter, TranscodeProgress, Transcoder,
 };
 
 /// Converts units encoded with one charset into units encoded with another
@@ -77,8 +65,7 @@ where
     E::Unit: Clone,
 {
     /// Common buffered converter engine.
-    engine:
-        TranscodeConvertEngine<D, E, CharsetDecodeHooks, CharsetEncodeHooks>,
+    engine: TranscodeConvertEngine<D, E, CharsetDecodeHooks, CharsetEncodeHooks>,
     /// Public malformed-input policy metadata.
     decode_policy: CharsetDecodePolicy,
     /// Public unmappable-input policy metadata.
@@ -117,8 +104,7 @@ where
     #[must_use]
     pub fn from_codecs(source: D, target: E) -> Self {
         let decode_policy = CharsetDecodePolicy::default();
-        let (encode_policy, encode_hooks) =
-            Self::default_encode_policy(&target);
+        let (encode_policy, encode_hooks) = Self::default_encode_policy(&target);
         Self {
             engine: TranscodeConvertEngine::new(
                 source,
@@ -157,8 +143,7 @@ where
         decode_policy: CharsetDecodePolicy,
         encode_policy: CharsetEncodePolicy,
     ) -> Result<Self, CharsetEncodeError> {
-        let encode_hooks =
-            CharsetEncoder::<E>::create_hooks(&target, encode_policy)?;
+        let encode_hooks = CharsetEncoder::<E>::create_hooks(&target, encode_policy)?;
         Ok(Self {
             engine: TranscodeConvertEngine::new(
                 source,
@@ -396,9 +381,7 @@ where
     /// can be encoded by `target`. This panic is intentional: reaching this
     /// branch means the target codec implementation violates the replacement
     /// fallback invariant and should fail fast.
-    fn default_encode_policy(
-        target: &E,
-    ) -> (CharsetEncodePolicy, CharsetEncodeHooks) {
+    fn default_encode_policy(target: &E) -> (CharsetEncodePolicy, CharsetEncodeHooks) {
         let policy = CharsetEncodePolicy::default_for(target).unwrap_or_else(|error| {
             // This panic is intentional. If default replacement selection gets
             // here, the target codec cannot encode even the required fallback
@@ -436,10 +419,7 @@ where
 
     /// Returns the target-side upper bound for converted output units.
     #[inline]
-    fn max_transcode_output_len(
-        &self,
-        input_len: usize,
-    ) -> Result<usize, CapacityError> {
+    fn max_transcode_output_len(&self, input_len: usize) -> Result<usize, CapacityError> {
         self.engine.max_transcode_output_len(input_len)
     }
 
@@ -459,11 +439,7 @@ where
     /// Clears any pending decoded character and emits stream-start encode
     /// output.
     #[inline]
-    fn reset(
-        &mut self,
-        output: &mut [E::Unit],
-        output_index: usize,
-    ) -> Result<usize, Self::Error> {
+    fn reset(&mut self, output: &mut [E::Unit], output_index: usize) -> Result<usize, Self::Error> {
         self.engine.reset(output, output_index)
     }
 

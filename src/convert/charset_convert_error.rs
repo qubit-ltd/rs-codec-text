@@ -5,10 +5,7 @@
 //
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
-use crate::{
-    CharsetDecodeError,
-    CharsetEncodeError,
-};
+use crate::{CharsetDecodeError, CharsetEncodeError};
 
 /// Error reported while converting between two charsets.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, thiserror::Error)]

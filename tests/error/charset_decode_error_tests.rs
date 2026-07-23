@@ -1,11 +1,7 @@
 #[cfg(not(debug_assertions))]
 use qubit_codec::DecodeFailure;
 use qubit_codec::TranscodeFailure;
-use qubit_codec_text::{
-    Charset,
-    CharsetDecodeError,
-    CharsetDecodeErrorKind,
-};
+use qubit_codec_text::{Charset, CharsetDecodeError, CharsetDecodeErrorKind};
 use std::num::NonZeroUsize;
 
 #[test]
@@ -79,12 +75,9 @@ fn test_charset_decode_error_offset_saturates_on_overflow() {
 
 #[test]
 fn test_charset_decode_error_exposes_consumption_and_incomplete_details() {
-    let malformed = CharsetDecodeError::new(
-        Charset::UTF_8,
-        CharsetDecodeErrorKind::malformed(0x80),
-        4,
-    )
-    .with_consumed(qubit_codec::nz!(2));
+    let malformed =
+        CharsetDecodeError::new(Charset::UTF_8, CharsetDecodeErrorKind::malformed(0x80), 4)
+            .with_consumed(qubit_codec::nz!(2));
     assert_eq!(NonZeroUsize::new(2), malformed.consumed());
     assert_eq!(None, malformed.required());
     assert_eq!(Some(0x80), malformed.value());
