@@ -5,15 +5,9 @@
 //
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
-use core::{
-    error::Error,
-    fmt,
-};
+use core::{error::Error, fmt};
 
-use crate::{
-    Charset,
-    CharsetEncodeErrorKind,
-};
+use crate::{Charset, CharsetEncodeErrorKind};
 use qubit_codec::TranscodeFailure;
 
 /// Error reported by a charset encoder.
@@ -55,17 +49,10 @@ impl CharsetEncodeError {
     /// [`CharsetEncodeErrorKind::UnexpectedTranscodeFailure`] instead of
     /// being misreported as output-length overflow.
     #[doc(hidden)]
-    pub fn map_transcode_failure(
-        charset: Charset,
-        error: TranscodeFailure,
-    ) -> Self {
+    pub fn map_transcode_failure(charset: Charset, error: TranscodeFailure) -> Self {
         use TranscodeFailure::{
-            IncompleteInput,
-            InsufficientOutput,
-            InvalidInputIndex,
-            InvalidOutputIndex,
-            OutputLengthOverflow,
-            TrailingInput,
+            IncompleteInput, InsufficientOutput, InvalidInputIndex, InvalidOutputIndex,
+            OutputLengthOverflow, TrailingInput,
         };
 
         match error {
@@ -124,11 +111,7 @@ impl CharsetEncodeError {
     /// Maps a transcode-layer unencodable value into a charset encode error.
     #[doc(hidden)]
     #[must_use]
-    pub fn map_unencodable(
-        charset: Charset,
-        input_index: usize,
-        value: Option<char>,
-    ) -> Self {
+    pub fn map_unencodable(charset: Charset, input_index: usize, value: Option<char>) -> Self {
         Self::new(
             charset,
             match value {
@@ -153,11 +136,7 @@ impl CharsetEncodeError {
     ///
     /// Returns an encoding error carrying the supplied context.
     #[inline]
-    pub const fn new(
-        charset: Charset,
-        kind: CharsetEncodeErrorKind,
-        index: usize,
-    ) -> Self {
+    pub const fn new(charset: Charset, kind: CharsetEncodeErrorKind, index: usize) -> Self {
         Self {
             charset,
             kind,

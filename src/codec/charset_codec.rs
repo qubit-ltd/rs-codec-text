@@ -5,11 +5,7 @@
 //
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
-use crate::{
-    Charset,
-    CharsetDecodeError,
-    CharsetEncodeError,
-};
+use crate::{Charset, CharsetDecodeError, CharsetEncodeError};
 use qubit_codec::Codec;
 
 /// Charset metadata carried by a low-level `Codec<Value = char>`.
@@ -59,11 +55,7 @@ use qubit_codec::Codec;
 ///   host values, not serialized bytes. Use byte-oriented codecs when byte
 ///   order matters across files, processes, or network boundaries.
 pub trait CharsetCodec:
-    Codec<
-        Value = char,
-        DecodeError = CharsetDecodeError,
-        EncodeError = CharsetEncodeError,
-    >
+    Codec<Value = char, DecodeError = CharsetDecodeError, EncodeError = CharsetEncodeError>
 {
     /// Returns the charset handled by this codec.
     ///

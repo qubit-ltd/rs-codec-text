@@ -5,12 +5,7 @@
 //
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
-use crate::{
-    CharsetCodec,
-    CharsetEncodeError,
-    CharsetEncodeErrorKind,
-    UnmappableAction,
-};
+use crate::{CharsetCodec, CharsetEncodeError, CharsetEncodeErrorKind, UnmappableAction};
 
 /// Unmappable-input policy used by charset encoders and converters.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -30,10 +25,7 @@ impl CharsetEncodePolicy {
     /// Creates an unmappable-input policy.
     #[must_use]
     #[inline]
-    pub const fn new(
-        unmappable_action: UnmappableAction,
-        replacement: char,
-    ) -> Self {
+    pub const fn new(unmappable_action: UnmappableAction, replacement: char) -> Self {
         Self {
             unmappable_action,
             replacement,
