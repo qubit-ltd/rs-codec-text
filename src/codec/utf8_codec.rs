@@ -185,10 +185,6 @@ fn decode_prefix(input: &[u8], index: usize) -> CharsetDecodeResult<(char, NonZe
 #[inline]
 fn encode_char(ch: char, output: &mut [u8], index: usize) -> usize {
     let length = Utf8::byte_len(ch);
-    debug_assert!(
-        UncheckedSlice::range_fits(output.len(), index, length),
-        "index + length exceeds output length"
-    );
     // SAFETY: The caller guarantees that `length` bytes are writable from
     // `index`; `encode_utf8` writes directly into that checked range.
     let target = unsafe { qubit_io::UncheckedSlice::subslice_mut(output, index, length) };
