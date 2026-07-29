@@ -7,71 +7,9 @@
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 [![English Document](https://img.shields.io/badge/Document-English-blue.svg)](README.md)
 
-面向 Rust 的缓冲区级 charset 编解码原语，以及 Unicode / ASCII 支撑工具。
-
-## 概述
-
-Qubit Text Codec 是一个低层编解码核心，服务于那些需要在 Rust 普通
-`str`、`String` 和 `char` API 之下做显式控制的代码。它提供：
-
-- ASCII、Unicode、UTF-8、UTF-16、UTF-32 命名空间辅助工具。
-- Charset 身份元数据、字节序辅助工具和 Unicode BOM 检测。
-- ASCII、ISO-8859-1、UTF-8、UTF-16、UTF-32 的缓冲区级 codec。
-- 带策略的 `CharsetDecoder`、`CharsetEncoder` 和 `CharsetConverter`。
-- 带精确缓冲区下标的强类型 decode / encode / convert 错误。
-- 与 `qubit-codec` 的 trait 和进度类型集成。`Codec`、`Transcoder`、
-  `TranscodeProgress`、`TranscodeStatus`、`CapacityError` 和 `ByteOrder`
-  需要直接从 `qubit_codec` 导入。
-
-本库刻意停留在 `std::io` 读写适配器、自动 charset 检测、规范化、切分、
-排序、显示宽度和区域相关文本行为之下。
-
-## 设计目标
-
-- **缓冲区级控制**：暴露直接操作调用方管理缓冲区的 charset codec。
-- **Unicode 基础能力**：提供 ASCII、Unicode、UTF-8、UTF-16 和 UTF-32 原语，不处理更高层的 locale 行为。
-- **策略明确的转换**：通过 decoder 和 encoder 配置显式控制 malformed 与 unmappable 行为。
-- **诊断精确**：用强类型错误报告源下标和上下文。
-- **不耦合 I/O**：stream adapter 放在 `qubit-io-text`。
-- **核心依赖小**：依赖 `qubit-codec` 复用 transcoder 和字节序原语。
-
-## 特性
-
-### Charset 元数据
-
-- **`Charset`**：识别支持的 charset 及其字节序行为。
-- **`UnicodeBom`**：检测 Unicode byte order mark。
-- **ASCII 与 Unicode 命名空间**：提供常量和校验 helper。
-
-### 缓冲区级 Codec
-
-- **`AsciiCodec`**：ASCII byte codec。
-- **`Latin1Codec`**：ISO-8859-1 byte codec。
-- **`Utf8Codec`**：UTF-8 byte codec。
-- **`Utf16ByteCodec` / `Utf32ByteCodec`**：显式字节序的 Unicode byte codec。
-- **`Utf16U16Codec` / `Utf32U32Codec`**：unit-oriented Unicode codec。
-
-### 有状态 Converter
-
-- **`CharsetDecoder`**：把输入单元解码为 `char` 输出。
-- **`CharsetEncoder`**：把 `char` 输入编码为目标单元。
-- **`CharsetConverter`**：在 decoder 与 encoder 组合之间转换。
-- **`MalformedAction` / `UnmappableAction`**：配置 strict 或 replacement 行为。
-- **EOF 收尾**：`finish()` 只刷新内部暂存输出；调用方需要先处理 `NeedInput` 报告的不完整源尾部。
-
-### 聚焦的公开 API
-
-- **顶层导出**：`qubit_codec_text` 导出自己的 charset、codec、策略和错误类型。
-- **核心 trait 与状态类型**：`Codec`、`Transcoder`、`TranscodeStatus`、
-  `TranscodeProgress`、`CapacityError` 和 `ByteOrder` 从 `qubit_codec`
-  导入。
-- **不包含 stream I/O**：reader 和 writer adapter 使用 `qubit-io-text`。
-
-## 文档
-
-- [用户指南](doc/user_guide.zh_CN.md)
-- [API 文档](https://docs.rs/qubit-codec-text)
-- [英文 README](README.md)
+`qubit-codec-text` 提供面向缓冲区的 Unicode 与 charset codec，适合 Rust 的解析器、
+协议和 I/O adapter 作者在 ASCII、Latin-1、UTF-8、UTF-16、UTF-32 之间进行解码、
+编码与转换，并显式管理进度及畸形或不可映射数据的策略。
 
 ## 安装
 
@@ -81,110 +19,56 @@ qubit-codec-text = "0.3"
 qubit-codec = "0.11"
 ```
 
-`qubit-codec` 是核心运行时依赖。本库不重导出 `qubit-codec` 类型；当代码需要命名
-core trait、进度/状态类型、字节序、engine、hook 或 adapter 时，请直接添加或导入
-`qubit-codec`。
-
-当需要在配置或进程间载荷中序列化 `Charset` 时，可启用可选的 `serde` feature：
+只有需要序列化 `Charset` 时才启用 `serde`：
 
 ```toml
-[dependencies]
 qubit-codec-text = { version = "0.3", features = ["serde"] }
 ```
 
 ## 快速开始
 
+使用调用方持有的输出缓冲区，将 UTF-8 字节转换为 UTF-16 码元：
+
 ```rust
-use qubit_codec::{
-    Codec,
-    TranscodeStatus,
-    Transcoder,
-};
-use qubit_codec_text::{
-    CharsetEncoder,
-    UnicodeBom,
-    Utf8,
-    Utf8Codec,
-};
+use qubit_codec_text::{CharsetConverter, Utf16U16Codec, Utf8Codec};
 
-assert_eq!(Some(UnicodeBom::Utf8), UnicodeBom::detect(&[0xef, 0xbb, 0xbf]));
-assert_eq!(Some(3), Utf8::byte_len_from_leading_byte(0xe4));
+let mut converter = CharsetConverter::from_codecs(Utf8Codec, Utf16U16Codec);
+let mut output = [0_u16; 2];
+let written = converter
+    .transcode_complete_into("AB".as_bytes(), &mut output)
+    .expect("UTF-8 文本可转换为 UTF-16");
 
-let (decoded, consumed) = unsafe {
-    Utf8Codec
-        .decode("中".as_bytes(), 0)
-}
-    .expect("valid UTF-8 input");
-assert_eq!(('中', 3), (decoded, consumed.get()));
-
-let mut encoder = CharsetEncoder::new(Utf8Codec);
-let mut output = [0_u8; Utf8::MAX_BYTES_PER_CHAR];
-let progress = encoder
-    .transcode(&['😀'], 0, &mut output, 0)
-    .expect("UTF-8 output buffer is large enough");
-
-assert_eq!(TranscodeStatus::Complete, progress.status());
-assert_eq!("😀".as_bytes(), &output[..progress.written()]);
+assert_eq!(2, written);
+assert_eq!([65, 66], output);
 ```
 
-## API 参考
+## 为什么需要这个项目
 
-### Charset 与 Unicode 类型
+文本转换常位于应用字符串层以下：调用方可能拿到部分缓冲区、需要固定输出码元类型，
+或需要协议专用的替换策略。本库提供 codec 和策略层，但不接管 `std::io` stream、
+缓冲、Unicode 规范化或区域规则。
 
-| 类型 | 用途 |
-|------|------|
-| `Charset` | 支持的 charset 身份和字节序元数据 |
-| `UnicodeBom` | Unicode BOM 检测 |
-| `Ascii`、`Unicode`、`Utf8`、`Utf16`、`Utf32` | 字符集规则命名空间 helper |
+## 核心能力
 
-### Codec 类型
+| 能力 | 公开 API | 边界 |
+| --- | --- | --- |
+| Charset 元数据与标签 | `Charset`、`UnicodeBom` | 内置 ASCII、Latin-1、UTF-8、UTF-16、UTF-32 家族；查找不是完整 WHATWG 编码表。 |
+| 底层标量 codec | `AsciiCodec`、`Latin1Codec`、`Utf8Codec`、UTF-16/32 codec | unsafe 单值方法直接操作调用方持有的码元。 |
+| 缓冲转换 | `CharsetDecoder`、`CharsetEncoder`、`CharsetConverter` | 通过 `qubit-codec` 类型报告进度、输出背压和更多输入需求。 |
+| 策略 | `MalformedAction`、`UnmappableAction` | 可选 `Replace`、`Ignore` 或 `Report`。 |
+| 字符辅助工具 | `Ascii`、`Unicode`、`Utf8`、`Utf16`、`Utf32` | 不提供字素簇切分、规范化、排序或区域感知大小写。 |
 
-| 类型 | 用途 |
-|------|------|
-| `AsciiCodec` | ASCII byte 编码和解码 |
-| `Latin1Codec` | ISO-8859-1 byte 编码和解码 |
-| `Utf8Codec` | UTF-8 byte 编码和解码 |
-| `Utf16ByteCodec` / `Utf32ByteCodec` | 显式字节序的 Unicode byte codec |
-| `Utf16U16Codec` / `Utf32U32Codec` | Unit-oriented Unicode codec |
-| `qubit_codec::Codec<Value = char>` | 文本 codec 实现的最低层完整值 codec trait |
-| `CharsetCodec` | 附加在低层文本 codec 实现上的 charset 元数据 |
+面向字节的 UTF-16 与 UTF-32 codec 使用显式 `ByteOrder`，不会自动写出、跳过或选择
+BOM。stream 所有权、缓冲和 `std::io::Error` 转换属于更高层 adapter。
 
-### Converter 类型
+## 延伸阅读
 
-| 类型 | 用途 |
-|------|------|
-| `CharsetDecoder<C>` | 实现 `TranscodeDecoder<Input = C::Unit, Output = char>` 的有状态缓冲区 decoder，并复用 `TranscodeDecodeEngine` 处理解码迭代和 progress 报告 |
-| `CharsetEncoder<C>` | 实现 `TranscodeEncoder<Input = char, Output = C::Unit>` 的有状态缓冲区 encoder，并复用 `TranscodeEncodeEngine` 的公共循环 |
-| `CharsetConverter<D, E>` | 在两个 charset codec 之间 decode + encode，并实现 `TranscodeConverter<Input = D::Unit, Output = E::Unit>` |
-| `MalformedAction` | Malformed input 处理策略 |
-| `UnmappableAction` | 无法编码输出字符的处理策略 |
+- [用户指南](doc/user_guide.zh_CN.md)
+- [API 文档](https://docs.rs/qubit-codec-text)
+- [英文 README](README.md)
+- [English user guide](doc/user_guide.md)
 
-### 错误类型
-
-| 类型 | 用途 |
-|------|------|
-| `CharsetDecodeError` / `CharsetDecodeErrorKind` | 带精确下标的 decode failure |
-| `CharsetEncodeError` / `CharsetEncodeErrorKind` | 带精确下标的 encode failure |
-| `CharsetConvertError` | Converter 层面的 decode 或 encode failure |
-
-## 性能考虑
-
-Codec 实现直接操作调用方提供的输入和输出缓冲区。`CharsetDecoder` 在至少有
-`Codec::MIN_UNITS_PER_VALUE` 个可读单元时调用 `Codec::decode`，
-charset codec 通过 `CharsetDecodeError` 报告不完整前缀。`NeedInput` 表示当前单元是
-合法但不完整的前缀，尾部仍留在调用方输入缓冲区中；到达 EOF 后，调用方先处理这个
-尾部，再调用 `finish()` 刷新内部暂存输出。内部实现上，`CharsetDecoder` 复用
-decode hooks 保存策略，并复用 `TranscodeDecodeEngine` 处理重复调用
-`decode`、输出容量 progress 和状态报告。`CharsetEncoder` 通过 encode hooks 保存
-unmappable 策略，并复用 `TranscodeEncodeEngine` 处理输入迭代和输出容量检查，
-同时保留 text-specific 的 replace、ignore、report 策略。它通过共享的 `Transcoder` 进度模型报告
-`NeedOutput`，调用方可以自行控制分配和缓冲区复用。
-
-## 测试与代码覆盖率
-
-本项目通过 `tests/` 下的集成测试覆盖 charset 行为。
-
-### 运行测试
+## 测试
 
 ```bash
 # 使用默认 feature 集运行测试
@@ -193,64 +77,27 @@ cargo test
 # 使用项目声明的全部 feature 运行测试
 cargo test --all-features
 
-# 运行覆盖率报告
+# 运行项目 CI 检查
+./ci-check.sh
+
+# 检查代码覆盖率
 ./coverage.sh
-
-# 生成文本格式报告
-./coverage.sh text
-
-# 按 CI 口径对齐格式和 clippy
-./align-ci.sh
-
-# 运行 CI 检查（格式化、clippy、测试、覆盖率、安全审计）
-RS_CI_SKIP_TOOLCHAIN_UPDATE=1 ./ci-check.sh
 ```
-
-## 依赖项
-
-运行时依赖保持很少：
-
-- `qubit-codec` 提供共享字节序和 transcoder 原语。
-- `thiserror` 提供公共错误类型实现。
-- `serde` 是可选依赖，启用后 `Charset` 会按稳定 `id` 序列化。
 
 ## 许可证
 
-Copyright (c) 2026. Haixing Hu.
+Copyright (c) 2025 - 2026. Haixing Hu. All rights reserved.
 
-根据 Apache 许可证 2.0 版（"许可证"）授权；
-除非遵守许可证，否则您不得使用此文件。
-您可以在以下位置获取许可证副本：
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-除非适用法律要求或书面同意，否则根据许可证分发的软件
-按"原样"分发，不附带任何明示或暗示的担保或条件。
-有关许可证下的特定语言管理权限和限制，请参阅许可证。
-
-完整的许可证文本请参阅 [LICENSE](LICENSE)。
+本项目基于 Apache License 2.0 授权。完整许可证文本请参阅
+[LICENSE](LICENSE)。
 
 ## 贡献
 
-欢迎贡献！请随时提交 Pull Request。
-
-### 开发指南
-
-- 保持本 crate 聚焦缓冲区级 text codec。
-- 保持文档与用户指南和公开 API 名称一致。
-- 为 strict、replacement、malformed 和 unmappable 行为补测试。
-- 提交 PR 前确保所有检查通过。
+欢迎贡献。请遵循 Rust API 指南，及时更新公共 API 文档与测试，并在提交
+Pull Request 前运行 `./align-ci.sh`格式化代码，运行`./ci-check.sh`对齐CI要求。
 
 ## 作者
 
-**胡海星**
-
-## 相关项目
-
-- [qubit-codec](https://github.com/qubit-ltd/rs-codec)：共享核心 codec trait 与字节序标记。
-- [qubit-io-text](https://github.com/qubit-ltd/rs-io-text)：文本 stream adapter
-  工具库。
-- Qubit 旗下的更多 Rust 库发布在 GitHub 组织
-  [qubit-ltd](https://github.com/qubit-ltd)。
+**Haixing Hu** - *Qubit Co. Ltd.*
 
 仓库地址：[https://github.com/qubit-ltd/rs-codec-text](https://github.com/qubit-ltd/rs-codec-text)
