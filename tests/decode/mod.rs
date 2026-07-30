@@ -1,1 +1,3 @@
+mod charset_decode_hooks_tests;
+mod charset_decode_policy_tests;
 mod charset_decoder_tests;

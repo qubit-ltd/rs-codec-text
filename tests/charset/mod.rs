@@ -1,6 +1,10 @@
 mod ascii_folding_tests;
 mod ascii_tests;
+mod bom_detect_status_tests;
+mod charset_registration_error_kind_tests;
+mod charset_registration_error_tests;
 mod charset_tests;
+mod label_normalize_tests;
 mod latin1_tests;
 mod unicode_bom_tests;
 mod unicode_tests;
