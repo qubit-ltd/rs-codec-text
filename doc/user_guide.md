@@ -96,7 +96,8 @@ register it.
 Low-level codecs report `CharsetDecodeError` or `CharsetEncodeError`, carrying
 the charset, an error kind, and an index. Their kinds distinguish incomplete
 sequences, malformed input, invalid scalar values, capacity, and unmappable
-characters where applicable. A `CharsetConvertError` identifies whether the
+characters where applicable. `CharsetConverter::map_transcode_error` maps a
+low-level converter failure to `CharsetConvertError`, identifying whether the
 source decoding or target encoding side failed.
 
 In streaming code, `TranscodeProgress` describes how many units were read and

@@ -5,11 +5,21 @@
 //
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
-use core::{error::Error, fmt, num::NonZeroUsize};
+use core::{
+    error::Error,
+    fmt,
+    num::NonZeroUsize,
+};
 
-use qubit_codec::{DecodeFailure, TranscodeFailure};
+use qubit_codec::{
+    DecodeFailure,
+    TranscodeFailure,
+};
 
-use crate::{Charset, CharsetDecodeErrorKind};
+use crate::{
+    Charset,
+    CharsetDecodeErrorKind,
+};
 
 /// Error reported by a charset decoder.
 ///
@@ -41,7 +51,8 @@ pub struct CharsetDecodeError {
 pub type CharsetDecodeResult<T> = Result<T, CharsetDecodeError>;
 
 /// Result type returned by [`qubit_codec::Codec`] charset decoders.
-pub(crate) type CharsetCodecDecodeResult<T> = Result<T, DecodeFailure<CharsetDecodeError>>;
+pub(crate) type CharsetCodecDecodeResult<T> =
+    Result<T, DecodeFailure<CharsetDecodeError>>;
 
 impl CharsetDecodeError {
     /// Maps a transcode-layer failure into a charset decode error.
@@ -57,10 +68,16 @@ impl CharsetDecodeError {
     /// failures retain their original indices and sizes. Encode-only framework
     /// failures are reported as
     /// [`CharsetDecodeErrorKind::UnexpectedTranscodeFailure`].
-    #[doc(hidden)]
-    pub fn map_transcode_failure(charset: Charset, error: TranscodeFailure) -> Self {
+    #[must_use]
+    pub fn map_transcode_failure(
+        charset: Charset,
+        error: TranscodeFailure,
+    ) -> Self {
         use TranscodeFailure::{
-            IncompleteInput, InsufficientOutput, InvalidInputIndex, InvalidOutputIndex,
+            IncompleteInput,
+            InsufficientOutput,
+            InvalidInputIndex,
+            InvalidOutputIndex,
             OutputLengthOverflow,
         };
 
@@ -124,14 +141,20 @@ impl CharsetDecodeError {
     ///
     /// Returns a decoding error carrying the supplied context.
     #[inline]
-    pub const fn new(charset: Charset, kind: CharsetDecodeErrorKind, index: usize) -> Self {
+    pub const fn new(
+        charset: Charset,
+        kind: CharsetDecodeErrorKind,
+        index: usize,
+    ) -> Self {
         Self {
             charset,
             kind,
             index,
             consumed: match kind {
                 CharsetDecodeErrorKind::MalformedSequence { .. }
-                | CharsetDecodeErrorKind::InvalidCodePoint { .. } => Some(NonZeroUsize::MIN),
+                | CharsetDecodeErrorKind::InvalidCodePoint { .. } => {
+                    Some(NonZeroUsize::MIN)
+                }
                 CharsetDecodeErrorKind::InvalidInputIndex { .. }
                 | CharsetDecodeErrorKind::InvalidOutputIndex { .. }
                 | CharsetDecodeErrorKind::BufferTooSmall { .. }
@@ -167,12 +190,14 @@ impl CharsetDecodeError {
     #[must_use]
     #[inline]
     pub fn into_codec_failure(self) -> DecodeFailure<Self> {
-        if let Some(required) = self.required() {
+        if let Some((required, _)) = self.kind.incomplete() {
             if let Some(required) = NonZeroUsize::new(required) {
                 DecodeFailure::incomplete(required)
             } else {
                 #[cfg(debug_assertions)]
-                panic!("incomplete charset decode errors must require non-zero units",);
+                panic!(
+                    "incomplete charset decode errors must require non-zero units",
+                );
                 #[cfg(not(debug_assertions))]
                 {
                     DecodeFailure::invalid_unknown(self)
@@ -220,7 +245,8 @@ impl CharsetDecodeError {
     /// # Returns
     ///
     /// Returns `Some(required)` for
-    /// [`CharsetDecodeErrorKind::IncompleteSequence`], otherwise `None`.
+    /// [`CharsetDecodeErrorKind::IncompleteSequence`] and
+    /// [`CharsetDecodeErrorKind::BufferTooSmall`], otherwise `None`.
     #[inline]
     pub const fn required(self) -> Option<usize> {
         self.kind.required()
@@ -231,7 +257,8 @@ impl CharsetDecodeError {
     /// # Returns
     ///
     /// Returns `Some(available)` for
-    /// [`CharsetDecodeErrorKind::IncompleteSequence`], otherwise `None`.
+    /// [`CharsetDecodeErrorKind::IncompleteSequence`] and
+    /// [`CharsetDecodeErrorKind::BufferTooSmall`], otherwise `None`.
     #[inline]
     pub const fn available(self) -> Option<usize> {
         self.kind.available()
