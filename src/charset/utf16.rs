@@ -7,7 +7,10 @@
 // =============================================================================
 use qubit_codec::ByteOrder;
 
-use crate::{Unicode, UnicodeBom};
+use crate::{
+    Unicode,
+    UnicodeBom,
+};
 
 /// Namespace for UTF-16 constants and code-unit classification helpers.
 pub enum Utf16 {}
@@ -31,7 +34,8 @@ impl Utf16 {
     /// Returns `true` if `unit` is in `0xD800..=0xDBFF`.
     #[inline(always)]
     pub const fn is_high_surrogate(unit: u16) -> bool {
-        (unit as u32) >= Unicode::HIGH_SURROGATE_MIN && (unit as u32) <= Unicode::HIGH_SURROGATE_MAX
+        (unit as u32) >= Unicode::HIGH_SURROGATE_MIN
+            && (unit as u32) <= Unicode::HIGH_SURROGATE_MAX
     }
 
     /// Tests whether a UTF-16 unit is a low surrogate.
@@ -45,7 +49,8 @@ impl Utf16 {
     /// Returns `true` if `unit` is in `0xDC00..=0xDFFF`.
     #[inline(always)]
     pub const fn is_low_surrogate(unit: u16) -> bool {
-        (unit as u32) >= Unicode::LOW_SURROGATE_MIN && (unit as u32) <= Unicode::LOW_SURROGATE_MAX
+        (unit as u32) >= Unicode::LOW_SURROGATE_MIN
+            && (unit as u32) <= Unicode::LOW_SURROGATE_MAX
     }
 
     /// Tests whether a UTF-16 unit is any surrogate.
@@ -59,7 +64,8 @@ impl Utf16 {
     /// Returns `true` if `unit` is in `0xD800..=0xDFFF`.
     #[inline(always)]
     pub const fn is_surrogate(unit: u16) -> bool {
-        (unit as u32) >= Unicode::SURROGATE_MIN && (unit as u32) <= Unicode::SURROGATE_MAX
+        (unit as u32) >= Unicode::SURROGATE_MIN
+            && (unit as u32) <= Unicode::SURROGATE_MAX
     }
 
     /// Tests whether a UTF-16 unit encodes a scalar value by itself.
@@ -146,7 +152,9 @@ impl Utf16 {
         if Self::is_surrogate_pair(high, low) {
             let high_payload = (high as u32) - Unicode::HIGH_SURROGATE_MIN;
             let low_payload = (low as u32) - Unicode::LOW_SURROGATE_MIN;
-            Some((high_payload << 10) + low_payload + Unicode::SUPPLEMENTARY_MIN)
+            Some(
+                (high_payload << 10) + low_payload + Unicode::SUPPLEMENTARY_MIN,
+            )
         } else {
             None
         }
@@ -166,8 +174,8 @@ impl Utf16 {
     pub const fn high_surrogate(code_point: u32) -> Option<u16> {
         if Unicode::is_supplementary(code_point) {
             Some(
-                (((code_point - Unicode::SUPPLEMENTARY_MIN) >> 10) + Unicode::HIGH_SURROGATE_MIN)
-                    as u16,
+                (((code_point - Unicode::SUPPLEMENTARY_MIN) >> 10)
+                    + Unicode::HIGH_SURROGATE_MIN) as u16,
             )
         } else {
             None
@@ -188,8 +196,8 @@ impl Utf16 {
     pub const fn low_surrogate(code_point: u32) -> Option<u16> {
         if Unicode::is_supplementary(code_point) {
             Some(
-                (((code_point - Unicode::SUPPLEMENTARY_MIN) & 0x3ff) + Unicode::LOW_SURROGATE_MIN)
-                    as u16,
+                (((code_point - Unicode::SUPPLEMENTARY_MIN) & 0x3ff)
+                    + Unicode::LOW_SURROGATE_MIN) as u16,
             )
         } else {
             None
@@ -208,7 +216,9 @@ impl Utf16 {
     pub fn detect_bom(bytes: &[u8]) -> Option<ByteOrder> {
         match UnicodeBom::detect(bytes) {
             Some(UnicodeBom::Utf16BigEndian) => Some(ByteOrder::BigEndian),
-            Some(UnicodeBom::Utf16LittleEndian) => Some(ByteOrder::LittleEndian),
+            Some(UnicodeBom::Utf16LittleEndian) => {
+                Some(ByteOrder::LittleEndian)
+            }
             _ => None,
         }
     }

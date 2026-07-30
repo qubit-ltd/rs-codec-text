@@ -7,13 +7,24 @@
 // =============================================================================
 use qubit_codec::engine::TranscodeEncodeEngine;
 use qubit_codec::{
-    CapacityError, TranscodeEncodeErrorOf, TranscodeEncoder, TranscodeProgress, Transcoder,
+    CapacityError,
+    TranscodeEncodeErrorOf,
+    TranscodeEncoder,
+    TranscodeProgress,
+    Transcoder,
 };
 
-use crate::{CharsetCodec, CharsetEncodeError, UnmappableAction};
+use crate::{
+    CharsetCodec,
+    CharsetEncodeError,
+    UnmappableAction,
+};
 
 use super::{
-    charset_encode_hooks::{CharsetEncodeHooks, replacement_len},
+    charset_encode_hooks::{
+        CharsetEncodeHooks,
+        replacement_len,
+    },
     charset_encode_policy::CharsetEncodePolicy,
 };
 
@@ -101,7 +112,10 @@ where
     ///
     /// Returns an error when `policy` uses replacement and the replacement
     /// character cannot be encoded by `codec`.
-    pub fn with_policy(codec: C, policy: CharsetEncodePolicy) -> Result<Self, CharsetEncodeError> {
+    pub fn with_policy(
+        codec: C,
+        policy: CharsetEncodePolicy,
+    ) -> Result<Self, CharsetEncodeError> {
         let hooks = Self::create_hooks(&codec, policy)?;
         Ok(Self {
             engine: TranscodeEncodeEngine::new(codec, hooks),
@@ -251,7 +265,10 @@ where
         codec: &C,
         policy: CharsetEncodePolicy,
     ) -> Result<CharsetEncodeHooks, CharsetEncodeError> {
-        let hooks = CharsetEncodeHooks::new(policy.unmappable_action(), policy.replacement());
+        let hooks = CharsetEncodeHooks::new(
+            policy.unmappable_action(),
+            policy.replacement(),
+        );
         if policy.unmappable_action() != UnmappableAction::Replace {
             return Ok(hooks);
         }
@@ -271,7 +288,10 @@ where
     /// Returns the maximum number of target units needed for `input_len`
     /// characters.
     #[inline(always)]
-    fn max_transcode_output_len(&self, input_len: usize) -> Result<usize, CapacityError> {
+    fn max_transcode_output_len(
+        &self,
+        input_len: usize,
+    ) -> Result<usize, CapacityError> {
         self.engine.max_transcode_output_len(input_len)
     }
 
@@ -289,7 +309,11 @@ where
 
     /// Runs encoder reset while keeping encoder policy.
     #[inline(always)]
-    fn reset(&mut self, output: &mut [C::Unit], output_index: usize) -> Result<usize, Self::Error> {
+    fn reset(
+        &mut self,
+        output: &mut [C::Unit],
+        output_index: usize,
+    ) -> Result<usize, Self::Error> {
         self.engine.reset(output, output_index)
     }
 
