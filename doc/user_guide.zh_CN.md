@@ -86,7 +86,8 @@ assert_eq!([0x0041, 0x4e2d], output);
 
 底层 codec 报告 `CharsetDecodeError` 或 `CharsetEncodeError`，其中包含 charset、错误
 种类和下标。错误种类会在适用时区分不完整序列、畸形输入、无效标量、容量和不可映射
-字符。`CharsetConvertError` 进一步说明失败发生在源端解码还是目标端编码。
+字符。`CharsetConverter::map_transcode_error` 可将底层 converter failure
+映射为 `CharsetConvertError`，说明失败发生在源端解码还是目标端编码。
 
 流式代码通过 `TranscodeProgress` 得到已读/已写码元数和 `NeedInput`、输出背压等状态。
 `NeedInput` 不是畸形错误：保留尾部并在后续输入到达后重试。EOF 后仍残留的不完整序列

@@ -68,7 +68,9 @@ pub enum CharsetDecodeErrorKind {
     },
 
     /// The decoded numeric value is not a valid Unicode scalar value.
-    #[error("The decoded code point 0x{value:x} is not a valid Unicode scalar value.")]
+    #[error(
+        "The decoded code point 0x{value:x} is not a valid Unicode scalar value."
+    )]
     InvalidCodePoint {
         /// Raw decoded code-point value.
         value: u32,
@@ -106,7 +108,8 @@ impl CharsetDecodeErrorKind {
     ///
     /// # Returns
     ///
-    /// - `Some(required)` for [`Self::IncompleteSequence`];
+    /// - `Some(required)` for [`Self::IncompleteSequence`] and
+    ///   [`Self::BufferTooSmall`];
     /// - `None` for all other variants.
     #[must_use]
     #[inline]
@@ -128,7 +131,8 @@ impl CharsetDecodeErrorKind {
     ///
     /// # Returns
     ///
-    /// - `Some(available)` for [`Self::IncompleteSequence`];
+    /// - `Some(available)` for [`Self::IncompleteSequence`] and
+    ///   [`Self::BufferTooSmall`];
     /// - `None` for all other variants.
     #[must_use]
     #[inline]
