@@ -510,10 +510,8 @@ fn test_charset_decoder_recovery_preserves_following_valid_units() {
     assert_eq!(3, progress.written());
     assert_eq!(['!', '(', '!'], utf8_output);
 
-    let mut utf8_ignore = CharsetDecoder::with_policy(
-        Utf8Codec,
-        CharsetDecodePolicy::ignore(),
-    );
+    let mut utf8_ignore =
+        CharsetDecoder::with_policy(Utf8Codec, CharsetDecodePolicy::ignore());
     let mut utf8_ignored_output = ['\0'; 2];
     let progress = utf8_ignore
         .transcode(&[0xe2, b'(', 0xa1], 0, &mut utf8_ignored_output, 0)
