@@ -75,7 +75,6 @@ pub struct CharsetConverter<D, E>
 where
     D: CharsetCodec,
     E: CharsetCodec,
-    E::Unit: Clone,
 {
     /// Common buffered converter engine.
     engine:
@@ -90,7 +89,6 @@ impl<D, E> CharsetConverter<D, E>
 where
     D: CharsetCodec,
     E: CharsetCodec,
-    E::Unit: Clone,
 {
     /// Creates a charset converter from raw source and target codecs.
     ///
@@ -113,8 +111,9 @@ where
     /// target codec implementation is wrong, because the API requires a
     /// fallback replacement that the codec can encode. Built-in codecs can
     /// always encode the fallback `?`; custom [`crate::CharsetCodec`]
-    /// implementations that cannot encode it must fail fast during converter
-    /// construction rather than defer the invariant violation to user input.
+    /// implementations that cannot encode it violate the replacement
+    /// invariant and must fail fast during converter construction rather than
+    /// defer the bug to user input.
     #[must_use]
     pub fn from_codecs(source: D, target: E) -> Self {
         let decode_policy = CharsetDecodePolicy::default();
@@ -452,7 +451,6 @@ impl<D, E> Transcoder for CharsetConverter<D, E>
 where
     D: CharsetCodec,
     E: CharsetCodec,
-    E::Unit: Clone,
 {
     type Input = D::Unit;
     type Output = E::Unit;
@@ -540,7 +538,6 @@ impl<D, E> TranscodeConverter for CharsetConverter<D, E>
 where
     D: CharsetCodec,
     E: CharsetCodec,
-    E::Unit: Clone,
 {
     type DecodeError = CharsetDecodeError;
     type EncodeError = CharsetEncodeError;
