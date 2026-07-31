@@ -569,7 +569,9 @@ fn test_charset_encoder_maps_transcode_errors() {
 
     assert_eq!(Charset::ASCII, error.charset());
     assert_eq!(
-        CharsetEncodeErrorKind::UnmappableCharacter { value: '中' as u32 },
+        CharsetEncodeErrorKind::UnmappableCharacter {
+            value: '中' as u32
+        },
         error.kind(),
     );
     assert_eq!(0, error.index());
