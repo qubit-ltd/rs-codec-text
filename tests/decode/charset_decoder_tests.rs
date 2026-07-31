@@ -415,10 +415,8 @@ fn test_charset_decoder_exposes_configuration_and_bounds() {
 
 #[test]
 fn test_charset_decoder_maps_transcode_errors() {
-    let mut decoder = CharsetDecoder::with_policy(
-        Utf8Codec,
-        CharsetDecodePolicy::report(),
-    );
+    let mut decoder =
+        CharsetDecoder::with_policy(Utf8Codec, CharsetDecodePolicy::report());
     let error = decoder
         .transcode(&[0x80], 0, &mut ['\0'], 0)
         .expect_err("report policy should return a raw transcode error");
