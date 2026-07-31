@@ -49,9 +49,13 @@ use qubit_codec::Codec;
 ///   should describe the smallest invalid sequence width known to the codec.
 /// - [`Codec::can_encode_value`] must return `true` before callers use
 ///   [`Codec::encode_len`] or enter [`Codec::encode`] for a value. `encode_len`
-///   must be non-zero, must not exceed [`Codec::MAX_UNITS_PER_VALUE`], and must
-///   match the number of units written by `encode` for the same value and codec
-///   state.
+///   must not exceed [`Codec::MAX_ENCODE_UNITS_PER_VALUE`] and must match the
+///   number of units written by `encode` for the same value and codec state. A
+///   zero length is valid for stateful codecs that deliberately buffer output.
+/// - Implementations used with the default [`crate::CharsetEncoder`] or
+///   [`crate::CharsetConverter`] policy must be able to encode `?`. Failure to
+///   encode `?` is an implementation bug; those constructors intentionally
+///   panic to expose it immediately.
 /// - [`Codec::encode`] is called only after the caller reserved the exact
 ///   writable range reported by `encode_len`, and must not write outside that
 ///   range.

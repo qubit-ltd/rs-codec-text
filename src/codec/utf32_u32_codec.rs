@@ -47,7 +47,7 @@ use qubit_codec::Codec;
 /// assert_eq!(Charset::UTF_32, codec.charset());
 /// assert_eq!(
 ///     Utf32::MAX_UNITS_PER_CHAR,
-///     <Utf32U32Codec as Codec>::MAX_UNITS_PER_VALUE,
+///     <Utf32U32Codec as Codec>::MAX_ENCODE_UNITS_PER_VALUE,
 /// );
 ///
 /// let mut output = [0_u32; Utf32::MAX_UNITS_PER_CHAR];
@@ -95,7 +95,9 @@ impl Codec for Utf32U32Codec {
     type EncodeError = CharsetEncodeError;
 
     const MIN_UNITS_PER_VALUE: usize = 1;
-    const MAX_UNITS_PER_VALUE: usize = 1;
+    const MAX_ENCODE_UNITS_PER_VALUE: usize = 1;
+
+    const MAX_DECODE_UNITS_PER_VALUE: usize = 1;
 
     #[inline]
     unsafe fn decode(

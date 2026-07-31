@@ -13,6 +13,7 @@ use core::{
 
 use qubit_codec::{
     DecodeFailure,
+    TranscodeDecodeError,
     TranscodeFailure,
 };
 
@@ -55,6 +56,23 @@ pub(crate) type CharsetCodecDecodeResult<T> =
     Result<T, DecodeFailure<CharsetDecodeError>>;
 
 impl CharsetDecodeError {
+    /// Maps a decoder transcode error into a charset decode error.
+    ///
+    /// Framework failures are mapped with `charset`; codec-domain errors retain
+    /// their original charset error.
+    #[must_use]
+    pub fn from_transcode_error(
+        charset: Charset,
+        error: TranscodeDecodeError<Self>,
+    ) -> Self {
+        match error {
+            TranscodeDecodeError::Failure(failure) => {
+                Self::map_transcode_failure(charset, failure)
+            }
+            TranscodeDecodeError::Domain(error) => error.into_source(),
+        }
+    }
+
     /// Maps a transcode-layer failure into a charset decode error.
     ///
     /// # Parameters

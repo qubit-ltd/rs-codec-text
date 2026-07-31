@@ -28,7 +28,7 @@ fn test_latin1_codec_exposes_identity_and_limits() {
         <Latin1Codec as CharsetCodec>::charset(&codec)
     );
     assert_eq!(1, <Latin1Codec as Codec>::MIN_UNITS_PER_VALUE);
-    assert_eq!(1, <Latin1Codec as Codec>::MAX_UNITS_PER_VALUE);
+    assert_eq!(1, <Latin1Codec as Codec>::MAX_ENCODE_UNITS_PER_VALUE);
     assert!(codec.can_encode_value(&'A'));
     assert!(codec.can_encode_value(&'\u{00ff}'));
     assert!(!codec.can_encode_value(&'\u{0100}'));
@@ -83,7 +83,7 @@ fn test_latin1_codec_direct_function_items_cover_trait_methods() {
     let trait_charset: fn(&Latin1Codec) -> Charset =
         <Latin1Codec as CharsetCodec>::charset;
     let min_units = <Latin1Codec as Codec>::MIN_UNITS_PER_VALUE;
-    let max_units = <Latin1Codec as Codec>::MAX_UNITS_PER_VALUE;
+    let max_units = <Latin1Codec as Codec>::MAX_ENCODE_UNITS_PER_VALUE;
     let can_encode_value: fn(&Latin1Codec, &char) -> bool =
         <Latin1Codec as Codec>::can_encode_value;
     let encode_len: fn(&Latin1Codec, &char) -> usize =

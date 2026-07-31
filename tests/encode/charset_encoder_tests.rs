@@ -87,7 +87,9 @@ macro_rules! impl_test_codec {
 
             const MIN_UNITS_PER_VALUE: usize = 1;
 
-            const MAX_UNITS_PER_VALUE: usize = $max_units;
+            const MAX_ENCODE_UNITS_PER_VALUE: usize = $max_units;
+
+            const MAX_DECODE_UNITS_PER_VALUE: usize = $max_units;
 
             fn can_encode_value(&self, value: &char) -> bool {
                 let can_encode: fn(char) -> bool = $can_encode;
@@ -164,7 +166,9 @@ impl Codec for NonDefaultUnitCodec {
 
     const MIN_UNITS_PER_VALUE: usize = 1;
 
-    const MAX_UNITS_PER_VALUE: usize = 1;
+    const MAX_ENCODE_UNITS_PER_VALUE: usize = 1;
+
+    const MAX_DECODE_UNITS_PER_VALUE: usize = 1;
 
     fn can_encode_value(&self, value: &char) -> bool {
         value.is_ascii()
@@ -220,7 +224,9 @@ impl Codec for NonDebugUnitCodec {
 
     const MIN_UNITS_PER_VALUE: usize = 1;
 
-    const MAX_UNITS_PER_VALUE: usize = 1;
+    const MAX_ENCODE_UNITS_PER_VALUE: usize = 1;
+
+    const MAX_DECODE_UNITS_PER_VALUE: usize = 1;
 
     fn can_encode_value(&self, value: &char) -> bool {
         value.is_ascii()
@@ -291,7 +297,9 @@ impl Codec for InvalidBangCodec {
 
     const MIN_UNITS_PER_VALUE: usize = 1;
 
-    const MAX_UNITS_PER_VALUE: usize = 1;
+    const MAX_ENCODE_UNITS_PER_VALUE: usize = 1;
+
+    const MAX_DECODE_UNITS_PER_VALUE: usize = 1;
 
     unsafe fn decode(
         &mut self,
@@ -343,7 +351,9 @@ impl Codec for FailingReplacementWriteCodec {
 
     const MIN_UNITS_PER_VALUE: usize = 1;
 
-    const MAX_UNITS_PER_VALUE: usize = 1;
+    const MAX_ENCODE_UNITS_PER_VALUE: usize = 1;
+
+    const MAX_DECODE_UNITS_PER_VALUE: usize = 1;
 
     fn can_encode_value(&self, value: &char) -> bool {
         *value == '!' || value.is_ascii()
@@ -392,7 +402,9 @@ impl Codec for EncodeResetErrorCodec {
 
     const MIN_UNITS_PER_VALUE: usize = 1;
 
-    const MAX_UNITS_PER_VALUE: usize = 1;
+    const MAX_ENCODE_UNITS_PER_VALUE: usize = 1;
+
+    const MAX_DECODE_UNITS_PER_VALUE: usize = 1;
 
     fn can_encode_value(&self, value: &char) -> bool {
         value.is_ascii()
@@ -478,7 +490,9 @@ impl Codec for CountingAsciiEncoderCodec {
 
     const MIN_UNITS_PER_VALUE: usize = 1;
 
-    const MAX_UNITS_PER_VALUE: usize = 1;
+    const MAX_ENCODE_UNITS_PER_VALUE: usize = 1;
+
+    const MAX_DECODE_UNITS_PER_VALUE: usize = 1;
 
     fn can_encode_value(&self, value: &char) -> bool {
         let current = self.encode_calls.get();
@@ -539,6 +553,26 @@ fn test_charset_encoder_exposes_configuration_and_bounds() {
 
     assert_eq!('*', encoder.replacement());
     assert_eq!(UnmappableAction::Ignore, encoder.unmappable_action());
+}
+
+#[test]
+fn test_charset_encoder_maps_transcode_errors() {
+    let mut encoder = CharsetEncoder::with_policy(
+        AsciiBytesCodec,
+        CharsetEncodePolicy::report(),
+    )
+    .expect("report policy should not require a replacement");
+    let error = encoder
+        .transcode(&['中'], 0, &mut [0_u8], 0)
+        .expect_err("report policy should return a raw transcode error");
+    let error = encoder.map_transcode_error(error);
+
+    assert_eq!(Charset::ASCII, error.charset());
+    assert_eq!(
+        CharsetEncodeErrorKind::UnmappableCharacter { value: '中' as u32 },
+        error.kind(),
+    );
+    assert_eq!(0, error.index());
 }
 
 #[test]
