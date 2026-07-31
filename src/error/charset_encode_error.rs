@@ -14,7 +14,10 @@ use crate::{
     Charset,
     CharsetEncodeErrorKind,
 };
-use qubit_codec::TranscodeFailure;
+use qubit_codec::{
+    TranscodeEncodeError,
+    TranscodeFailure,
+};
 
 /// Error reported by a charset encoder.
 ///
@@ -40,6 +43,26 @@ pub struct CharsetEncodeError {
 pub type CharsetEncodeResult<T> = Result<T, CharsetEncodeError>;
 
 impl CharsetEncodeError {
+    /// Maps an encoder transcode error into a charset encode error.
+    ///
+    /// Framework failures and unencodable values are mapped with `charset`;
+    /// codec-domain errors retain their original charset error.
+    #[must_use]
+    pub fn from_transcode_error(
+        charset: Charset,
+        error: TranscodeEncodeError<Self, char>,
+    ) -> Self {
+        match error {
+            TranscodeEncodeError::Failure(failure) => {
+                Self::map_transcode_failure(charset, failure)
+            }
+            TranscodeEncodeError::Unencodable { input_index, value } => {
+                Self::map_unencodable(charset, input_index, value)
+            }
+            TranscodeEncodeError::Domain(error) => error.into_source(),
+        }
+    }
+
     /// Maps a transcode-layer failure into a charset encode error.
     ///
     /// # Parameters
