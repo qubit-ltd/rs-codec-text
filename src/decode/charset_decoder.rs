@@ -199,6 +199,19 @@ where
             .transcode(input, input_index, output, output_index)
     }
 
+    /// Maps a decoder transcode error into a charset decode error.
+    ///
+    /// Framework failures are attached to this decoder's charset. Codec-domain
+    /// errors retain their original charset error.
+    #[must_use]
+    #[inline]
+    pub fn map_transcode_error(
+        &self,
+        error: TranscodeDecodeErrorOf<C>,
+    ) -> CharsetDecodeError {
+        CharsetDecodeError::from_transcode_error(self.charset(), error)
+    }
+
     /// Finishes decoder-owned final output after EOF.
     ///
     /// # Errors

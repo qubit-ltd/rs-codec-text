@@ -58,7 +58,9 @@ impl Codec for AsciiCodec {
     type EncodeError = CharsetEncodeError;
 
     const MIN_UNITS_PER_VALUE: usize = 1;
-    const MAX_UNITS_PER_VALUE: usize = 1;
+    const MAX_ENCODE_UNITS_PER_VALUE: usize = 1;
+
+    const MAX_DECODE_UNITS_PER_VALUE: usize = 1;
 
     #[inline]
     fn can_encode_value(&self, value: &char) -> bool {

@@ -82,7 +82,9 @@ impl Codec for InvalidInputErrorCodec {
 
     const MIN_UNITS_PER_VALUE: usize = 1;
 
-    const MAX_UNITS_PER_VALUE: usize = 1;
+    const MAX_ENCODE_UNITS_PER_VALUE: usize = 1;
+
+    const MAX_DECODE_UNITS_PER_VALUE: usize = 1;
 
     unsafe fn decode(
         &mut self,
@@ -137,7 +139,9 @@ impl Codec for PendingInvalidInputErrorCodec {
 
     const MIN_UNITS_PER_VALUE: usize = 1;
 
-    const MAX_UNITS_PER_VALUE: usize = 2;
+    const MAX_ENCODE_UNITS_PER_VALUE: usize = 2;
+
+    const MAX_DECODE_UNITS_PER_VALUE: usize = 2;
 
     unsafe fn decode(
         &mut self,
@@ -221,7 +225,9 @@ impl Codec for MalformedWithoutConsumedCodec {
 
     const MIN_UNITS_PER_VALUE: usize = 1;
 
-    const MAX_UNITS_PER_VALUE: usize = 1;
+    const MAX_ENCODE_UNITS_PER_VALUE: usize = 1;
+
+    const MAX_DECODE_UNITS_PER_VALUE: usize = 1;
 
     unsafe fn decode(
         &mut self,
@@ -257,7 +263,9 @@ impl Codec for IncompletePrefixCodec {
 
     const MIN_UNITS_PER_VALUE: usize = 1;
 
-    const MAX_UNITS_PER_VALUE: usize = 2;
+    const MAX_ENCODE_UNITS_PER_VALUE: usize = 2;
+
+    const MAX_DECODE_UNITS_PER_VALUE: usize = 2;
 
     unsafe fn decode(
         &mut self,
@@ -296,7 +304,9 @@ impl Codec for IncompleteAsInvalidCodec {
 
     const MIN_UNITS_PER_VALUE: usize = 1;
 
-    const MAX_UNITS_PER_VALUE: usize = 1;
+    const MAX_ENCODE_UNITS_PER_VALUE: usize = 1;
+
+    const MAX_DECODE_UNITS_PER_VALUE: usize = 1;
 
     unsafe fn decode(
         &mut self,
@@ -335,7 +345,9 @@ impl Codec for DecodeFlushErrorCodec {
 
     const MIN_UNITS_PER_VALUE: usize = 1;
 
-    const MAX_UNITS_PER_VALUE: usize = 1;
+    const MAX_ENCODE_UNITS_PER_VALUE: usize = 1;
+
+    const MAX_DECODE_UNITS_PER_VALUE: usize = 1;
 
     unsafe fn decode(
         &mut self,
@@ -399,6 +411,22 @@ fn test_charset_decoder_exposes_configuration_and_bounds() {
 
     assert_eq!('?', decoder.replacement());
     assert_eq!(MalformedAction::Ignore, decoder.malformed_action());
+}
+
+#[test]
+fn test_charset_decoder_maps_transcode_errors() {
+    let mut decoder = CharsetDecoder::with_policy(
+        Utf8Codec,
+        CharsetDecodePolicy::report(),
+    );
+    let error = decoder
+        .transcode(&[0x80], 0, &mut ['\0'], 0)
+        .expect_err("report policy should return a raw transcode error");
+    let error = decoder.map_transcode_error(error);
+
+    assert_eq!(Charset::UTF_8, error.charset());
+    assert_eq!(CharsetDecodeErrorKind::malformed(0x80), error.kind());
+    assert_eq!(0, error.index());
 }
 
 #[test]

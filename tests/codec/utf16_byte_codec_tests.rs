@@ -35,7 +35,7 @@ fn test_utf16_byte_codec_exposes_encoder_and_decoder_contracts() {
     assert_eq!(2, <Utf16ByteCodec as Codec>::MIN_UNITS_PER_VALUE,);
     assert_eq!(
         Utf16::MAX_BYTES_PER_CHAR,
-        <Utf16ByteCodec as Codec>::MAX_UNITS_PER_VALUE,
+        <Utf16ByteCodec as Codec>::MAX_ENCODE_UNITS_PER_VALUE,
     );
     assert!(codec.can_encode_value(&'A'));
     assert_eq!(2, codec.encode_len(&'A'));
@@ -117,7 +117,7 @@ fn test_utf16_byte_codec_direct_function_items_cover_trait_methods() {
     let trait_charset: fn(&Utf16ByteCodec) -> Charset =
         <Utf16ByteCodec as CharsetCodec>::charset;
     let min_units = <Utf16ByteCodec as Codec>::MIN_UNITS_PER_VALUE;
-    let max_units = <Utf16ByteCodec as Codec>::MAX_UNITS_PER_VALUE;
+    let max_units = <Utf16ByteCodec as Codec>::MAX_ENCODE_UNITS_PER_VALUE;
     let encode_len: fn(&Utf16ByteCodec, &char) -> usize =
         <Utf16ByteCodec as Codec>::encode_len;
     let decode: DecodeFn = <Utf16ByteCodec as Codec>::decode;
