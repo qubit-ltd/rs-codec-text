@@ -75,8 +75,9 @@ where
     /// the supplied codec implementation is wrong, because the API requires a
     /// default replacement fallback that the codec can encode. Built-in codecs
     /// can always encode the fallback `?`; custom [`crate::CharsetCodec`]
-    /// implementations that cannot encode it must fail fast during
-    /// construction rather than defer the invariant violation to user input.
+    /// implementations that cannot encode it violate the replacement
+    /// invariant and must fail fast during construction rather than defer the
+    /// bug to user input.
     #[must_use]
     pub fn new(codec: C) -> Self {
         let policy = CharsetEncodePolicy::default_for(&codec).unwrap_or_else(|error| {
@@ -227,6 +228,20 @@ where
     ) -> Result<TranscodeProgress, TranscodeEncodeErrorOf<C>> {
         self.engine
             .transcode(input, input_index, output, output_index)
+    }
+
+    /// Maps an encoder transcode error into a charset encode error.
+    ///
+    /// Framework failures and unencodable values are attached to this
+    /// encoder's charset. Codec-domain errors retain their original charset
+    /// error.
+    #[must_use]
+    #[inline]
+    pub fn map_transcode_error(
+        &self,
+        error: TranscodeEncodeErrorOf<C>,
+    ) -> CharsetEncodeError {
+        CharsetEncodeError::from_transcode_error(self.charset(), error)
     }
 
     /// Finishes encoder-owned final output after EOF.

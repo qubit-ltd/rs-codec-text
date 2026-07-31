@@ -28,7 +28,7 @@ fn test_ascii_codec_exposes_identity_and_limits() {
         <AsciiCodec as CharsetCodec>::charset(&codec)
     );
     assert_eq!(1, <AsciiCodec as Codec>::MIN_UNITS_PER_VALUE);
-    assert_eq!(1, <AsciiCodec as Codec>::MAX_UNITS_PER_VALUE);
+    assert_eq!(1, <AsciiCodec as Codec>::MAX_ENCODE_UNITS_PER_VALUE);
     assert!(codec.can_encode_value(&'A'));
     assert!(!codec.can_encode_value(&'é'));
     assert_eq!(1, codec.encode_len(&'A'));
@@ -73,7 +73,7 @@ fn test_ascii_codec_direct_function_items_cover_trait_methods() {
     let trait_charset: fn(&AsciiCodec) -> Charset =
         <AsciiCodec as CharsetCodec>::charset;
     let min_units = <AsciiCodec as Codec>::MIN_UNITS_PER_VALUE;
-    let max_units = <AsciiCodec as Codec>::MAX_UNITS_PER_VALUE;
+    let max_units = <AsciiCodec as Codec>::MAX_ENCODE_UNITS_PER_VALUE;
     let can_encode_value: fn(&AsciiCodec, &char) -> bool =
         <AsciiCodec as Codec>::can_encode_value;
     let encode_len: fn(&AsciiCodec, &char) -> usize =

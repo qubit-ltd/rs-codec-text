@@ -39,7 +39,7 @@ use qubit_io::UncheckedSlice;
 /// assert_eq!(Charset::UTF_8, codec.charset());
 /// assert_eq!(
 ///     Utf8::MAX_UNITS_PER_CHAR,
-///     <Utf8Codec as Codec>::MAX_UNITS_PER_VALUE,
+///     <Utf8Codec as Codec>::MAX_ENCODE_UNITS_PER_VALUE,
 /// );
 ///
 /// let mut output = [0_u8; Utf8::MAX_BYTES_PER_CHAR];
@@ -87,7 +87,9 @@ impl Codec for Utf8Codec {
     type EncodeError = CharsetEncodeError;
 
     const MIN_UNITS_PER_VALUE: usize = 1;
-    const MAX_UNITS_PER_VALUE: usize = Utf8::MAX_UNITS_PER_CHAR;
+    const MAX_ENCODE_UNITS_PER_VALUE: usize = Utf8::MAX_UNITS_PER_CHAR;
+
+    const MAX_DECODE_UNITS_PER_VALUE: usize = Utf8::MAX_UNITS_PER_CHAR;
 
     #[inline]
     fn encode_len(&self, ch: &char) -> usize {
@@ -342,7 +344,7 @@ fn validate_second_byte(input: &[u8], index: usize) -> CharsetDecodeResult<u8> {
         Err(malformed_byte_error(
             second,
             index.saturating_add(1),
-            qubit_codec::nz!(2),
+            qubit_codec::nz!(1),
         ))
     }
 }
@@ -361,7 +363,7 @@ fn validate_continuation_byte(
         Err(malformed_byte_error(
             byte,
             index.saturating_add(offset),
-            NonZeroUsize::new(offset + 1)
+            NonZeroUsize::new(offset)
                 .expect("UTF-8 consumed width is non-zero"),
         ))
     }
