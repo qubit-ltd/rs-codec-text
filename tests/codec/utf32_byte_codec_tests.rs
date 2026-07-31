@@ -35,7 +35,7 @@ fn test_utf32_byte_codec_exposes_encoder_and_decoder_contracts() {
     assert_eq!(4, <Utf32ByteCodec as Codec>::MIN_UNITS_PER_VALUE,);
     assert_eq!(
         Utf32::MAX_BYTES_PER_CHAR,
-        <Utf32ByteCodec as Codec>::MAX_UNITS_PER_VALUE,
+        <Utf32ByteCodec as Codec>::MAX_ENCODE_UNITS_PER_VALUE,
     );
     assert!(codec.can_encode_value(&'A'));
     assert_eq!(4, codec.encode_len(&'A'));
@@ -85,7 +85,7 @@ fn test_utf32_byte_codec_direct_function_items_cover_trait_methods() {
     let trait_charset: fn(&Utf32ByteCodec) -> Charset =
         std::hint::black_box(<Utf32ByteCodec as CharsetCodec>::charset);
     let min_units = <Utf32ByteCodec as Codec>::MIN_UNITS_PER_VALUE;
-    let max_units = <Utf32ByteCodec as Codec>::MAX_UNITS_PER_VALUE;
+    let max_units = <Utf32ByteCodec as Codec>::MAX_ENCODE_UNITS_PER_VALUE;
     let encode_len: fn(&Utf32ByteCodec, &char) -> usize =
         <Utf32ByteCodec as Codec>::encode_len;
     let decode: DecodeFn = <Utf32ByteCodec as Codec>::decode;
