@@ -33,12 +33,20 @@ fn fuzz_order(data: &[u8], byte_order: ByteOrder) {
                 ByteOrder::NativeEndian => u16::from_ne_bytes([bytes[0], bytes[1]]),
             })
             .collect::<Vec<_>>();
-        let expected = core::char::decode_utf16(units).collect::<Result<Vec<_>, _>>();
-        if let Ok(expected) = expected {
-            let replace_written = replace_result.expect("valid UTF-16 must decode");
-            let report_written = report_result.expect("valid UTF-16 must report success");
+        let incomplete_tail = units
+            .last()
+            .is_some_and(|unit| (0xd800..=0xdbff).contains(unit));
+        if incomplete_tail {
+            assert!(replace_result.is_err());
+            assert!(report_result.is_err());
+        } else {
+            let expected = core::char::decode_utf16(units)
+                .map(|result| result.unwrap_or(char::REPLACEMENT_CHARACTER))
+                .collect::<Vec<_>>();
+            let replace_written = replace_result
+                .expect("complete malformed UTF-16 must be replaceable");
             assert_eq!(expected, replace_output[..replace_written]);
-            assert_eq!(expected, report_output[..report_written]);
+            assert!(report_result.is_err());
         }
     }
 }

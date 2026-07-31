@@ -16,21 +16,28 @@ use qubit_codec_text::{
 #[test]
 fn test_core_codec_trait_reports_text_codec_unit_bounds() {
     assert_eq!(1, <AsciiCodec as Codec>::MIN_UNITS_PER_VALUE);
-    assert_eq!(1, <AsciiCodec as Codec>::MAX_UNITS_PER_VALUE);
+    assert_eq!(1, <AsciiCodec as Codec>::MAX_ENCODE_UNITS_PER_VALUE);
+    assert_eq!(1, <AsciiCodec as Codec>::MAX_DECODE_UNITS_PER_VALUE);
     assert_eq!(1, <Latin1Codec as Codec>::MIN_UNITS_PER_VALUE);
-    assert_eq!(1, <Latin1Codec as Codec>::MAX_UNITS_PER_VALUE);
+    assert_eq!(1, <Latin1Codec as Codec>::MAX_ENCODE_UNITS_PER_VALUE);
+    assert_eq!(1, <Latin1Codec as Codec>::MAX_DECODE_UNITS_PER_VALUE);
     assert_eq!(1, <Utf8Codec as Codec>::MIN_UNITS_PER_VALUE);
-    assert_eq!(4, <Utf8Codec as Codec>::MAX_UNITS_PER_VALUE);
+    assert_eq!(4, <Utf8Codec as Codec>::MAX_ENCODE_UNITS_PER_VALUE);
+    assert_eq!(4, <Utf8Codec as Codec>::MAX_DECODE_UNITS_PER_VALUE);
 
     assert_eq!(2, <Utf16ByteCodec as Codec>::MIN_UNITS_PER_VALUE);
-    assert_eq!(4, <Utf16ByteCodec as Codec>::MAX_UNITS_PER_VALUE);
+    assert_eq!(4, <Utf16ByteCodec as Codec>::MAX_ENCODE_UNITS_PER_VALUE);
+    assert_eq!(4, <Utf16ByteCodec as Codec>::MAX_DECODE_UNITS_PER_VALUE);
     assert_eq!(1, <Utf16U16Codec as Codec>::MIN_UNITS_PER_VALUE);
-    assert_eq!(2, <Utf16U16Codec as Codec>::MAX_UNITS_PER_VALUE);
+    assert_eq!(2, <Utf16U16Codec as Codec>::MAX_ENCODE_UNITS_PER_VALUE);
+    assert_eq!(2, <Utf16U16Codec as Codec>::MAX_DECODE_UNITS_PER_VALUE);
 
     assert_eq!(4, <Utf32ByteCodec as Codec>::MIN_UNITS_PER_VALUE);
-    assert_eq!(4, <Utf32ByteCodec as Codec>::MAX_UNITS_PER_VALUE);
+    assert_eq!(4, <Utf32ByteCodec as Codec>::MAX_ENCODE_UNITS_PER_VALUE);
+    assert_eq!(4, <Utf32ByteCodec as Codec>::MAX_DECODE_UNITS_PER_VALUE);
     assert_eq!(1, <Utf32U32Codec as Codec>::MIN_UNITS_PER_VALUE);
-    assert_eq!(1, <Utf32U32Codec as Codec>::MAX_UNITS_PER_VALUE);
+    assert_eq!(1, <Utf32U32Codec as Codec>::MAX_ENCODE_UNITS_PER_VALUE);
+    assert_eq!(1, <Utf32U32Codec as Codec>::MAX_DECODE_UNITS_PER_VALUE);
 }
 
 fn assert_u8_codec<C>(mut codec: C, value: char, expected: &[u8])

@@ -99,7 +99,9 @@ impl Codec for AsciiBytesCodec {
 
     const MIN_UNITS_PER_VALUE: usize = 1;
 
-    const MAX_UNITS_PER_VALUE: usize = 1;
+    const MAX_ENCODE_UNITS_PER_VALUE: usize = 1;
+
+    const MAX_DECODE_UNITS_PER_VALUE: usize = 1;
 
     fn can_encode_value(&self, value: &char) -> bool {
         value.is_ascii()
@@ -154,6 +156,64 @@ impl Codec for AsciiBytesCodec {
     }
 }
 
+#[derive(Debug, Default, Eq, PartialEq)]
+struct NonCloneUnit(u8);
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+struct NonCloneUnitCodec;
+
+impl CharsetCodec for NonCloneUnitCodec {
+    fn charset(&self) -> Charset {
+        Charset::ASCII
+    }
+}
+
+impl Codec for NonCloneUnitCodec {
+    type Value = char;
+    type Unit = NonCloneUnit;
+    type DecodeError = CharsetDecodeError;
+    type EncodeError = CharsetEncodeError;
+
+    const MIN_UNITS_PER_VALUE: usize = 1;
+    const MAX_ENCODE_UNITS_PER_VALUE: usize = 1;
+    const MAX_DECODE_UNITS_PER_VALUE: usize = 1;
+
+    fn can_encode_value(&self, value: &char) -> bool {
+        value.is_ascii()
+    }
+
+    unsafe fn decode(
+        &mut self,
+        input: &[NonCloneUnit],
+        input_index: usize,
+    ) -> Result<
+        (char, core::num::NonZeroUsize),
+        qubit_codec::DecodeFailure<CharsetDecodeError>,
+    > {
+        let value = input[input_index].0;
+        if value.is_ascii() {
+            Ok((value as char, core::num::NonZeroUsize::MIN))
+        } else {
+            Err(CharsetDecodeError::new(
+                Charset::ASCII,
+                CharsetDecodeErrorKind::malformed(value as u32),
+                input_index,
+            )
+            .into_codec_failure())
+        }
+    }
+
+    unsafe fn encode(
+        &mut self,
+        value: &char,
+        output: &mut [NonCloneUnit],
+        output_index: usize,
+    ) -> CharsetEncodeResult<usize> {
+        output[output_index] = NonCloneUnit(*value as u8);
+        Ok(1)
+    }
+}
+
 #[derive(Clone, Debug)]
 struct CountingEncodeProbeCodec {
     calls: Rc<Cell<usize>>,
@@ -180,8 +240,11 @@ impl Codec for CountingEncodeProbeCodec {
     const MIN_UNITS_PER_VALUE: usize =
         <AsciiBytesCodec as Codec>::MIN_UNITS_PER_VALUE;
 
-    const MAX_UNITS_PER_VALUE: usize =
-        <AsciiBytesCodec as Codec>::MAX_UNITS_PER_VALUE;
+    const MAX_ENCODE_UNITS_PER_VALUE: usize =
+        <AsciiBytesCodec as Codec>::MAX_ENCODE_UNITS_PER_VALUE;
+
+    const MAX_DECODE_UNITS_PER_VALUE: usize =
+        <AsciiBytesCodec as Codec>::MAX_DECODE_UNITS_PER_VALUE;
 
     fn can_encode_value(&self, value: &char) -> bool {
         self.calls.set(self.calls.get() + 1);
@@ -229,7 +292,9 @@ impl Codec for NonDefaultUnitCodec {
 
     const MIN_UNITS_PER_VALUE: usize = 1;
 
-    const MAX_UNITS_PER_VALUE: usize = 1;
+    const MAX_ENCODE_UNITS_PER_VALUE: usize = 1;
+
+    const MAX_DECODE_UNITS_PER_VALUE: usize = 1;
 
     fn can_encode_value(&self, value: &char) -> bool {
         value.is_ascii()
@@ -301,8 +366,11 @@ impl<const MODE: u8> Codec for FailingLifecycleCodec<MODE> {
     const MIN_UNITS_PER_VALUE: usize =
         <AsciiBytesCodec as Codec>::MIN_UNITS_PER_VALUE;
 
-    const MAX_UNITS_PER_VALUE: usize =
-        <AsciiBytesCodec as Codec>::MAX_UNITS_PER_VALUE;
+    const MAX_ENCODE_UNITS_PER_VALUE: usize =
+        <AsciiBytesCodec as Codec>::MAX_ENCODE_UNITS_PER_VALUE;
+
+    const MAX_DECODE_UNITS_PER_VALUE: usize =
+        <AsciiBytesCodec as Codec>::MAX_DECODE_UNITS_PER_VALUE;
 
     fn can_encode_value(&self, value: &char) -> bool {
         AsciiBytesCodec.can_encode_value(value)
@@ -397,7 +465,9 @@ impl Codec for RejectingEncodeCodec {
 
     const MIN_UNITS_PER_VALUE: usize = 1;
 
-    const MAX_UNITS_PER_VALUE: usize = 1;
+    const MAX_ENCODE_UNITS_PER_VALUE: usize = 1;
+
+    const MAX_DECODE_UNITS_PER_VALUE: usize = 1;
 
     fn can_encode_value(&self, _value: &char) -> bool {
         false
@@ -437,7 +507,9 @@ impl Codec for ReplacementFallbackCodec {
 
     const MIN_UNITS_PER_VALUE: usize = 1;
 
-    const MAX_UNITS_PER_VALUE: usize = 1;
+    const MAX_ENCODE_UNITS_PER_VALUE: usize = 1;
+
+    const MAX_DECODE_UNITS_PER_VALUE: usize = 1;
 
     fn can_encode_value(&self, value: &char) -> bool {
         *value == '?' || value.is_ascii()
@@ -478,6 +550,30 @@ fn test_charset_converter_is_transcode_converter() {
     }
 
     assert_transcode_converter::<CharsetConverter<Utf8Codec, Utf16U16Codec>>();
+}
+
+#[test]
+fn test_charset_converter_supports_non_clone_target_units() {
+    fn assert_transcode_converter<T>()
+    where
+        T: TranscodeConverter<Input = u8, Output = NonCloneUnit>,
+    {
+    }
+
+    assert_transcode_converter::<
+        CharsetConverter<AsciiBytesCodec, NonCloneUnitCodec>,
+    >();
+
+    let mut converter =
+        CharsetConverter::from_codecs(AsciiBytesCodec, NonCloneUnitCodec);
+    let mut output = [NonCloneUnit(0)];
+    let progress = converter
+        .transcode(b"A", 0, &mut output, 0)
+        .expect("non-Clone target units should be supported");
+
+    assert_eq!(1, progress.read());
+    assert_eq!(1, progress.written());
+    assert_eq!(b'A', output[0].0);
 }
 
 #[test]

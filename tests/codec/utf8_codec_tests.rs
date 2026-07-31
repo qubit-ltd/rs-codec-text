@@ -28,7 +28,7 @@ fn test_utf8_codec_exposes_encoder_and_decoder_contracts() {
     assert_eq!(1, <Utf8Codec as Codec>::MIN_UNITS_PER_VALUE);
     assert_eq!(
         Utf8::MAX_UNITS_PER_CHAR,
-        <Utf8Codec as Codec>::MAX_UNITS_PER_VALUE,
+        <Utf8Codec as Codec>::MAX_ENCODE_UNITS_PER_VALUE,
     );
     assert!(codec.can_encode_value(&'A'));
     assert_eq!(1, codec.encode_len(&'A'));
@@ -134,7 +134,7 @@ fn test_utf8_codec_direct_function_items_cover_trait_methods() {
     let trait_charset: fn(&Utf8Codec) -> Charset =
         <Utf8Codec as CharsetCodec>::charset;
     let min_units = <Utf8Codec as Codec>::MIN_UNITS_PER_VALUE;
-    let max_units = <Utf8Codec as Codec>::MAX_UNITS_PER_VALUE;
+    let max_units = <Utf8Codec as Codec>::MAX_ENCODE_UNITS_PER_VALUE;
     let encode_len: fn(&Utf8Codec, &char) -> usize =
         <Utf8Codec as Codec>::encode_len;
     let decode: DecodeFn = <Utf8Codec as Codec>::decode;
