@@ -497,6 +497,57 @@ fn test_charset_decoder_policies_handle_malformed_unicode_codecs() {
 }
 
 #[test]
+fn test_charset_decoder_recovery_preserves_following_valid_units() {
+    let mut utf8 = CharsetDecoder::with_policy(
+        Utf8Codec,
+        CharsetDecodePolicy::replace('!'),
+    );
+    let mut utf8_output = ['\0'; 3];
+    let progress = utf8
+        .transcode(&[0xe2, b'(', 0xa1], 0, &mut utf8_output, 0)
+        .expect("UTF-8 replacement should continue after malformed prefix");
+    assert_eq!(3, progress.read());
+    assert_eq!(3, progress.written());
+    assert_eq!(['!', '(', '!'], utf8_output);
+
+    let mut utf8_ignore = CharsetDecoder::with_policy(
+        Utf8Codec,
+        CharsetDecodePolicy::ignore(),
+    );
+    let mut utf8_ignored_output = ['\0'; 2];
+    let progress = utf8_ignore
+        .transcode(&[0xe2, b'(', 0xa1], 0, &mut utf8_ignored_output, 0)
+        .expect("UTF-8 ignore should preserve valid following bytes");
+    assert_eq!(3, progress.read());
+    assert_eq!(1, progress.written());
+    assert_eq!(['(', '\0'], utf8_ignored_output);
+
+    let mut utf16_units = CharsetDecoder::with_policy(
+        Utf16U16Codec,
+        CharsetDecodePolicy::replace('!'),
+    );
+    let mut utf16_units_output = ['\0'; 2];
+    let progress = utf16_units
+        .transcode(&[0xd83d, b'A' as u16], 0, &mut utf16_units_output, 0)
+        .expect("UTF-16 replacement should reprocess the non-low surrogate");
+    assert_eq!(2, progress.read());
+    assert_eq!(2, progress.written());
+    assert_eq!(['!', 'A'], utf16_units_output);
+
+    let mut utf16_bytes = CharsetDecoder::with_policy(
+        Utf16ByteCodec::new(ByteOrder::LittleEndian),
+        CharsetDecodePolicy::ignore(),
+    );
+    let mut utf16_bytes_output = ['\0'; 1];
+    let progress = utf16_bytes
+        .transcode(&[0x3d, 0xd8, b'A', 0], 0, &mut utf16_bytes_output, 0)
+        .expect("UTF-16 byte ignore should preserve the following BMP unit");
+    assert_eq!(4, progress.read());
+    assert_eq!(1, progress.written());
+    assert_eq!(['A'], utf16_bytes_output);
+}
+
+#[test]
 fn test_charset_converter_policies_handle_unicode_decode_and_encode_paths() {
     let utf16_low_surrogate = 0xdc00_u16;
     let utf32_invalid = 0x110000_u32;
