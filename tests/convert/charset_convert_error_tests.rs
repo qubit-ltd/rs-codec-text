@@ -1,13 +1,27 @@
-use qubit_codec::{TranscodeConvertError, TranscodeConvertErrorOf, TranscodeFailure};
+use qubit_codec::{
+    TranscodeConvertError,
+    TranscodeConvertErrorOf,
+    TranscodeFailure,
+};
 use qubit_codec_text::{
-    AsciiCodec, Charset, CharsetConvertError, CharsetDecodeError, CharsetDecodeErrorKind,
-    CharsetEncodeError, CharsetEncodeErrorKind, Utf8Codec,
+    AsciiCodec,
+    Charset,
+    CharsetConvertError,
+    CharsetDecodeError,
+    CharsetDecodeErrorKind,
+    CharsetEncodeError,
+    CharsetEncodeErrorKind,
+    Utf8Codec,
 };
 
 #[test]
 fn test_charset_convert_error_wraps_decode_and_encode_errors() {
     let kind = CharsetDecodeErrorKind::malformed_unknown();
-    let decode = CharsetConvertError::from(CharsetDecodeError::new(Charset::UTF_8, kind, 2));
+    let decode = CharsetConvertError::from(CharsetDecodeError::new(
+        Charset::UTF_8,
+        kind,
+        2,
+    ));
     assert!(
         decode
             .to_string()
@@ -18,7 +32,11 @@ fn test_charset_convert_error_wraps_decode_and_encode_errors() {
         required: 4,
         available: 0,
     };
-    let encode = CharsetConvertError::from(CharsetEncodeError::new(Charset::UTF_8, kind, 4));
+    let encode = CharsetConvertError::from(CharsetEncodeError::new(
+        Charset::UTF_8,
+        kind,
+        4,
+    ));
     assert!(
         encode
             .to_string()
@@ -27,15 +45,17 @@ fn test_charset_convert_error_wraps_decode_and_encode_errors() {
 }
 
 #[test]
-fn test_charset_convert_error_maps_framework_output_failure_to_target_charset() {
+fn test_charset_convert_error_maps_framework_output_failure_to_target_charset()
+{
     let framework_error: TranscodeConvertErrorOf<Utf8Codec, AsciiCodec> =
-        TranscodeConvertError::Failure(TranscodeFailure::insufficient_output(2, 4, 1));
+        TranscodeConvertError::Failure(TranscodeFailure::insufficient_output(
+            2, 4, 1,
+        ));
 
-    let error = CharsetConvertError::from_transcode_error::<Utf8Codec, AsciiCodec>(
-        Charset::UTF_8,
-        Charset::ASCII,
-        framework_error,
-    );
+    let error = CharsetConvertError::from_transcode_error::<
+        Utf8Codec,
+        AsciiCodec,
+    >(Charset::UTF_8, Charset::ASCII, framework_error);
 
     assert_eq!(
         CharsetConvertError::Encode(CharsetEncodeError::new(
@@ -63,11 +83,12 @@ fn test_charset_convert_error_maps_every_converter_error_domain() {
         TranscodeFailure::FinishAfterFinish,
     ];
     for failure in source_failures {
-        let error = CharsetConvertError::from_transcode_error::<Utf8Codec, AsciiCodec>(
-            Charset::UTF_8,
-            Charset::ASCII,
-            FrameworkError::Failure(failure),
-        );
+        let error =
+            CharsetConvertError::from_transcode_error::<Utf8Codec, AsciiCodec>(
+                Charset::UTF_8,
+                Charset::ASCII,
+                FrameworkError::Failure(failure),
+            );
         assert!(matches!(error, CharsetConvertError::Decode(_)));
     }
 
@@ -78,11 +99,12 @@ fn test_charset_convert_error_maps_every_converter_error_domain() {
         TranscodeFailure::output_length_overflow(),
     ];
     for failure in target_failures {
-        let error = CharsetConvertError::from_transcode_error::<Utf8Codec, AsciiCodec>(
-            Charset::UTF_8,
-            Charset::ASCII,
-            FrameworkError::Failure(failure),
-        );
+        let error =
+            CharsetConvertError::from_transcode_error::<Utf8Codec, AsciiCodec>(
+                Charset::UTF_8,
+                Charset::ASCII,
+                FrameworkError::Failure(failure),
+            );
         assert!(matches!(error, CharsetConvertError::Encode(_)));
     }
 
@@ -91,11 +113,12 @@ fn test_charset_convert_error_maps_every_converter_error_domain() {
         CharsetDecodeErrorKind::malformed_unknown(),
         2,
     );
-    let error = CharsetConvertError::from_transcode_error::<Utf8Codec, AsciiCodec>(
-        Charset::UTF_8,
-        Charset::ASCII,
-        FrameworkError::decode_domain_main(decode, 2),
-    );
+    let error =
+        CharsetConvertError::from_transcode_error::<Utf8Codec, AsciiCodec>(
+            Charset::UTF_8,
+            Charset::ASCII,
+            FrameworkError::decode_domain_main(decode, 2),
+        );
     assert_eq!(CharsetConvertError::Decode(decode), error);
 
     let encode = CharsetEncodeError::new(
@@ -105,18 +128,20 @@ fn test_charset_convert_error_maps_every_converter_error_domain() {
         },
         3,
     );
-    let error = CharsetConvertError::from_transcode_error::<Utf8Codec, AsciiCodec>(
-        Charset::UTF_8,
-        Charset::ASCII,
-        FrameworkError::encode_domain_main(encode, 3),
-    );
+    let error =
+        CharsetConvertError::from_transcode_error::<Utf8Codec, AsciiCodec>(
+            Charset::UTF_8,
+            Charset::ASCII,
+            FrameworkError::encode_domain_main(encode, 3),
+        );
     assert_eq!(CharsetConvertError::Encode(encode), error);
 
-    let error = CharsetConvertError::from_transcode_error::<Utf8Codec, AsciiCodec>(
-        Charset::UTF_8,
-        Charset::ASCII,
-        FrameworkError::unencodable(5, '中'),
-    );
+    let error =
+        CharsetConvertError::from_transcode_error::<Utf8Codec, AsciiCodec>(
+            Charset::UTF_8,
+            Charset::ASCII,
+            FrameworkError::unencodable(5, '中'),
+        );
     assert_eq!(
         CharsetConvertError::Encode(CharsetEncodeError::new(
             Charset::ASCII,

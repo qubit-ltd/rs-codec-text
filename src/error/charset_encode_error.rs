@@ -5,10 +5,19 @@
 //
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
-use core::{error::Error, fmt};
+use core::{
+    error::Error,
+    fmt,
+};
 
-use crate::{Charset, CharsetEncodeErrorKind};
-use qubit_codec::{TranscodeEncodeError, TranscodeFailure};
+use crate::{
+    Charset,
+    CharsetEncodeErrorKind,
+};
+use qubit_codec::{
+    TranscodeEncodeError,
+    TranscodeFailure,
+};
 
 /// Error reported by a charset encoder.
 ///
@@ -39,9 +48,14 @@ impl CharsetEncodeError {
     /// Framework failures and unencodable values are mapped with `charset`;
     /// codec-domain errors retain their original charset error.
     #[must_use]
-    pub fn from_transcode_error(charset: Charset, error: TranscodeEncodeError<Self, char>) -> Self {
+    pub fn from_transcode_error(
+        charset: Charset,
+        error: TranscodeEncodeError<Self, char>,
+    ) -> Self {
         match error {
-            TranscodeEncodeError::Failure(failure) => Self::map_transcode_failure(charset, failure),
+            TranscodeEncodeError::Failure(failure) => {
+                Self::map_transcode_failure(charset, failure)
+            }
             TranscodeEncodeError::Unencodable { input_index, value } => {
                 Self::map_unencodable(charset, input_index, value)
             }
@@ -64,10 +78,17 @@ impl CharsetEncodeError {
     /// [`CharsetEncodeErrorKind::UnexpectedTranscodeFailure`] instead of
     /// being misreported as output-length overflow.
     #[must_use]
-    pub fn map_transcode_failure(charset: Charset, error: TranscodeFailure) -> Self {
+    pub fn map_transcode_failure(
+        charset: Charset,
+        error: TranscodeFailure,
+    ) -> Self {
         use TranscodeFailure::{
-            IncompleteInput, InsufficientOutput, InvalidInputIndex, InvalidOutputIndex,
-            OutputLengthOverflow, TrailingInput,
+            IncompleteInput,
+            InsufficientOutput,
+            InvalidInputIndex,
+            InvalidOutputIndex,
+            OutputLengthOverflow,
+            TrailingInput,
         };
 
         match error {
@@ -125,7 +146,11 @@ impl CharsetEncodeError {
 
     /// Maps a transcode-layer unencodable value into a charset encode error.
     #[must_use]
-    pub fn map_unencodable(charset: Charset, input_index: usize, value: Option<char>) -> Self {
+    pub fn map_unencodable(
+        charset: Charset,
+        input_index: usize,
+        value: Option<char>,
+    ) -> Self {
         Self::new(
             charset,
             match value {
@@ -150,7 +175,11 @@ impl CharsetEncodeError {
     ///
     /// Returns an encoding error carrying the supplied context.
     #[inline]
-    pub const fn new(charset: Charset, kind: CharsetEncodeErrorKind, index: usize) -> Self {
+    pub const fn new(
+        charset: Charset,
+        kind: CharsetEncodeErrorKind,
+        index: usize,
+    ) -> Self {
         Self {
             charset,
             kind,
