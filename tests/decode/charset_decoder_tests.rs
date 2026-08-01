@@ -1017,20 +1017,16 @@ fn test_charset_decoder_waits_when_codec_reports_incomplete_prefix() {
     let mut decoder = CharsetDecoder::new(IncompletePrefixCodec);
     reset_for_test(&mut decoder);
     let mut output = ['\0'; 1];
+    let input = [0xff];
 
     let progress = decoder
-        .transcode(&[0xff], 0, &mut output, 0)
+        .transcode(&input, 0, &mut output, 0)
         .expect("incomplete codec failure should wait for more input");
 
     match progress.status() {
-        TranscodeStatus::NeedInput {
-            input_index,
-            required,
-            available,
-        } => {
-            assert_eq!(0, input_index);
+        TranscodeStatus::NeedInput { required } => {
             assert_eq!(2, required.get());
-            assert_eq!(1, available);
+            assert_eq!(1, input.len().saturating_sub(progress.read()));
         }
         other => panic!("expected NeedInput, got {other:?}"),
     }
