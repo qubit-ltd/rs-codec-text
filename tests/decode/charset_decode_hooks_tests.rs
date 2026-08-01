@@ -6,27 +6,37 @@
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
 use qubit_codec::TranscodeDecodeError;
-use qubit_codec_text::{CharsetDecodeErrorKind, CharsetDecodePolicy, CharsetDecoder, Utf8Codec};
+use qubit_codec_text::{
+    CharsetDecodeErrorKind,
+    CharsetDecodePolicy,
+    CharsetDecoder,
+    Utf8Codec,
+};
 
 #[test]
 fn test_charset_decode_hooks_apply_the_configured_malformed_action() {
     let input = [b'A', 0x80, b'B'];
 
-    let mut replace = CharsetDecoder::with_policy(Utf8Codec, CharsetDecodePolicy::replace('!'));
+    let mut replace = CharsetDecoder::with_policy(
+        Utf8Codec,
+        CharsetDecodePolicy::replace('!'),
+    );
     let mut replace_output = ['\0'; 3];
     let written = replace
         .transcode_complete_into(&input, &mut replace_output)
         .expect("replacement policy should decode malformed input");
     assert_eq!(['A', '!', 'B'], replace_output[..written]);
 
-    let mut ignore = CharsetDecoder::with_policy(Utf8Codec, CharsetDecodePolicy::ignore());
+    let mut ignore =
+        CharsetDecoder::with_policy(Utf8Codec, CharsetDecodePolicy::ignore());
     let mut ignore_output = ['\0'; 3];
     let written = ignore
         .transcode_complete_into(&input, &mut ignore_output)
         .expect("ignore policy should skip malformed input");
     assert_eq!(['A', 'B'], ignore_output[..written]);
 
-    let mut report = CharsetDecoder::with_policy(Utf8Codec, CharsetDecodePolicy::report());
+    let mut report =
+        CharsetDecoder::with_policy(Utf8Codec, CharsetDecodePolicy::report());
     let mut report_output = ['\0'; 3];
     let error = report
         .transcode_complete_into(&input, &mut report_output)
