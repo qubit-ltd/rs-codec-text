@@ -7,12 +7,26 @@
 // =============================================================================
 use qubit_codec::engine::TranscodeDecodeEngine;
 use qubit_codec::{
-    CapacityError, Codec, TranscodeDecodeErrorOf, TranscodeDecoder, TranscodeProgress, Transcoder,
+    CapacityError,
+    Codec,
+    TranscodeDecodeErrorOf,
+    TranscodeDecoder,
+    TranscodeProgress,
+    Transcoder,
 };
 
-use crate::{BomDetectStatus, CharsetCodec, CharsetDecodeError, MalformedAction, UnicodeBom};
+use crate::{
+    BomDetectStatus,
+    CharsetCodec,
+    CharsetDecodeError,
+    MalformedAction,
+    UnicodeBom,
+};
 
-use super::{charset_decode_hooks::CharsetDecodeHooks, charset_decode_policy::CharsetDecodePolicy};
+use super::{
+    charset_decode_hooks::CharsetDecodeHooks,
+    charset_decode_policy::CharsetDecodePolicy,
+};
 
 /// Converts units of one charset into Unicode scalar values.
 ///
@@ -72,7 +86,10 @@ where
     /// Returns a decoder configured with `policy`.
     #[must_use]
     pub fn with_policy(codec: C, policy: CharsetDecodePolicy) -> Self {
-        let hooks = CharsetDecodeHooks::new(policy.malformed_action(), policy.replacement());
+        let hooks = CharsetDecodeHooks::new(
+            policy.malformed_action(),
+            policy.replacement(),
+        );
         Self {
             engine: TranscodeDecodeEngine::new(codec, hooks),
             policy,
@@ -202,7 +219,10 @@ where
     /// errors retain their original charset error.
     #[must_use]
     #[inline]
-    pub fn map_transcode_error(&self, error: TranscodeDecodeErrorOf<C>) -> CharsetDecodeError {
+    pub fn map_transcode_error(
+        &self,
+        error: TranscodeDecodeErrorOf<C>,
+    ) -> CharsetDecodeError {
         CharsetDecodeError::from_transcode_error(self.charset(), error)
     }
 
@@ -258,7 +278,9 @@ where
     pub fn detect_and_strip_bom(input: &[u8]) -> (Option<UnicodeBom>, &[u8]) {
         match Self::detect_and_strip_bom_progress(input, true) {
             (BomDetectStatus::Match(bom), stripped) => (Some(bom), stripped),
-            (BomDetectStatus::Pending | BomDetectStatus::None, stripped) => (None, stripped),
+            (BomDetectStatus::Pending | BomDetectStatus::None, stripped) => {
+                (None, stripped)
+            }
         }
     }
 
@@ -276,12 +298,17 @@ where
     /// slice for [`BomDetectStatus::Pending`] and [`BomDetectStatus::None`],
     /// or the input slice after the BOM prefix for [`BomDetectStatus::Match`].
     #[must_use]
-    pub fn detect_and_strip_bom_progress(input: &[u8], eof: bool) -> (BomDetectStatus, &[u8]) {
+    pub fn detect_and_strip_bom_progress(
+        input: &[u8],
+        eof: bool,
+    ) -> (BomDetectStatus, &[u8]) {
         match UnicodeBom::detect_progress(input, eof) {
             BomDetectStatus::Match(bom) => {
                 (BomDetectStatus::Match(bom), &input[bom.bytes().len()..])
             }
-            status @ (BomDetectStatus::Pending | BomDetectStatus::None) => (status, input),
+            status @ (BomDetectStatus::Pending | BomDetectStatus::None) => {
+                (status, input)
+            }
         }
     }
 }
@@ -296,7 +323,10 @@ where
 
     /// Returns the maximum number of characters decoded from `input_len` units.
     #[inline(always)]
-    fn max_transcode_output_len(&self, input_len: usize) -> Result<usize, CapacityError> {
+    fn max_transcode_output_len(
+        &self,
+        input_len: usize,
+    ) -> Result<usize, CapacityError> {
         self.engine.max_transcode_output_len(input_len)
     }
 
@@ -315,7 +345,11 @@ where
 
     /// Runs decoder reset while keeping decoder policy.
     #[inline(always)]
-    fn reset(&mut self, output: &mut [char], output_index: usize) -> Result<usize, Self::Error> {
+    fn reset(
+        &mut self,
+        output: &mut [char],
+        output_index: usize,
+    ) -> Result<usize, Self::Error> {
         self.engine.reset(output, output_index)
     }
 
@@ -347,7 +381,11 @@ where
 
     /// Finishes decoder-owned final output after EOF.
     #[inline(always)]
-    fn finish(&mut self, output: &mut [char], output_index: usize) -> Result<usize, Self::Error> {
+    fn finish(
+        &mut self,
+        output: &mut [char],
+        output_index: usize,
+    ) -> Result<usize, Self::Error> {
         self.engine.finish(output, output_index)
     }
 }

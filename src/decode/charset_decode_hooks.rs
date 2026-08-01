@@ -6,10 +6,22 @@
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
 // qubit-style: allow inline-tests
-use qubit_codec::engine::{DecodeContext, DecodeInvalidAction, TranscodeDecodeHooks};
-use qubit_codec::{CapacityError, TranscodeDecodeError, TranscodeDecodeErrorOf};
+use qubit_codec::engine::{
+    DecodeContext,
+    DecodeInvalidAction,
+    TranscodeDecodeHooks,
+};
+use qubit_codec::{
+    CapacityError,
+    TranscodeDecodeError,
+    TranscodeDecodeErrorOf,
+};
 
-use crate::{CharsetCodec, CharsetDecodeError, MalformedAction};
+use crate::{
+    CharsetCodec,
+    CharsetDecodeError,
+    MalformedAction,
+};
 
 /// Malformed-input policy hooks used by [`super::CharsetDecoder`].
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -33,7 +45,10 @@ impl CharsetDecodeHooks {
     /// Returns hooks carrying the supplied policy.
     #[must_use]
     #[inline]
-    pub(crate) const fn new(malformed_action: MalformedAction, replacement: char) -> Self {
+    pub(crate) const fn new(
+        malformed_action: MalformedAction,
+        replacement: char,
+    ) -> Self {
         Self {
             malformed_action,
             replacement,
@@ -68,11 +83,15 @@ where
                 .consumed()
                 .expect("malformed decode errors carry consumed width");
             return match self.malformed_action {
-                MalformedAction::Report => Err(TranscodeDecodeError::domain_main(
-                    *error,
-                    context.input_index(),
-                )),
-                MalformedAction::Ignore => Ok(DecodeInvalidAction::Skip { consumed }),
+                MalformedAction::Report => {
+                    Err(TranscodeDecodeError::domain_main(
+                        *error,
+                        context.input_index(),
+                    ))
+                }
+                MalformedAction::Ignore => {
+                    Ok(DecodeInvalidAction::Skip { consumed })
+                }
                 MalformedAction::Replace => Ok(DecodeInvalidAction::Emit {
                     value: self.replacement,
                     consumed,
@@ -90,14 +109,28 @@ where
 mod tests {
     use core::num::NonZeroUsize;
 
-    use qubit_codec::engine::{DecodeContext, DecodeInvalidAction, TranscodeDecodeHooks};
+    use qubit_codec::engine::{
+        DecodeContext,
+        DecodeInvalidAction,
+        TranscodeDecodeHooks,
+    };
 
     use super::CharsetDecodeHooks;
-    use crate::{Charset, CharsetDecodeError, CharsetDecodeErrorKind, MalformedAction, Utf8Codec};
+    use crate::{
+        Charset,
+        CharsetDecodeError,
+        CharsetDecodeErrorKind,
+        MalformedAction,
+        Utf8Codec,
+    };
 
     fn malformed_error() -> CharsetDecodeError {
-        CharsetDecodeError::new(Charset::UTF_8, CharsetDecodeErrorKind::malformed(0x80), 3)
-            .with_consumed(NonZeroUsize::MIN)
+        CharsetDecodeError::new(
+            Charset::UTF_8,
+            CharsetDecodeErrorKind::malformed(0x80),
+            3,
+        )
+        .with_consumed(NonZeroUsize::MIN)
     }
 
     #[test]
@@ -145,7 +178,12 @@ mod tests {
         );
         assert!(
             hooks
-                .handle_invalid_decode(&mut codec, &non_malformed, None, context)
+                .handle_invalid_decode(
+                    &mut codec,
+                    &non_malformed,
+                    None,
+                    context
+                )
                 .is_err()
         );
     }
