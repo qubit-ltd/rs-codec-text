@@ -11,21 +11,11 @@ use std::hint::black_box;
 use std::time::Duration;
 
 use criterion::{
-    BenchmarkGroup,
-    Criterion,
-    Throughput,
-    criterion_group,
-    criterion_main,
-    measurement::WallTime,
+    BenchmarkGroup, Criterion, Throughput, criterion_group, criterion_main, measurement::WallTime,
 };
 use qubit_codec::Transcoder;
 use qubit_codec_text::{
-    CharsetCodec,
-    CharsetConverter,
-    CharsetDecoder,
-    CharsetEncoder,
-    Utf8Codec,
-    Utf16U16Codec,
+    CharsetCodec, CharsetConverter, CharsetDecoder, CharsetEncoder, Utf8Codec, Utf16U16Codec,
     Utf32U32Codec,
 };
 
@@ -33,8 +23,7 @@ const FIXTURE_REPEAT: usize = 2_048;
 const SAMPLE_SIZE: usize = 20;
 
 fn fixture() -> String {
-    "ASCII codec throughput 0123456789 — 中文字符 — Ελληνικά — 🦀🚀\n"
-        .repeat(FIXTURE_REPEAT)
+    "ASCII codec throughput 0123456789 — 中文字符 — Ελληνικά — 🦀🚀\n".repeat(FIXTURE_REPEAT)
 }
 
 fn bench_encode<C>(
@@ -56,10 +45,7 @@ fn bench_encode<C>(
     group.bench_function(name, |bencher| {
         bencher.iter(|| {
             let written = encoder
-                .transcode_complete_into(
-                    black_box(chars),
-                    output.as_mut_slice(),
-                )
+                .transcode_complete_into(black_box(chars), output.as_mut_slice())
                 .expect("valid fixture should encode");
             black_box((written, output[0..written].as_ptr()));
         });
@@ -84,10 +70,7 @@ fn bench_decode<C>(
     group.bench_function(name, |bencher| {
         bencher.iter(|| {
             let written = decoder
-                .transcode_complete_into(
-                    black_box(input),
-                    output.as_mut_slice(),
-                )
+                .transcode_complete_into(black_box(input), output.as_mut_slice())
                 .expect("valid fixture should decode");
             black_box((written, output[0..written].as_ptr()));
         });
@@ -115,10 +98,7 @@ fn bench_convert<D, E>(
     group.bench_function(name, |bencher| {
         bencher.iter(|| {
             let written = converter
-                .transcode_complete_into(
-                    black_box(input),
-                    output.as_mut_slice(),
-                )
+                .transcode_complete_into(black_box(input), output.as_mut_slice())
                 .expect("valid fixture should convert");
             black_box((written, output[0..written].as_ptr()));
         });

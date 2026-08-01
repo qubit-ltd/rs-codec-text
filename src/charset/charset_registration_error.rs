@@ -5,15 +5,9 @@
 //
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
-use core::{
-    error::Error,
-    fmt,
-};
+use core::{error::Error, fmt};
 
-use super::{
-    charset::Charset,
-    charset_registration_error_kind::CharsetRegistrationErrorKind,
-};
+use super::{charset::Charset, charset_registration_error_kind::CharsetRegistrationErrorKind};
 
 /// Error returned when a charset cannot be registered.
 ///
@@ -67,10 +61,7 @@ impl CharsetRegistrationError {
     ///
     /// Returns an error carrying the invalid registration context.
     #[inline]
-    pub(crate) const fn invalid_label(
-        label: &'static str,
-        candidate: Charset,
-    ) -> Self {
+    pub(crate) const fn invalid_label(label: &'static str, candidate: Charset) -> Self {
         Self {
             label,
             kind: CharsetRegistrationErrorKind::InvalidLabel,
@@ -107,9 +98,7 @@ impl CharsetRegistrationError {
     #[inline]
     pub const fn existing(self) -> Option<Charset> {
         match self.kind {
-            CharsetRegistrationErrorKind::ConflictingLabel { existing } => {
-                Some(existing)
-            }
+            CharsetRegistrationErrorKind::ConflictingLabel { existing } => Some(existing),
             CharsetRegistrationErrorKind::InvalidLabel => None,
         }
     }

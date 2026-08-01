@@ -5,10 +5,7 @@
 //
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
-use qubit_codec_text::{
-    CharsetEncodePolicy,
-    UnmappableAction,
-};
+use qubit_codec_text::{CharsetEncodePolicy, UnmappableAction};
 
 #[test]
 fn test_charset_encode_policy_constructors_preserve_action_and_replacement() {
