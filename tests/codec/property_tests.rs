@@ -1,18 +1,35 @@
 use proptest::{
     collection,
-    prelude::{Strategy, any},
-    prop_assert_eq, proptest,
+    prelude::{
+        Strategy,
+        any,
+    },
+    prop_assert_eq,
+    proptest,
 };
-use qubit_codec::{ByteOrder, TranscodeDecodeError, Transcoder};
+use qubit_codec::{
+    ByteOrder,
+    TranscodeDecodeError,
+    Transcoder,
+};
 use qubit_codec_text::{
-    CharsetCodec, CharsetDecodeError, CharsetDecoder, CharsetEncoder, Utf8Codec, Utf16ByteCodec,
+    CharsetCodec,
+    CharsetDecodeError,
+    CharsetDecoder,
+    CharsetEncoder,
+    Utf8Codec,
+    Utf16ByteCodec,
 };
 
 fn short_string() -> impl Strategy<Value = String> {
-    collection::vec(any::<char>(), 0..128).prop_map(|chars| chars.into_iter().collect())
+    collection::vec(any::<char>(), 0..128)
+        .prop_map(|chars| chars.into_iter().collect())
 }
 
-fn encode_string<C>(encoder: &mut CharsetEncoder<C>, input: &str) -> Vec<C::Unit>
+fn encode_string<C>(
+    encoder: &mut CharsetEncoder<C>,
+    input: &str,
+) -> Vec<C::Unit>
 where
     C: CharsetCodec,
     C::Unit: Default,
