@@ -7,10 +7,7 @@
 // =============================================================================
 use qubit_codec::ByteOrder;
 
-use crate::{
-    Unicode,
-    UnicodeBom,
-};
+use crate::{Unicode, UnicodeBom};
 
 /// Namespace for UTF-32 constants and code-unit classification helpers.
 pub enum Utf32 {}
@@ -63,9 +60,7 @@ impl Utf32 {
     pub fn detect_bom(bytes: &[u8]) -> Option<ByteOrder> {
         match UnicodeBom::detect(bytes) {
             Some(UnicodeBom::Utf32BigEndian) => Some(ByteOrder::BigEndian),
-            Some(UnicodeBom::Utf32LittleEndian) => {
-                Some(ByteOrder::LittleEndian)
-            }
+            Some(UnicodeBom::Utf32LittleEndian) => Some(ByteOrder::LittleEndian),
             _ => None,
         }
     }

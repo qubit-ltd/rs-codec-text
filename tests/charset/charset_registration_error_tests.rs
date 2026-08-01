@@ -5,10 +5,7 @@
 //
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
-use qubit_codec_text::{
-    Charset,
-    CharsetRegistrationErrorKind,
-};
+use qubit_codec_text::{Charset, CharsetRegistrationErrorKind};
 
 #[test]
 fn test_charset_registration_error_exposes_invalid_label_context() {
