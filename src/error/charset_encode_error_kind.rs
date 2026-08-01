@@ -64,7 +64,9 @@ pub enum CharsetEncodeErrorKind {
     OutputLengthOverflow,
 
     /// The closed input ended before a complete value was available.
-    #[error("The input is incomplete (required {required} units, available {available} units).")]
+    #[error(
+        "The input is incomplete (required {required} units, available {available} units)."
+    )]
     IncompleteInput {
         /// Total units required to complete the value.
         required: usize,
@@ -109,9 +111,8 @@ impl CharsetEncodeErrorKind {
     #[inline]
     pub const fn required(self) -> Option<usize> {
         match self {
-            Self::BufferTooSmall { required, .. } | Self::IncompleteInput { required, .. } => {
-                Some(required)
-            }
+            Self::BufferTooSmall { required, .. }
+            | Self::IncompleteInput { required, .. } => Some(required),
             Self::InvalidInputIndex { .. }
             | Self::InvalidOutputIndex { .. }
             | Self::InvalidCodePoint { .. }
@@ -134,9 +135,8 @@ impl CharsetEncodeErrorKind {
     #[inline]
     pub const fn available(self) -> Option<usize> {
         match self {
-            Self::BufferTooSmall { available, .. } | Self::IncompleteInput { available, .. } => {
-                Some(available)
-            }
+            Self::BufferTooSmall { available, .. }
+            | Self::IncompleteInput { available, .. } => Some(available),
             Self::InvalidInputIndex { .. }
             | Self::InvalidOutputIndex { .. }
             | Self::InvalidCodePoint { .. }
