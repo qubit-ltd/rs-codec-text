@@ -13,9 +13,7 @@ pub(crate) fn incomplete_required(
     failure: qubit_codec::DecodeFailure<qubit_codec_text::CharsetDecodeError>,
 ) -> usize {
     match failure {
-        qubit_codec::DecodeFailure::Incomplete { required_total } => {
-            required_total.get()
-        }
+        qubit_codec::DecodeFailure::Incomplete { required_total } => required_total.get(),
         qubit_codec::DecodeFailure::Invalid { .. } => {
             panic!("expected incomplete charset decode failure")
         }
