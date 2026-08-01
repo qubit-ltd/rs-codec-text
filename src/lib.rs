@@ -24,55 +24,18 @@ mod encode;
 mod error;
 mod util;
 pub use charset::{
-    Ascii,
-    BomDetectStatus,
-    Charset,
-    CharsetRegistrationError,
-    CharsetRegistrationErrorKind,
-    Latin1,
-    Unicode,
-    UnicodeBom,
-    Utf8,
-    Utf16,
-    Utf32,
+    Ascii, BomDetectStatus, Charset, CharsetRegistrationError, CharsetRegistrationErrorKind,
+    Latin1, Unicode, UnicodeBom, Utf8, Utf16, Utf32,
 };
-pub use codec::{
-    AsciiCodec,
-    CharsetCodec,
-    Latin1Codec,
-};
-pub use codec::{
-    Utf8Codec,
-    Utf16ByteCodec,
-    Utf16U16Codec,
-    Utf32ByteCodec,
-    Utf32U32Codec,
-};
-pub use convert::{
-    CharsetConvertError,
-    CharsetConverter,
-    MalformedAction,
-    UnmappableAction,
-};
+pub use codec::{AsciiCodec, CharsetCodec, Latin1Codec};
+pub use codec::{Utf8Codec, Utf16ByteCodec, Utf16U16Codec, Utf32ByteCodec, Utf32U32Codec};
+pub use convert::{CharsetConvertError, CharsetConverter, MalformedAction, UnmappableAction};
 pub(crate) use decode::CharsetDecodeHooks;
-pub use decode::{
-    CharsetDecodePolicy,
-    CharsetDecoder,
-};
+pub use decode::{CharsetDecodePolicy, CharsetDecoder};
 pub(crate) use encode::CharsetEncodeHooks;
-pub use encode::{
-    CharsetEncodePolicy,
-    CharsetEncoder,
-};
+pub use encode::{CharsetEncodePolicy, CharsetEncoder};
 pub use error::{
-    CharsetDecodeError,
-    CharsetDecodeErrorKind,
-    CharsetDecodeResult,
-    CharsetEncodeError,
-    CharsetEncodeErrorKind,
-    CharsetEncodeResult,
+    CharsetDecodeError, CharsetDecodeErrorKind, CharsetDecodeResult, CharsetEncodeError,
+    CharsetEncodeErrorKind, CharsetEncodeResult,
 };
-pub use util::{
-    normalize_label_loose,
-    normalize_label_whatwg,
-};
+pub use util::{normalize_label_loose, normalize_label_whatwg};

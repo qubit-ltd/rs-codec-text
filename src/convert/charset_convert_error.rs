@@ -5,18 +5,9 @@
 //
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
-use qubit_codec::{
-    TranscodeConvertError,
-    TranscodeConvertErrorOf,
-    TranscodeFailure,
-};
+use qubit_codec::{TranscodeConvertError, TranscodeConvertErrorOf, TranscodeFailure};
 
-use crate::{
-    Charset,
-    CharsetCodec,
-    CharsetDecodeError,
-    CharsetEncodeError,
-};
+use crate::{Charset, CharsetCodec, CharsetDecodeError, CharsetEncodeError};
 
 /// Error reported while converting between two charsets.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, thiserror::Error)]
@@ -57,25 +48,13 @@ impl CharsetConvertError {
     {
         match error {
             TranscodeConvertError::Failure(failure) => {
-                Self::from_transcode_failure(
-                    source_charset,
-                    target_charset,
-                    failure,
-                )
+                Self::from_transcode_failure(source_charset, target_charset, failure)
             }
-            TranscodeConvertError::DecodeDomain(error) => {
-                Self::Decode(error.into_source())
-            }
-            TranscodeConvertError::EncodeDomain(error) => {
-                Self::Encode(error.into_source())
-            }
-            TranscodeConvertError::Unencodable { input_index, value } => {
-                Self::Encode(CharsetEncodeError::map_unencodable(
-                    target_charset,
-                    input_index,
-                    value,
-                ))
-            }
+            TranscodeConvertError::DecodeDomain(error) => Self::Decode(error.into_source()),
+            TranscodeConvertError::EncodeDomain(error) => Self::Encode(error.into_source()),
+            TranscodeConvertError::Unencodable { input_index, value } => Self::Encode(
+                CharsetEncodeError::map_unencodable(target_charset, input_index, value),
+            ),
         }
     }
 
@@ -101,21 +80,15 @@ impl CharsetConvertError {
         match failure {
             failure @ (TranscodeFailure::InvalidInputIndex { .. }
             | TranscodeFailure::IncompleteInput { .. }
-            | TranscodeFailure::TrailingInput { .. }) => {
-                Self::Decode(CharsetDecodeError::map_transcode_failure(
-                    source_charset,
-                    failure,
-                ))
-            }
+            | TranscodeFailure::TrailingInput { .. }) => Self::Decode(
+                CharsetDecodeError::map_transcode_failure(source_charset, failure),
+            ),
             failure @ (TranscodeFailure::InvalidOutputIndex { .. }
             | TranscodeFailure::InvalidOutputRange { .. }
             | TranscodeFailure::InsufficientOutput { .. }
-            | TranscodeFailure::OutputLengthOverflow) => {
-                Self::Encode(CharsetEncodeError::map_transcode_failure(
-                    target_charset,
-                    failure,
-                ))
-            }
+            | TranscodeFailure::OutputLengthOverflow) => Self::Encode(
+                CharsetEncodeError::map_transcode_failure(target_charset, failure),
+            ),
             failure => Self::Decode(CharsetDecodeError::map_transcode_failure(
                 source_charset,
                 failure,
