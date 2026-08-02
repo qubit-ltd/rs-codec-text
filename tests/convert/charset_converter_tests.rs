@@ -830,7 +830,8 @@ fn test_charset_converter_reports_invalid_input_index() {
 #[test]
 fn test_charset_converter_maps_framework_errors_with_its_charsets() {
     let converter = CharsetConverter::from_codecs(Utf8Codec, AsciiBytesCodec);
-    let framework_error = qubit_codec::TranscodeFailure::insufficient_output(1, 2, 0).into();
+    let framework_error =
+        qubit_codec::TranscodeFailure::insufficient_output(1, 2, 0).into();
 
     let error = converter.map_transcode_error(framework_error);
 
