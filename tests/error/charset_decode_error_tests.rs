@@ -113,10 +113,7 @@ fn test_charset_decode_error_exposes_consumption_and_incomplete_details() {
         2,
     );
     assert_eq!(
-        qubit_codec::DecodeFailure::Invalid {
-            source: invalid_index,
-            consumed: None,
-        },
+        qubit_codec::DecodeFailure::invalid_unknown(invalid_index.clone()),
         invalid_index.into_codec_failure(),
     );
 }
@@ -133,10 +130,7 @@ fn test_charset_decode_error_keeps_buffer_too_small_invalid() {
     );
 
     assert_eq!(
-        DecodeFailure::Invalid {
-            source: error,
-            consumed: None,
-        },
+        DecodeFailure::invalid_unknown(error.clone()),
         error.into_codec_failure(),
     );
 }
@@ -190,13 +184,7 @@ fn test_charset_decode_error_maps_zero_required_incomplete_as_invalid() {
     {
         let failure = error.into_codec_failure();
 
-        assert_eq!(
-            DecodeFailure::Invalid {
-                source: error,
-                consumed: None,
-            },
-            failure,
-        );
+        assert_eq!(DecodeFailure::invalid_unknown(error), failure);
     }
 }
 

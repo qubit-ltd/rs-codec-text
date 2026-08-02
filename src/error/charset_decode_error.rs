@@ -210,7 +210,7 @@ impl CharsetDecodeError {
     pub fn into_codec_failure(self) -> DecodeFailure<Self> {
         if let Some((required, _)) = self.kind.incomplete() {
             if let Some(required) = NonZeroUsize::new(required) {
-                DecodeFailure::incomplete(required)
+                DecodeFailure::incomplete_with_source(self, required)
             } else {
                 #[cfg(debug_assertions)]
                 panic!(
