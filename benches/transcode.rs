@@ -11,12 +11,12 @@ use std::hint::black_box;
 use std::time::Duration;
 
 use criterion::{
-    criterion_group,
-    criterion_main,
-    measurement::WallTime,
     BenchmarkGroup,
     Criterion,
     Throughput,
+    criterion_group,
+    criterion_main,
+    measurement::WallTime,
 };
 use qubit_codec::Transcoder;
 use qubit_codec_text::{
@@ -24,9 +24,9 @@ use qubit_codec_text::{
     CharsetConverter,
     CharsetDecoder,
     CharsetEncoder,
+    Utf8Codec,
     Utf16U16Codec,
     Utf32U32Codec,
-    Utf8Codec,
 };
 
 const FIXTURE_REPEAT: usize = 2_048;
