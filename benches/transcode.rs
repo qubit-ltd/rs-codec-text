@@ -11,12 +11,12 @@ use std::hint::black_box;
 use std::time::Duration;
 
 use criterion::{
-    BenchmarkGroup,
-    Criterion,
-    Throughput,
     criterion_group,
     criterion_main,
     measurement::WallTime,
+    BenchmarkGroup,
+    Criterion,
+    Throughput,
 };
 use qubit_codec::Transcoder;
 use qubit_codec_text::{
@@ -24,9 +24,9 @@ use qubit_codec_text::{
     CharsetConverter,
     CharsetDecoder,
     CharsetEncoder,
-    Utf8Codec,
     Utf16U16Codec,
     Utf32U32Codec,
+    Utf8Codec,
 };
 
 const FIXTURE_REPEAT: usize = 2_048;
@@ -92,6 +92,36 @@ fn bench_decode<C>(
             black_box((written, output[0..written].as_ptr()));
         });
     });
+}
+
+/// Decodes UTF-8 through deliberately short output windows.
+fn decode_utf8_window(
+    decoder: &mut CharsetDecoder<Utf8Codec>,
+    input: &[u8],
+    output: &mut [char],
+) -> u64 {
+    decoder
+        .reset(&mut [], 0)
+        .expect("UTF-8 reset should be infallible");
+    let mut input_index = 0;
+    let mut checksum = 0_u64;
+    while input_index < input.len() {
+        let progress = decoder
+            .transcode(input, input_index, output, 0)
+            .expect("valid UTF-8 fixture should decode");
+        input_index += progress.read();
+        for &character in &output[..progress.written()] {
+            checksum = checksum
+                .rotate_left(5)
+                .wrapping_add(u64::from(character as u32));
+        }
+        if progress.is_complete() {
+            break;
+        }
+    }
+    assert_eq!(input.len(), input_index);
+    assert_eq!(0, decoder.finish(&mut [], 0).expect("UTF-8 finish"));
+    checksum
 }
 
 fn bench_convert<D, E>(
@@ -173,6 +203,21 @@ fn bench_charset_transcode(criterion: &mut Criterion) {
         &utf32,
         logical_bytes,
     );
+    for window in [7_usize, 31] {
+        let name = format!("utf8_output_window_{window}");
+        let mut decoder = CharsetDecoder::new(Utf8Codec);
+        let mut output = vec!['\0'; window];
+        decode.throughput(Throughput::Bytes(logical_bytes));
+        decode.bench_function(name, |bencher| {
+            bencher.iter(|| {
+                black_box(decode_utf8_window(
+                    &mut decoder,
+                    black_box(&utf8),
+                    black_box(output.as_mut_slice()),
+                ))
+            });
+        });
+    }
     decode.finish();
 
     let mut convert = criterion.benchmark_group("charset_convert");

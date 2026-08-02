@@ -113,7 +113,7 @@ fn test_charset_decode_error_exposes_consumption_and_incomplete_details() {
         2,
     );
     assert_eq!(
-        qubit_codec::DecodeFailure::invalid_unknown(invalid_index.clone()),
+        qubit_codec::DecodeFailure::invalid_unknown(invalid_index),
         invalid_index.into_codec_failure(),
     );
 }
@@ -130,7 +130,7 @@ fn test_charset_decode_error_keeps_buffer_too_small_invalid() {
     );
 
     assert_eq!(
-        DecodeFailure::invalid_unknown(error.clone()),
+        DecodeFailure::invalid_unknown(error),
         error.into_codec_failure(),
     );
 }
