@@ -7,10 +7,11 @@
 // =============================================================================
 use crate::MalformedAction;
 
-/// Malformed-input policy used by charset decoders and converters.
+/// Malformed-input and incomplete-EOF policy used by charset decoders and
+/// converters.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub struct CharsetDecodePolicy {
-    /// Action used for malformed input units.
+    /// Action used for malformed input units and incomplete tails at EOF.
     malformed_action: MalformedAction,
     /// Replacement character used by [`MalformedAction::Replace`].
     replacement: char,
@@ -20,7 +21,7 @@ impl CharsetDecodePolicy {
     /// Default replacement character used when malformed input is replaced.
     pub const DEFAULT_REPLACEMENT: char = '\u{fffd}';
 
-    /// Creates a malformed-input policy.
+    /// Creates a policy for malformed input and incomplete tails at EOF.
     #[must_use]
     #[inline]
     pub const fn new(
