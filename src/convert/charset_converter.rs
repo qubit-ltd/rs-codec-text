@@ -37,8 +37,8 @@ use qubit_codec::{
 /// engine when the target output buffer is full. During
 /// [`Transcoder::finish`], the converter drains internally retained
 /// output and finishes the composed decode/encode policy hooks. Callers remain
-/// responsible for handling any incomplete input tail before finishing the
-/// logical stream.
+/// responsible for passing any incomplete input tail to
+/// [`Transcoder::transcode_eof`] before finishing the logical stream.
 ///
 /// # Type Parameters
 ///
@@ -383,6 +383,25 @@ where
             .transcode(input, input_index, output, output_index)
     }
 
+    /// Converts source units after the caller has established end of input.
+    ///
+    /// # Errors
+    ///
+    /// Returns a transcode convert error when EOF source input violates the
+    /// configured decode policy, target encoding fails, or framework-level
+    /// index and capacity checks fail.
+    #[inline]
+    pub fn transcode_eof(
+        &mut self,
+        input: &[D::Unit],
+        input_index: usize,
+        output: &mut [E::Unit],
+        output_index: usize,
+    ) -> Result<TranscodeProgress, TranscodeConvertErrorOf<D, E>> {
+        self.engine
+            .transcode_eof(input, input_index, output, output_index)
+    }
+
     /// Finishes retained converter output.
     ///
     /// # Errors
@@ -403,8 +422,8 @@ where
     /// # Errors
     ///
     /// Returns a transcode convert error when source decoding or target
-    /// encoding fails, when complete input ends with an incomplete source
-    /// sequence, or when the supplied output buffer is too small.
+    /// encoding fails under the configured policies, or when the supplied
+    /// output buffer is too small.
     #[inline]
     pub fn transcode_complete_into(
         &mut self,
@@ -509,6 +528,30 @@ where
     ) -> Result<TranscodeProgress, Self::Error> {
         self.engine
             .transcode(input, input_index, output, output_index)
+    }
+
+    /// Converts source units after the caller has established end of input.
+    ///
+    /// # Errors
+    ///
+    /// Returns framework failures when indices or output capacity are invalid,
+    /// and domain errors when EOF source input violates the configured decode
+    /// policy or target encoding policy.
+    #[inline]
+    fn transcode_eof(
+        &mut self,
+        input: &[D::Unit],
+        input_index: usize,
+        output: &mut [E::Unit],
+        output_index: usize,
+    ) -> Result<TranscodeProgress, Self::Error> {
+        CharsetConverter::transcode_eof(
+            self,
+            input,
+            input_index,
+            output,
+            output_index,
+        )
     }
 
     /// Finalizes internally retained decoded characters and policy hook state.

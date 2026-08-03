@@ -1,3 +1,10 @@
+// =============================================================================
+//    Copyright (c) 2026 Haixing Hu.
+//
+//    SPDX-License-Identifier: Apache-2.0
+//
+//    Licensed under the Apache License, Version 2.0.
+// =============================================================================
 #![no_main]
 
 use libfuzzer_sys::fuzz_target;
@@ -41,7 +48,11 @@ fuzz_target!(|data: &[u8]| {
             assert!(report_result.is_err());
         }
         Err(_) => {
-            assert!(replace_result.is_err());
+            let expected =
+                String::from_utf8_lossy(data).chars().collect::<Vec<_>>();
+            let replace_written = replace_result
+                .expect("incomplete UTF-8 at EOF must be replaceable");
+            assert_eq!(expected, replace_output[..replace_written]);
             assert!(report_result.is_err());
         }
     }
