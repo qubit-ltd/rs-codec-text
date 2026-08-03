@@ -12,6 +12,7 @@ mod bom_detect_status;
 mod charset;
 mod charset_registration_error;
 mod charset_registration_error_kind;
+mod internal;
 mod latin1;
 mod unicode;
 mod unicode_bom;

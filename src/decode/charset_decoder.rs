@@ -31,7 +31,8 @@ use super::{
 /// Converts units of one charset into Unicode scalar values.
 ///
 /// `CharsetDecoder` wraps a low-level [`CharsetCodec`] and applies the
-/// configured [`MalformedAction`] whenever the codec reports malformed input.
+/// configured [`MalformedAction`] whenever the codec reports malformed input
+/// or an incomplete tail is encountered at EOF.
 /// The decoder asks the wrapped codec whether one value can be decoded from the
 /// currently available units. If the codec reports a valid incomplete prefix,
 /// the tail is left in the caller-provided input slice and
@@ -246,8 +247,8 @@ where
     /// # Errors
     ///
     /// Returns a transcode decode error when the supplied output buffer is too
-    /// small, the complete input ends with an incomplete sequence, or the
-    /// codec reports a charset-domain decode error.
+    /// small, the configured policy reports an incomplete sequence, or the
+    /// codec reports another charset-domain decode error.
     #[inline]
     pub fn transcode_complete_into(
         &mut self,

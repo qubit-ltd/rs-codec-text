@@ -35,6 +35,7 @@ use crate::{
 };
 
 use super::charset_registration_error::CharsetRegistrationError;
+use super::internal::LabelNormalization;
 
 /// Global runtime charset registry.
 static CHARSET_REGISTRY: OnceLock<RwLock<Vec<Charset>>> = OnceLock::new();
@@ -66,16 +67,6 @@ pub struct Charset {
     name: &'static str,
     /// Static alias list accepted in label matching.
     aliases: &'static [&'static str],
-}
-
-/// Label normalization flavor used by charset lookup.
-#[derive(Clone, Copy)]
-enum LabelNormalization {
-    /// Loose matching trims ASCII whitespace, folds ASCII case, and ignores
-    /// `-` / `_` separators.
-    Loose,
-    /// WHATWG-style preprocessing trims ASCII whitespace and folds ASCII case.
-    Whatwg,
 }
 
 impl Charset {
