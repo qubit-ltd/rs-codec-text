@@ -16,7 +16,7 @@
 ```toml
 [dependencies]
 qubit-codec-text = "0.3"
-qubit-codec = "0.11"
+qubit-codec = "0.10"
 ```
 
 只有需要序列化 `Charset` 时才启用 `serde`：
