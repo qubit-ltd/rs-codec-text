@@ -661,6 +661,58 @@ fn test_charset_converter_complete_into_maps_framework_errors() {
 }
 
 #[test]
+fn test_charset_converter_applies_decode_policy_to_eof_tail() {
+    let mut replace = CharsetConverter::from_codecs_with_policies(
+        Utf8Codec,
+        Utf16U16Codec,
+        CharsetDecodePolicy::replace('!'),
+        CharsetEncodePolicy::default(),
+    )
+    .expect("replacement policy should be encodable");
+    let mut replace_output = [0_u16; 6];
+    let replace_written = replace
+        .transcode_complete_into(&[0xe4], &mut replace_output)
+        .expect("replacement policy should repair incomplete UTF-8 at EOF");
+    assert_eq!(1, replace_written);
+    assert_eq!(['!' as u16], replace_output[0..replace_written]);
+
+    let mut ignore = CharsetConverter::from_codecs_with_policies(
+        Utf8Codec,
+        Utf16U16Codec,
+        CharsetDecodePolicy::ignore(),
+        CharsetEncodePolicy::default(),
+    )
+    .expect("ignore policy should be encodable");
+    let mut ignore_output = [0_u16; 6];
+    let ignore_written = ignore
+        .transcode_complete_into(&[0xe4], &mut ignore_output)
+        .expect("ignore policy should drop incomplete UTF-8 at EOF");
+    assert_eq!(0, ignore_written);
+
+    let mut report = CharsetConverter::from_codecs_with_policies(
+        Utf8Codec,
+        Utf16U16Codec,
+        CharsetDecodePolicy::report(),
+        CharsetEncodePolicy::default(),
+    )
+    .expect("report policy should be encodable");
+    let mut report_output = [0_u16; 6];
+    let error = report
+        .transcode_complete_into(&[0xe4], &mut report_output)
+        .map_err(map_convert_error)
+        .expect_err("report policy should reject incomplete UTF-8 at EOF");
+    assert!(matches!(
+        error,
+        CharsetConvertError::Decode(error)
+            if error.kind()
+                == CharsetDecodeErrorKind::IncompleteSequence {
+                    required: 3,
+                    available: 1,
+                }
+    ));
+}
+
+#[test]
 fn test_charset_converter_exposes_configuration_and_bounds() {
     let mut converter = CharsetConverter::from_codecs(Utf8Codec, Utf16U16Codec);
 

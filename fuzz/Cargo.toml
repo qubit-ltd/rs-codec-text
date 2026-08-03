@@ -10,7 +10,7 @@ cargo-fuzz = true
 
 [dependencies]
 libfuzzer-sys = "0.4"
-qubit-codec = { version = "0.10" }
+qubit-codec = { path = "../../rs-codec", version = "0.10" }
 qubit-codec-text = { path = ".." }
 
 [[bin]]
@@ -23,6 +23,34 @@ bench = false
 [[bin]]
 name = "utf16_decode"
 path = "fuzz_targets/utf16_decode.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "utf32_decode"
+path = "fuzz_targets/utf32_decode.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "utf8_chunked_decode"
+path = "fuzz_targets/utf8_chunked_decode.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "utf8_encode"
+path = "fuzz_targets/utf8_encode.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "utf8_to_utf16_convert"
+path = "fuzz_targets/utf8_to_utf16_convert.rs"
 test = false
 doc = false
 bench = false

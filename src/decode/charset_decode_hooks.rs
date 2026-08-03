@@ -5,9 +5,9 @@
 //
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
-// qubit-style: allow inline-tests
 use qubit_codec::engine::{
     DecodeContext,
+    DecodeIncompleteAction,
     DecodeInvalidAction,
     TranscodeDecodeHooks,
 };
@@ -103,88 +103,25 @@ where
             context.input_index(),
         ))
     }
-}
 
-#[cfg(test)]
-mod tests {
-    use core::num::NonZeroUsize;
-
-    use qubit_codec::engine::{
-        DecodeContext,
-        DecodeInvalidAction,
-        TranscodeDecodeHooks,
-    };
-
-    use super::CharsetDecodeHooks;
-    use crate::{
-        Charset,
-        CharsetDecodeError,
-        CharsetDecodeErrorKind,
-        MalformedAction,
-        Utf8Codec,
-    };
-
-    fn malformed_error() -> CharsetDecodeError {
-        CharsetDecodeError::new(
-            Charset::UTF_8,
-            CharsetDecodeErrorKind::malformed(0x80),
-            3,
-        )
-        .with_consumed(NonZeroUsize::MIN)
-    }
-
-    #[test]
-    fn test_charset_decode_hooks_handle_each_policy_action() {
-        let mut codec = Utf8Codec;
-        let context = DecodeContext::new(0, 3, 0, 2, 1);
-        let error = malformed_error();
-
-        let hooks = CharsetDecodeHooks::new(MalformedAction::Replace, '!');
-        assert_eq!(
-            Ok(4),
-            <CharsetDecodeHooks as TranscodeDecodeHooks<Utf8Codec>>::max_transcode_output_len(
-                &hooks, &codec, 4,
-            )
-        );
-
-        let mut hooks = CharsetDecodeHooks::new(MalformedAction::Replace, '!');
-        assert_eq!(
-            Ok(DecodeInvalidAction::Emit {
-                value: '!',
-                consumed: NonZeroUsize::MIN,
+    /// Selects the malformed-input action for a source tail left incomplete at
+    /// end of input.
+    ///
+    /// Incomplete EOF tails use the same policy as malformed source input.
+    /// The engine preserves the optional codec error when reporting is chosen.
+    fn handle_incomplete_decode(
+        &mut self,
+        _codec: &mut C,
+        _source: Option<&CharsetDecodeError>,
+        _required_total: core::num::NonZeroUsize,
+        _context: DecodeContext,
+    ) -> Result<DecodeIncompleteAction<char>, TranscodeDecodeErrorOf<C>> {
+        match self.malformed_action {
+            MalformedAction::Report => Ok(DecodeIncompleteAction::Reject),
+            MalformedAction::Ignore => Ok(DecodeIncompleteAction::Skip),
+            MalformedAction::Replace => Ok(DecodeIncompleteAction::Emit {
+                value: self.replacement,
             }),
-            hooks.handle_invalid_decode(&mut codec, &error, None, context)
-        );
-
-        let mut hooks = CharsetDecodeHooks::new(MalformedAction::Ignore, '!');
-        assert_eq!(
-            Ok(DecodeInvalidAction::Skip {
-                consumed: NonZeroUsize::MIN,
-            }),
-            hooks.handle_invalid_decode(&mut codec, &error, None, context)
-        );
-
-        let mut hooks = CharsetDecodeHooks::new(MalformedAction::Report, '!');
-        assert!(
-            hooks
-                .handle_invalid_decode(&mut codec, &error, None, context)
-                .is_err()
-        );
-
-        let non_malformed = CharsetDecodeError::new(
-            Charset::UTF_8,
-            CharsetDecodeErrorKind::InvalidInputIndex { input_len: 3 },
-            4,
-        );
-        assert!(
-            hooks
-                .handle_invalid_decode(
-                    &mut codec,
-                    &non_malformed,
-                    None,
-                    context
-                )
-                .is_err()
-        );
+        }
     }
 }
