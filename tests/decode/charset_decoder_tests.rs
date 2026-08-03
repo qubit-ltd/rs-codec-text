@@ -1,4 +1,5 @@
 use qubit_codec::{
+    ByteOrder,
     CapacityError,
     Codec,
     TranscodeDecodeError,
@@ -24,6 +25,7 @@ use qubit_codec_text::{
     UnicodeBom,
     Utf8Codec,
     Utf16ByteCodec,
+    Utf32ByteCodec,
     Utf32U32Codec,
 };
 
@@ -1100,5 +1102,58 @@ fn test_charset_decoder_finish_converts_decode_finish_errors() {
         .expect_err("decode flush errors should be converted");
 
     assert_eq!(CharsetDecodeErrorKind::malformed_unknown(), error.kind());
+    assert_eq!(0, error.index());
+}
+
+#[test]
+fn test_charset_decoder_applies_custom_replacement_to_utf8_eof_tail() {
+    let mut decoder = CharsetDecoder::with_policy(
+        Utf8Codec,
+        CharsetDecodePolicy::replace('!'),
+    );
+    let mut output = ['\0'; 2];
+
+    let written = decoder
+        .transcode_complete_into(&[0xe4, 0xb8], &mut output)
+        .expect("replacement policy should repair incomplete UTF-8 at EOF");
+
+    assert_eq!(1, written);
+    assert_eq!(['!', '\0'], output);
+}
+
+#[test]
+fn test_charset_decoder_ignores_utf16_byte_eof_tail() {
+    let mut decoder = CharsetDecoder::with_policy(
+        Utf16ByteCodec::new(ByteOrder::LittleEndian),
+        CharsetDecodePolicy::ignore(),
+    );
+    let mut output = ['\0'; 2];
+
+    let written = decoder
+        .transcode_complete_into(&[0x41], &mut output)
+        .expect("ignore policy should drop incomplete UTF-16 byte tail at EOF");
+
+    assert_eq!(0, written);
+}
+
+#[test]
+fn test_charset_decoder_reports_utf32_byte_eof_tail() {
+    let mut decoder = CharsetDecoder::with_policy(
+        Utf32ByteCodec::new(ByteOrder::LittleEndian),
+        CharsetDecodePolicy::report(),
+    );
+    let mut output = ['\0'; 3];
+
+    let error = decoder
+        .transcode_complete_into(&[0x41, 0, 0], &mut output)
+        .expect_err("report policy should reject incomplete UTF-32 byte tail at EOF");
+
+    assert_eq!(
+        CharsetDecodeErrorKind::IncompleteSequence {
+            required: 4,
+            available: 3,
+        },
+        error.kind(),
+    );
     assert_eq!(0, error.index());
 }
