@@ -34,7 +34,7 @@ tail, handle output backpressure, and call `finish` only after EOF.
 ```toml
 [dependencies]
 qubit-codec-text = "0.3"
-qubit-codec = "0.10"
+qubit-codec = "0.11"
 ```
 
 Enable the optional `serde` feature only to serialize `Charset` values.
