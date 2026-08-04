@@ -51,8 +51,9 @@ assert_eq!([0x0041, 0x4e2d], output);
 ```
 
 输出为 `char` 时使用 `CharsetDecoder::new(Utf8Codec)`；输入为 `char` 时使用
-`CharsetEncoder::new(Utf8Codec)`。`transcode_complete_into` 会拒绝以不完整序列
-结尾的完整输入，也会拒绝过小的输出缓冲区。
+`CharsetEncoder::new(Utf8Codec)`。当 decoder 输入以不完整序列结束时，
+`transcode_complete_into` 会应用已配置的策略：`Replace` 写入替换字符，
+`Ignore` 丢弃不完整尾部，`Report` 返回错误；输出缓冲区过小时则会返回错误。
 
 ## 进阶用法
 
@@ -91,7 +92,7 @@ assert_eq!([0x0041, 0x4e2d], output);
 
 流式代码通过 `TranscodeProgress` 得到已读/已写码元数和 `NeedInput`、输出背压等状态。
 `NeedInput` 不是畸形错误：保留尾部并在后续输入到达后重试。EOF 后仍残留的不完整序列
-才是完整输入错误。
+会按照已配置的策略处理：替换、丢弃或返回错误。
 
 ## 排障
 
