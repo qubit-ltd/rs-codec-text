@@ -58,14 +58,14 @@ fn fuzz_order(data: &[u8], byte_order: ByteOrder) {
             .into_iter()
             .map(|result| result.unwrap_or(char::REPLACEMENT_CHARACTER))
             .collect::<Vec<_>>();
-        let replace_written = replace_result
-            .expect("complete UTF-16 input must be replaceable");
+        let replace_written =
+            replace_result.expect("complete UTF-16 input must be replaceable");
         assert_eq!(expected, replace_output[..replace_written]);
         if malformed {
             assert!(report_result.is_err());
         } else {
-            let report_written = report_result
-                .expect("well-formed UTF-16 must report success");
+            let report_written =
+                report_result.expect("well-formed UTF-16 must report success");
             assert_eq!(expected, report_output[..report_written]);
         }
     } else {
@@ -96,8 +96,8 @@ fn fuzz_order(data: &[u8], byte_order: ByteOrder) {
             .map(|result| result.unwrap_or(char::REPLACEMENT_CHARACTER))
             .collect::<Vec<_>>();
         expected.push(char::REPLACEMENT_CHARACTER);
-        let replace_written =
-            replace_result.expect("odd UTF-16 byte tail at EOF must be replaceable");
+        let replace_written = replace_result
+            .expect("odd UTF-16 byte tail at EOF must be replaceable");
         assert_eq!(expected, replace_output[..replace_written]);
         assert!(report_result.is_err());
     }
