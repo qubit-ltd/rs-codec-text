@@ -99,7 +99,7 @@ fn decode_utf8_window(
     decoder: &mut CharsetDecoder<Utf8Codec>,
     input: &[u8],
     output: &mut [char],
-) -> u64 {
+) -> (u64, usize, usize) {
     decoder
         .reset(&mut [], 0)
         .expect("UTF-8 reset should be infallible");
@@ -119,9 +119,8 @@ fn decode_utf8_window(
             break;
         }
     }
-    assert_eq!(input.len(), input_index);
-    assert_eq!(0, decoder.finish(&mut [], 0).expect("UTF-8 finish"));
-    checksum
+    let finished = decoder.finish(&mut [], 0).expect("UTF-8 finish");
+    (checksum, input_index, finished)
 }
 
 fn bench_convert<D, E>(
@@ -205,6 +204,16 @@ fn bench_charset_transcode(criterion: &mut Criterion) {
     );
     for window in [7_usize, 31] {
         let name = format!("utf8_output_window_{window}");
+        let mut validation_decoder = CharsetDecoder::new(Utf8Codec);
+        let mut validation_output = vec!['\0'; window];
+        let (_, consumed, finished) = decode_utf8_window(
+            &mut validation_decoder,
+            &utf8,
+            validation_output.as_mut_slice(),
+        );
+        assert_eq!(utf8.len(), consumed);
+        assert_eq!(0, finished);
+
         let mut decoder = CharsetDecoder::new(Utf8Codec);
         let mut output = vec!['\0'; window];
         decode.throughput(Throughput::Bytes(logical_bytes));
