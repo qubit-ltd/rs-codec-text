@@ -56,8 +56,10 @@ assert_eq!([0x0041, 0x4e2d], output);
 
 Use `CharsetDecoder::new(Utf8Codec)` when output is `char` values, or
 `CharsetEncoder::new(Utf8Codec)` when input is `char` values. The
-`transcode_complete_into` methods reject a complete input that ends inside an
-incomplete sequence or an output buffer that is too small.
+`transcode_complete_into` methods apply the configured policy when decoder
+input ends inside an incomplete sequence: `Replace` emits the replacement
+character, `Ignore` discards the incomplete tail, and `Report` returns an
+error. They reject an output buffer that is too small.
 
 ## Advanced Usage
 
@@ -103,7 +105,8 @@ source decoding or target encoding side failed.
 In streaming code, `TranscodeProgress` describes how many units were read and
 written and reports a status such as `NeedInput` or output backpressure. Do not
 treat `NeedInput` as a malformed error: preserve the tail and retry it with
-later input. At EOF, a remaining incomplete sequence is a complete-input error.
+later input. At EOF, a remaining incomplete sequence is handled by the
+configured policy: replacement, discard, or an error.
 
 ## Troubleshooting
 
