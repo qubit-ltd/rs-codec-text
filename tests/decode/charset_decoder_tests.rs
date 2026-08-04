@@ -1,3 +1,10 @@
+// =============================================================================
+//    Copyright (c) 2026 Haixing Hu.
+//
+//    SPDX-License-Identifier: Apache-2.0
+//
+//    Licensed under the Apache License, Version 2.0.
+// =============================================================================
 use qubit_codec::{
     ByteOrder,
     CapacityError,
@@ -1146,7 +1153,9 @@ fn test_charset_decoder_reports_utf32_byte_eof_tail() {
 
     let error = decoder
         .transcode_complete_into(&[0x41, 0, 0], &mut output)
-        .expect_err("report policy should reject incomplete UTF-32 byte tail at EOF");
+        .expect_err(
+            "report policy should reject incomplete UTF-32 byte tail at EOF",
+        );
 
     assert_eq!(
         CharsetDecodeErrorKind::IncompleteSequence {
