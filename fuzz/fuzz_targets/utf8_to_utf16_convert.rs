@@ -8,7 +8,11 @@
 #![no_main]
 
 use libfuzzer_sys::fuzz_target;
-use qubit_codec_text::{CharsetConverter, Utf8Codec, Utf16U16Codec};
+use qubit_codec_text::{
+    CharsetConverter,
+    Utf8Codec,
+    Utf16U16Codec,
+};
 
 const MAX_FUZZ_INPUT_LEN: usize = 4_096;
 
@@ -18,7 +22,8 @@ fuzz_target!(|data: &[u8]| {
         .encode_utf16()
         .collect::<Vec<_>>();
     let mut converter = CharsetConverter::from_codecs(Utf8Codec, Utf16U16Codec);
-    let mut output = vec![0_u16; data.len().saturating_mul(4).saturating_add(2)];
+    let mut output =
+        vec![0_u16; data.len().saturating_mul(4).saturating_add(4)];
     let written = converter
         .transcode_complete_into(data, &mut output)
         .expect("replacement converter must accept complete UTF-8 input");
