@@ -5,7 +5,10 @@
 //
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
-use qubit_codec::TranscodeFailure;
+use qubit_codec::{
+    TranscodeEncodeError,
+    TranscodeFailure,
+};
 use qubit_codec_text::{
     Charset,
     CharsetEncodeError,
@@ -193,4 +196,35 @@ fn test_charset_encode_error_maps_transcode_failures() {
         error.kind(),
     );
     assert_eq!(usize::MAX, error.index());
+}
+
+#[test]
+fn test_charset_encode_error_from_transcode_failures() {
+    let error = CharsetEncodeError::from_transcode_error(
+        Charset::UTF_8,
+        TranscodeEncodeError::Failure(TranscodeFailure::InvalidOutputIndex {
+            index: 4,
+            output_len: 3,
+        }),
+    );
+    assert_eq!(
+        CharsetEncodeErrorKind::InvalidOutputIndex { output_len: 3 },
+        error.kind(),
+    );
+    assert_eq!(4, error.index());
+
+    let error = CharsetEncodeError::from_transcode_error(
+        Charset::UTF_8,
+        TranscodeEncodeError::Unencodable {
+            input_index: 5,
+            value: Some('中'),
+        },
+    );
+    assert_eq!(
+        CharsetEncodeErrorKind::UnmappableCharacter {
+            value: '中' as u32
+        },
+        error.kind(),
+    );
+    assert_eq!(5, error.index());
 }

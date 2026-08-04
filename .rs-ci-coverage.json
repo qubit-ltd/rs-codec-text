@@ -1,10 +1,7 @@
 {
   "threshold_exempt_files": {
     "qubit-codec-text": [
-      "src/decode/charset_decode_hooks.rs",
-      "src/decode/charset_decoder.rs",
-      "src/error/charset_decode_error.rs",
-      "src/error/charset_encode_error.rs"
+      "src/decode/charset_decode_hooks.rs"
     ]
   }
 }

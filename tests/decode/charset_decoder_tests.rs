@@ -485,6 +485,22 @@ fn test_charset_decoder_transcoder_trait_methods_forward() {
 }
 
 #[test]
+fn test_charset_decoder_transcode_eof_forwards_to_engine() {
+    let mut decoder = CharsetDecoder::new(Utf8Codec);
+    let mut output = ['\0'; 1];
+
+    assert_eq!(Ok(0), decoder.reset(&mut [], 0));
+    let progress = decoder
+        .transcode_eof(b"A", 0, &mut output, 0)
+        .expect("decoder should transcode EOF through the inherent method");
+
+    assert_eq!(TranscodeStatus::Complete, progress.status());
+    assert_eq!(1, progress.read());
+    assert_eq!(1, progress.written());
+    assert_eq!(['A'], output);
+}
+
+#[test]
 fn test_charset_decode_policy_direct_function_items_cover_constructors() {
     let replace: fn(char) -> CharsetDecodePolicy =
         std::hint::black_box(CharsetDecodePolicy::replace);

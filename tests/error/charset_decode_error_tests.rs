@@ -5,8 +5,11 @@
 //
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
-use qubit_codec::DecodeFailure;
 use qubit_codec::TranscodeFailure;
+use qubit_codec::{
+    DecodeFailure,
+    TranscodeDecodeError,
+};
 use qubit_codec_text::{
     Charset,
     CharsetDecodeError,
@@ -264,4 +267,22 @@ fn test_charset_decode_error_maps_transcode_failures() {
         error.kind(),
     );
     assert_eq!(usize::MAX, error.index());
+}
+
+#[test]
+fn test_charset_decode_error_from_transcode_failure() {
+    let error = CharsetDecodeError::from_transcode_error(
+        Charset::UTF_8,
+        TranscodeDecodeError::Failure(TranscodeFailure::InvalidInputIndex {
+            index: 3,
+            input_len: 2,
+        }),
+    );
+
+    assert_eq!(Charset::UTF_8, error.charset());
+    assert_eq!(
+        CharsetDecodeErrorKind::InvalidInputIndex { input_len: 2 },
+        error.kind()
+    );
+    assert_eq!(3, error.index());
 }
