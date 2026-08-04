@@ -8,7 +8,10 @@
 #![no_main]
 
 use libfuzzer_sys::fuzz_target;
-use qubit_codec_text::{CharsetEncoder, Utf8Codec};
+use qubit_codec_text::{
+    CharsetEncoder,
+    Utf8Codec,
+};
 
 const MAX_FUZZ_INPUT_LEN: usize = 4_096;
 
@@ -19,7 +22,8 @@ fuzz_target!(|data: &[u8]| {
         .map(|chunk| {
             let mut bytes = [0_u8; 4];
             bytes[..chunk.len()].copy_from_slice(chunk);
-            char::from_u32(u32::from_le_bytes(bytes)).unwrap_or(char::REPLACEMENT_CHARACTER)
+            char::from_u32(u32::from_le_bytes(bytes))
+                .unwrap_or(char::REPLACEMENT_CHARACTER)
         })
         .collect::<Vec<_>>();
     let expected = chars.iter().collect::<String>();
