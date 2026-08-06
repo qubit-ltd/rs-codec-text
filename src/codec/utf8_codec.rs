@@ -9,18 +9,11 @@ use core::num::NonZeroUsize;
 
 use crate::error::CharsetCodecDecodeResult;
 use crate::{
-    Charset,
-    CharsetCodec,
-    CharsetDecodeError,
-    CharsetDecodeErrorKind,
-    CharsetDecodeResult,
-    CharsetEncodeError,
-    CharsetEncodeResult,
-    Unicode,
-    Utf8,
+    Charset, CharsetCodec, CharsetDecodeError, CharsetDecodeErrorKind, CharsetDecodeResult,
+    CharsetEncodeError, CharsetEncodeResult, Unicode, Utf8,
 };
 use qubit_codec::Codec;
-use qubit_utils::UncheckedSlice;
+use qubit_utils::SliceRange;
 
 /// UTF-8 byte-buffer charset codec.
 ///
@@ -102,11 +95,9 @@ impl Codec for Utf8Codec {
         input: &[u8],
         input_index: usize,
     ) -> CharsetCodecDecodeResult<(char, NonZeroUsize)> {
-        let (ch, consumed) = decode_prefix(input, input_index)
-            .map_err(CharsetDecodeError::into_codec_failure)?;
-        debug_assert!(
-            consumed.get() <= input.len().saturating_sub(input_index)
-        );
+        let (ch, consumed) =
+            decode_prefix(input, input_index).map_err(CharsetDecodeError::into_codec_failure)?;
+        debug_assert!(consumed.get() <= input.len().saturating_sub(input_index));
         Ok((ch, consumed))
     }
 
@@ -148,10 +139,7 @@ impl Codec for Utf8Codec {
 /// * `CharsetDecodeErrorKind::IncompleteSequence` when EOF appears before the
 ///   complete UTF-8 sequence is available.
 #[inline]
-fn decode_prefix(
-    input: &[u8],
-    index: usize,
-) -> CharsetDecodeResult<(char, NonZeroUsize)> {
+fn decode_prefix(input: &[u8], index: usize) -> CharsetDecodeResult<(char, NonZeroUsize)> {
     debug_assert!(index < input.len());
     // SAFETY: The caller guarantees that at least one byte is readable from
     // `index`.
@@ -163,7 +151,7 @@ fn decode_prefix(
             return Err(CharsetDecodeError::new(Charset::UTF_8, kind, index));
         }
     };
-    if !UncheckedSlice::range_fits(input.len(), index, length) {
+    if !SliceRange::range_fits(input.len(), index, length) {
         validate_partial(input, index)?;
         let kind = CharsetDecodeErrorKind::IncompleteSequence {
             required: length,
@@ -178,9 +166,8 @@ fn decode_prefix(
         4 => decode_four(input, index)?,
         _ => unreachable!("UTF-8 sequence length is limited to four bytes"),
     };
-    let ch = Unicode::to_char(code_point)
-        .expect("well-formed UTF-8 decodes to a Unicode scalar");
-    Ok((ch, qubit_utils::nonzero!(length)))
+    let ch = Unicode::to_char(code_point).expect("well-formed UTF-8 decodes to a Unicode scalar");
+    Ok((ch, qubit_utils::nonzero(length)))
 }
 
 /// Encodes one Unicode scalar value into UTF-8 at `index` in `output`.
@@ -202,9 +189,7 @@ fn encode_char(ch: char, output: &mut [u8], index: usize) -> usize {
     let length = Utf8::byte_len(ch);
     // SAFETY: The caller guarantees that `length` bytes are writable from
     // `index`; `encode_utf8` writes directly into that checked range.
-    let target = unsafe {
-        qubit_utils::UncheckedSlice::subslice_mut(output, index, length)
-    };
+    let target = unsafe { qubit_utils::UncheckedSlice::subslice_mut(output, index, length) };
     ch.encode_utf8(target);
     length
 }
@@ -247,10 +232,10 @@ fn decode_two(input: &[u8], index: usize) -> CharsetDecodeResult<u32> {
 /// decoding error describing the first malformed position.
 #[inline]
 fn validate_partial(input: &[u8], index: usize) -> CharsetDecodeResult<()> {
-    if UncheckedSlice::range_fits(input.len(), index, 2) {
+    if SliceRange::range_fits(input.len(), index, 2) {
         validate_second_byte(input, index)?;
     }
-    if UncheckedSlice::range_fits(input.len(), index, 3) {
+    if SliceRange::range_fits(input.len(), index, 3) {
         validate_continuation_byte(input, index, 2)?;
     }
     Ok(())
@@ -270,9 +255,7 @@ fn validate_partial(input: &[u8], index: usize) -> CharsetDecodeResult<()> {
 #[inline]
 fn is_valid_second_byte(first: u8, second: u8) -> bool {
     match first {
-        0xc2..=0xdf | 0xe1..=0xec | 0xee..=0xef | 0xf1..=0xf3 => {
-            Utf8::is_continuation_byte(second)
-        }
+        0xc2..=0xdf | 0xe1..=0xec | 0xee..=0xef | 0xf1..=0xf3 => Utf8::is_continuation_byte(second),
         0xe0 => (0xa0..=0xbf).contains(&second),
         0xed => (0x80..=0x9f).contains(&second),
         0xf0 => (0x90..=0xbf).contains(&second),
@@ -301,9 +284,7 @@ fn decode_three(input: &[u8], index: usize) -> CharsetDecodeResult<u32> {
     let first = byte_at(input, index);
     let second = validate_second_byte(input, index)?;
     let third = validate_continuation_byte(input, index, 2)?;
-    Ok((((first & 0x0f) as u32) << 12)
-        | (((second & 0x3f) as u32) << 6)
-        | ((third & 0x3f) as u32))
+    Ok((((first & 0x0f) as u32) << 12) | (((second & 0x3f) as u32) << 6) | ((third & 0x3f) as u32))
 }
 
 /// Decodes a four-byte UTF-8 sequence starting at `index`.
@@ -344,7 +325,7 @@ fn validate_second_byte(input: &[u8], index: usize) -> CharsetDecodeResult<u8> {
         Err(malformed_byte_error(
             second,
             index.saturating_add(1),
-            qubit_utils::nonzero!(1),
+            qubit_utils::nonzero(1),
         ))
     }
 }
@@ -363,18 +344,13 @@ fn validate_continuation_byte(
         Err(malformed_byte_error(
             byte,
             index.saturating_add(offset),
-            NonZeroUsize::new(offset)
-                .expect("UTF-8 consumed width is non-zero"),
+            NonZeroUsize::new(offset).expect("UTF-8 consumed width is non-zero"),
         ))
     }
 }
 
 /// Creates a malformed-byte error with consumed width metadata.
-fn malformed_byte_error(
-    byte: u8,
-    index: usize,
-    consumed: NonZeroUsize,
-) -> CharsetDecodeError {
+fn malformed_byte_error(byte: u8, index: usize, consumed: NonZeroUsize) -> CharsetDecodeError {
     let kind = CharsetDecodeErrorKind::malformed(byte as u32);
     CharsetDecodeError::new(Charset::UTF_8, kind, index).with_consumed(consumed)
 }
