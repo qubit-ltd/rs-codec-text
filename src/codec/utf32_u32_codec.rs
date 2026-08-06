@@ -151,7 +151,7 @@ fn decode_units_prefix(
 ) -> CharsetDecodeResult<(char, core::num::NonZeroUsize)> {
     debug_assert!(index < input.len());
     // SAFETY: The caller guarantees that `index` is readable.
-    let unit = unsafe { qubit_io::UncheckedSlice::read(input, index) };
+    let unit = unsafe { qubit_utils::UncheckedSlice::read(input, index) };
     match Unicode::to_char(unit) {
         Some(ch) => Ok((ch, core::num::NonZeroUsize::MIN)),
         None => {
@@ -177,7 +177,7 @@ fn encode_units_char(ch: char, output: &mut [u32], index: usize) -> usize {
     debug_assert!(index < output.len());
     // SAFETY: The caller guarantees that one unit is writable at `index`.
     unsafe {
-        qubit_io::UncheckedSlice::write(output, index, ch as u32);
+        qubit_utils::UncheckedSlice::write(output, index, ch as u32);
     }
     1
 }

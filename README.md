@@ -16,7 +16,7 @@ ASCII, Latin-1, UTF-8, UTF-16, and UTF-32 while keeping progress and policy expl
 ```toml
 [dependencies]
 qubit-codec-text = "0.4"
-qubit-codec = "0.11"
+qubit-codec = "0.12"
 ```
 
 Enable serialization of `Charset` only when needed:

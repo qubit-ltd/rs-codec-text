@@ -20,7 +20,7 @@ use crate::{
     Utf8,
 };
 use qubit_codec::Codec;
-use qubit_io::UncheckedSlice;
+use qubit_utils::UncheckedSlice;
 
 /// UTF-8 byte-buffer charset codec.
 ///
@@ -155,7 +155,7 @@ fn decode_prefix(
     debug_assert!(index < input.len());
     // SAFETY: The caller guarantees that at least one byte is readable from
     // `index`.
-    let first = unsafe { qubit_io::UncheckedSlice::read(input, index) };
+    let first = unsafe { qubit_utils::UncheckedSlice::read(input, index) };
     let length = match Utf8::byte_len_from_leading_byte(first) {
         Some(length) => length,
         None => {
@@ -180,7 +180,7 @@ fn decode_prefix(
     };
     let ch = Unicode::to_char(code_point)
         .expect("well-formed UTF-8 decodes to a Unicode scalar");
-    Ok((ch, qubit_codec::nz!(length)))
+    Ok((ch, qubit_utils::nonzero!(length)))
 }
 
 /// Encodes one Unicode scalar value into UTF-8 at `index` in `output`.
@@ -203,7 +203,7 @@ fn encode_char(ch: char, output: &mut [u8], index: usize) -> usize {
     // SAFETY: The caller guarantees that `length` bytes are writable from
     // `index`; `encode_utf8` writes directly into that checked range.
     let target = unsafe {
-        qubit_io::UncheckedSlice::subslice_mut(output, index, length)
+        qubit_utils::UncheckedSlice::subslice_mut(output, index, length)
     };
     ch.encode_utf8(target);
     length
@@ -344,7 +344,7 @@ fn validate_second_byte(input: &[u8], index: usize) -> CharsetDecodeResult<u8> {
         Err(malformed_byte_error(
             second,
             index.saturating_add(1),
-            qubit_codec::nz!(1),
+            qubit_utils::nonzero!(1),
         ))
     }
 }
@@ -384,5 +384,5 @@ fn malformed_byte_error(
 fn byte_at(input: &[u8], index: usize) -> u8 {
     debug_assert!(index < input.len());
     // SAFETY: Callers check sequence availability before reading the byte.
-    unsafe { qubit_io::UncheckedSlice::read(input, index) }
+    unsafe { qubit_utils::UncheckedSlice::read(input, index) }
 }

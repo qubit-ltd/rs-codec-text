@@ -77,7 +77,7 @@ impl Codec for AsciiCodec {
 
         // SAFETY: The caller guarantees that `input_index` is readable.
         let value =
-            unsafe { qubit_io::UncheckedSlice::read(input, input_index) };
+            unsafe { qubit_utils::UncheckedSlice::read(input, input_index) };
         if !Ascii::is_ascii_byte(value) {
             let kind = CharsetDecodeErrorKind::malformed(value as u32);
             return Err(CharsetDecodeError::new(
@@ -103,7 +103,7 @@ impl Codec for AsciiCodec {
         // SAFETY: The caller guarantees that `ch` is encodable and
         // `output_index` is writable.
         unsafe {
-            qubit_io::UncheckedSlice::write(output, output_index, *ch as u8);
+            qubit_utils::UncheckedSlice::write(output, output_index, *ch as u8);
         }
         Ok(1)
     }
