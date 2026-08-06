@@ -93,7 +93,7 @@ fn test_charset_decode_error_exposes_consumption_and_incomplete_details() {
         CharsetDecodeErrorKind::malformed(0x80),
         4,
     )
-    .with_consumed(qubit_utils::nonzero!(2));
+    .with_consumed(qubit_utils::nonzero(2));
     assert_eq!(NonZeroUsize::new(2), malformed.consumed());
     assert_eq!(None, malformed.required());
     assert_eq!(Some(0x80), malformed.value());
