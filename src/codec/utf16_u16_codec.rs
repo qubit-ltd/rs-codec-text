@@ -18,7 +18,7 @@ use crate::{
     Utf16,
 };
 use qubit_codec::Codec;
-use qubit_io::UncheckedSlice;
+use qubit_utils::UncheckedSlice;
 
 /// Combined UTF-16 `u16` code-unit codec.
 ///
@@ -175,7 +175,7 @@ fn decode_units_prefix(
     debug_assert!(index < input.len());
     // SAFETY: The caller guarantees that at least one unit is readable from
     // `index`.
-    let first = unsafe { qubit_io::UncheckedSlice::read(input, index) };
+    let first = unsafe { qubit_utils::UncheckedSlice::read(input, index) };
     if Utf16::is_high_surrogate(first) {
         if !UncheckedSlice::range_fits(input.len(), index, 2) {
             let kind = CharsetDecodeErrorKind::IncompleteSequence {
@@ -186,7 +186,7 @@ fn decode_units_prefix(
         }
         let second = unit_at(input, index + 1);
         match Utf16::compose_pair(first, second).and_then(Unicode::to_char) {
-            Some(ch) => Ok((ch, qubit_codec::nz!(2))),
+            Some(ch) => Ok((ch, qubit_utils::nonzero!(2))),
             None => {
                 let kind = CharsetDecodeErrorKind::malformed(second as u32);
                 Err(CharsetDecodeError::new(
@@ -212,7 +212,7 @@ fn decode_units_prefix(
 fn unit_at(input: &[u16], index: usize) -> u16 {
     debug_assert!(index < input.len());
     // SAFETY: Callers check sequence availability before reading the unit.
-    unsafe { qubit_io::UncheckedSlice::read(input, index) }
+    unsafe { qubit_utils::UncheckedSlice::read(input, index) }
 }
 
 /// Encodes one character into UTF-16 `u16` units at `index` in `output`.
@@ -241,15 +241,19 @@ fn encode_units_char(ch: char, output: &mut [u16], index: usize) -> usize {
         // SAFETY: The caller guarantees that `length` units are writable from
         // `index`.
         if length == 1 {
-            qubit_io::UncheckedSlice::write(output, index, code_point as u16);
+            qubit_utils::UncheckedSlice::write(
+                output,
+                index,
+                code_point as u16,
+            );
         } else {
-            qubit_io::UncheckedSlice::write(
+            qubit_utils::UncheckedSlice::write(
                 output,
                 index,
                 Utf16::high_surrogate(code_point)
                     .expect("supplementary scalar has high surrogate"),
             );
-            qubit_io::UncheckedSlice::write(
+            qubit_utils::UncheckedSlice::write(
                 output,
                 index + 1,
                 Utf16::low_surrogate(code_point)

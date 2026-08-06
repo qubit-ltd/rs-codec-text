@@ -17,7 +17,7 @@ use crate::{
     Latin1,
 };
 use qubit_codec::Codec;
-use qubit_io::UncheckedSlice;
+use qubit_utils::UncheckedSlice;
 
 /// Single-byte ISO-8859-1 codec for bytes.
 ///

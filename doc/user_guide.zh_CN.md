@@ -30,7 +30,7 @@ adapter 的开发者：既要保留转换进度，也要明确选择畸形或不
 ```toml
 [dependencies]
 qubit-codec-text = "0.3"
-qubit-codec = "0.11"
+qubit-codec = "0.12"
 ```
 
 只有在需要序列化 `Charset` 时才启用可选 `serde` feature。
