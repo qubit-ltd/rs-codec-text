@@ -212,6 +212,10 @@ where
 
     /// Returns the source codec mutably.
     ///
+    /// Mutating source codec configuration while a conversion is active can
+    /// invalidate buffered decode state. Reset the converter before continuing
+    /// with the modified codec.
+    ///
     /// # Returns
     ///
     /// Returns a mutable reference to the source codec owned by this converter.
@@ -233,6 +237,10 @@ where
     }
 
     /// Returns the target codec mutably.
+    ///
+    /// Mutating target codec configuration while a conversion is active can
+    /// invalidate buffered encode state and replacement validation assumptions.
+    /// Reset the converter before continuing with the modified codec.
     ///
     /// # Returns
     ///

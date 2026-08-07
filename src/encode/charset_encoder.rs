@@ -172,6 +172,10 @@ where
 
     /// Returns the wrapped low-level codec mutably.
     ///
+    /// Mutating codec configuration while a stream is active can invalidate
+    /// buffered encode state and replacement validation assumptions. Reset the
+    /// encoder before continuing with the modified codec.
+    ///
     /// # Returns
     ///
     /// Returns a mutable reference to the codec owned by this encoder.
