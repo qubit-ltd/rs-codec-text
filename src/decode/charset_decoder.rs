@@ -121,6 +121,10 @@ where
 
     /// Returns the wrapped low-level codec mutably.
     ///
+    /// Mutating codec configuration while a stream is active can invalidate
+    /// buffered decode state. Reset the decoder before continuing with the
+    /// modified codec.
+    ///
     /// # Returns
     ///
     /// Returns a mutable reference to the codec owned by this decoder.
