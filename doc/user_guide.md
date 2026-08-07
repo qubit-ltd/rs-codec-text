@@ -2,7 +2,7 @@
 
 [中文](user_guide.zh_CN.md) · [README](../README.md) · [API reference](https://docs.rs/qubit-codec-text)
 
-This guide applies to `qubit-codec-text` 0.3. It is for developers building
+This guide applies to `qubit-codec-text` 0.4. It is for developers building
 buffer-oriented parsers, protocol handlers, and I/O adapters that must preserve
 conversion progress and choose how malformed or unmappable data is handled.
 
@@ -33,7 +33,7 @@ tail, handle output backpressure, and call `finish` only after EOF.
 
 ```toml
 [dependencies]
-qubit-codec-text = "0.3"
+qubit-codec-text = "0.4"
 qubit-codec = "0.12"
 ```
 
