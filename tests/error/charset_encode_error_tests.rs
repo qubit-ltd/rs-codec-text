@@ -5,15 +5,11 @@
 //
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
-use qubit_codec::{
-    TranscodeEncodeError,
-    TranscodeFailure,
-};
-use qubit_codec_text::{
-    Charset,
-    CharsetEncodeError,
-    CharsetEncodeErrorKind,
-};
+use qubit_codec::TranscodeEncodeError;
+use qubit_codec::TranscodeFailure;
+use qubit_codec_text::Charset;
+use qubit_codec_text::CharsetEncodeError;
+use qubit_codec_text::CharsetEncodeErrorKind;
 
 #[test]
 fn test_charset_encode_error_exposes_context() {

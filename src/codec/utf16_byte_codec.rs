@@ -5,27 +5,24 @@
 //
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
-use crate::error::CharsetCodecDecodeResult;
-use crate::{
-    Charset,
-    CharsetCodec,
-    CharsetDecodeError,
-    CharsetDecodeErrorKind,
-    CharsetDecodeResult,
-    CharsetEncodeError,
-    CharsetEncodeResult,
-    Unicode,
-    Utf16,
-};
 use core::num::NonZeroUsize;
-use qubit_codec::{
-    ByteOrder,
-    Codec,
-};
-use qubit_utils::{
-    SliceRange,
-    UncheckedSlice,
-};
+
+use qubit_codec::ByteOrder;
+use qubit_codec::Codec;
+use qubit_utils::SliceRange;
+use qubit_utils::UncheckedSlice;
+use qubit_utils::nonzero;
+
+use crate::Charset;
+use crate::CharsetCodec;
+use crate::CharsetDecodeError;
+use crate::CharsetDecodeErrorKind;
+use crate::CharsetDecodeResult;
+use crate::CharsetEncodeError;
+use crate::CharsetEncodeResult;
+use crate::Unicode;
+use crate::Utf16;
+use crate::error::CharsetCodecDecodeResult;
 
 /// Combined byte-serialized UTF-16 codec.
 ///
@@ -215,7 +212,7 @@ fn decode_bytes_prefix(
         }
         let second = read_ordered_u16(input, index + 2, byte_order);
         match Utf16::compose_pair(first, second).and_then(Unicode::to_char) {
-            Some(ch) => Ok((ch, qubit_utils::nonzero(4))),
+            Some(ch) => Ok((ch, nonzero(4))),
             None => {
                 let kind = CharsetDecodeErrorKind::malformed(second as u32);
                 Err(CharsetDecodeError::new(
@@ -223,17 +220,17 @@ fn decode_bytes_prefix(
                     kind,
                     index.saturating_add(2),
                 )
-                .with_consumed(qubit_utils::nonzero(2)))
+                .with_consumed(nonzero(2)))
             }
         }
     } else if Utf16::is_low_surrogate(first) {
         let kind = CharsetDecodeErrorKind::malformed(first as u32);
         Err(CharsetDecodeError::new(charset, kind, index)
-            .with_consumed(qubit_utils::nonzero(2)))
+            .with_consumed(nonzero(2)))
     } else {
         let ch = char::from_u32(first as u32)
             .expect("non-surrogate UTF-16 unit is a scalar value");
-        Ok((ch, qubit_utils::nonzero(2)))
+        Ok((ch, nonzero(2)))
     }
 }
 

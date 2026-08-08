@@ -7,17 +7,16 @@
 // =============================================================================
 use core::num::NonZeroUsize;
 
-use crate::error::CharsetCodecDecodeResult;
-use crate::{
-    Charset,
-    CharsetCodec,
-    CharsetDecodeError,
-    CharsetEncodeError,
-    CharsetEncodeResult,
-    Latin1,
-};
 use qubit_codec::Codec;
 use qubit_utils::UncheckedSlice;
+
+use crate::Charset;
+use crate::CharsetCodec;
+use crate::CharsetDecodeError;
+use crate::CharsetEncodeError;
+use crate::CharsetEncodeResult;
+use crate::Latin1;
+use crate::error::CharsetCodecDecodeResult;
 
 /// Single-byte ISO-8859-1 codec for bytes.
 ///

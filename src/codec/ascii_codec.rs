@@ -7,17 +7,17 @@
 // =============================================================================
 use core::num::NonZeroUsize;
 
-use crate::error::CharsetCodecDecodeResult;
-use crate::{
-    Ascii,
-    Charset,
-    CharsetCodec,
-    CharsetDecodeError,
-    CharsetDecodeErrorKind,
-    CharsetEncodeError,
-    CharsetEncodeResult,
-};
 use qubit_codec::Codec;
+use qubit_utils::UncheckedSlice;
+
+use crate::Ascii;
+use crate::Charset;
+use crate::CharsetCodec;
+use crate::CharsetDecodeError;
+use crate::CharsetDecodeErrorKind;
+use crate::CharsetEncodeError;
+use crate::CharsetEncodeResult;
+use crate::error::CharsetCodecDecodeResult;
 
 /// Single-byte ASCII codec for bytes.
 ///
@@ -76,8 +76,7 @@ impl Codec for AsciiCodec {
         debug_assert!(input_index < input.len());
 
         // SAFETY: The caller guarantees that `input_index` is readable.
-        let value =
-            unsafe { qubit_utils::UncheckedSlice::read(input, input_index) };
+        let value = unsafe { UncheckedSlice::read(input, input_index) };
         if !Ascii::is_ascii_byte(value) {
             let kind = CharsetDecodeErrorKind::malformed(value as u32);
             return Err(CharsetDecodeError::new(
@@ -103,7 +102,7 @@ impl Codec for AsciiCodec {
         // SAFETY: The caller guarantees that `ch` is encodable and
         // `output_index` is writable.
         unsafe {
-            qubit_utils::UncheckedSlice::write(output, output_index, *ch as u8);
+            UncheckedSlice::write(output, output_index, *ch as u8);
         }
         Ok(1)
     }

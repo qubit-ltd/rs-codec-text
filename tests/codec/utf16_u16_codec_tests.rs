@@ -6,19 +6,17 @@
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
 use qubit_codec::Codec;
-use qubit_codec_text::{
-    Charset,
-    CharsetCodec,
-    CharsetDecodeErrorKind,
-    CharsetEncodeResult,
-    Utf16,
-    Utf16U16Codec,
-};
+use qubit_codec::DecodeFailure;
+use qubit_codec_text::Charset;
+use qubit_codec_text::CharsetCodec;
+use qubit_codec_text::CharsetDecodeError;
+use qubit_codec_text::CharsetDecodeErrorKind;
+use qubit_codec_text::CharsetEncodeResult;
+use qubit_codec_text::Utf16;
+use qubit_codec_text::Utf16U16Codec;
 
-type DecodedCharResult = Result<
-    (char, core::num::NonZeroUsize),
-    qubit_codec::DecodeFailure<qubit_codec_text::CharsetDecodeError>,
->;
+type DecodedCharResult =
+    Result<(char, core::num::NonZeroUsize), DecodeFailure<CharsetDecodeError>>;
 type DecodeFn =
     unsafe fn(&mut Utf16U16Codec, &[u16], usize) -> DecodedCharResult;
 type EncodeFn = unsafe fn(

@@ -5,36 +5,33 @@
 //
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
-use qubit_codec::{
-    ByteOrder,
-    CapacityError,
-    Codec,
-    TranscodeDecodeError,
-    TranscodeDecodeErrorOf,
-    TranscodeDecoder,
-    TranscodeProgress,
-    TranscodeStatus,
-    Transcoder,
-};
-use qubit_codec_text::{
-    BomDetectStatus,
-    Charset,
-    CharsetCodec,
-    CharsetDecodeError,
-    CharsetDecodeErrorKind,
-    CharsetDecodePolicy,
-    CharsetDecodeResult,
-    CharsetDecoder,
-    CharsetEncodeError,
-    CharsetEncodeErrorKind,
-    CharsetEncodeResult,
-    MalformedAction,
-    UnicodeBom,
-    Utf8Codec,
-    Utf16ByteCodec,
-    Utf32ByteCodec,
-    Utf32U32Codec,
-};
+use qubit_codec::ByteOrder;
+use qubit_codec::CapacityError;
+use qubit_codec::Codec;
+use qubit_codec::DecodeFailure;
+use qubit_codec::TranscodeDecodeError;
+use qubit_codec::TranscodeDecodeErrorOf;
+use qubit_codec::TranscodeDecoder;
+use qubit_codec::TranscodeProgress;
+use qubit_codec::TranscodeStatus;
+use qubit_codec::Transcoder;
+use qubit_codec_text::BomDetectStatus;
+use qubit_codec_text::Charset;
+use qubit_codec_text::CharsetCodec;
+use qubit_codec_text::CharsetDecodeError;
+use qubit_codec_text::CharsetDecodeErrorKind;
+use qubit_codec_text::CharsetDecodePolicy;
+use qubit_codec_text::CharsetDecodeResult;
+use qubit_codec_text::CharsetDecoder;
+use qubit_codec_text::CharsetEncodeError;
+use qubit_codec_text::CharsetEncodeErrorKind;
+use qubit_codec_text::CharsetEncodeResult;
+use qubit_codec_text::MalformedAction;
+use qubit_codec_text::UnicodeBom;
+use qubit_codec_text::Utf8Codec;
+use qubit_codec_text::Utf16ByteCodec;
+use qubit_codec_text::Utf32ByteCodec;
+use qubit_codec_text::Utf32U32Codec;
 
 fn reset_for_test<T: Transcoder>(transcoder: &mut T) {
     let mut output: [T::Output; 0] = [];
@@ -106,7 +103,7 @@ impl Codec for InvalidInputErrorCodec {
         input_index: usize,
     ) -> Result<
         (char, core::num::NonZeroUsize),
-        qubit_codec::DecodeFailure<qubit_codec_text::CharsetDecodeError>,
+        DecodeFailure<CharsetDecodeError>,
     > {
         let kind = CharsetDecodeErrorKind::malformed_unknown();
         Err(CharsetDecodeError::new(Charset::ASCII, kind, input_index)
@@ -163,7 +160,7 @@ impl Codec for PendingInvalidInputErrorCodec {
         input_index: usize,
     ) -> Result<
         (char, core::num::NonZeroUsize),
-        qubit_codec::DecodeFailure<qubit_codec_text::CharsetDecodeError>,
+        DecodeFailure<CharsetDecodeError>,
     > {
         if input.len().saturating_sub(input_index) == 1 {
             let kind = CharsetDecodeErrorKind::IncompleteSequence {
@@ -249,7 +246,7 @@ impl Codec for MalformedWithoutConsumedCodec {
         input_index: usize,
     ) -> Result<
         (char, core::num::NonZeroUsize),
-        qubit_codec::DecodeFailure<qubit_codec_text::CharsetDecodeError>,
+        DecodeFailure<CharsetDecodeError>,
     > {
         let kind = CharsetDecodeErrorKind::malformed(0xff);
         Err(CharsetDecodeError::new(Charset::UTF_8, kind, input_index)
@@ -287,7 +284,7 @@ impl Codec for IncompletePrefixCodec {
         input_index: usize,
     ) -> Result<
         (char, core::num::NonZeroUsize),
-        qubit_codec::DecodeFailure<qubit_codec_text::CharsetDecodeError>,
+        DecodeFailure<CharsetDecodeError>,
     > {
         let kind = CharsetDecodeErrorKind::IncompleteSequence {
             required: 2,
@@ -328,14 +325,14 @@ impl Codec for IncompleteAsInvalidCodec {
         input_index: usize,
     ) -> Result<
         (char, core::num::NonZeroUsize),
-        qubit_codec::DecodeFailure<qubit_codec_text::CharsetDecodeError>,
+        DecodeFailure<CharsetDecodeError>,
     > {
         let kind = CharsetDecodeErrorKind::IncompleteSequence {
             required: 2,
             available: 1,
         };
         let error = CharsetDecodeError::new(Charset::UTF_8, kind, input_index);
-        Err(qubit_codec::DecodeFailure::invalid_unknown(error))
+        Err(DecodeFailure::invalid_unknown(error))
     }
 
     unsafe fn encode(
@@ -369,7 +366,7 @@ impl Codec for DecodeFlushErrorCodec {
         _input_index: usize,
     ) -> Result<
         (char, core::num::NonZeroUsize),
-        qubit_codec::DecodeFailure<qubit_codec_text::CharsetDecodeError>,
+        DecodeFailure<CharsetDecodeError>,
     > {
         Ok(('A', core::num::NonZeroUsize::MIN))
     }

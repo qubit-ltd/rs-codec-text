@@ -6,18 +6,16 @@
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
 use qubit_codec::Codec;
-use qubit_codec_text::{
-    Charset,
-    CharsetCodec,
-    CharsetEncodeResult,
-    Latin1,
-    Latin1Codec,
-};
+use qubit_codec::DecodeFailure;
+use qubit_codec_text::Charset;
+use qubit_codec_text::CharsetCodec;
+use qubit_codec_text::CharsetDecodeError;
+use qubit_codec_text::CharsetEncodeResult;
+use qubit_codec_text::Latin1;
+use qubit_codec_text::Latin1Codec;
 
-type DecodedCharResult = Result<
-    (char, core::num::NonZeroUsize),
-    qubit_codec::DecodeFailure<qubit_codec_text::CharsetDecodeError>,
->;
+type DecodedCharResult =
+    Result<(char, core::num::NonZeroUsize), DecodeFailure<CharsetDecodeError>>;
 type DecodeFn = unsafe fn(&mut Latin1Codec, &[u8], usize) -> DecodedCharResult;
 type EncodeFn = unsafe fn(
     &mut Latin1Codec,

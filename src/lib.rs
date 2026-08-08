@@ -23,56 +23,40 @@ mod decode;
 mod encode;
 mod error;
 mod util;
-pub use charset::{
-    Ascii,
-    BomDetectStatus,
-    Charset,
-    CharsetRegistrationError,
-    CharsetRegistrationErrorKind,
-    Latin1,
-    Unicode,
-    UnicodeBom,
-    Utf8,
-    Utf16,
-    Utf32,
-};
-pub use codec::{
-    AsciiCodec,
-    CharsetCodec,
-    Latin1Codec,
-};
-pub use codec::{
-    Utf8Codec,
-    Utf16ByteCodec,
-    Utf16U16Codec,
-    Utf32ByteCodec,
-    Utf32U32Codec,
-};
-pub use convert::{
-    CharsetConvertError,
-    CharsetConverter,
-    MalformedAction,
-    UnmappableAction,
-};
+pub use charset::Ascii;
+pub use charset::BomDetectStatus;
+pub use charset::Charset;
+pub use charset::CharsetRegistrationError;
+pub use charset::CharsetRegistrationErrorKind;
+pub use charset::Latin1;
+pub use charset::Unicode;
+pub use charset::UnicodeBom;
+pub use charset::Utf8;
+pub use charset::Utf16;
+pub use charset::Utf32;
+pub use codec::AsciiCodec;
+pub use codec::CharsetCodec;
+pub use codec::Latin1Codec;
+pub use codec::Utf8Codec;
+pub use codec::Utf16ByteCodec;
+pub use codec::Utf16U16Codec;
+pub use codec::Utf32ByteCodec;
+pub use codec::Utf32U32Codec;
+pub use convert::CharsetConvertError;
+pub use convert::CharsetConverter;
+pub use convert::MalformedAction;
+pub use convert::UnmappableAction;
 pub(crate) use decode::CharsetDecodeHooks;
-pub use decode::{
-    CharsetDecodePolicy,
-    CharsetDecoder,
-};
+pub use decode::CharsetDecodePolicy;
+pub use decode::CharsetDecoder;
 pub(crate) use encode::CharsetEncodeHooks;
-pub use encode::{
-    CharsetEncodePolicy,
-    CharsetEncoder,
-};
-pub use error::{
-    CharsetDecodeError,
-    CharsetDecodeErrorKind,
-    CharsetDecodeResult,
-    CharsetEncodeError,
-    CharsetEncodeErrorKind,
-    CharsetEncodeResult,
-};
-pub use util::{
-    normalize_label_loose,
-    normalize_label_whatwg,
-};
+pub use encode::CharsetEncodePolicy;
+pub use encode::CharsetEncoder;
+pub use error::CharsetDecodeError;
+pub use error::CharsetDecodeErrorKind;
+pub use error::CharsetDecodeResult;
+pub use error::CharsetEncodeError;
+pub use error::CharsetEncodeErrorKind;
+pub use error::CharsetEncodeResult;
+pub use util::normalize_label_loose;
+pub use util::normalize_label_whatwg;

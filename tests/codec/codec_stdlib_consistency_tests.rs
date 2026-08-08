@@ -7,35 +7,32 @@
 // =============================================================================
 use core::fmt::Debug;
 
-use qubit_codec::{
-    ByteOrder,
-    Codec,
-    TranscodeConvertError,
-    TranscodeConvertErrorOf,
-    TranscodeDecodeError,
-    TranscodeFailure,
-    TranscodeStatus,
-    Transcoder,
-};
-use qubit_codec_text::{
-    AsciiCodec,
-    Charset,
-    CharsetCodec,
-    CharsetConvertError,
-    CharsetConverter,
-    CharsetDecodeError,
-    CharsetDecodeErrorKind,
-    CharsetDecodePolicy,
-    CharsetDecoder,
-    CharsetEncodeError,
-    CharsetEncodePolicy,
-    CharsetEncoder,
-    Utf8Codec,
-    Utf16ByteCodec,
-    Utf16U16Codec,
-    Utf32ByteCodec,
-    Utf32U32Codec,
-};
+use qubit_codec::ByteOrder;
+use qubit_codec::Codec;
+use qubit_codec::DecodeFailure;
+use qubit_codec::TranscodeConvertError;
+use qubit_codec::TranscodeConvertErrorOf;
+use qubit_codec::TranscodeDecodeError;
+use qubit_codec::TranscodeFailure;
+use qubit_codec::TranscodeStatus;
+use qubit_codec::Transcoder;
+use qubit_codec_text::AsciiCodec;
+use qubit_codec_text::Charset;
+use qubit_codec_text::CharsetCodec;
+use qubit_codec_text::CharsetConvertError;
+use qubit_codec_text::CharsetConverter;
+use qubit_codec_text::CharsetDecodeError;
+use qubit_codec_text::CharsetDecodeErrorKind;
+use qubit_codec_text::CharsetDecodePolicy;
+use qubit_codec_text::CharsetDecoder;
+use qubit_codec_text::CharsetEncodeError;
+use qubit_codec_text::CharsetEncodePolicy;
+use qubit_codec_text::CharsetEncoder;
+use qubit_codec_text::Utf8Codec;
+use qubit_codec_text::Utf16ByteCodec;
+use qubit_codec_text::Utf16U16Codec;
+use qubit_codec_text::Utf32ByteCodec;
+use qubit_codec_text::Utf32U32Codec;
 
 fn reset_for_test<T: Transcoder>(transcoder: &mut T) {
     let mut output: [T::Output; 0] = [];
@@ -236,7 +233,7 @@ fn test_utf16_codecs_match_std_unit_round_trip() {
         let decode_result = unsafe { codec.decode(malformed, 0) };
         assert!(matches!(
             decode_result,
-            Err(qubit_codec::DecodeFailure::Invalid { ref source, .. })
+            Err(DecodeFailure::Invalid { ref source, .. })
                 if matches!(
                 source.kind(),
                 CharsetDecodeErrorKind::MalformedSequence { value: Some(value) }
@@ -283,7 +280,7 @@ fn test_utf32_codecs_match_std_unit_round_trip() {
         assert_eq!(None, std::char::from_u32(invalid));
         assert!(matches!(
             unsafe { codec.decode(&[invalid], 0) },
-            Err(qubit_codec::DecodeFailure::Invalid { ref source, .. })
+            Err(DecodeFailure::Invalid { ref source, .. })
                 if matches!(source.kind(), CharsetDecodeErrorKind::InvalidCodePoint { .. }),
         ));
     }

@@ -5,22 +5,16 @@
 //
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
-use core::{
-    error::Error,
-    fmt,
-    num::NonZeroUsize,
-};
+use core::error::Error;
+use core::fmt;
+use core::num::NonZeroUsize;
 
-use qubit_codec::{
-    DecodeFailure,
-    TranscodeDecodeError,
-    TranscodeFailure,
-};
+use qubit_codec::DecodeFailure;
+use qubit_codec::TranscodeDecodeError;
+use qubit_codec::TranscodeFailure;
 
-use crate::{
-    Charset,
-    CharsetDecodeErrorKind,
-};
+use crate::Charset;
+use crate::CharsetDecodeErrorKind;
 
 /// Error reported by a charset decoder.
 ///
@@ -91,13 +85,11 @@ impl CharsetDecodeError {
         charset: Charset,
         error: TranscodeFailure,
     ) -> Self {
-        use TranscodeFailure::{
-            IncompleteInput,
-            InsufficientOutput,
-            InvalidInputIndex,
-            InvalidOutputIndex,
-            OutputLengthOverflow,
-        };
+        use TranscodeFailure::IncompleteInput;
+        use TranscodeFailure::InsufficientOutput;
+        use TranscodeFailure::InvalidInputIndex;
+        use TranscodeFailure::InvalidOutputIndex;
+        use TranscodeFailure::OutputLengthOverflow;
 
         match error {
             InvalidInputIndex { index, input_len } => Self::new(

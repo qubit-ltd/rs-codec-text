@@ -6,12 +6,10 @@
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
 use qubit_codec::TranscodeEncodeError;
-use qubit_codec_text::{
-    AsciiCodec,
-    CharsetEncodeErrorKind,
-    CharsetEncodePolicy,
-    CharsetEncoder,
-};
+use qubit_codec_text::AsciiCodec;
+use qubit_codec_text::CharsetEncodeErrorKind;
+use qubit_codec_text::CharsetEncodePolicy;
+use qubit_codec_text::CharsetEncoder;
 
 #[test]
 fn test_charset_encode_hooks_apply_the_configured_unmappable_action() {

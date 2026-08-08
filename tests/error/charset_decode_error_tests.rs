@@ -5,17 +5,15 @@
 //
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
-use qubit_codec::TranscodeFailure;
-use qubit_codec::{
-    DecodeFailure,
-    TranscodeDecodeError,
-};
-use qubit_codec_text::{
-    Charset,
-    CharsetDecodeError,
-    CharsetDecodeErrorKind,
-};
 use std::num::NonZeroUsize;
+
+use qubit_codec::DecodeFailure;
+use qubit_codec::TranscodeDecodeError;
+use qubit_codec::TranscodeFailure;
+use qubit_codec_text::Charset;
+use qubit_codec_text::CharsetDecodeError;
+use qubit_codec_text::CharsetDecodeErrorKind;
+use qubit_utils::nonzero;
 
 #[test]
 fn test_charset_decode_error_exposes_context() {
@@ -93,7 +91,7 @@ fn test_charset_decode_error_exposes_consumption_and_incomplete_details() {
         CharsetDecodeErrorKind::malformed(0x80),
         4,
     )
-    .with_consumed(qubit_utils::nonzero(2));
+    .with_consumed(nonzero(2));
     assert_eq!(NonZeroUsize::new(2), malformed.consumed());
     assert_eq!(None, malformed.required());
     assert_eq!(Some(0x80), malformed.value());
@@ -123,7 +121,7 @@ fn test_charset_decode_error_exposes_consumption_and_incomplete_details() {
         2,
     );
     assert_eq!(
-        qubit_codec::DecodeFailure::invalid_unknown(invalid_index),
+        DecodeFailure::invalid_unknown(invalid_index),
         invalid_index.into_codec_failure(),
     );
 }

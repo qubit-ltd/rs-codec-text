@@ -5,20 +5,16 @@
 //
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
-use qubit_codec::{
-    ByteOrder,
-    Codec,
-};
-use qubit_codec_text::{
-    AsciiCodec,
-    CharsetDecodeErrorKind,
-    Latin1Codec,
-    Utf8Codec,
-    Utf16ByteCodec,
-    Utf16U16Codec,
-    Utf32ByteCodec,
-    Utf32U32Codec,
-};
+use qubit_codec::ByteOrder;
+use qubit_codec::Codec;
+use qubit_codec_text::AsciiCodec;
+use qubit_codec_text::CharsetDecodeErrorKind;
+use qubit_codec_text::Latin1Codec;
+use qubit_codec_text::Utf8Codec;
+use qubit_codec_text::Utf16ByteCodec;
+use qubit_codec_text::Utf16U16Codec;
+use qubit_codec_text::Utf32ByteCodec;
+use qubit_codec_text::Utf32U32Codec;
 
 #[test]
 fn test_core_codec_trait_reports_text_codec_unit_bounds() {

@@ -5,15 +5,11 @@
 //
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
-use core::{
-    error::Error,
-    fmt,
-};
+use core::error::Error;
+use core::fmt;
 
-use super::{
-    charset::Charset,
-    charset_registration_error_kind::CharsetRegistrationErrorKind,
-};
+use super::charset::Charset;
+use super::charset_registration_error_kind::CharsetRegistrationErrorKind;
 
 /// Error returned when a charset cannot be registered.
 ///

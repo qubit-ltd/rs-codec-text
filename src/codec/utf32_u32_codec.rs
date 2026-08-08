@@ -5,19 +5,19 @@
 //
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
-use crate::error::CharsetCodecDecodeResult;
-use crate::{
-    Charset,
-    CharsetCodec,
-    CharsetDecodeError,
-    CharsetDecodeErrorKind,
-    CharsetDecodeResult,
-    CharsetEncodeError,
-    CharsetEncodeResult,
-    Unicode,
-    Utf32,
-};
 use qubit_codec::Codec;
+use qubit_utils::UncheckedSlice;
+
+use crate::Charset;
+use crate::CharsetCodec;
+use crate::CharsetDecodeError;
+use crate::CharsetDecodeErrorKind;
+use crate::CharsetDecodeResult;
+use crate::CharsetEncodeError;
+use crate::CharsetEncodeResult;
+use crate::Unicode;
+use crate::Utf32;
+use crate::error::CharsetCodecDecodeResult;
 
 /// Combined UTF-32 `u32` code-unit codec.
 ///
@@ -151,7 +151,7 @@ fn decode_units_prefix(
 ) -> CharsetDecodeResult<(char, core::num::NonZeroUsize)> {
     debug_assert!(index < input.len());
     // SAFETY: The caller guarantees that `index` is readable.
-    let unit = unsafe { qubit_utils::UncheckedSlice::read(input, index) };
+    let unit = unsafe { UncheckedSlice::read(input, index) };
     match Unicode::to_char(unit) {
         Some(ch) => Ok((ch, core::num::NonZeroUsize::MIN)),
         None => {
@@ -177,7 +177,7 @@ fn encode_units_char(ch: char, output: &mut [u32], index: usize) -> usize {
     debug_assert!(index < output.len());
     // SAFETY: The caller guarantees that one unit is writable at `index`.
     unsafe {
-        qubit_utils::UncheckedSlice::write(output, index, ch as u32);
+        UncheckedSlice::write(output, index, ch as u32);
     }
     1
 }

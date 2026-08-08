@@ -5,24 +5,17 @@
 //
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
-use qubit_codec::engine::{
-    EncodeContext,
-    EncodeUnencodableAction,
-    TranscodeEncodeHooks,
-};
-use qubit_codec::{
-    TranscodeEncodeError,
-    TranscodeEncodeErrorOf,
-};
-
-use crate::{
-    CharsetEncodeError,
-    CharsetEncodeErrorKind,
-    CharsetEncodeResult,
-    UnmappableAction,
-};
+use qubit_codec::TranscodeEncodeError;
+use qubit_codec::TranscodeEncodeErrorOf;
+use qubit_codec::engine::EncodeContext;
+use qubit_codec::engine::EncodeUnencodableAction;
+use qubit_codec::engine::TranscodeEncodeHooks;
 
 use crate::CharsetCodec;
+use crate::CharsetEncodeError;
+use crate::CharsetEncodeErrorKind;
+use crate::CharsetEncodeResult;
+use crate::UnmappableAction;
 
 /// Unmappable-input policy hooks used by [`super::CharsetEncoder`].
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]

@@ -5,21 +5,15 @@
 //
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
-use std::{
-    collections::hash_map::DefaultHasher,
-    hash::{
-        Hash,
-        Hasher,
-    },
-};
+use std::collections::hash_map::DefaultHasher;
+use std::hash::Hash;
+use std::hash::Hasher;
 
 use qubit_codec::ByteOrder;
-use qubit_codec_text::{
-    Charset,
-    CharsetRegistrationErrorKind,
-    normalize_label_loose,
-    normalize_label_whatwg,
-};
+use qubit_codec_text::Charset;
+use qubit_codec_text::CharsetRegistrationErrorKind;
+use qubit_codec_text::normalize_label_loose;
+use qubit_codec_text::normalize_label_whatwg;
 
 #[test]
 fn test_charset_exposes_identity_metadata() {

@@ -5,39 +5,34 @@
 //
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
-use std::{
-    cell::Cell,
-    rc::Rc,
-};
+use std::cell::Cell;
+use std::rc::Rc;
 
-use qubit_codec::{
-    CapacityError,
-    Codec,
-    TranscodeConvertError,
-    TranscodeConvertErrorOf,
-    TranscodeConverter,
-    TranscodeFailure,
-    TranscodeProgress,
-    TranscodeStatus,
-    Transcoder,
-};
-use qubit_codec_text::{
-    Charset,
-    CharsetCodec,
-    CharsetConvertError,
-    CharsetConverter,
-    CharsetDecodeError,
-    CharsetDecodeErrorKind,
-    CharsetDecodePolicy,
-    CharsetEncodeError,
-    CharsetEncodeErrorKind,
-    CharsetEncodePolicy,
-    CharsetEncodeResult,
-    MalformedAction,
-    UnmappableAction,
-    Utf8Codec,
-    Utf16U16Codec,
-};
+use qubit_codec::CapacityError;
+use qubit_codec::Codec;
+use qubit_codec::DecodeFailure;
+use qubit_codec::TranscodeConvertError;
+use qubit_codec::TranscodeConvertErrorOf;
+use qubit_codec::TranscodeConverter;
+use qubit_codec::TranscodeFailure;
+use qubit_codec::TranscodeProgress;
+use qubit_codec::TranscodeStatus;
+use qubit_codec::Transcoder;
+use qubit_codec_text::Charset;
+use qubit_codec_text::CharsetCodec;
+use qubit_codec_text::CharsetConvertError;
+use qubit_codec_text::CharsetConverter;
+use qubit_codec_text::CharsetDecodeError;
+use qubit_codec_text::CharsetDecodeErrorKind;
+use qubit_codec_text::CharsetDecodePolicy;
+use qubit_codec_text::CharsetEncodeError;
+use qubit_codec_text::CharsetEncodeErrorKind;
+use qubit_codec_text::CharsetEncodePolicy;
+use qubit_codec_text::CharsetEncodeResult;
+use qubit_codec_text::MalformedAction;
+use qubit_codec_text::UnmappableAction;
+use qubit_codec_text::Utf8Codec;
+use qubit_codec_text::Utf16U16Codec;
 
 fn reset_for_test<T: Transcoder>(transcoder: &mut T) {
     let mut output: [T::Output; 0] = [];
@@ -125,7 +120,7 @@ impl Codec for AsciiBytesCodec {
         input_index: usize,
     ) -> Result<
         (char, core::num::NonZeroUsize),
-        qubit_codec::DecodeFailure<qubit_codec_text::CharsetDecodeError>,
+        DecodeFailure<CharsetDecodeError>,
     > {
         if input_index >= input.len() {
             let kind = CharsetDecodeErrorKind::IncompleteSequence {
@@ -200,7 +195,7 @@ impl Codec for NonCloneUnitCodec {
         input_index: usize,
     ) -> Result<
         (char, core::num::NonZeroUsize),
-        qubit_codec::DecodeFailure<CharsetDecodeError>,
+        DecodeFailure<CharsetDecodeError>,
     > {
         let value = input[input_index].0;
         if value.is_ascii() {
@@ -269,7 +264,7 @@ impl Codec for CountingEncodeProbeCodec {
         input_index: usize,
     ) -> Result<
         (char, core::num::NonZeroUsize),
-        qubit_codec::DecodeFailure<qubit_codec_text::CharsetDecodeError>,
+        DecodeFailure<CharsetDecodeError>,
     > {
         unsafe { AsciiBytesCodec.decode(input, input_index) }
     }
@@ -318,7 +313,7 @@ impl Codec for NonDefaultUnitCodec {
         input_index: usize,
     ) -> Result<
         (char, core::num::NonZeroUsize),
-        qubit_codec::DecodeFailure<qubit_codec_text::CharsetDecodeError>,
+        DecodeFailure<CharsetDecodeError>,
     > {
         let kind = CharsetDecodeErrorKind::malformed_unknown();
         Err(CharsetDecodeError::new(Charset::ASCII, kind, input_index)
@@ -394,7 +389,7 @@ impl<const MODE: u8> Codec for FailingLifecycleCodec<MODE> {
         input_index: usize,
     ) -> Result<
         (char, core::num::NonZeroUsize),
-        qubit_codec::DecodeFailure<qubit_codec_text::CharsetDecodeError>,
+        DecodeFailure<CharsetDecodeError>,
     > {
         unsafe { AsciiBytesCodec.decode(input, input_index) }
     }
@@ -491,7 +486,7 @@ impl Codec for RejectingEncodeCodec {
         input_index: usize,
     ) -> Result<
         (char, core::num::NonZeroUsize),
-        qubit_codec::DecodeFailure<qubit_codec_text::CharsetDecodeError>,
+        DecodeFailure<CharsetDecodeError>,
     > {
         let kind = CharsetDecodeErrorKind::malformed_unknown();
         Err(CharsetDecodeError::new(Charset::ASCII, kind, input_index)
@@ -533,7 +528,7 @@ impl Codec for ReplacementFallbackCodec {
         input_index: usize,
     ) -> Result<
         (char, core::num::NonZeroUsize),
-        qubit_codec::DecodeFailure<qubit_codec_text::CharsetDecodeError>,
+        DecodeFailure<CharsetDecodeError>,
     > {
         unsafe { AsciiBytesCodec.decode(input, input_index) }
     }
@@ -889,8 +884,7 @@ fn test_charset_converter_reports_invalid_input_index() {
 #[test]
 fn test_charset_converter_maps_framework_errors_with_its_charsets() {
     let converter = CharsetConverter::from_codecs(Utf8Codec, AsciiBytesCodec);
-    let framework_error =
-        qubit_codec::TranscodeFailure::insufficient_output(1, 2, 0).into();
+    let framework_error = TranscodeFailure::insufficient_output(1, 2, 0).into();
 
     let error = converter.map_transcode_error(framework_error);
 

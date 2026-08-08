@@ -5,23 +5,17 @@
 //
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
-use qubit_codec::engine::{
-    DecodeContext,
-    DecodeIncompleteAction,
-    DecodeInvalidAction,
-    TranscodeDecodeHooks,
-};
-use qubit_codec::{
-    CapacityError,
-    TranscodeDecodeError,
-    TranscodeDecodeErrorOf,
-};
+use qubit_codec::CapacityError;
+use qubit_codec::TranscodeDecodeError;
+use qubit_codec::TranscodeDecodeErrorOf;
+use qubit_codec::engine::DecodeContext;
+use qubit_codec::engine::DecodeIncompleteAction;
+use qubit_codec::engine::DecodeInvalidAction;
+use qubit_codec::engine::TranscodeDecodeHooks;
 
-use crate::{
-    CharsetCodec,
-    CharsetDecodeError,
-    MalformedAction,
-};
+use crate::CharsetCodec;
+use crate::CharsetDecodeError;
+use crate::MalformedAction;
 
 /// Malformed-input policy hooks used by [`super::CharsetDecoder`].
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]

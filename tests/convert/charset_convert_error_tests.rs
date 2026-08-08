@@ -5,21 +5,17 @@
 //
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
-use qubit_codec::{
-    TranscodeConvertError,
-    TranscodeConvertErrorOf,
-    TranscodeFailure,
-};
-use qubit_codec_text::{
-    AsciiCodec,
-    Charset,
-    CharsetConvertError,
-    CharsetDecodeError,
-    CharsetDecodeErrorKind,
-    CharsetEncodeError,
-    CharsetEncodeErrorKind,
-    Utf8Codec,
-};
+use qubit_codec::TranscodeConvertError;
+use qubit_codec::TranscodeConvertErrorOf;
+use qubit_codec::TranscodeFailure;
+use qubit_codec_text::AsciiCodec;
+use qubit_codec_text::Charset;
+use qubit_codec_text::CharsetConvertError;
+use qubit_codec_text::CharsetDecodeError;
+use qubit_codec_text::CharsetDecodeErrorKind;
+use qubit_codec_text::CharsetEncodeError;
+use qubit_codec_text::CharsetEncodeErrorKind;
+use qubit_codec_text::Utf8Codec;
 
 #[test]
 fn test_charset_convert_error_wraps_decode_and_encode_errors() {

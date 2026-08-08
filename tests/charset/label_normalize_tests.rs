@@ -5,10 +5,8 @@
 //
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
-use qubit_codec_text::{
-    normalize_label_loose,
-    normalize_label_whatwg,
-};
+use qubit_codec_text::normalize_label_loose;
+use qubit_codec_text::normalize_label_whatwg;
 
 #[test]
 fn test_label_normalizers_apply_their_respective_separator_rules() {

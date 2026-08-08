@@ -6,10 +6,8 @@
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
 use qubit_codec::ByteOrder;
-use qubit_codec_text::{
-    Unicode,
-    UnicodeBom,
-};
+use qubit_codec_text::Unicode;
+use qubit_codec_text::UnicodeBom;
 
 #[test]
 fn test_unicode_classifies_code_points() {

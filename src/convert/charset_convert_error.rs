@@ -5,18 +5,14 @@
 //
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
-use qubit_codec::{
-    TranscodeConvertError,
-    TranscodeConvertErrorOf,
-    TranscodeFailure,
-};
+use qubit_codec::TranscodeConvertError;
+use qubit_codec::TranscodeConvertErrorOf;
+use qubit_codec::TranscodeFailure;
 
-use crate::{
-    Charset,
-    CharsetCodec,
-    CharsetDecodeError,
-    CharsetEncodeError,
-};
+use crate::Charset;
+use crate::CharsetCodec;
+use crate::CharsetDecodeError;
+use crate::CharsetEncodeError;
 
 /// Error reported while converting between two charsets.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, thiserror::Error)]

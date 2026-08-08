@@ -8,10 +8,8 @@
 #![no_main]
 
 use libfuzzer_sys::fuzz_target;
-use qubit_codec_text::{
-    CharsetEncoder,
-    Utf8Codec,
-};
+use qubit_codec_text::CharsetEncoder;
+use qubit_codec_text::Utf8Codec;
 
 const MAX_FUZZ_INPUT_LEN: usize = 4_096;
 
