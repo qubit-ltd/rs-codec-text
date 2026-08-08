@@ -5,12 +5,10 @@
 //
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
-use crate::{
-    CharsetCodec,
-    CharsetEncodeError,
-    CharsetEncodeErrorKind,
-    UnmappableAction,
-};
+use crate::CharsetCodec;
+use crate::CharsetEncodeError;
+use crate::CharsetEncodeErrorKind;
+use crate::UnmappableAction;
 
 /// Unmappable-input policy used by charset encoders and converters.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]

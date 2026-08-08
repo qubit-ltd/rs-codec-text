@@ -5,19 +5,14 @@
 //
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
-use core::{
-    error::Error,
-    fmt,
-};
+use core::error::Error;
+use core::fmt;
 
-use crate::{
-    Charset,
-    CharsetEncodeErrorKind,
-};
-use qubit_codec::{
-    TranscodeEncodeError,
-    TranscodeFailure,
-};
+use qubit_codec::TranscodeEncodeError;
+use qubit_codec::TranscodeFailure;
+
+use crate::Charset;
+use crate::CharsetEncodeErrorKind;
 
 /// Error reported by a charset encoder.
 ///
@@ -82,14 +77,12 @@ impl CharsetEncodeError {
         charset: Charset,
         error: TranscodeFailure,
     ) -> Self {
-        use TranscodeFailure::{
-            IncompleteInput,
-            InsufficientOutput,
-            InvalidInputIndex,
-            InvalidOutputIndex,
-            OutputLengthOverflow,
-            TrailingInput,
-        };
+        use TranscodeFailure::IncompleteInput;
+        use TranscodeFailure::InsufficientOutput;
+        use TranscodeFailure::InvalidInputIndex;
+        use TranscodeFailure::InvalidOutputIndex;
+        use TranscodeFailure::OutputLengthOverflow;
+        use TranscodeFailure::TrailingInput;
 
         match error {
             InvalidInputIndex { index, input_len } => Self::new(

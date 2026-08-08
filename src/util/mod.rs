@@ -9,7 +9,5 @@
 
 mod label_normalize;
 
-pub use label_normalize::{
-    normalize_label_loose,
-    normalize_label_whatwg,
-};
+pub use label_normalize::normalize_label_loose;
+pub use label_normalize::normalize_label_whatwg;

@@ -7,10 +7,8 @@
 // =============================================================================
 use qubit_codec::ByteOrder;
 
-use crate::{
-    BomDetectStatus,
-    Charset,
-};
+use crate::BomDetectStatus;
+use crate::Charset;
 
 /// Unicode byte order marks supported by this crate.
 ///

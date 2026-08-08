@@ -6,10 +6,8 @@
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
 use qubit_codec::Codec;
-use qubit_codec_text::{
-    CharsetCodec,
-    Utf8Codec,
-};
+use qubit_codec_text::CharsetCodec;
+use qubit_codec_text::Utf8Codec;
 
 fn assert_charset_codec<T>(_codec: &T)
 where

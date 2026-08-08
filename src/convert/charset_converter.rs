@@ -5,27 +5,24 @@
 //
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
-use crate::{
-    CharsetCodec,
-    CharsetConvertError,
-    CharsetDecodeError,
-    CharsetDecodeHooks,
-    CharsetDecodePolicy,
-    CharsetEncodeError,
-    CharsetEncodeHooks,
-    CharsetEncodePolicy,
-    CharsetEncoder,
-    MalformedAction,
-    UnmappableAction,
-};
+use qubit_codec::CapacityError;
+use qubit_codec::TranscodeConvertErrorOf;
+use qubit_codec::TranscodeConverter;
+use qubit_codec::TranscodeProgress;
+use qubit_codec::Transcoder;
 use qubit_codec::engine::TranscodeConvertEngine;
-use qubit_codec::{
-    CapacityError,
-    TranscodeConvertErrorOf,
-    TranscodeConverter,
-    TranscodeProgress,
-    Transcoder,
-};
+
+use crate::CharsetCodec;
+use crate::CharsetConvertError;
+use crate::CharsetDecodeError;
+use crate::CharsetDecodeHooks;
+use crate::CharsetDecodePolicy;
+use crate::CharsetEncodeError;
+use crate::CharsetEncodeHooks;
+use crate::CharsetEncodePolicy;
+use crate::CharsetEncoder;
+use crate::MalformedAction;
+use crate::UnmappableAction;
 
 /// Converts units encoded with one charset into units encoded with another
 /// charset.

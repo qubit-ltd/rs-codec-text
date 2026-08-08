@@ -7,10 +7,8 @@
 // =============================================================================
 use qubit_codec::ByteOrder;
 
-use crate::{
-    Unicode,
-    UnicodeBom,
-};
+use crate::Unicode;
+use crate::UnicodeBom;
 
 /// Namespace for UTF-16 constants and code-unit classification helpers.
 pub enum Utf16 {}

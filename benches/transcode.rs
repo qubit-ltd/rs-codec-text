@@ -10,24 +10,20 @@
 use std::hint::black_box;
 use std::time::Duration;
 
-use criterion::{
-    BenchmarkGroup,
-    Criterion,
-    Throughput,
-    criterion_group,
-    criterion_main,
-    measurement::WallTime,
-};
+use criterion::BenchmarkGroup;
+use criterion::Criterion;
+use criterion::Throughput;
+use criterion::criterion_group;
+use criterion::criterion_main;
+use criterion::measurement::WallTime;
 use qubit_codec::Transcoder;
-use qubit_codec_text::{
-    CharsetCodec,
-    CharsetConverter,
-    CharsetDecoder,
-    CharsetEncoder,
-    Utf8Codec,
-    Utf16U16Codec,
-    Utf32U32Codec,
-};
+use qubit_codec_text::CharsetCodec;
+use qubit_codec_text::CharsetConverter;
+use qubit_codec_text::CharsetDecoder;
+use qubit_codec_text::CharsetEncoder;
+use qubit_codec_text::Utf8Codec;
+use qubit_codec_text::Utf16U16Codec;
+use qubit_codec_text::Utf32U32Codec;
 
 const FIXTURE_REPEAT: usize = 2_048;
 const SAMPLE_SIZE: usize = 20;

@@ -5,37 +5,30 @@
 //
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
-use core::{
-    fmt,
-    hash::{
-        Hash,
-        Hasher,
-    },
-};
-use std::sync::{
-    OnceLock,
-    RwLock,
-    RwLockReadGuard,
-    RwLockWriteGuard,
-};
+use core::fmt;
+use core::hash::Hash;
+use core::hash::Hasher;
+use std::sync::OnceLock;
+use std::sync::RwLock;
+use std::sync::RwLockReadGuard;
+use std::sync::RwLockWriteGuard;
 
 use qubit_codec::ByteOrder;
 #[cfg(feature = "serde")]
-use serde::{
-    Deserialize,
-    Deserializer,
-    Serialize,
-    Serializer,
-    de,
-};
-
-use crate::{
-    normalize_label_loose,
-    normalize_label_whatwg,
-};
+use serde::Deserialize;
+#[cfg(feature = "serde")]
+use serde::Deserializer;
+#[cfg(feature = "serde")]
+use serde::Serialize;
+#[cfg(feature = "serde")]
+use serde::Serializer;
+#[cfg(feature = "serde")]
+use serde::de;
 
 use super::charset_registration_error::CharsetRegistrationError;
 use super::internal::LabelNormalization;
+use crate::normalize_label_loose;
+use crate::normalize_label_whatwg;
 
 /// Global runtime charset registry.
 static CHARSET_REGISTRY: OnceLock<RwLock<Vec<Charset>>> = OnceLock::new();

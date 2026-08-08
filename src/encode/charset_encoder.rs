@@ -5,28 +5,19 @@
 //
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
+use qubit_codec::CapacityError;
+use qubit_codec::TranscodeEncodeErrorOf;
+use qubit_codec::TranscodeEncoder;
+use qubit_codec::TranscodeProgress;
+use qubit_codec::Transcoder;
 use qubit_codec::engine::TranscodeEncodeEngine;
-use qubit_codec::{
-    CapacityError,
-    TranscodeEncodeErrorOf,
-    TranscodeEncoder,
-    TranscodeProgress,
-    Transcoder,
-};
 
-use crate::{
-    CharsetCodec,
-    CharsetEncodeError,
-    UnmappableAction,
-};
-
-use super::{
-    charset_encode_hooks::{
-        CharsetEncodeHooks,
-        replacement_len,
-    },
-    charset_encode_policy::CharsetEncodePolicy,
-};
+use super::charset_encode_hooks::CharsetEncodeHooks;
+use super::charset_encode_hooks::replacement_len;
+use super::charset_encode_policy::CharsetEncodePolicy;
+use crate::CharsetCodec;
+use crate::CharsetEncodeError;
+use crate::UnmappableAction;
 
 /// Converts Unicode scalar values into units of one charset.
 ///

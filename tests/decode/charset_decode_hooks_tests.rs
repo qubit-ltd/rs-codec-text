@@ -6,12 +6,10 @@
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
 use qubit_codec::TranscodeDecodeError;
-use qubit_codec_text::{
-    CharsetDecodeErrorKind,
-    CharsetDecodePolicy,
-    CharsetDecoder,
-    Utf8Codec,
-};
+use qubit_codec_text::CharsetDecodeErrorKind;
+use qubit_codec_text::CharsetDecodePolicy;
+use qubit_codec_text::CharsetDecoder;
+use qubit_codec_text::Utf8Codec;
 
 #[test]
 fn test_charset_decode_hooks_apply_the_configured_malformed_action() {

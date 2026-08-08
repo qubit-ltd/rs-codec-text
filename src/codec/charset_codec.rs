@@ -5,12 +5,11 @@
 //
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
-use crate::{
-    Charset,
-    CharsetDecodeError,
-    CharsetEncodeError,
-};
 use qubit_codec::Codec;
+
+use crate::Charset;
+use crate::CharsetDecodeError;
+use crate::CharsetEncodeError;
 
 /// Charset metadata carried by a low-level `Codec<Value = char>`.
 ///

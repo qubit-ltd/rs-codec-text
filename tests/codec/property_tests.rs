@@ -5,28 +5,20 @@
 //
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
-use proptest::{
-    collection,
-    prelude::{
-        Strategy,
-        any,
-    },
-    prop_assert_eq,
-    proptest,
-};
-use qubit_codec::{
-    ByteOrder,
-    TranscodeDecodeError,
-    Transcoder,
-};
-use qubit_codec_text::{
-    CharsetCodec,
-    CharsetDecodeError,
-    CharsetDecoder,
-    CharsetEncoder,
-    Utf8Codec,
-    Utf16ByteCodec,
-};
+use proptest::collection;
+use proptest::prelude::Strategy;
+use proptest::prelude::any;
+use proptest::prop_assert_eq;
+use proptest::proptest;
+use qubit_codec::ByteOrder;
+use qubit_codec::TranscodeDecodeError;
+use qubit_codec::Transcoder;
+use qubit_codec_text::CharsetCodec;
+use qubit_codec_text::CharsetDecodeError;
+use qubit_codec_text::CharsetDecoder;
+use qubit_codec_text::CharsetEncoder;
+use qubit_codec_text::Utf8Codec;
+use qubit_codec_text::Utf16ByteCodec;
 
 fn short_string() -> impl Strategy<Value = String> {
     collection::vec(any::<char>(), 0..128)

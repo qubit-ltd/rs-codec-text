@@ -5,26 +5,22 @@
 //
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
+use qubit_codec::ByteOrder;
+use qubit_codec::Codec;
+use qubit_utils::SliceRange;
+use qubit_utils::UncheckedSlice;
+use qubit_utils::nonzero;
+
+use crate::Charset;
+use crate::CharsetCodec;
+use crate::CharsetDecodeError;
+use crate::CharsetDecodeErrorKind;
+use crate::CharsetDecodeResult;
+use crate::CharsetEncodeError;
+use crate::CharsetEncodeResult;
+use crate::Unicode;
+use crate::Utf32;
 use crate::error::CharsetCodecDecodeResult;
-use crate::{
-    Charset,
-    CharsetCodec,
-    CharsetDecodeError,
-    CharsetDecodeErrorKind,
-    CharsetDecodeResult,
-    CharsetEncodeError,
-    CharsetEncodeResult,
-    Unicode,
-    Utf32,
-};
-use qubit_codec::{
-    ByteOrder,
-    Codec,
-};
-use qubit_utils::{
-    SliceRange,
-    UncheckedSlice,
-};
 
 /// Combined byte-serialized UTF-32 codec.
 ///
@@ -193,11 +189,11 @@ fn decode_bytes_prefix(
     debug_assert!(SliceRange::range_fits(input.len(), index, 4));
     let unit = read_ordered_u32(input, index, byte_order);
     match Unicode::to_char(unit) {
-        Some(ch) => Ok((ch, qubit_utils::nonzero(4))),
+        Some(ch) => Ok((ch, nonzero(4))),
         None => {
             let kind = CharsetDecodeErrorKind::InvalidCodePoint { value: unit };
             Err(CharsetDecodeError::new(charset, kind, index)
-                .with_consumed(qubit_utils::nonzero(4)))
+                .with_consumed(nonzero(4)))
         }
     }
 }
