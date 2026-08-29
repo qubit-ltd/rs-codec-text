@@ -136,23 +136,14 @@ impl Codec for Utf32ByteCodec {
         input_index: usize,
     ) -> CharsetCodecDecodeResult<(char, core::num::NonZeroUsize)> {
         let (ch, consumed) =
-            decode_bytes_prefix(input, input_index, self.byte_order)
-                .map_err(CharsetDecodeError::into_codec_failure)?;
-        debug_assert!(
-            consumed.get() <= input.len().saturating_sub(input_index)
-        );
+            decode_bytes_prefix(input, input_index, self.byte_order).map_err(CharsetDecodeError::into_codec_failure)?;
+        debug_assert!(consumed.get() <= input.len().saturating_sub(input_index));
         Ok((ch, consumed))
     }
 
     #[inline]
-    unsafe fn encode(
-        &mut self,
-        ch: &char,
-        output: &mut [u8],
-        output_index: usize,
-    ) -> CharsetEncodeResult<usize> {
-        let written =
-            encode_bytes_char(*ch, output, self.byte_order, output_index);
+    unsafe fn encode(&mut self, ch: &char, output: &mut [u8], output_index: usize) -> CharsetEncodeResult<usize> {
+        let written = encode_bytes_char(*ch, output, self.byte_order, output_index);
         debug_assert_eq!(written, Utf32::MAX_BYTES_PER_CHAR);
         debug_assert!(written <= output.len().saturating_sub(output_index));
         Ok(Utf32::MAX_BYTES_PER_CHAR)
@@ -192,8 +183,7 @@ fn decode_bytes_prefix(
         Some(ch) => Ok((ch, nonzero(4))),
         None => {
             let kind = CharsetDecodeErrorKind::InvalidCodePoint { value: unit };
-            Err(CharsetDecodeError::new(charset, kind, index)
-                .with_consumed(nonzero(4)))
+            Err(CharsetDecodeError::new(charset, kind, index).with_consumed(nonzero(4)))
         }
     }
 }
@@ -211,12 +201,7 @@ fn decode_bytes_prefix(
 ///
 /// `Ok(4)` on success, because UTF-32 always occupies exactly four bytes.
 #[inline]
-fn encode_bytes_char(
-    ch: char,
-    output: &mut [u8],
-    byte_order: ByteOrder,
-    index: usize,
-) -> usize {
+fn encode_bytes_char(ch: char, output: &mut [u8], byte_order: ByteOrder, index: usize) -> usize {
     let required = Utf32::MAX_BYTES_PER_CHAR;
     debug_assert!(SliceRange::range_fits(output.len(), index, required));
     write_ordered_u32(output, index, ch as u32, byte_order);
@@ -263,12 +248,7 @@ fn read_ordered_u32(input: &[u8], index: usize, byte_order: ByteOrder) -> u32 {
 /// - `unit`: UTF-32 unit to write.
 /// - `byte_order`: Byte order used to serialize the unit.
 #[inline]
-fn write_ordered_u32(
-    output: &mut [u8],
-    index: usize,
-    unit: u32,
-    byte_order: ByteOrder,
-) {
+fn write_ordered_u32(output: &mut [u8], index: usize, unit: u32, byte_order: ByteOrder) {
     let bytes = match byte_order {
         ByteOrder::BigEndian => unit.to_be_bytes(),
         ByteOrder::LittleEndian => unit.to_le_bytes(),

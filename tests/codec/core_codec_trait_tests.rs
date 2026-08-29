@@ -50,11 +50,7 @@ where
     C::EncodeError: core::fmt::Debug,
 {
     let mut output = [0_u8; 4];
-    let written = unsafe {
-        codec
-            .encode(&value, &mut output, 0)
-            .expect("character should encode")
-    };
+    let written = unsafe { codec.encode(&value, &mut output, 0).expect("character should encode") };
     assert_eq!(expected, &output[..written]);
 
     let (decoded, consumed) = unsafe {
@@ -95,11 +91,7 @@ fn test_core_codec_trait_is_implemented_for_utf16_units() {
     assert_eq!(2, written);
     assert_eq!([0xd83d, 0xde00], output);
 
-    let (decoded, consumed) = unsafe {
-        codec
-            .decode(&output, 0)
-            .expect("surrogate pair should decode")
-    };
+    let (decoded, consumed) = unsafe { codec.decode(&output, 0).expect("surrogate pair should decode") };
     assert_eq!('😀', decoded);
     assert_eq!(2, consumed.get());
 }
@@ -109,16 +101,11 @@ fn test_core_codec_trait_is_implemented_for_utf32_units() {
     let mut codec = Utf32U32Codec;
     let mut output = [0_u32; 1];
 
-    let written = unsafe {
-        codec
-            .encode(&'中', &mut output, 0)
-            .expect("character should encode")
-    };
+    let written = unsafe { codec.encode(&'中', &mut output, 0).expect("character should encode") };
     assert_eq!(1, written);
     assert_eq!([0x4e2d], output);
 
-    let (decoded, consumed) =
-        unsafe { codec.decode(&output, 0).expect("UTF-32 unit should decode") };
+    let (decoded, consumed) = unsafe { codec.decode(&output, 0).expect("UTF-32 unit should decode") };
     assert_eq!('中', decoded);
     assert_eq!(1, consumed.get());
 }

@@ -39,10 +39,7 @@ impl CharsetDecodeHooks {
     /// Returns hooks carrying the supplied policy.
     #[must_use]
     #[inline]
-    pub(crate) const fn new(
-        malformed_action: MalformedAction,
-        replacement: char,
-    ) -> Self {
+    pub(crate) const fn new(malformed_action: MalformedAction, replacement: char) -> Self {
         Self {
             malformed_action,
             replacement,
@@ -56,11 +53,7 @@ where
 {
     /// Returns the maximum number of characters decoded from `input_len` units.
     #[inline]
-    fn max_transcode_output_len(
-        &self,
-        _codec: &C,
-        input_len: usize,
-    ) -> Result<usize, CapacityError> {
+    fn max_transcode_output_len(&self, _codec: &C, input_len: usize) -> Result<usize, CapacityError> {
         Ok(input_len)
     }
 
@@ -73,29 +66,17 @@ where
         context: DecodeContext,
     ) -> Result<DecodeInvalidAction<char>, TranscodeDecodeErrorOf<C>> {
         if error.kind().is_malformed_input() {
-            let consumed = error
-                .consumed()
-                .expect("malformed decode errors carry consumed width");
+            let consumed = error.consumed().expect("malformed decode errors carry consumed width");
             return match self.malformed_action {
-                MalformedAction::Report => {
-                    Err(TranscodeDecodeError::domain_main(
-                        *error,
-                        context.input_index(),
-                    ))
-                }
-                MalformedAction::Ignore => {
-                    Ok(DecodeInvalidAction::Skip { consumed })
-                }
+                MalformedAction::Report => Err(TranscodeDecodeError::domain_main(*error, context.input_index())),
+                MalformedAction::Ignore => Ok(DecodeInvalidAction::Skip { consumed }),
                 MalformedAction::Replace => Ok(DecodeInvalidAction::Emit {
                     value: self.replacement,
                     consumed,
                 }),
             };
         }
-        Err(TranscodeDecodeError::domain_main(
-            *error,
-            context.input_index(),
-        ))
+        Err(TranscodeDecodeError::domain_main(*error, context.input_index()))
     }
 
     /// Selects the malformed-input action for a source tail left incomplete at

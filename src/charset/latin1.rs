@@ -129,10 +129,7 @@ impl Latin1 {
     #[inline(always)]
     #[must_use]
     pub const fn is_letter_byte(value: u8) -> bool {
-        Self::is_uppercase_letter_byte(value)
-            || Self::is_lowercase_letter_byte(value)
-            || value == 0xaa
-            || value == 0xba
+        Self::is_uppercase_letter_byte(value) || Self::is_lowercase_letter_byte(value) || value == 0xaa || value == 0xba
     }
 
     /// Tests whether a character is a Latin-1 letter.
@@ -184,9 +181,7 @@ impl Latin1 {
     #[inline(always)]
     #[must_use]
     pub const fn is_uppercase_letter_byte(value: u8) -> bool {
-        Ascii::is_uppercase_letter_byte(value)
-            || (value >= 0xc0 && value <= 0xd6)
-            || (value >= 0xd8 && value <= 0xde)
+        Ascii::is_uppercase_letter_byte(value) || (value >= 0xc0 && value <= 0xd6) || (value >= 0xd8 && value <= 0xde)
     }
 
     /// Tests whether a character is an uppercase Latin-1 letter.
@@ -674,8 +669,7 @@ impl Latin1 {
         if left == right {
             true
         } else {
-            Self::code_point_to_lowercase(left)
-                == Self::code_point_to_lowercase(right)
+            Self::code_point_to_lowercase(left) == Self::code_point_to_lowercase(right)
         }
     }
 

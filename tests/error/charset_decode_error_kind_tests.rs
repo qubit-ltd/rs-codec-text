@@ -31,10 +31,7 @@ fn test_charset_decode_error_kind_displays_messages() {
     );
 
     assert_eq!(None, CharsetDecodeErrorKind::malformed_unknown().required());
-    assert_eq!(
-        None,
-        CharsetDecodeErrorKind::malformed_unknown().available()
-    );
+    assert_eq!(None, CharsetDecodeErrorKind::malformed_unknown().available());
 
     let incomplete = CharsetDecodeErrorKind::IncompleteSequence {
         required: 5,
@@ -57,10 +54,7 @@ fn test_charset_decode_error_kind_displays_messages() {
     assert_eq!(None, CharsetDecodeErrorKind::malformed_unknown().value());
     assert_eq!(Some(0x41), CharsetDecodeErrorKind::malformed(0x41).value());
     assert_eq!(Some(0xd800), invalid.value());
-    assert_eq!(
-        None,
-        CharsetDecodeErrorKind::UnexpectedTranscodeFailure.value(),
-    );
+    assert_eq!(None, CharsetDecodeErrorKind::UnexpectedTranscodeFailure.value(),);
     assert_eq!(
         None,
         CharsetDecodeErrorKind::IncompleteSequence {
@@ -90,8 +84,7 @@ fn test_charset_decode_error_kind_exposes_decode_policy_helpers() {
         required: 3,
         available: 1,
     };
-    let invalid_code_point =
-        CharsetDecodeErrorKind::InvalidCodePoint { value: 0x110000 };
+    let invalid_code_point = CharsetDecodeErrorKind::InvalidCodePoint { value: 0x110000 };
 
     assert!(!malformed.is_incomplete());
     assert!(incomplete.is_incomplete());

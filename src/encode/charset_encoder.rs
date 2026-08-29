@@ -104,10 +104,7 @@ where
     ///
     /// Returns an error when `policy` uses replacement and the replacement
     /// character cannot be encoded by `codec`.
-    pub fn with_policy(
-        codec: C,
-        policy: CharsetEncodePolicy,
-    ) -> Result<Self, CharsetEncodeError> {
+    pub fn with_policy(codec: C, policy: CharsetEncodePolicy) -> Result<Self, CharsetEncodeError> {
         let hooks = Self::create_hooks(&codec, policy)?;
         Ok(Self {
             engine: TranscodeEncodeEngine::new(codec, hooks),
@@ -198,11 +195,7 @@ where
     /// capacity is insufficient, or encoder reset emits a charset-domain
     /// error.
     #[inline]
-    pub fn reset(
-        &mut self,
-        output: &mut [C::Unit],
-        output_index: usize,
-    ) -> Result<usize, TranscodeEncodeErrorOf<C>> {
+    pub fn reset(&mut self, output: &mut [C::Unit], output_index: usize) -> Result<usize, TranscodeEncodeErrorOf<C>> {
         self.engine.reset(output, output_index)
     }
 
@@ -221,8 +214,7 @@ where
         output: &mut [C::Unit],
         output_index: usize,
     ) -> Result<TranscodeProgress, TranscodeEncodeErrorOf<C>> {
-        self.engine
-            .transcode(input, input_index, output, output_index)
+        self.engine.transcode(input, input_index, output, output_index)
     }
 
     /// Maps an encoder transcode error into a charset encode error.
@@ -232,10 +224,7 @@ where
     /// error.
     #[must_use]
     #[inline]
-    pub fn map_transcode_error(
-        &self,
-        error: TranscodeEncodeErrorOf<C>,
-    ) -> CharsetEncodeError {
+    pub fn map_transcode_error(&self, error: TranscodeEncodeErrorOf<C>) -> CharsetEncodeError {
         CharsetEncodeError::from_transcode_error(self.charset(), error)
     }
 
@@ -246,11 +235,7 @@ where
     /// Returns a transcode encode error when finalization output cannot be
     /// written or when the codec reports a final encode-domain error.
     #[inline]
-    pub fn finish(
-        &mut self,
-        output: &mut [C::Unit],
-        output_index: usize,
-    ) -> Result<usize, TranscodeEncodeErrorOf<C>> {
+    pub fn finish(&mut self, output: &mut [C::Unit], output_index: usize) -> Result<usize, TranscodeEncodeErrorOf<C>> {
         self.engine.finish(output, output_index)
     }
 
@@ -275,10 +260,7 @@ where
         codec: &C,
         policy: CharsetEncodePolicy,
     ) -> Result<CharsetEncodeHooks, CharsetEncodeError> {
-        let hooks = CharsetEncodeHooks::new(
-            policy.unmappable_action(),
-            policy.replacement(),
-        );
+        let hooks = CharsetEncodeHooks::new(policy.unmappable_action(), policy.replacement());
         if policy.unmappable_action() != UnmappableAction::Replace {
             return Ok(hooks);
         }
@@ -298,10 +280,7 @@ where
     /// Returns the maximum number of target units needed for `input_len`
     /// characters.
     #[inline(always)]
-    fn max_transcode_output_len(
-        &self,
-        input_len: usize,
-    ) -> Result<usize, CapacityError> {
+    fn max_transcode_output_len(&self, input_len: usize) -> Result<usize, CapacityError> {
         self.engine.max_transcode_output_len(input_len)
     }
 
@@ -319,11 +298,7 @@ where
 
     /// Runs encoder reset while keeping encoder policy.
     #[inline(always)]
-    fn reset(
-        &mut self,
-        output: &mut [C::Unit],
-        output_index: usize,
-    ) -> Result<usize, Self::Error> {
+    fn reset(&mut self, output: &mut [C::Unit], output_index: usize) -> Result<usize, Self::Error> {
         self.engine.reset(output, output_index)
     }
 
@@ -337,17 +312,12 @@ where
         output: &mut [C::Unit],
         output_index: usize,
     ) -> Result<TranscodeProgress, Self::Error> {
-        self.engine
-            .transcode(input, input_index, output, output_index)
+        self.engine.transcode(input, input_index, output, output_index)
     }
 
     /// Finishes encoder-owned final output after EOF.
     #[inline(always)]
-    fn finish(
-        &mut self,
-        output: &mut [C::Unit],
-        output_index: usize,
-    ) -> Result<usize, Self::Error> {
+    fn finish(&mut self, output: &mut [C::Unit], output_index: usize) -> Result<usize, Self::Error> {
         self.engine.finish(output, output_index)
     }
 }

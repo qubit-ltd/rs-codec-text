@@ -23,8 +23,5 @@ fn test_charset_encode_policy_constructors_preserve_action_and_replacement() {
         UnmappableAction::Report,
         CharsetEncodePolicy::report().unmappable_action()
     );
-    assert_eq!(
-        CharsetEncodePolicy::default(),
-        CharsetEncodePolicy::replace('\u{fffd}')
-    );
+    assert_eq!(CharsetEncodePolicy::default(), CharsetEncodePolicy::replace('\u{fffd}'));
 }

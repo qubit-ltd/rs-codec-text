@@ -39,10 +39,7 @@ impl CharsetEncodeHooks {
     /// Returns hooks configured with the supplied policy.
     #[must_use]
     #[inline]
-    pub(crate) const fn new(
-        unmappable_action: UnmappableAction,
-        replacement: char,
-    ) -> Self {
+    pub(crate) const fn new(unmappable_action: UnmappableAction, replacement: char) -> Self {
         Self {
             unmappable_action,
             replacement,
@@ -65,22 +62,15 @@ where
         let input_index = context.input_index();
         let error = unmappable_error(codec, ch, input_index);
         match self.unmappable_action {
-            UnmappableAction::Report => {
-                Err(TranscodeEncodeError::domain_main(error, input_index))
-            }
+            UnmappableAction::Report => Err(TranscodeEncodeError::domain_main(error, input_index)),
             UnmappableAction::Ignore => Ok(EncodeUnencodableAction::Skip),
-            UnmappableAction::Replace => {
-                Ok(EncodeUnencodableAction::replace(self.replacement))
-            }
+            UnmappableAction::Replace => Ok(EncodeUnencodableAction::replace(self.replacement)),
         }
     }
 }
 
 /// Returns the encoded width of a replacement character.
-pub(super) fn replacement_len<C>(
-    codec: &C,
-    ch: char,
-) -> CharsetEncodeResult<usize>
+pub(super) fn replacement_len<C>(codec: &C, ch: char) -> CharsetEncodeResult<usize>
 where
     C: CharsetCodec,
 {

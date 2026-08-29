@@ -86,12 +86,8 @@ fn test_charset_decode_error_offset_saturates_on_overflow() {
 
 #[test]
 fn test_charset_decode_error_exposes_consumption_and_incomplete_details() {
-    let malformed = CharsetDecodeError::new(
-        Charset::UTF_8,
-        CharsetDecodeErrorKind::malformed(0x80),
-        4,
-    )
-    .with_consumed(nonzero(2));
+    let malformed =
+        CharsetDecodeError::new(Charset::UTF_8, CharsetDecodeErrorKind::malformed(0x80), 4).with_consumed(nonzero(2));
     assert_eq!(NonZeroUsize::new(2), malformed.consumed());
     assert_eq!(None, malformed.required());
     assert_eq!(Some(0x80), malformed.value());
@@ -137,10 +133,7 @@ fn test_charset_decode_error_keeps_buffer_too_small_invalid() {
         3,
     );
 
-    assert_eq!(
-        DecodeFailure::invalid_unknown(error),
-        error.into_codec_failure(),
-    );
+    assert_eq!(DecodeFailure::invalid_unknown(error), error.into_codec_failure(),);
 }
 
 #[test]
@@ -159,12 +152,9 @@ fn test_charset_decode_error_direct_function_items_cover_forwarders() {
         1,
     );
 
-    let required: fn(CharsetDecodeError) -> Option<usize> =
-        std::hint::black_box(CharsetDecodeError::required);
-    let available: fn(CharsetDecodeError) -> Option<usize> =
-        std::hint::black_box(CharsetDecodeError::available);
-    let value: fn(CharsetDecodeError) -> Option<u32> =
-        std::hint::black_box(CharsetDecodeError::value);
+    let required: fn(CharsetDecodeError) -> Option<usize> = std::hint::black_box(CharsetDecodeError::required);
+    let available: fn(CharsetDecodeError) -> Option<usize> = std::hint::black_box(CharsetDecodeError::available);
+    let value: fn(CharsetDecodeError) -> Option<u32> = std::hint::black_box(CharsetDecodeError::value);
 
     assert_eq!(Some(4), required(incomplete));
     assert_eq!(Some(1), available(incomplete));
@@ -215,10 +205,7 @@ fn test_charset_decode_error_maps_transcode_failures() {
     );
     assert_eq!(2, error.index());
 
-    let error = CharsetDecodeError::map_transcode_failure(
-        Charset::UTF_8,
-        TranscodeFailure::OutputLengthOverflow,
-    );
+    let error = CharsetDecodeError::map_transcode_failure(Charset::UTF_8, TranscodeFailure::OutputLengthOverflow);
     assert_eq!(CharsetDecodeErrorKind::OutputLengthOverflow, error.kind());
     assert_eq!(usize::MAX, error.index());
 
@@ -230,10 +217,7 @@ fn test_charset_decode_error_maps_transcode_failures() {
             output_len: 2,
         },
     );
-    assert_eq!(
-        CharsetDecodeErrorKind::UnexpectedTranscodeFailure,
-        error.kind(),
-    );
+    assert_eq!(CharsetDecodeErrorKind::UnexpectedTranscodeFailure, error.kind(),);
     assert_eq!(usize::MAX, error.index());
 
     let error = CharsetDecodeError::map_transcode_failure(
@@ -260,10 +244,7 @@ fn test_charset_decode_error_maps_transcode_failures() {
             remaining: 1,
         },
     );
-    assert_eq!(
-        CharsetDecodeErrorKind::UnexpectedTranscodeFailure,
-        error.kind(),
-    );
+    assert_eq!(CharsetDecodeErrorKind::UnexpectedTranscodeFailure, error.kind(),);
     assert_eq!(usize::MAX, error.index());
 }
 
@@ -271,16 +252,10 @@ fn test_charset_decode_error_maps_transcode_failures() {
 fn test_charset_decode_error_from_transcode_failure() {
     let error = CharsetDecodeError::from_transcode_error(
         Charset::UTF_8,
-        TranscodeDecodeError::Failure(TranscodeFailure::InvalidInputIndex {
-            index: 3,
-            input_len: 2,
-        }),
+        TranscodeDecodeError::Failure(TranscodeFailure::InvalidInputIndex { index: 3, input_len: 2 }),
     );
 
     assert_eq!(Charset::UTF_8, error.charset());
-    assert_eq!(
-        CharsetDecodeErrorKind::InvalidInputIndex { input_len: 2 },
-        error.kind()
-    );
+    assert_eq!(CharsetDecodeErrorKind::InvalidInputIndex { input_len: 2 }, error.kind());
     assert_eq!(3, error.index());
 }

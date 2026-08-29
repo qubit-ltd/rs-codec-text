@@ -112,21 +112,13 @@ impl Codec for Utf16U16Codec {
         input: &[u16],
         input_index: usize,
     ) -> CharsetCodecDecodeResult<(char, core::num::NonZeroUsize)> {
-        let (ch, consumed) = decode_units_prefix(input, input_index)
-            .map_err(CharsetDecodeError::into_codec_failure)?;
-        debug_assert!(
-            consumed.get() <= input.len().saturating_sub(input_index)
-        );
+        let (ch, consumed) = decode_units_prefix(input, input_index).map_err(CharsetDecodeError::into_codec_failure)?;
+        debug_assert!(consumed.get() <= input.len().saturating_sub(input_index));
         Ok((ch, consumed))
     }
 
     #[inline]
-    unsafe fn encode(
-        &mut self,
-        ch: &char,
-        output: &mut [u16],
-        output_index: usize,
-    ) -> CharsetEncodeResult<usize> {
+    unsafe fn encode(&mut self, ch: &char, output: &mut [u16], output_index: usize) -> CharsetEncodeResult<usize> {
         let written = encode_units_char(*ch, output, output_index);
         debug_assert_eq!(written, ch.len_utf16());
         debug_assert!(written <= output.len().saturating_sub(output_index));
@@ -169,10 +161,7 @@ impl Codec for Utf16U16Codec {
 /// This function does not panic for invalid UTF-16 input because invalid input
 /// is surfaced as `CharsetDecodeError`.
 #[inline]
-fn decode_units_prefix(
-    input: &[u16],
-    index: usize,
-) -> CharsetDecodeResult<(char, core::num::NonZeroUsize)> {
+fn decode_units_prefix(input: &[u16], index: usize) -> CharsetDecodeResult<(char, core::num::NonZeroUsize)> {
     debug_assert!(index < input.len());
     // SAFETY: The caller guarantees that at least one unit is readable from
     // `index`.
@@ -190,20 +179,15 @@ fn decode_units_prefix(
             Some(ch) => Ok((ch, nonzero(2))),
             None => {
                 let kind = CharsetDecodeErrorKind::malformed(second as u32);
-                Err(CharsetDecodeError::new(
-                    Charset::UTF_16,
-                    kind,
-                    index.saturating_add(1),
-                )
-                .with_consumed(core::num::NonZeroUsize::MIN))
+                Err(CharsetDecodeError::new(Charset::UTF_16, kind, index.saturating_add(1))
+                    .with_consumed(core::num::NonZeroUsize::MIN))
             }
         }
     } else if Utf16::is_low_surrogate(first) {
         let kind = CharsetDecodeErrorKind::malformed(first as u32);
         Err(CharsetDecodeError::new(Charset::UTF_16, kind, index))
     } else {
-        let ch = char::from_u32(first as u32)
-            .expect("non-surrogate UTF-16 unit is a scalar value");
+        let ch = char::from_u32(first as u32).expect("non-surrogate UTF-16 unit is a scalar value");
         Ok((ch, core::num::NonZeroUsize::MIN))
     }
 }
@@ -247,14 +231,12 @@ fn encode_units_char(ch: char, output: &mut [u16], index: usize) -> usize {
             UncheckedSlice::write(
                 output,
                 index,
-                Utf16::high_surrogate(code_point)
-                    .expect("supplementary scalar has high surrogate"),
+                Utf16::high_surrogate(code_point).expect("supplementary scalar has high surrogate"),
             );
             UncheckedSlice::write(
                 output,
                 index + 1,
-                Utf16::low_surrogate(code_point)
-                    .expect("supplementary scalar has low surrogate"),
+                Utf16::low_surrogate(code_point).expect("supplementary scalar has low surrogate"),
             );
         }
     }

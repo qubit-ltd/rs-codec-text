@@ -40,11 +40,7 @@ impl CharsetRegistrationError {
     ///
     /// Returns an error carrying the conflicting registration context.
     #[inline]
-    pub(crate) const fn conflicting_label(
-        label: &'static str,
-        existing: Charset,
-        candidate: Charset,
-    ) -> Self {
+    pub(crate) const fn conflicting_label(label: &'static str, existing: Charset, candidate: Charset) -> Self {
         Self {
             label,
             kind: CharsetRegistrationErrorKind::ConflictingLabel { existing },
@@ -63,10 +59,7 @@ impl CharsetRegistrationError {
     ///
     /// Returns an error carrying the invalid registration context.
     #[inline]
-    pub(crate) const fn invalid_label(
-        label: &'static str,
-        candidate: Charset,
-    ) -> Self {
+    pub(crate) const fn invalid_label(label: &'static str, candidate: Charset) -> Self {
         Self {
             label,
             kind: CharsetRegistrationErrorKind::InvalidLabel,
@@ -103,9 +96,7 @@ impl CharsetRegistrationError {
     #[inline]
     pub const fn existing(self) -> Option<Charset> {
         match self.kind {
-            CharsetRegistrationErrorKind::ConflictingLabel { existing } => {
-                Some(existing)
-            }
+            CharsetRegistrationErrorKind::ConflictingLabel { existing } => Some(existing),
             CharsetRegistrationErrorKind::InvalidLabel => None,
         }
     }

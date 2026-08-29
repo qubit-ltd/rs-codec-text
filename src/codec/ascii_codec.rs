@@ -68,34 +68,20 @@ impl Codec for AsciiCodec {
     }
 
     #[inline]
-    unsafe fn decode(
-        &mut self,
-        input: &[u8],
-        input_index: usize,
-    ) -> CharsetCodecDecodeResult<(char, NonZeroUsize)> {
+    unsafe fn decode(&mut self, input: &[u8], input_index: usize) -> CharsetCodecDecodeResult<(char, NonZeroUsize)> {
         debug_assert!(input_index < input.len());
 
         // SAFETY: The caller guarantees that `input_index` is readable.
         let value = unsafe { UncheckedSlice::read(input, input_index) };
         if !Ascii::is_ascii_byte(value) {
             let kind = CharsetDecodeErrorKind::malformed(value as u32);
-            return Err(CharsetDecodeError::new(
-                Charset::ASCII,
-                kind,
-                input_index,
-            )
-            .into_codec_failure());
+            return Err(CharsetDecodeError::new(Charset::ASCII, kind, input_index).into_codec_failure());
         }
         Ok((value as char, NonZeroUsize::MIN))
     }
 
     #[inline]
-    unsafe fn encode(
-        &mut self,
-        ch: &char,
-        output: &mut [u8],
-        output_index: usize,
-    ) -> CharsetEncodeResult<usize> {
+    unsafe fn encode(&mut self, ch: &char, output: &mut [u8], output_index: usize) -> CharsetEncodeResult<usize> {
         debug_assert!(self.can_encode_value(ch));
         debug_assert!(output_index < output.len());
 

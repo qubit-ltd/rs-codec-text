@@ -66,11 +66,7 @@ impl Codec for Latin1Codec {
     }
 
     #[inline]
-    unsafe fn decode(
-        &mut self,
-        input: &[u8],
-        input_index: usize,
-    ) -> CharsetCodecDecodeResult<(char, NonZeroUsize)> {
+    unsafe fn decode(&mut self, input: &[u8], input_index: usize) -> CharsetCodecDecodeResult<(char, NonZeroUsize)> {
         debug_assert!(input_index < input.len());
         // SAFETY: The caller guarantees that `input_index` is readable.
         let value = unsafe { UncheckedSlice::read(input, input_index) };
@@ -78,17 +74,11 @@ impl Codec for Latin1Codec {
     }
 
     #[inline]
-    unsafe fn encode(
-        &mut self,
-        ch: &char,
-        output: &mut [u8],
-        output_index: usize,
-    ) -> CharsetEncodeResult<usize> {
+    unsafe fn encode(&mut self, ch: &char, output: &mut [u8], output_index: usize) -> CharsetEncodeResult<usize> {
         debug_assert!(self.can_encode_value(ch));
         debug_assert!(output_index < output.len());
 
-        let value = Latin1::char_to_byte(*ch)
-            .expect("encodable Latin-1 character maps to byte");
+        let value = Latin1::char_to_byte(*ch).expect("encodable Latin-1 character maps to byte");
         // SAFETY: The caller guarantees that `ch` is encodable and
         // `output_index` is writable.
         unsafe {

@@ -20,8 +20,7 @@ fuzz_target!(|data: &[u8]| {
         .map(|chunk| {
             let mut bytes = [0_u8; 4];
             bytes[..chunk.len()].copy_from_slice(chunk);
-            char::from_u32(u32::from_le_bytes(bytes))
-                .unwrap_or(char::REPLACEMENT_CHARACTER)
+            char::from_u32(u32::from_le_bytes(bytes)).unwrap_or(char::REPLACEMENT_CHARACTER)
         })
         .collect::<Vec<_>>();
     let expected = chars.iter().collect::<String>();

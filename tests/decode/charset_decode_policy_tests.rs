@@ -23,8 +23,5 @@ fn test_charset_decode_policy_constructors_preserve_action_and_replacement() {
         MalformedAction::Report,
         CharsetDecodePolicy::report().malformed_action()
     );
-    assert_eq!(
-        CharsetDecodePolicy::default(),
-        CharsetDecodePolicy::replace('\u{fffd}')
-    );
+    assert_eq!(CharsetDecodePolicy::default(), CharsetDecodePolicy::replace('\u{fffd}'));
 }
