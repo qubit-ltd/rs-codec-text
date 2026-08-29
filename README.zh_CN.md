@@ -15,14 +15,14 @@
 
 ```toml
 [dependencies]
-qubit-codec-text = "0.4"
+qubit-codec-text = "0.5"
 qubit-codec = "0.12"
 ```
 
 只有需要序列化 `Charset` 时才启用 `serde`：
 
 ```toml
-qubit-codec-text = { version = "0.4", features = ["serde"] }
+qubit-codec-text = { version = "0.5", features = ["serde"] }
 ```
 
 ## 快速开始
