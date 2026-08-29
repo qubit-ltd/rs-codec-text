@@ -166,12 +166,8 @@ impl UnicodeBom {
     pub const fn byte_order(self) -> Option<ByteOrder> {
         match self {
             Self::Utf8 => None,
-            Self::Utf16BigEndian | Self::Utf32BigEndian => {
-                Some(ByteOrder::BigEndian)
-            }
-            Self::Utf16LittleEndian | Self::Utf32LittleEndian => {
-                Some(ByteOrder::LittleEndian)
-            }
+            Self::Utf16BigEndian | Self::Utf32BigEndian => Some(ByteOrder::BigEndian),
+            Self::Utf16LittleEndian | Self::Utf32LittleEndian => Some(ByteOrder::LittleEndian),
         }
     }
 }
@@ -204,9 +200,7 @@ fn detect_complete(bytes: &[u8]) -> Option<UnicodeBom> {
 /// Returns `true` when `bytes` is a prefix of any supported BOM.
 #[inline]
 fn is_possible_bom_prefix(bytes: &[u8]) -> bool {
-    UnicodeBom::ALL
-        .iter()
-        .any(|bom| bom.bytes().starts_with(bytes))
+    UnicodeBom::ALL.iter().any(|bom| bom.bytes().starts_with(bytes))
 }
 
 /// Tests whether a currently matched BOM is ambiguous with a longer BOM.
@@ -222,7 +216,7 @@ fn is_possible_bom_prefix(bytes: &[u8]) -> bool {
 /// BOM.
 #[inline]
 fn has_longer_possible_match(bytes: &[u8], matched: UnicodeBom) -> bool {
-    UnicodeBom::ALL.iter().any(|bom| {
-        bom.byte_len() > matched.byte_len() && bom.bytes().starts_with(bytes)
-    })
+    UnicodeBom::ALL
+        .iter()
+        .any(|bom| bom.byte_len() > matched.byte_len() && bom.bytes().starts_with(bytes))
 }

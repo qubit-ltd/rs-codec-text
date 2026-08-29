@@ -8,9 +8,7 @@
 use qubit_codec::DecodeFailure;
 use qubit_codec_text::CharsetDecodeError;
 
-pub(crate) fn invalid_source(
-    failure: DecodeFailure<CharsetDecodeError>,
-) -> CharsetDecodeError {
+pub(crate) fn invalid_source(failure: DecodeFailure<CharsetDecodeError>) -> CharsetDecodeError {
     match failure {
         DecodeFailure::Invalid { source, .. } => source,
         DecodeFailure::Incomplete { .. } => {
@@ -19,13 +17,9 @@ pub(crate) fn invalid_source(
     }
 }
 
-pub(crate) fn incomplete_required(
-    failure: DecodeFailure<CharsetDecodeError>,
-) -> usize {
+pub(crate) fn incomplete_required(failure: DecodeFailure<CharsetDecodeError>) -> usize {
     match failure {
-        DecodeFailure::Incomplete { required_total, .. } => {
-            required_total.get()
-        }
+        DecodeFailure::Incomplete { required_total, .. } => required_total.get(),
         DecodeFailure::Invalid { .. } => {
             panic!("expected incomplete charset decode failure")
         }

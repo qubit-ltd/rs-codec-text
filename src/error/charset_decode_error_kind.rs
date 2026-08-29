@@ -26,9 +26,7 @@ pub enum CharsetDecodeErrorKind {
     },
 
     /// The supplied output buffer is too small for decoded characters.
-    #[error(
-        "The output buffer is too small (required {required} characters, available {available} characters)."
-    )]
+    #[error("The output buffer is too small (required {required} characters, available {available} characters).")]
     BufferTooSmall {
         /// Total output characters required.
         required: usize,
@@ -55,9 +53,7 @@ pub enum CharsetDecodeErrorKind {
     },
 
     /// The closed input ended before a complete character was available.
-    #[error(
-        "The encoded text sequence is incomplete (required {required} units, available {available} units)."
-    )]
+    #[error("The encoded text sequence is incomplete (required {required} units, available {available} units).")]
     IncompleteSequence {
         /// Total units required to complete the current sequence.
         required: usize,
@@ -68,9 +64,7 @@ pub enum CharsetDecodeErrorKind {
     },
 
     /// The decoded numeric value is not a valid Unicode scalar value.
-    #[error(
-        "The decoded code point 0x{value:x} is not a valid Unicode scalar value."
-    )]
+    #[error("The decoded code point 0x{value:x} is not a valid Unicode scalar value.")]
     InvalidCodePoint {
         /// Raw decoded code-point value.
         value: u32,
@@ -194,10 +188,7 @@ impl CharsetDecodeErrorKind {
     #[inline]
     pub const fn incomplete(self) -> Option<(usize, usize)> {
         match self {
-            Self::IncompleteSequence {
-                required,
-                available,
-            } => Some((required, available)),
+            Self::IncompleteSequence { required, available } => Some((required, available)),
             Self::InvalidInputIndex { .. }
             | Self::InvalidOutputIndex { .. }
             | Self::BufferTooSmall { .. }
@@ -218,9 +209,6 @@ impl CharsetDecodeErrorKind {
     #[must_use]
     #[inline]
     pub const fn is_malformed_input(self) -> bool {
-        matches!(
-            self,
-            Self::MalformedSequence { .. } | Self::InvalidCodePoint { .. }
-        )
+        matches!(self, Self::MalformedSequence { .. } | Self::InvalidCodePoint { .. })
     }
 }

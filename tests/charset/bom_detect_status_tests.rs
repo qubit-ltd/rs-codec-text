@@ -18,8 +18,5 @@ fn test_bom_detect_status_describes_incremental_detection_state() {
         BomDetectStatus::Match(UnicodeBom::Utf8),
         UnicodeBom::detect_progress(&[0xef, 0xbb, 0xbf], false),
     );
-    assert_eq!(
-        BomDetectStatus::None,
-        UnicodeBom::detect_progress(&[0x12], false)
-    );
+    assert_eq!(BomDetectStatus::None, UnicodeBom::detect_progress(&[0x12], false));
 }

@@ -22,10 +22,7 @@ fn test_charset_encode_error_exposes_context() {
     let error = CharsetEncodeError::new(Charset::UTF_16, kind, 2);
 
     assert_eq!(Charset::UTF_16, error.charset());
-    assert!(matches!(
-        error.kind(),
-        CharsetEncodeErrorKind::BufferTooSmall { .. },
-    ));
+    assert!(matches!(error.kind(), CharsetEncodeErrorKind::BufferTooSmall { .. },));
     assert_eq!(2, error.index());
     assert_eq!(None, error.value());
     assert_eq!(Some(4), error.required());
@@ -50,15 +47,11 @@ fn test_charset_encode_error_exposes_context() {
         invalid.to_string(),
     );
 
-    let kind = CharsetEncodeErrorKind::UnmappableCharacter {
-        value: '中' as u32,
-    };
+    let kind = CharsetEncodeErrorKind::UnmappableCharacter { value: '中' as u32 };
     let unmappable = CharsetEncodeError::new(GBK, kind, 4);
     assert_eq!(GBK, unmappable.charset());
     assert_eq!(
-        CharsetEncodeErrorKind::UnmappableCharacter {
-            value: '中' as u32
-        },
+        CharsetEncodeErrorKind::UnmappableCharacter { value: '中' as u32 },
         unmappable.kind()
     );
     assert_eq!(4, unmappable.index());
@@ -93,14 +86,10 @@ fn test_charset_encode_error_offset_saturates_on_overflow() {
 
 #[test]
 fn test_charset_encode_error_direct_function_items_cover_forwarders() {
-    let required: fn(CharsetEncodeError) -> Option<usize> =
-        std::hint::black_box(CharsetEncodeError::required);
-    let available: fn(CharsetEncodeError) -> Option<usize> =
-        std::hint::black_box(CharsetEncodeError::available);
-    let output_len: fn(CharsetEncodeError) -> Option<usize> =
-        std::hint::black_box(CharsetEncodeError::output_len);
-    let value: fn(CharsetEncodeError) -> Option<u32> =
-        std::hint::black_box(CharsetEncodeError::value);
+    let required: fn(CharsetEncodeError) -> Option<usize> = std::hint::black_box(CharsetEncodeError::required);
+    let available: fn(CharsetEncodeError) -> Option<usize> = std::hint::black_box(CharsetEncodeError::available);
+    let output_len: fn(CharsetEncodeError) -> Option<usize> = std::hint::black_box(CharsetEncodeError::output_len);
+    let value: fn(CharsetEncodeError) -> Option<u32> = std::hint::black_box(CharsetEncodeError::value);
 
     let buffer = CharsetEncodeError::new(
         Charset::UTF_8,
@@ -122,9 +111,7 @@ fn test_charset_encode_error_direct_function_items_cover_forwarders() {
 
     let unmappable = CharsetEncodeError::new(
         Charset::UTF_8,
-        CharsetEncodeErrorKind::UnmappableCharacter {
-            value: '中' as u32
-        },
+        CharsetEncodeErrorKind::UnmappableCharacter { value: '中' as u32 },
         0,
     );
     assert_eq!(Some('中' as u32), value(unmappable));
@@ -132,10 +119,7 @@ fn test_charset_encode_error_direct_function_items_cover_forwarders() {
 
 #[test]
 fn test_charset_encode_error_maps_transcode_failures() {
-    let error = CharsetEncodeError::map_transcode_failure(
-        Charset::UTF_8,
-        TranscodeFailure::OutputLengthOverflow,
-    );
+    let error = CharsetEncodeError::map_transcode_failure(Charset::UTF_8, TranscodeFailure::OutputLengthOverflow);
     assert_eq!(CharsetEncodeErrorKind::OutputLengthOverflow, error.kind());
     assert_eq!(usize::MAX, error.index());
 
@@ -156,12 +140,9 @@ fn test_charset_encode_error_maps_transcode_failures() {
     );
     assert_eq!(3, error.index());
 
-    let error =
-        CharsetEncodeError::map_unencodable(Charset::UTF_8, 5, Some('中'));
+    let error = CharsetEncodeError::map_unencodable(Charset::UTF_8, 5, Some('中'));
     assert_eq!(
-        CharsetEncodeErrorKind::UnmappableCharacter {
-            value: '中' as u32
-        },
+        CharsetEncodeErrorKind::UnmappableCharacter { value: '中' as u32 },
         error.kind(),
     );
     assert_eq!(5, error.index());
@@ -177,20 +158,11 @@ fn test_charset_encode_error_maps_transcode_failures() {
             remaining: 2,
         },
     );
-    assert_eq!(
-        CharsetEncodeErrorKind::UnexpectedTranscodeFailure,
-        error.kind(),
-    );
+    assert_eq!(CharsetEncodeErrorKind::UnexpectedTranscodeFailure, error.kind(),);
     assert_eq!(usize::MAX, error.index());
 
-    let error = CharsetEncodeError::map_transcode_failure(
-        Charset::UTF_8,
-        TranscodeFailure::FinishAfterFinish,
-    );
-    assert_eq!(
-        CharsetEncodeErrorKind::UnexpectedTranscodeFailure,
-        error.kind(),
-    );
+    let error = CharsetEncodeError::map_transcode_failure(Charset::UTF_8, TranscodeFailure::FinishAfterFinish);
+    assert_eq!(CharsetEncodeErrorKind::UnexpectedTranscodeFailure, error.kind(),);
     assert_eq!(usize::MAX, error.index());
 }
 
@@ -217,9 +189,7 @@ fn test_charset_encode_error_from_transcode_failures() {
         },
     );
     assert_eq!(
-        CharsetEncodeErrorKind::UnmappableCharacter {
-            value: '中' as u32
-        },
+        CharsetEncodeErrorKind::UnmappableCharacter { value: '中' as u32 },
         error.kind(),
     );
     assert_eq!(5, error.index());

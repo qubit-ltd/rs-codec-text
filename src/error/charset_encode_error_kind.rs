@@ -48,9 +48,7 @@ pub enum CharsetEncodeErrorKind {
     UnexpectedTranscodeFailure,
 
     /// The supplied output buffer is too small for the encoded character.
-    #[error(
-        "The output buffer is too small (required {required} units, available {available} units)."
-    )]
+    #[error("The output buffer is too small (required {required} units, available {available} units).")]
     BufferTooSmall {
         /// Total units required to encode the character.
         required: usize,
@@ -64,9 +62,7 @@ pub enum CharsetEncodeErrorKind {
     OutputLengthOverflow,
 
     /// The closed input ended before a complete value was available.
-    #[error(
-        "The input is incomplete (required {required} units, available {available} units)."
-    )]
+    #[error("The input is incomplete (required {required} units, available {available} units).")]
     IncompleteInput {
         /// Total units required to complete the value.
         required: usize,
@@ -111,8 +107,7 @@ impl CharsetEncodeErrorKind {
     #[inline]
     pub const fn required(self) -> Option<usize> {
         match self {
-            Self::BufferTooSmall { required, .. }
-            | Self::IncompleteInput { required, .. } => Some(required),
+            Self::BufferTooSmall { required, .. } | Self::IncompleteInput { required, .. } => Some(required),
             Self::InvalidInputIndex { .. }
             | Self::InvalidOutputIndex { .. }
             | Self::InvalidCodePoint { .. }
@@ -135,8 +130,7 @@ impl CharsetEncodeErrorKind {
     #[inline]
     pub const fn available(self) -> Option<usize> {
         match self {
-            Self::BufferTooSmall { available, .. }
-            | Self::IncompleteInput { available, .. } => Some(available),
+            Self::BufferTooSmall { available, .. } | Self::IncompleteInput { available, .. } => Some(available),
             Self::InvalidInputIndex { .. }
             | Self::InvalidOutputIndex { .. }
             | Self::InvalidCodePoint { .. }

@@ -13,12 +13,7 @@ use qubit_codec_text::UnicodeBom;
 #[test]
 fn test_unicode_bom_exposes_bytes_lengths_orders_and_charsets() {
     let boms = [
-        (
-            UnicodeBom::Utf8,
-            &[0xef, 0xbb, 0xbf][..],
-            Charset::UTF_8,
-            None,
-        ),
+        (UnicodeBom::Utf8, &[0xef, 0xbb, 0xbf][..], Charset::UTF_8, None),
         (
             UnicodeBom::Utf16BigEndian,
             &[0xfe, 0xff][..],
@@ -57,22 +52,10 @@ fn test_unicode_bom_exposes_bytes_lengths_orders_and_charsets() {
 
 #[test]
 fn test_unicode_bom_detect_progress_reports_pending_prefixes() {
-    assert_eq!(
-        BomDetectStatus::Pending,
-        UnicodeBom::detect_progress(&[], false)
-    );
-    assert_eq!(
-        BomDetectStatus::None,
-        UnicodeBom::detect_progress(&[], true)
-    );
-    assert_eq!(
-        BomDetectStatus::Pending,
-        UnicodeBom::detect_progress(&[0xff], false)
-    );
-    assert_eq!(
-        BomDetectStatus::None,
-        UnicodeBom::detect_progress(&[0xff], true)
-    );
+    assert_eq!(BomDetectStatus::Pending, UnicodeBom::detect_progress(&[], false));
+    assert_eq!(BomDetectStatus::None, UnicodeBom::detect_progress(&[], true));
+    assert_eq!(BomDetectStatus::Pending, UnicodeBom::detect_progress(&[0xff], false));
+    assert_eq!(BomDetectStatus::None, UnicodeBom::detect_progress(&[0xff], true));
     assert_eq!(
         BomDetectStatus::Pending,
         UnicodeBom::detect_progress(&[0xff, 0xfe], false)
@@ -97,8 +80,5 @@ fn test_unicode_bom_detect_progress_reports_pending_prefixes() {
         BomDetectStatus::Pending,
         UnicodeBom::detect_progress(&[0xef, 0xbb], false)
     );
-    assert_eq!(
-        BomDetectStatus::None,
-        UnicodeBom::detect_progress(&[0xef, 0xbb], true)
-    );
+    assert_eq!(BomDetectStatus::None, UnicodeBom::detect_progress(&[0xef, 0xbb], true));
 }

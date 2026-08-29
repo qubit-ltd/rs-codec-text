@@ -24,10 +24,7 @@ impl CharsetDecodePolicy {
     /// Creates a policy for malformed input and incomplete tails at EOF.
     #[must_use]
     #[inline]
-    pub const fn new(
-        malformed_action: MalformedAction,
-        replacement: char,
-    ) -> Self {
+    pub const fn new(malformed_action: MalformedAction, replacement: char) -> Self {
         Self {
             malformed_action,
             replacement,

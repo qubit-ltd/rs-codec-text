@@ -17,8 +17,7 @@ use qubit_codec_text::normalize_label_whatwg;
 
 #[test]
 fn test_charset_exposes_identity_metadata() {
-    const GBK: Charset =
-        Charset::new_static("gbk", "GBK", &["cp936", "windows-936"]);
+    const GBK: Charset = Charset::new_static("gbk", "GBK", &["cp936", "windows-936"]);
 
     assert_eq!("ascii", Charset::ASCII.id());
     assert_eq!("ASCII", Charset::ASCII.name());
@@ -37,17 +36,12 @@ fn test_charset_exposes_identity_metadata() {
 
 #[test]
 fn test_charset_identity_uses_id_only() {
-    const GBK: Charset =
-        Charset::new_static("gbk", "GBK", &["cp936", "windows-936"]);
+    const GBK: Charset = Charset::new_static("gbk", "GBK", &["cp936", "windows-936"]);
 
-    assert_eq!(
-        Charset::new_static("utf-8", "Unicode UTF-8", &[]),
-        Charset::UTF_8
-    );
+    assert_eq!(Charset::new_static("utf-8", "Unicode UTF-8", &[]), Charset::UTF_8);
 
     let mut left_hasher = DefaultHasher::new();
-    Charset::new_static("gbk", "Chinese GBK", &["cp936"])
-        .hash(&mut left_hasher);
+    Charset::new_static("gbk", "Chinese GBK", &["cp936"]).hash(&mut left_hasher);
     let mut right_hasher = DefaultHasher::new();
     GBK.hash(&mut right_hasher);
     assert_eq!(left_hasher.finish(), right_hasher.finish());
@@ -55,8 +49,7 @@ fn test_charset_identity_uses_id_only() {
 
 #[test]
 fn test_charset_matches_labels() {
-    const GBK: Charset =
-        Charset::new_static("gbk", "GBK", &["cp936", "windows-936"]);
+    const GBK: Charset = Charset::new_static("gbk", "GBK", &["cp936", "windows-936"]);
 
     assert!(Charset::UTF_8.matches_label("utf_8"));
     assert!(Charset::UTF_8.matches_label("utf8"));
@@ -73,11 +66,7 @@ fn test_charset_matches_labels() {
     assert!(GBK.matches_label("windows-936"));
     assert!(!GBK.matches_label("big5"));
 
-    let display_named = Charset::new_static(
-        "example-encoding",
-        "Example Encoding",
-        &["example"],
-    );
+    let display_named = Charset::new_static("example-encoding", "Example Encoding", &["example"]);
     assert!(display_named.matches_label("example-encoding"));
     assert!(display_named.matches_label("Example Encoding"));
     assert!(display_named.matches_label("EXAMPLE"));
@@ -108,10 +97,7 @@ fn test_charset_from_label_trims_ascii_whitespace() {
 fn test_charset_from_whatwg_label_finds_builtin_charsets() {
     assert_eq!(Some(Charset::UTF_8), Charset::from_whatwg_label(" UTF-8 "));
     assert_eq!(Some(Charset::UTF_8), Charset::from_whatwg_label("utf8"));
-    assert_eq!(
-        Some(Charset::UTF_16LE),
-        Charset::from_whatwg_label("UTF16_LE")
-    );
+    assert_eq!(Some(Charset::UTF_16LE), Charset::from_whatwg_label("UTF16_LE"));
     assert_eq!(None, Charset::from_whatwg_label("utf_8"));
     assert_eq!(None, Charset::from_whatwg_label("utf-16_le"));
 }
@@ -135,42 +121,27 @@ fn test_charset_new_static_does_not_validate_or_register_descriptor() {
 
 #[test]
 fn test_charset_try_new_validates_static_descriptor_labels() {
-    let charset = Charset::try_new(
-        "x-qubit-try-new",
-        "Qubit Try New",
-        &["x-qubit-try-new-alias"],
-    )
-    .expect("valid static descriptor should be accepted");
+    let charset = Charset::try_new("x-qubit-try-new", "Qubit Try New", &["x-qubit-try-new-alias"])
+        .expect("valid static descriptor should be accepted");
 
     assert_eq!("x-qubit-try-new", charset.id());
     assert_eq!("Qubit Try New", charset.name());
     assert_eq!(&["x-qubit-try-new-alias"], charset.aliases());
 
-    let error = Charset::try_new("-_", "Qubit Invalid Id", &[])
-        .expect_err("empty normalized id should be rejected");
+    let error = Charset::try_new("-_", "Qubit Invalid Id", &[]).expect_err("empty normalized id should be rejected");
     assert_eq!("-_", error.label());
     assert_eq!(CharsetRegistrationErrorKind::InvalidLabel, error.kind());
 }
 
 #[test]
 fn test_charset_register_makes_descriptor_discoverable() {
-    let charset = Charset::new_static(
-        "x-qubit-registered",
-        "Qubit Registered",
-        &["x-qubit-registered-alias"],
-    );
+    let charset = Charset::new_static("x-qubit-registered", "Qubit Registered", &["x-qubit-registered-alias"]);
     let registered = Charset::register(charset).expect("register test charset");
 
     assert_eq!(charset, registered);
     assert_eq!(Some(charset), Charset::from_label("x_qubit_registered"));
-    assert_eq!(
-        Some(charset),
-        Charset::from_label("x-qubit-registered-alias")
-    );
-    assert_eq!(
-        Some(charset),
-        Charset::from_whatwg_label("x-qubit-registered-alias")
-    );
+    assert_eq!(Some(charset), Charset::from_label("x-qubit-registered-alias"));
+    assert_eq!(Some(charset), Charset::from_whatwg_label("x-qubit-registered-alias"));
 }
 
 #[test]
@@ -183,10 +154,7 @@ fn test_charset_register_new_constructs_and_registers_descriptor() {
     .expect("construct and register test charset");
 
     assert_eq!(Some(charset), Charset::from_label("x_qubit_register_new"));
-    assert_eq!(
-        Some(charset),
-        Charset::from_whatwg_label("X-QUBIT-REGISTER-NEW-ALIAS")
-    );
+    assert_eq!(Some(charset), Charset::from_whatwg_label("X-QUBIT-REGISTER-NEW-ALIAS"));
 }
 
 #[test]
@@ -217,41 +185,28 @@ fn test_charset_registered_returns_runtime_registry_snapshot() {
 fn test_charset_serde_serializes_as_id_and_deserializes_known_label() {
     assert_eq!(
         "\"utf-8\"",
-        serde_json::to_string(&Charset::UTF_8)
-            .expect("charset should serialize as string id"),
+        serde_json::to_string(&Charset::UTF_8).expect("charset should serialize as string id"),
     );
 
-    let builtin: Charset =
-        serde_json::from_str("\"utf8\"").expect("known alias should parse");
+    let builtin: Charset = serde_json::from_str("\"utf8\"").expect("known alias should parse");
     assert_eq!(Charset::UTF_8, builtin);
 
-    let custom = Charset::register_new(
-        "x-qubit-serde",
-        "Qubit Serde",
-        &["x-qubit-serde-alias"],
-    )
-    .expect("register serde test charset");
-    let decoded: Charset = serde_json::from_str("\"x-qubit-serde-alias\"")
-        .expect("registered alias should parse");
+    let custom = Charset::register_new("x-qubit-serde", "Qubit Serde", &["x-qubit-serde-alias"])
+        .expect("register serde test charset");
+    let decoded: Charset = serde_json::from_str("\"x-qubit-serde-alias\"").expect("registered alias should parse");
     assert_eq!(custom, decoded);
 
     let error = serde_json::from_str::<Charset>("\"x-qubit-serde-missing\"")
         .expect_err("unknown charset labels should be rejected");
     assert!(error.to_string().contains("unknown charset"));
 
-    serde_json::from_str::<Charset>("123")
-        .expect_err("charset serde representation must be a string");
+    serde_json::from_str::<Charset>("123").expect_err("charset serde representation must be a string");
 }
 
 #[test]
 fn test_charset_register_rejects_conflicting_labels() {
-    let candidate = Charset::new_static(
-        "x-qubit-conflicting-utf8",
-        "Qubit Conflicting UTF8",
-        &["utf8"],
-    );
-    let error = Charset::register(candidate)
-        .expect_err("builtin alias conflict should be rejected");
+    let candidate = Charset::new_static("x-qubit-conflicting-utf8", "Qubit Conflicting UTF8", &["utf8"]);
+    let error = Charset::register(candidate).expect_err("builtin alias conflict should be rejected");
 
     assert_eq!("utf8", error.label());
     assert_eq!(candidate, error.candidate());
@@ -270,16 +225,9 @@ fn test_charset_register_rejects_conflicting_labels() {
 
 #[test]
 fn test_charset_register_is_idempotent_for_same_descriptor() {
-    let charset = Charset::new_static(
-        "x-qubit-idempotent",
-        "Qubit Idempotent",
-        &["x-qubit-idempotent-alias"],
-    );
+    let charset = Charset::new_static("x-qubit-idempotent", "Qubit Idempotent", &["x-qubit-idempotent-alias"]);
 
-    assert_eq!(
-        charset,
-        Charset::register(charset).expect("first registration")
-    );
+    assert_eq!(charset, Charset::register(charset).expect("first registration"));
     assert_eq!(
         charset,
         Charset::register(charset).expect("same descriptor can register twice")
@@ -289,17 +237,13 @@ fn test_charset_register_is_idempotent_for_same_descriptor() {
 
 #[test]
 fn test_charset_register_rejects_empty_normalized_labels() {
-    let error =
-        Charset::register(Charset::new_static("-_", "Qubit Invalid Id", &[]))
-            .expect_err("empty normalized id should be rejected");
+    let error = Charset::register(Charset::new_static("-_", "Qubit Invalid Id", &[]))
+        .expect_err("empty normalized id should be rejected");
 
     assert_eq!("-_", error.label());
     assert_eq!(CharsetRegistrationErrorKind::InvalidLabel, error.kind());
     assert_eq!(None, error.existing());
-    assert_eq!(
-        Charset::new_static("-_", "Qubit Invalid Id", &[]),
-        error.candidate()
-    );
+    assert_eq!(Charset::new_static("-_", "Qubit Invalid Id", &[]), error.candidate());
     assert_eq!(
         "charset label \"-_\" for Qubit Invalid Id is invalid",
         error.to_string(),
@@ -320,21 +264,9 @@ fn test_charset_register_rejects_empty_normalized_labels() {
 #[test]
 fn test_charset_registry_supports_concurrent_access() {
     let charsets = [
-        Charset::new_static(
-            "x-qubit-threaded-a",
-            "Qubit Threaded A",
-            &["x-qubit-threaded-a-alias"],
-        ),
-        Charset::new_static(
-            "x-qubit-threaded-b",
-            "Qubit Threaded B",
-            &["x-qubit-threaded-b-alias"],
-        ),
-        Charset::new_static(
-            "x-qubit-threaded-c",
-            "Qubit Threaded C",
-            &["x-qubit-threaded-c-alias"],
-        ),
+        Charset::new_static("x-qubit-threaded-a", "Qubit Threaded A", &["x-qubit-threaded-a-alias"]),
+        Charset::new_static("x-qubit-threaded-b", "Qubit Threaded B", &["x-qubit-threaded-b-alias"]),
+        Charset::new_static("x-qubit-threaded-c", "Qubit Threaded C", &["x-qubit-threaded-c-alias"]),
     ];
     let handles = charsets
         .into_iter()
@@ -380,22 +312,13 @@ fn test_charset_exposes_fixed_byte_order_helpers() {
         Charset::UTF_16LE,
         Charset::from_utf16_byte_order(ByteOrder::LittleEndian)
     );
-    assert_eq!(
-        Charset::UTF_16BE,
-        Charset::from_utf16_byte_order(ByteOrder::BigEndian)
-    );
+    assert_eq!(Charset::UTF_16BE, Charset::from_utf16_byte_order(ByteOrder::BigEndian));
     assert_eq!(
         Charset::UTF_32LE,
         Charset::from_utf32_byte_order(ByteOrder::LittleEndian)
     );
-    assert_eq!(
-        Charset::UTF_32BE,
-        Charset::from_utf32_byte_order(ByteOrder::BigEndian)
-    );
-    assert_eq!(
-        Some(ByteOrder::LittleEndian),
-        Charset::UTF_16LE.byte_order()
-    );
+    assert_eq!(Charset::UTF_32BE, Charset::from_utf32_byte_order(ByteOrder::BigEndian));
+    assert_eq!(Some(ByteOrder::LittleEndian), Charset::UTF_16LE.byte_order());
     assert_eq!(Some(ByteOrder::BigEndian), Charset::UTF_32BE.byte_order());
     assert_eq!(None, Charset::UTF_16.byte_order());
     assert_eq!(None, Charset::UTF_8.byte_order());

@@ -70,13 +70,7 @@ impl Charset {
     pub const ISO_8859_1: Self = Self::new_static(
         "iso-8859-1",
         "ISO-8859-1",
-        &[
-            "latin1",
-            "latin-1",
-            "iso8859-1",
-            "csisolatin1",
-            "iso_8859-1",
-        ],
+        &["latin1", "latin-1", "iso8859-1", "csisolatin1", "iso_8859-1"],
     );
 
     /// UTF-8 text.
@@ -86,35 +80,19 @@ impl Charset {
     pub const UTF_16: Self = Self::new_static("utf-16", "UTF-16", &["utf16"]);
 
     /// UTF-16 text serialized in little-endian byte order.
-    pub const UTF_16LE: Self = Self::new_static(
-        "utf-16le",
-        "UTF-16LE",
-        &["utf16le", "utf16_le", "utf_16_le"],
-    );
+    pub const UTF_16LE: Self = Self::new_static("utf-16le", "UTF-16LE", &["utf16le", "utf16_le", "utf_16_le"]);
 
     /// UTF-16 text serialized in big-endian byte order.
-    pub const UTF_16BE: Self = Self::new_static(
-        "utf-16be",
-        "UTF-16BE",
-        &["utf16be", "utf16_be", "utf_16_be"],
-    );
+    pub const UTF_16BE: Self = Self::new_static("utf-16be", "UTF-16BE", &["utf16be", "utf16_be", "utf_16_be"]);
 
     /// UTF-32 text.
     pub const UTF_32: Self = Self::new_static("utf-32", "UTF-32", &["utf32"]);
 
     /// UTF-32 text serialized in little-endian byte order.
-    pub const UTF_32LE: Self = Self::new_static(
-        "utf-32le",
-        "UTF-32LE",
-        &["utf32le", "utf32_le", "utf_32_le"],
-    );
+    pub const UTF_32LE: Self = Self::new_static("utf-32le", "UTF-32LE", &["utf32le", "utf32_le", "utf_32_le"]);
 
     /// UTF-32 text serialized in big-endian byte order.
-    pub const UTF_32BE: Self = Self::new_static(
-        "utf-32be",
-        "UTF-32BE",
-        &["utf32be", "utf32_be", "utf_32_be"],
-    );
+    pub const UTF_32BE: Self = Self::new_static("utf-32be", "UTF-32BE", &["utf32be", "utf32_be", "utf_32_be"]);
 
     /// Built-in charsets known by this crate.
     pub const BUILTINS: &'static [Self] = &[
@@ -151,11 +129,7 @@ impl Charset {
     ///
     /// Returns a charset descriptor carrying the supplied metadata.
     #[inline]
-    pub const fn new_static(
-        id: &'static str,
-        name: &'static str,
-        aliases: &'static [&'static str],
-    ) -> Self {
+    pub const fn new_static(id: &'static str, name: &'static str, aliases: &'static [&'static str]) -> Self {
         Self { id, name, aliases }
     }
 
@@ -269,10 +243,7 @@ impl Charset {
     /// [`crate::normalize_label_loose`], which trims ASCII whitespace, folds
     /// ASCII case, and ignores `-` / `_` separators.
     pub fn from_label(label: &str) -> Option<Self> {
-        Self::from_normalized_label(
-            &normalize_label_loose(label),
-            LabelNormalization::Loose,
-        )
+        Self::from_normalized_label(&normalize_label_loose(label), LabelNormalization::Loose)
     }
 
     /// Finds a built-in or registered charset by WHATWG-style label matching.
@@ -294,10 +265,7 @@ impl Charset {
     /// label table, and it does not remap charset semantics such as treating
     /// `iso-8859-1` as Windows-1252.
     pub fn from_whatwg_label(label: &str) -> Option<Self> {
-        Self::from_normalized_label(
-            &normalize_label_whatwg(label),
-            LabelNormalization::Whatwg,
-        )
+        Self::from_normalized_label(&normalize_label_whatwg(label), LabelNormalization::Whatwg)
     }
 
     /// Returns the stable normalized charset identifier.
@@ -346,9 +314,7 @@ impl Charset {
         match byte_order {
             ByteOrder::LittleEndian => Self::UTF_16LE,
             ByteOrder::BigEndian => Self::UTF_16BE,
-            ByteOrder::NativeEndian if cfg!(target_endian = "little") => {
-                Self::UTF_16LE
-            }
+            ByteOrder::NativeEndian if cfg!(target_endian = "little") => Self::UTF_16LE,
             ByteOrder::NativeEndian => Self::UTF_16BE,
         }
     }
@@ -368,9 +334,7 @@ impl Charset {
         match byte_order {
             ByteOrder::LittleEndian => Self::UTF_32LE,
             ByteOrder::BigEndian => Self::UTF_32BE,
-            ByteOrder::NativeEndian if cfg!(target_endian = "little") => {
-                Self::UTF_32LE
-            }
+            ByteOrder::NativeEndian if cfg!(target_endian = "little") => Self::UTF_32LE,
             ByteOrder::NativeEndian => Self::UTF_32BE,
         }
     }
@@ -418,24 +382,20 @@ impl Charset {
     /// Returns the first built-in or registered charset whose labels normalize
     /// to `label`, or `None` when no charset matches.
     #[inline]
-    fn from_normalized_label(
-        label: &str,
-        normalization: LabelNormalization,
-    ) -> Option<Self> {
+    fn from_normalized_label(label: &str, normalization: LabelNormalization) -> Option<Self> {
         if label.is_empty() {
             return None;
         }
         Self::BUILTINS
             .iter()
             .copied()
-            .find(|charset| {
-                charset.matches_normalized_label(label, normalization)
-            })
+            .find(|charset| charset.matches_normalized_label(label, normalization))
             .or_else(|| {
                 let registry = read_registry();
-                registry.iter().copied().find(|charset| {
-                    charset.matches_normalized_label(label, normalization)
-                })
+                registry
+                    .iter()
+                    .copied()
+                    .find(|charset| charset.matches_normalized_label(label, normalization))
             })
     }
 
@@ -451,14 +411,8 @@ impl Charset {
     ///
     /// Returns `true` when any descriptor label normalizes to `label`.
     #[inline]
-    fn matches_normalized_label(
-        self,
-        label: &str,
-        normalization: LabelNormalization,
-    ) -> bool {
-        charset_labels(self).any(|candidate| {
-            label_matches_normalized(candidate, label, normalization)
-        })
+    fn matches_normalized_label(self, label: &str, normalization: LabelNormalization) -> bool {
+        charset_labels(self).any(|candidate| label_matches_normalized(candidate, label, normalization))
     }
 }
 
@@ -553,8 +507,7 @@ impl<'de> Deserialize<'de> for Charset {
         D: Deserializer<'de>,
     {
         let id = <&str>::deserialize(deserializer)?;
-        Self::from_label(id)
-            .ok_or_else(|| de::Error::custom(format!("unknown charset `{id}`")))
+        Self::from_label(id).ok_or_else(|| de::Error::custom(format!("unknown charset `{id}`")))
     }
 }
 
@@ -579,9 +532,7 @@ fn registry() -> &'static RwLock<Vec<Charset>> {
 /// Panics if the registry lock is poisoned.
 #[inline]
 fn read_registry() -> RwLockReadGuard<'static, Vec<Charset>> {
-    registry()
-        .read()
-        .expect("charset registry lock should not be poisoned")
+    registry().read().expect("charset registry lock should not be poisoned")
 }
 
 /// Writes the global charset registry.
@@ -628,8 +579,7 @@ fn charset_labels(charset: Charset) -> impl Iterator<Item = &'static str> {
 /// `None` when all labels can be used for lookup.
 #[inline]
 fn invalid_label_for(candidate: Charset) -> Option<&'static str> {
-    charset_labels(candidate)
-        .find(|label| normalize_label_loose(label).is_empty())
+    charset_labels(candidate).find(|label| normalize_label_loose(label).is_empty())
 }
 
 /// Validates a descriptor against built-ins and a registry snapshot.
@@ -644,10 +594,7 @@ fn invalid_label_for(candidate: Charset) -> Option<&'static str> {
 /// Returns `candidate` when all labels are valid and unambiguous. If the only
 /// conflict is an identical existing descriptor, returns that existing
 /// descriptor so repeated registration stays idempotent.
-fn validate_descriptor(
-    candidate: Charset,
-    registered: &[Charset],
-) -> Result<Charset, CharsetRegistrationError> {
+fn validate_descriptor(candidate: Charset, registered: &[Charset]) -> Result<Charset, CharsetRegistrationError> {
     if let Some(label) = invalid_label_for(candidate) {
         return Err(CharsetRegistrationError::invalid_label(label, candidate));
     }
@@ -655,9 +602,7 @@ fn validate_descriptor(
         if same_descriptor(existing, candidate) {
             return Ok(existing);
         }
-        return Err(CharsetRegistrationError::conflicting_label(
-            label, existing, candidate,
-        ));
+        return Err(CharsetRegistrationError::conflicting_label(label, existing, candidate));
     }
     Ok(candidate)
 }
@@ -693,9 +638,7 @@ fn descriptor_exists(candidate: Charset, registered: &[Charset]) -> bool {
 /// Returns `true` when id, display name, and alias list are identical.
 #[inline]
 fn same_descriptor(left: Charset, right: Charset) -> bool {
-    left.id == right.id
-        && left.name == right.name
-        && left.aliases == right.aliases
+    left.id == right.id && left.name == right.name && left.aliases == right.aliases
 }
 
 /// Finds a label conflict for `candidate`.
@@ -709,22 +652,14 @@ fn same_descriptor(left: Charset, right: Charset) -> bool {
 ///
 /// Returns the conflicting candidate label and existing charset, or `None`
 /// when all candidate labels are available.
-fn conflict_for(
-    candidate: Charset,
-    registered: &[Charset],
-) -> Option<(&'static str, Charset)> {
+fn conflict_for(candidate: Charset, registered: &[Charset]) -> Option<(&'static str, Charset)> {
     for label in charset_labels(candidate) {
         let normalized = normalize_label_loose(label);
         if let Some(existing) = Charset::BUILTINS
             .iter()
             .copied()
             .chain(registered.iter().copied())
-            .find(|existing| {
-                existing.matches_normalized_label(
-                    &normalized,
-                    LabelNormalization::Loose,
-                )
-            })
+            .find(|existing| existing.matches_normalized_label(&normalized, LabelNormalization::Loose))
         {
             return Some((label, existing));
         }
@@ -744,18 +679,10 @@ fn conflict_for(
 ///
 /// Returns `true` when `candidate` normalizes to `normalized`.
 #[inline]
-fn label_matches_normalized(
-    candidate: &str,
-    normalized: &str,
-    normalization: LabelNormalization,
-) -> bool {
+fn label_matches_normalized(candidate: &str, normalized: &str, normalization: LabelNormalization) -> bool {
     match normalization {
-        LabelNormalization::Loose => {
-            loose_label_matches_normalized(candidate, normalized)
-        }
-        LabelNormalization::Whatwg => {
-            whatwg_label_matches_normalized(candidate, normalized)
-        }
+        LabelNormalization::Loose => loose_label_matches_normalized(candidate, normalized),
+        LabelNormalization::Whatwg => whatwg_label_matches_normalized(candidate, normalized),
     }
 }
 

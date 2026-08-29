@@ -15,25 +15,15 @@ use qubit_codec_text::CharsetEncodeResult;
 use qubit_codec_text::Utf32;
 use qubit_codec_text::Utf32U32Codec;
 
-type DecodedCharResult =
-    Result<(char, core::num::NonZeroUsize), DecodeFailure<CharsetDecodeError>>;
-type DecodeFn =
-    unsafe fn(&mut Utf32U32Codec, &[u32], usize) -> DecodedCharResult;
-type EncodeFn = unsafe fn(
-    &mut Utf32U32Codec,
-    &char,
-    &mut [u32],
-    usize,
-) -> CharsetEncodeResult<usize>;
+type DecodedCharResult = Result<(char, core::num::NonZeroUsize), DecodeFailure<CharsetDecodeError>>;
+type DecodeFn = unsafe fn(&mut Utf32U32Codec, &[u32], usize) -> DecodedCharResult;
+type EncodeFn = unsafe fn(&mut Utf32U32Codec, &char, &mut [u32], usize) -> CharsetEncodeResult<usize>;
 
 #[test]
 fn test_utf32_u32_codec_exposes_encoder_and_decoder_contracts() {
     let codec = Utf32U32Codec;
 
-    assert_eq!(
-        Charset::UTF_32,
-        <Utf32U32Codec as CharsetCodec>::charset(&codec)
-    );
+    assert_eq!(Charset::UTF_32, <Utf32U32Codec as CharsetCodec>::charset(&codec));
     assert_eq!(1, <Utf32U32Codec as Codec>::MIN_UNITS_PER_VALUE);
     assert_eq!(
         Utf32::MAX_UNITS_PER_CHAR,
@@ -51,12 +41,9 @@ fn test_utf32_u32_codec_encodes_and_decodes_units() {
     let mut output = [0_u32; Utf32::MAX_UNITS_PER_CHAR];
 
     assert_eq!(1, unsafe {
-        codec
-            .encode(&'😀', &mut output, 0)
-            .expect("encode unit codec")
+        codec.encode(&'😀', &mut output, 0).expect("encode unit codec")
     });
-    let (decoded, consumed) =
-        unsafe { codec.decode(&output, 0) }.expect("decode unit codec");
+    let (decoded, consumed) = unsafe { codec.decode(&output, 0) }.expect("decode unit codec");
     assert_eq!('😀', decoded);
     assert_eq!(1, consumed.get());
 }
@@ -65,13 +52,9 @@ fn test_utf32_u32_codec_encodes_and_decodes_units() {
 fn test_utf32_u32_codec_reports_closed_tail_and_invalid_units() {
     let mut codec = Utf32U32Codec;
 
-    let error = unsafe { codec.decode(&[0x110000], 0) }
-        .expect_err("non-scalar UTF-32 unit should fail");
+    let error = unsafe { codec.decode(&[0x110000], 0) }.expect_err("non-scalar UTF-32 unit should fail");
     let error = super::invalid_source(error);
-    assert!(matches!(
-        error.kind(),
-        CharsetDecodeErrorKind::InvalidCodePoint { .. },
-    ));
+    assert!(matches!(error.kind(), CharsetDecodeErrorKind::InvalidCodePoint { .. },));
     assert_eq!(Some(0x110000), error.value());
 }
 
@@ -79,15 +62,12 @@ fn test_utf32_u32_codec_reports_closed_tail_and_invalid_units() {
 fn test_utf32_u32_codec_direct_function_items_cover_trait_methods() {
     let mut codec = Utf32U32Codec;
     let inherent_charset: fn(Utf32U32Codec) -> Charset = Utf32U32Codec::charset;
-    let trait_charset: fn(&Utf32U32Codec) -> Charset =
-        <Utf32U32Codec as CharsetCodec>::charset;
+    let trait_charset: fn(&Utf32U32Codec) -> Charset = <Utf32U32Codec as CharsetCodec>::charset;
     let min_units = <Utf32U32Codec as Codec>::MIN_UNITS_PER_VALUE;
     let max_units = <Utf32U32Codec as Codec>::MAX_ENCODE_UNITS_PER_VALUE;
-    let encode_len: fn(&Utf32U32Codec, &char) -> usize =
-        <Utf32U32Codec as Codec>::encode_len;
+    let encode_len: fn(&Utf32U32Codec, &char) -> usize = <Utf32U32Codec as Codec>::encode_len;
     let decode: DecodeFn = <Utf32U32Codec as Codec>::decode;
-    let encode: EncodeFn =
-        std::hint::black_box(<Utf32U32Codec as Codec>::encode);
+    let encode: EncodeFn = std::hint::black_box(<Utf32U32Codec as Codec>::encode);
 
     assert_eq!(Charset::UTF_32, inherent_charset(codec));
     assert_eq!(Charset::UTF_32, trait_charset(&codec));
@@ -98,10 +78,8 @@ fn test_utf32_u32_codec_direct_function_items_cover_trait_methods() {
     let mut output = [0_u32; Utf32::MAX_UNITS_PER_CHAR];
     assert_eq!(
         1,
-        unsafe { encode(&mut codec, &'中', &mut output, 0) }
-            .expect("encode unit")
+        unsafe { encode(&mut codec, &'中', &mut output, 0) }.expect("encode unit")
     );
-    let (decoded, consumed) =
-        unsafe { decode(&mut codec, &output, 0) }.expect("decode unit");
+    let (decoded, consumed) = unsafe { decode(&mut codec, &output, 0) }.expect("decode unit");
     assert_eq!(('中', 1), (decoded, consumed.get()));
 }

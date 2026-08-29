@@ -53,24 +53,12 @@ impl CharsetConvertError {
     {
         match error {
             TranscodeConvertError::Failure(failure) => {
-                Self::from_transcode_failure(
-                    source_charset,
-                    target_charset,
-                    failure,
-                )
+                Self::from_transcode_failure(source_charset, target_charset, failure)
             }
-            TranscodeConvertError::DecodeDomain(error) => {
-                Self::Decode(error.into_source())
-            }
-            TranscodeConvertError::EncodeDomain(error) => {
-                Self::Encode(error.into_source())
-            }
+            TranscodeConvertError::DecodeDomain(error) => Self::Decode(error.into_source()),
+            TranscodeConvertError::EncodeDomain(error) => Self::Encode(error.into_source()),
             TranscodeConvertError::Unencodable { input_index, value } => {
-                Self::Encode(CharsetEncodeError::map_unencodable(
-                    target_charset,
-                    input_index,
-                    value,
-                ))
+                Self::Encode(CharsetEncodeError::map_unencodable(target_charset, input_index, value))
             }
         }
     }
@@ -89,33 +77,20 @@ impl CharsetConvertError {
     /// for target-output failures. Other framework failures remain decode-side
     /// unexpected failures to preserve the prior error contract.
     #[must_use]
-    fn from_transcode_failure(
-        source_charset: Charset,
-        target_charset: Charset,
-        failure: TranscodeFailure,
-    ) -> Self {
+    fn from_transcode_failure(source_charset: Charset, target_charset: Charset, failure: TranscodeFailure) -> Self {
         match failure {
             failure @ (TranscodeFailure::InvalidInputIndex { .. }
             | TranscodeFailure::IncompleteInput { .. }
             | TranscodeFailure::TrailingInput { .. }) => {
-                Self::Decode(CharsetDecodeError::map_transcode_failure(
-                    source_charset,
-                    failure,
-                ))
+                Self::Decode(CharsetDecodeError::map_transcode_failure(source_charset, failure))
             }
             failure @ (TranscodeFailure::InvalidOutputIndex { .. }
             | TranscodeFailure::InvalidOutputRange { .. }
             | TranscodeFailure::InsufficientOutput { .. }
             | TranscodeFailure::OutputLengthOverflow) => {
-                Self::Encode(CharsetEncodeError::map_transcode_failure(
-                    target_charset,
-                    failure,
-                ))
+                Self::Encode(CharsetEncodeError::map_transcode_failure(target_charset, failure))
             }
-            failure => Self::Decode(CharsetDecodeError::map_transcode_failure(
-                source_charset,
-                failure,
-            )),
+            failure => Self::Decode(CharsetDecodeError::map_transcode_failure(source_charset, failure)),
         }
     }
 }

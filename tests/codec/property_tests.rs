@@ -21,14 +21,10 @@ use qubit_codec_text::Utf8Codec;
 use qubit_codec_text::Utf16ByteCodec;
 
 fn short_string() -> impl Strategy<Value = String> {
-    collection::vec(any::<char>(), 0..128)
-        .prop_map(|chars| chars.into_iter().collect())
+    collection::vec(any::<char>(), 0..128).prop_map(|chars| chars.into_iter().collect())
 }
 
-fn encode_string<C>(
-    encoder: &mut CharsetEncoder<C>,
-    input: &str,
-) -> Vec<C::Unit>
+fn encode_string<C>(encoder: &mut CharsetEncoder<C>, input: &str) -> Vec<C::Unit>
 where
     C: CharsetCodec,
     C::Unit: Default,
@@ -46,10 +42,7 @@ where
     output
 }
 
-fn decode_string<C>(
-    decoder: &mut CharsetDecoder<C>,
-    input: &[C::Unit],
-) -> Result<String, CharsetDecodeError>
+fn decode_string<C>(decoder: &mut CharsetDecoder<C>, input: &[C::Unit]) -> Result<String, CharsetDecodeError>
 where
     C: CharsetCodec,
 {
@@ -61,9 +54,7 @@ where
     let written = decoder
         .transcode_complete_into(input, &mut output)
         .map_err(|error| match error {
-            TranscodeDecodeError::Failure(failure) => {
-                CharsetDecodeError::map_transcode_failure(charset, failure)
-            }
+            TranscodeDecodeError::Failure(failure) => CharsetDecodeError::map_transcode_failure(charset, failure),
             TranscodeDecodeError::Domain(error) => error.into_source(),
         })?;
     Ok(output[..written].iter().collect())

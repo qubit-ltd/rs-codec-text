@@ -62,11 +62,7 @@ use crate::CharsetEncodeError;
 ///   host values, not serialized bytes. Use byte-oriented codecs when byte
 ///   order matters across files, processes, or network boundaries.
 pub trait CharsetCodec:
-    Codec<
-        Value = char,
-        DecodeError = CharsetDecodeError,
-        EncodeError = CharsetEncodeError,
-    >
+    Codec<Value = char, DecodeError = CharsetDecodeError, EncodeError = CharsetEncodeError>
 {
     /// Returns the charset handled by this codec.
     ///

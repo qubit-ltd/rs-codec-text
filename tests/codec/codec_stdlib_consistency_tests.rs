@@ -63,33 +63,20 @@ impl DecodeTranscodeErrorSource for TranscodeDecodeError<CharsetDecodeError> {
     fn as_charset_error(&self) -> CharsetDecodeError {
         match self.clone() {
             TranscodeDecodeError::Failure(failure) => {
-                CharsetDecodeError::map_transcode_failure(
-                    Charset::UTF_8,
-                    failure,
-                )
+                CharsetDecodeError::map_transcode_failure(Charset::UTF_8, failure)
             }
             TranscodeDecodeError::Domain(error) => error.into_source(),
         }
     }
 }
 
-fn map_convert_error(
-    error: TranscodeConvertErrorOf<Utf8Codec, Utf16U16Codec>,
-) -> CharsetConvertError {
+fn map_convert_error(error: TranscodeConvertErrorOf<Utf8Codec, Utf16U16Codec>) -> CharsetConvertError {
     match error {
         TranscodeConvertError::Failure(failure) => map_convert_failure(failure),
-        TranscodeConvertError::DecodeDomain(error) => {
-            CharsetConvertError::Decode(error.into_source())
-        }
-        TranscodeConvertError::EncodeDomain(error) => {
-            CharsetConvertError::Encode(error.into_source())
-        }
+        TranscodeConvertError::DecodeDomain(error) => CharsetConvertError::Decode(error.into_source()),
+        TranscodeConvertError::EncodeDomain(error) => CharsetConvertError::Encode(error.into_source()),
         TranscodeConvertError::Unencodable { input_index, value } => {
-            CharsetConvertError::Encode(CharsetEncodeError::map_unencodable(
-                Charset::UTF_8,
-                input_index,
-                value,
-            ))
+            CharsetConvertError::Encode(CharsetEncodeError::map_unencodable(Charset::UTF_8, input_index, value))
         }
     }
 }
@@ -99,27 +86,15 @@ fn map_convert_failure(failure: TranscodeFailure) -> CharsetConvertError {
         TranscodeFailure::InvalidInputIndex { .. }
         | TranscodeFailure::IncompleteInput { .. }
         | TranscodeFailure::TrailingInput { .. } => {
-            CharsetConvertError::Decode(
-                CharsetDecodeError::map_transcode_failure(
-                    Charset::UTF_8,
-                    failure,
-                ),
-            )
+            CharsetConvertError::Decode(CharsetDecodeError::map_transcode_failure(Charset::UTF_8, failure))
         }
         TranscodeFailure::InvalidOutputIndex { .. }
         | TranscodeFailure::InvalidOutputRange { .. }
         | TranscodeFailure::InsufficientOutput { .. }
         | TranscodeFailure::OutputLengthOverflow => {
-            CharsetConvertError::Encode(
-                CharsetEncodeError::map_transcode_failure(
-                    Charset::UTF_8,
-                    failure,
-                ),
-            )
+            CharsetConvertError::Encode(CharsetEncodeError::map_transcode_failure(Charset::UTF_8, failure))
         }
-        _ => CharsetConvertError::Decode(
-            CharsetDecodeError::map_transcode_failure(Charset::UTF_8, failure),
-        ),
+        _ => CharsetConvertError::Decode(CharsetDecodeError::map_transcode_failure(Charset::UTF_8, failure)),
     }
 }
 
@@ -165,27 +140,18 @@ fn test_utf8_codec_matches_std_boundaries_and_round_trip() {
         (b"\xF4\x90\x80\x80", 1, Some(0x90)),
     ] {
         let std_error = std::str::from_utf8(input).unwrap_err();
-        let codec_error = unsafe { codec.decode(input, 0) }
-            .expect_err("malformed utf-8 should fail");
+        let codec_error = unsafe { codec.decode(input, 0) }.expect_err("malformed utf-8 should fail");
         let codec_error = super::invalid_source(codec_error);
-        assert_eq!(
-            CharsetDecodeErrorKind::MalformedSequence { value },
-            codec_error.kind(),
-        );
+        assert_eq!(CharsetDecodeErrorKind::MalformedSequence { value }, codec_error.kind(),);
         assert_eq!(0, std_error.valid_up_to());
         assert_eq!(error_index, codec_error.index());
     }
 
-    for (input, required) in [
-        (&[0xe4][..], 3),
-        (&[0xf0, 0x90][..], 4),
-        (&[0xf4, 0x80, 0x80][..], 4),
-    ] {
+    for (input, required) in [(&[0xe4][..], 3), (&[0xf0, 0x90][..], 4), (&[0xf4, 0x80, 0x80][..], 4)] {
         let std_error = std::str::from_utf8(input).unwrap_err();
         assert!(std_error.error_len().is_none());
 
-        let error = unsafe { codec.decode(input, 0) }
-            .expect_err("short input is incomplete");
+        let error = unsafe { codec.decode(input, 0) }.expect_err("short input is incomplete");
         assert_eq!(required, super::incomplete_required(error));
     }
 }
@@ -196,10 +162,7 @@ fn test_utf16_codecs_match_std_unit_round_trip() {
     let sample_chars = unicode_boundary_chars();
     let expected_units = encode_utf16_units(&sample_chars);
 
-    assert_eq!(
-        sample_chars,
-        decode_all_utf16_units(&mut codec, &expected_units)
-    );
+    assert_eq!(sample_chars, decode_all_utf16_units(&mut codec, &expected_units));
 
     let mut encoded = vec![0_u16; expected_units.len()];
     let mut encoder = CharsetEncoder::new(Utf16U16Codec);
@@ -226,10 +189,7 @@ fn test_utf16_codecs_match_std_unit_round_trip() {
         (&[0xd83d, 0x0041][..], 0x0041),
         (&[0xdbff, 0x0041][..], 0x0041),
     ] {
-        assert!(
-            std::char::decode_utf16(malformed.iter().copied())
-                .any(|result| result.is_err())
-        );
+        assert!(std::char::decode_utf16(malformed.iter().copied()).any(|result| result.is_err()));
         let decode_result = unsafe { codec.decode(malformed, 0) };
         assert!(matches!(
             decode_result,
@@ -243,8 +203,7 @@ fn test_utf16_codecs_match_std_unit_round_trip() {
     }
 
     let partial = [0xd83d];
-    let error = unsafe { codec.decode(&partial, 0) }
-        .expect_err("partial high surrogate is incomplete");
+    let error = unsafe { codec.decode(&partial, 0) }.expect_err("partial high surrogate is incomplete");
     assert_eq!(2, super::incomplete_required(error));
 }
 
@@ -258,13 +217,9 @@ fn test_utf16_byte_codecs_match_std_and_round_trip() {
 fn test_utf32_codecs_match_std_unit_round_trip() {
     let mut codec = Utf32U32Codec;
     let sample_chars = unicode_boundary_chars();
-    let expected_units: Vec<u32> =
-        sample_chars.iter().map(|&ch| ch as u32).collect();
+    let expected_units: Vec<u32> = sample_chars.iter().map(|&ch| ch as u32).collect();
 
-    assert_eq!(
-        sample_chars,
-        decode_all_utf32_units(&mut codec, &expected_units)
-    );
+    assert_eq!(sample_chars, decode_all_utf32_units(&mut codec, &expected_units));
 
     let mut encoded = vec![0_u32; expected_units.len()];
     let mut encoder = CharsetEncoder::new(Utf32U32Codec);
@@ -341,27 +296,11 @@ fn test_charset_encoder_policies_encode_unicode_boundaries() {
 
     assert_encoder_policies_output(Utf8Codec, &chars, &utf8);
     assert_encoder_policies_output(Utf16U16Codec, &chars, &utf16);
-    assert_encoder_policies_output(
-        Utf16ByteCodec::new(ByteOrder::LittleEndian),
-        &chars,
-        &utf16le,
-    );
-    assert_encoder_policies_output(
-        Utf16ByteCodec::new(ByteOrder::BigEndian),
-        &chars,
-        &utf16be,
-    );
+    assert_encoder_policies_output(Utf16ByteCodec::new(ByteOrder::LittleEndian), &chars, &utf16le);
+    assert_encoder_policies_output(Utf16ByteCodec::new(ByteOrder::BigEndian), &chars, &utf16be);
     assert_encoder_policies_output(Utf32U32Codec, &chars, &utf32);
-    assert_encoder_policies_output(
-        Utf32ByteCodec::new(ByteOrder::LittleEndian),
-        &chars,
-        &utf32le,
-    );
-    assert_encoder_policies_output(
-        Utf32ByteCodec::new(ByteOrder::BigEndian),
-        &chars,
-        &utf32be,
-    );
+    assert_encoder_policies_output(Utf32ByteCodec::new(ByteOrder::LittleEndian), &chars, &utf32le);
+    assert_encoder_policies_output(Utf32ByteCodec::new(ByteOrder::BigEndian), &chars, &utf32be);
 }
 
 #[test]
@@ -379,53 +318,21 @@ fn test_charset_converter_transcodes_unicode_boundaries_between_codecs() {
         ($source:expr, $input:expr) => {{
             assert_converter_output($source, Utf8Codec, $input, &utf8);
             assert_converter_output($source, Utf16U16Codec, $input, &utf16);
-            assert_converter_output(
-                $source,
-                Utf16ByteCodec::new(ByteOrder::LittleEndian),
-                $input,
-                &utf16le,
-            );
-            assert_converter_output(
-                $source,
-                Utf16ByteCodec::new(ByteOrder::BigEndian),
-                $input,
-                &utf16be,
-            );
+            assert_converter_output($source, Utf16ByteCodec::new(ByteOrder::LittleEndian), $input, &utf16le);
+            assert_converter_output($source, Utf16ByteCodec::new(ByteOrder::BigEndian), $input, &utf16be);
             assert_converter_output($source, Utf32U32Codec, $input, &utf32);
-            assert_converter_output(
-                $source,
-                Utf32ByteCodec::new(ByteOrder::LittleEndian),
-                $input,
-                &utf32le,
-            );
-            assert_converter_output(
-                $source,
-                Utf32ByteCodec::new(ByteOrder::BigEndian),
-                $input,
-                &utf32be,
-            );
+            assert_converter_output($source, Utf32ByteCodec::new(ByteOrder::LittleEndian), $input, &utf32le);
+            assert_converter_output($source, Utf32ByteCodec::new(ByteOrder::BigEndian), $input, &utf32be);
         }};
     }
 
     assert_all_unicode_targets!(Utf8Codec, &utf8);
     assert_all_unicode_targets!(Utf16U16Codec, &utf16);
-    assert_all_unicode_targets!(
-        Utf16ByteCodec::new(ByteOrder::LittleEndian),
-        &utf16le
-    );
-    assert_all_unicode_targets!(
-        Utf16ByteCodec::new(ByteOrder::BigEndian),
-        &utf16be
-    );
+    assert_all_unicode_targets!(Utf16ByteCodec::new(ByteOrder::LittleEndian), &utf16le);
+    assert_all_unicode_targets!(Utf16ByteCodec::new(ByteOrder::BigEndian), &utf16be);
     assert_all_unicode_targets!(Utf32U32Codec, &utf32);
-    assert_all_unicode_targets!(
-        Utf32ByteCodec::new(ByteOrder::LittleEndian),
-        &utf32le
-    );
-    assert_all_unicode_targets!(
-        Utf32ByteCodec::new(ByteOrder::BigEndian),
-        &utf32be
-    );
+    assert_all_unicode_targets!(Utf32ByteCodec::new(ByteOrder::LittleEndian), &utf32le);
+    assert_all_unicode_targets!(Utf32ByteCodec::new(ByteOrder::BigEndian), &utf32be);
 }
 
 #[test]
@@ -433,12 +340,7 @@ fn test_charset_decoder_policies_handle_malformed_unicode_codecs() {
     let utf16_low_surrogate = 0xdc00_u16;
     let utf32_invalid = 0x110000_u32;
 
-    assert_decoder_malformed_policies(
-        Utf8Codec,
-        &[0x80, b'A'],
-        CharsetDecodeErrorKind::malformed(0x80),
-        0,
-    );
+    assert_decoder_malformed_policies(Utf8Codec, &[0x80, b'A'], CharsetDecodeErrorKind::malformed(0x80), 0);
     assert_decoder_malformed_policies(
         Utf16U16Codec,
         &[utf16_low_surrogate, 'A' as u16],
@@ -470,9 +372,7 @@ fn test_charset_decoder_policies_handle_malformed_unicode_codecs() {
     assert_decoder_malformed_policies(
         Utf32U32Codec,
         &[utf32_invalid, 'A' as u32],
-        CharsetDecodeErrorKind::InvalidCodePoint {
-            value: utf32_invalid,
-        },
+        CharsetDecodeErrorKind::InvalidCodePoint { value: utf32_invalid },
         0,
     );
     assert_decoder_malformed_policies(
@@ -487,9 +387,7 @@ fn test_charset_decoder_policies_handle_malformed_unicode_codecs() {
             0,
             0,
         ],
-        CharsetDecodeErrorKind::InvalidCodePoint {
-            value: utf32_invalid,
-        },
+        CharsetDecodeErrorKind::InvalidCodePoint { value: utf32_invalid },
         0,
     );
     assert_decoder_malformed_policies(
@@ -504,19 +402,14 @@ fn test_charset_decoder_policies_handle_malformed_unicode_codecs() {
             0,
             b'A',
         ],
-        CharsetDecodeErrorKind::InvalidCodePoint {
-            value: utf32_invalid,
-        },
+        CharsetDecodeErrorKind::InvalidCodePoint { value: utf32_invalid },
         0,
     );
 }
 
 #[test]
 fn test_charset_decoder_recovery_preserves_following_valid_units() {
-    let mut utf8 = CharsetDecoder::with_policy(
-        Utf8Codec,
-        CharsetDecodePolicy::replace('!'),
-    );
+    let mut utf8 = CharsetDecoder::with_policy(Utf8Codec, CharsetDecodePolicy::replace('!'));
     let mut utf8_output = ['\0'; 3];
     reset_for_test(&mut utf8);
     let progress = utf8
@@ -526,8 +419,7 @@ fn test_charset_decoder_recovery_preserves_following_valid_units() {
     assert_eq!(3, progress.written());
     assert_eq!(['!', '(', '!'], utf8_output);
 
-    let mut utf8_ignore =
-        CharsetDecoder::with_policy(Utf8Codec, CharsetDecodePolicy::ignore());
+    let mut utf8_ignore = CharsetDecoder::with_policy(Utf8Codec, CharsetDecodePolicy::ignore());
     let mut utf8_ignored_output = ['\0'; 2];
     reset_for_test(&mut utf8_ignore);
     let progress = utf8_ignore
@@ -537,10 +429,7 @@ fn test_charset_decoder_recovery_preserves_following_valid_units() {
     assert_eq!(1, progress.written());
     assert_eq!(['(', '\0'], utf8_ignored_output);
 
-    let mut utf16_units = CharsetDecoder::with_policy(
-        Utf16U16Codec,
-        CharsetDecodePolicy::replace('!'),
-    );
+    let mut utf16_units = CharsetDecoder::with_policy(Utf16U16Codec, CharsetDecodePolicy::replace('!'));
     let mut utf16_units_output = ['\0'; 2];
     reset_for_test(&mut utf16_units);
     let progress = utf16_units
@@ -569,12 +458,7 @@ fn test_charset_converter_policies_handle_unicode_decode_and_encode_paths() {
     let utf16_low_surrogate = 0xdc00_u16;
     let utf32_invalid = 0x110000_u32;
 
-    assert_converter_decode_policies(
-        Utf8Codec,
-        &[0x80, b'A'],
-        CharsetDecodeErrorKind::malformed(0x80),
-        0,
-    );
+    assert_converter_decode_policies(Utf8Codec, &[0x80, b'A'], CharsetDecodeErrorKind::malformed(0x80), 0);
     assert_converter_decode_policies(
         Utf16U16Codec,
         &[utf16_low_surrogate, 'A' as u16],
@@ -606,9 +490,7 @@ fn test_charset_converter_policies_handle_unicode_decode_and_encode_paths() {
     assert_converter_decode_policies(
         Utf32U32Codec,
         &[utf32_invalid, 'A' as u32],
-        CharsetDecodeErrorKind::InvalidCodePoint {
-            value: utf32_invalid,
-        },
+        CharsetDecodeErrorKind::InvalidCodePoint { value: utf32_invalid },
         0,
     );
     assert_converter_decode_policies(
@@ -623,9 +505,7 @@ fn test_charset_converter_policies_handle_unicode_decode_and_encode_paths() {
             0,
             0,
         ],
-        CharsetDecodeErrorKind::InvalidCodePoint {
-            value: utf32_invalid,
-        },
+        CharsetDecodeErrorKind::InvalidCodePoint { value: utf32_invalid },
         0,
     );
     assert_converter_decode_policies(
@@ -640,9 +520,7 @@ fn test_charset_converter_policies_handle_unicode_decode_and_encode_paths() {
             0,
             b'A',
         ],
-        CharsetDecodeErrorKind::InvalidCodePoint {
-            value: utf32_invalid,
-        },
+        CharsetDecodeErrorKind::InvalidCodePoint { value: utf32_invalid },
         0,
     );
 
@@ -698,18 +576,13 @@ fn decode_all_utf8(codec: &mut Utf8Codec, input: &[u8]) -> Vec<char> {
                 output.push(value);
                 input_index += consumed.get();
             }
-            status => panic!(
-                "expected complete utf8 decode for valid sequence, got {status:?}"
-            ),
+            status => panic!("expected complete utf8 decode for valid sequence, got {status:?}"),
         }
     }
     output
 }
 
-fn decode_all_utf16_units(
-    codec: &mut Utf16U16Codec,
-    input: &[u16],
-) -> Vec<char> {
+fn decode_all_utf16_units(codec: &mut Utf16U16Codec, input: &[u16]) -> Vec<char> {
     let mut output = Vec::new();
     let mut input_index = 0;
     while input_index < input.len() {
@@ -718,18 +591,13 @@ fn decode_all_utf16_units(
                 output.push(value);
                 input_index += consumed.get();
             }
-            status => panic!(
-                "expected complete utf16 decode for valid sequence, got {status:?}"
-            ),
+            status => panic!("expected complete utf16 decode for valid sequence, got {status:?}"),
         }
     }
     output
 }
 
-fn decode_all_utf16_bytes(
-    codec: &mut Utf16ByteCodec,
-    input: &[u8],
-) -> Vec<char> {
+fn decode_all_utf16_bytes(codec: &mut Utf16ByteCodec, input: &[u8]) -> Vec<char> {
     let mut output = Vec::new();
     let mut input_index = 0;
     while input_index < input.len() {
@@ -739,19 +607,14 @@ fn decode_all_utf16_bytes(
                 input_index += consumed.get();
             }
             status => {
-                panic!(
-                    "expected complete utf16 byte decode for valid sequence, got {status:?}"
-                )
+                panic!("expected complete utf16 byte decode for valid sequence, got {status:?}")
             }
         }
     }
     output
 }
 
-fn decode_all_utf32_units(
-    codec: &mut Utf32U32Codec,
-    input: &[u32],
-) -> Vec<char> {
+fn decode_all_utf32_units(codec: &mut Utf32U32Codec, input: &[u32]) -> Vec<char> {
     let mut output = Vec::new();
     let mut input_index = 0;
     while input_index < input.len() {
@@ -760,18 +623,13 @@ fn decode_all_utf32_units(
                 output.push(value);
                 input_index += consumed.get();
             }
-            status => panic!(
-                "expected complete utf32 decode for valid sequence, got {status:?}"
-            ),
+            status => panic!("expected complete utf32 decode for valid sequence, got {status:?}"),
         }
     }
     output
 }
 
-fn decode_all_utf32_bytes(
-    codec: &mut Utf32ByteCodec,
-    input: &[u8],
-) -> Vec<char> {
+fn decode_all_utf32_bytes(codec: &mut Utf32ByteCodec, input: &[u8]) -> Vec<char> {
     let mut output = Vec::new();
     let mut input_index = 0;
     while input_index < input.len() {
@@ -781,9 +639,7 @@ fn decode_all_utf32_bytes(
                 input_index += consumed.get();
             }
             status => {
-                panic!(
-                    "expected complete utf32 byte decode for valid sequence, got {status:?}"
-                )
+                panic!("expected complete utf32 byte decode for valid sequence, got {status:?}")
             }
         }
     }
@@ -800,9 +656,7 @@ fn assert_utf16_byte_codec_round_trip(order: ByteOrder) {
         .flat_map(|unit| match order {
             ByteOrder::LittleEndian => unit.to_le_bytes().to_vec(),
             ByteOrder::BigEndian => unit.to_be_bytes().to_vec(),
-            ByteOrder::NativeEndian if cfg!(target_endian = "big") => {
-                unit.to_be_bytes().to_vec()
-            }
+            ByteOrder::NativeEndian if cfg!(target_endian = "big") => unit.to_be_bytes().to_vec(),
             ByteOrder::NativeEndian => unit.to_le_bytes().to_vec(),
         })
         .collect();
@@ -829,9 +683,7 @@ fn assert_utf32_byte_codec_round_trip(order: ByteOrder) {
         .flat_map(|value| match order {
             ByteOrder::LittleEndian => value.to_le_bytes(),
             ByteOrder::BigEndian => value.to_be_bytes(),
-            ByteOrder::NativeEndian if cfg!(target_endian = "big") => {
-                value.to_be_bytes()
-            }
+            ByteOrder::NativeEndian if cfg!(target_endian = "big") => value.to_be_bytes(),
             ByteOrder::NativeEndian => value.to_le_bytes(),
         })
         .collect();
@@ -848,11 +700,8 @@ fn assert_utf32_byte_codec_round_trip(order: ByteOrder) {
     assert_eq!(expected, &output[..progress.written()]);
 }
 
-fn assert_decoder_output<C>(
-    mut decoder: CharsetDecoder<C>,
-    input: &[C::Unit],
-    expected: &[char],
-) where
+fn assert_decoder_output<C>(mut decoder: CharsetDecoder<C>, input: &[C::Unit], expected: &[char])
+where
     C: CharsetCodec,
 {
     let mut output = vec!['\0'; expected.len()];
@@ -872,11 +721,8 @@ fn assert_decoder_output<C>(
     assert_eq!(0, written);
 }
 
-fn assert_encoder_policies_output<C>(
-    codec: C,
-    input: &[char],
-    expected: &[C::Unit],
-) where
+fn assert_encoder_policies_output<C>(codec: C, input: &[char], expected: &[C::Unit])
+where
     C: CharsetCodec + Copy,
     C::Unit: Clone + Debug + Default + PartialEq,
 {
@@ -889,17 +735,12 @@ fn assert_encoder_policies_output<C>(
     }
 }
 
-fn assert_encoder_output_with_policy<C>(
-    codec: C,
-    policy: CharsetEncodePolicy,
-    input: &[char],
-    expected: &[C::Unit],
-) where
+fn assert_encoder_output_with_policy<C>(codec: C, policy: CharsetEncodePolicy, input: &[char], expected: &[C::Unit])
+where
     C: CharsetCodec,
     C::Unit: Clone + Debug + Default + PartialEq,
 {
-    let mut encoder = CharsetEncoder::with_policy(codec, policy)
-        .expect("Unicode codec policy should be constructible");
+    let mut encoder = CharsetEncoder::with_policy(codec, policy).expect("Unicode codec policy should be constructible");
     let mut output = vec![C::Unit::default(); expected.len()];
     reset_for_test(&mut encoder);
     let progress = encoder
@@ -917,12 +758,8 @@ fn assert_encoder_output_with_policy<C>(
     assert_eq!(0, written);
 }
 
-fn assert_converter_output<D, E>(
-    source: D,
-    target: E,
-    input: &[D::Unit],
-    expected: &[E::Unit],
-) where
+fn assert_converter_output<D, E>(source: D, target: E, input: &[D::Unit], expected: &[E::Unit])
+where
     D: CharsetCodec,
     E: CharsetCodec,
     E::Unit: Clone + Debug + Default + PartialEq,
@@ -949,13 +786,8 @@ fn assert_converter_output_with_policies<D, E>(
     E: CharsetCodec,
     E::Unit: Clone + Debug + Default + PartialEq,
 {
-    let mut converter = CharsetConverter::from_codecs_with_policies(
-        source,
-        target,
-        decode_policy,
-        encode_policy,
-    )
-    .expect("converter policies should be constructible");
+    let mut converter = CharsetConverter::from_codecs_with_policies(source, target, decode_policy, encode_policy)
+        .expect("converter policies should be constructible");
     let mut output = vec![E::Unit::default(); expected.len()];
     reset_for_test(&mut converter);
     let progress = converter
@@ -981,8 +813,7 @@ fn assert_decoder_malformed_policies<C>(
 ) where
     C: CharsetCodec + Copy,
 {
-    let mut decoder =
-        CharsetDecoder::with_policy(codec, CharsetDecodePolicy::replace('!'));
+    let mut decoder = CharsetDecoder::with_policy(codec, CharsetDecodePolicy::replace('!'));
     let mut replaced = ['\0'; 2];
     reset_for_test(&mut decoder);
     let progress = decoder
@@ -993,8 +824,7 @@ fn assert_decoder_malformed_policies<C>(
     assert_eq!(2, progress.written());
     assert_eq!(['!', 'A'], replaced);
 
-    let mut decoder =
-        CharsetDecoder::with_policy(codec, CharsetDecodePolicy::ignore());
+    let mut decoder = CharsetDecoder::with_policy(codec, CharsetDecodePolicy::ignore());
     let mut ignored = ['\0'; 1];
     reset_for_test(&mut decoder);
     let progress = decoder
@@ -1005,8 +835,7 @@ fn assert_decoder_malformed_policies<C>(
     assert_eq!(1, progress.written());
     assert_eq!(['A'], ignored);
 
-    let mut decoder =
-        CharsetDecoder::with_policy(codec, CharsetDecodePolicy::report());
+    let mut decoder = CharsetDecoder::with_policy(codec, CharsetDecodePolicy::report());
     let mut output = ['\0'; 2];
     reset_for_test(&mut decoder);
     let error = decoder
@@ -1103,9 +932,7 @@ fn encode_utf16_bytes(chars: &[char], order: ByteOrder) -> Vec<u8> {
         .flat_map(|unit| match order {
             ByteOrder::LittleEndian => unit.to_le_bytes(),
             ByteOrder::BigEndian => unit.to_be_bytes(),
-            ByteOrder::NativeEndian if cfg!(target_endian = "big") => {
-                unit.to_be_bytes()
-            }
+            ByteOrder::NativeEndian if cfg!(target_endian = "big") => unit.to_be_bytes(),
             ByteOrder::NativeEndian => unit.to_le_bytes(),
         })
         .collect()
@@ -1121,9 +948,7 @@ fn encode_utf32_bytes(chars: &[char], order: ByteOrder) -> Vec<u8> {
         .flat_map(|unit| match order {
             ByteOrder::LittleEndian => unit.to_le_bytes(),
             ByteOrder::BigEndian => unit.to_be_bytes(),
-            ByteOrder::NativeEndian if cfg!(target_endian = "big") => {
-                unit.to_be_bytes()
-            }
+            ByteOrder::NativeEndian if cfg!(target_endian = "big") => unit.to_be_bytes(),
             ByteOrder::NativeEndian => unit.to_le_bytes(),
         })
         .collect()

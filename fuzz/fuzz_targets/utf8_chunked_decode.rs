@@ -50,8 +50,6 @@ fuzz_target!(|data: &[u8]| {
     output_cursor += progress.written();
     pending.drain(..progress.read());
     assert!(pending.is_empty());
-    output_cursor += decoder
-        .finish(&mut output, output_cursor)
-        .expect("finish decoder");
+    output_cursor += decoder.finish(&mut output, output_cursor).expect("finish decoder");
     assert_eq!(expected[..expected_written], output[..output_cursor]);
 });

@@ -105,21 +105,13 @@ impl Codec for Utf32U32Codec {
         input: &[u32],
         input_index: usize,
     ) -> CharsetCodecDecodeResult<(char, core::num::NonZeroUsize)> {
-        let (ch, consumed) = decode_units_prefix(input, input_index)
-            .map_err(CharsetDecodeError::into_codec_failure)?;
-        debug_assert!(
-            consumed.get() <= input.len().saturating_sub(input_index)
-        );
+        let (ch, consumed) = decode_units_prefix(input, input_index).map_err(CharsetDecodeError::into_codec_failure)?;
+        debug_assert!(consumed.get() <= input.len().saturating_sub(input_index));
         Ok((ch, consumed))
     }
 
     #[inline]
-    unsafe fn encode(
-        &mut self,
-        ch: &char,
-        output: &mut [u32],
-        output_index: usize,
-    ) -> CharsetEncodeResult<usize> {
+    unsafe fn encode(&mut self, ch: &char, output: &mut [u32], output_index: usize) -> CharsetEncodeResult<usize> {
         let written = encode_units_char(*ch, output, output_index);
         debug_assert_eq!(written, Utf32::MAX_UNITS_PER_CHAR);
         debug_assert!(written <= output.len().saturating_sub(output_index));
@@ -145,10 +137,7 @@ impl Codec for Utf32U32Codec {
 /// * `CharsetDecodeErrorKind::InvalidCodePoint` when `input[index]` is not a
 ///   valid scalar.
 #[inline]
-fn decode_units_prefix(
-    input: &[u32],
-    index: usize,
-) -> CharsetDecodeResult<(char, core::num::NonZeroUsize)> {
+fn decode_units_prefix(input: &[u32], index: usize) -> CharsetDecodeResult<(char, core::num::NonZeroUsize)> {
     debug_assert!(index < input.len());
     // SAFETY: The caller guarantees that `index` is readable.
     let unit = unsafe { UncheckedSlice::read(input, index) };
