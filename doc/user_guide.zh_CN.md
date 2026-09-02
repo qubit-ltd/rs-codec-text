@@ -2,7 +2,7 @@
 
 [English](user_guide.md) · [README](../README.zh_CN.md) · [API 文档](https://docs.rs/qubit-codec-text)
 
-本文适用于 `qubit-codec-text` 0.5，面向构建缓冲区级解析器、协议处理器和 I/O
+本文适用于 `qubit-codec-text` 0.6，面向构建缓冲区级解析器、协议处理器和 I/O
 adapter 的开发者：既要保留转换进度，也要明确选择畸形或不可映射数据的处理方式。
 
 ## 概念模型
@@ -29,7 +29,7 @@ adapter 的开发者：既要保留转换进度，也要明确选择畸形或不
 
 ```toml
 [dependencies]
-qubit-codec-text = "0.5"
+qubit-codec-text = "0.6"
 qubit-codec = "0.12"
 ```
 
