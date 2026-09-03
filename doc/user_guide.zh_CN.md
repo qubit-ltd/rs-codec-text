@@ -19,7 +19,7 @@ adapter 的开发者：既要保留转换进度，也要明确选择畸形或不
 `char`；`CharsetDecoder`、`CharsetEncoder` 和 `CharsetConverter` 负责策略与进度。
 共享进度/状态类型从 `qubit-codec` 导入。
 
-## 贯穿场景：把输入 UTF-8 转为 UTF-16
+## 实战场景：把输入 UTF-8 转为 UTF-16
 
 一个 adapter 接收 UTF-8 字节并写入 UTF-16 码元输出缓冲区。完整消息可使用下面的
 检查型便捷方法；流式场景中，应对每个缓冲区调用 `transcode`，保留未消费的不完整尾部，
