@@ -868,7 +868,7 @@ fn test_charset_converter_resets_pending_state() {
     let mut converter = CharsetConverter::from_codecs(Utf8Codec, Utf16U16Codec);
     reset_for_test(&mut converter);
     let mut empty_output = [];
-    converter
+    let _ = converter
         .transcode(b"ABCD", 0, &mut empty_output, 0)
         .expect("converted char becomes pending");
 

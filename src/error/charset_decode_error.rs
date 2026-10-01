@@ -167,7 +167,6 @@ impl CharsetDecodeError {
 
     /// Converts this error into the failure type returned by
     /// [`qubit_codec::Codec::decode`].
-    #[must_use]
     #[inline]
     pub fn into_codec_failure(self) -> DecodeFailure<Self> {
         if let Some((required, _)) = self.kind.incomplete() {

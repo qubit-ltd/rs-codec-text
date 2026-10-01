@@ -10,7 +10,7 @@ cargo-fuzz = true
 
 [dependencies]
 libfuzzer-sys = "0.4"
-qubit-codec = "0.15"
+qubit-codec = { version = "0.16", path = "../../rs-codec" }
 qubit-codec-text = { path = ".." }
 
 [[bin]]
