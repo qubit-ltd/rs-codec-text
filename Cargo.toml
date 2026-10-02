@@ -76,3 +76,5 @@ serde = ["dep:serde"]
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage)'] }
+
+[workspace]
