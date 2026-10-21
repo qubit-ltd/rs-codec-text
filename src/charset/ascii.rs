@@ -8,6 +8,15 @@
 use crate::charset::ascii_folding;
 
 /// Namespace for ASCII character and code point helpers.
+///
+/// # Examples
+///
+/// ```
+/// use qubit_codec_text::Ascii;
+///
+/// assert!(Ascii::is_ascii_byte(b'A'));
+/// assert!(!Ascii::is_ascii_byte(0x80));
+/// ```
 pub enum Ascii {}
 
 impl Ascii {
@@ -363,6 +372,8 @@ impl Ascii {
     /// Uppercase ASCII hexadecimal digit bytes.
     pub const UPPERCASE_HEX_DIGIT_BYTES: [u8; 16] = *b"0123456789ABCDEF";
 
+    /// Code point difference between corresponding ASCII lowercase and
+    /// uppercase letters.
     const CASE_DIFFERENCE: u32 = ('a' as u32) - ('A' as u32);
 
     /// Tests whether a byte is an ASCII byte.
@@ -374,7 +385,7 @@ impl Ascii {
     /// # Returns
     ///
     /// Returns `true` if `ch` is in the ASCII range `0x00..=0x7F`.
-    #[inline(always)]
+    #[inline]
     #[must_use]
     pub const fn is_ascii_byte(ch: u8) -> bool {
         ch <= Self::MAX_BYTE
@@ -420,7 +431,7 @@ impl Ascii {
     /// # Returns
     ///
     /// Returns `true` for tab, line feed, form feed, carriage return, or space.
-    #[inline(always)]
+    #[inline]
     #[must_use]
     pub const fn is_whitespace_byte(ch: u8) -> bool {
         ch == b'\t' || ch == b'\n' || ch == b'\x0c' || ch == b'\r' || ch == b' '
@@ -466,7 +477,7 @@ impl Ascii {
     /// # Returns
     ///
     /// Returns `true` if `ch` is in `A..=Z` or `a..=z`.
-    #[inline(always)]
+    #[inline]
     #[must_use]
     pub const fn is_letter_byte(ch: u8) -> bool {
         Self::is_uppercase_letter_byte(ch) || Self::is_lowercase_letter_byte(ch)
@@ -511,7 +522,7 @@ impl Ascii {
     /// # Returns
     ///
     /// Returns `true` if `ch` is in `A..=Z`.
-    #[inline(always)]
+    #[inline]
     #[must_use]
     pub const fn is_uppercase_letter_byte(ch: u8) -> bool {
         ch >= b'A' && ch <= b'Z'
@@ -556,7 +567,7 @@ impl Ascii {
     /// # Returns
     ///
     /// Returns `true` if `ch` is in `a..=z`.
-    #[inline(always)]
+    #[inline]
     #[must_use]
     pub const fn is_lowercase_letter_byte(ch: u8) -> bool {
         ch >= b'a' && ch <= b'z'
@@ -601,7 +612,7 @@ impl Ascii {
     /// # Returns
     ///
     /// Returns `true` if `ch` is in `0..=9`.
-    #[inline(always)]
+    #[inline]
     #[must_use]
     pub const fn is_digit_byte(ch: u8) -> bool {
         ch >= b'0' && ch <= b'9'
@@ -646,7 +657,7 @@ impl Ascii {
     /// # Returns
     ///
     /// Returns `true` if `ch` is in `0..=9`, `A..=F`, or `a..=f`.
-    #[inline(always)]
+    #[inline]
     #[must_use]
     pub const fn is_hex_digit_byte(ch: u8) -> bool {
         Self::is_digit_byte(ch) || (ch >= b'a' && ch <= b'f') || (ch >= b'A' && ch <= b'F')
@@ -693,7 +704,7 @@ impl Ascii {
     /// # Returns
     ///
     /// Returns `true` if `ch` is in `0..=7`.
-    #[inline(always)]
+    #[inline]
     #[must_use]
     pub const fn is_octal_digit_byte(ch: u8) -> bool {
         ch >= b'0' && ch <= b'7'
@@ -738,7 +749,7 @@ impl Ascii {
     /// # Returns
     ///
     /// Returns `true` if `ch` is an ASCII letter or decimal digit.
-    #[inline(always)]
+    #[inline]
     #[must_use]
     pub const fn is_letter_or_digit_byte(ch: u8) -> bool {
         Self::is_letter_byte(ch) || Self::is_digit_byte(ch)
@@ -783,7 +794,7 @@ impl Ascii {
     /// # Returns
     ///
     /// Returns `true` if `ch` is in the printable ASCII range `0x20..=0x7E`.
-    #[inline(always)]
+    #[inline]
     #[must_use]
     pub const fn is_printable_byte(ch: u8) -> bool {
         ch >= Self::MIN_PRINTABLE_BYTE && ch <= Self::MAX_PRINTABLE_BYTE
@@ -829,7 +840,7 @@ impl Ascii {
     /// # Returns
     ///
     /// Returns `true` for `0x00..=0x1F` or `0x7F`.
-    #[inline(always)]
+    #[inline]
     #[must_use]
     pub const fn is_control_byte(ch: u8) -> bool {
         ch < Self::MIN_PRINTABLE_BYTE || ch == Self::DELETE_BYTE
@@ -876,7 +887,7 @@ impl Ascii {
     ///
     /// Returns `true` if the bytes are equal after converting ASCII uppercase
     /// letters to lowercase. Non-ASCII bytes are compared unchanged.
-    #[inline(always)]
+    #[inline]
     #[must_use]
     pub const fn equals_ignore_case_byte(ch1: u8, ch2: u8) -> bool {
         if ch1 == ch2 {
@@ -939,7 +950,7 @@ impl Ascii {
     ///
     /// Returns the uppercase ASCII equivalent for `a..=z`; all other bytes are
     /// returned unchanged.
-    #[inline(always)]
+    #[inline]
     #[must_use]
     pub const fn byte_to_uppercase(ch: u8) -> u8 {
         if ch >= b'a' && ch <= b'z' {
@@ -999,7 +1010,7 @@ impl Ascii {
     ///
     /// Returns the lowercase ASCII equivalent for `A..=Z`; all other bytes are
     /// returned unchanged.
-    #[inline(always)]
+    #[inline]
     #[must_use]
     pub const fn byte_to_lowercase(ch: u8) -> u8 {
         if ch >= b'A' && ch <= b'Z' {
@@ -1058,7 +1069,7 @@ impl Ascii {
     /// # Returns
     ///
     /// Returns `Some(0..=9)` for `0..=9`; returns `None` otherwise.
-    #[inline(always)]
+    #[inline]
     #[must_use]
     pub const fn byte_to_digit(ch: u8) -> Option<u8> {
         if Self::is_digit_byte(ch) { Some(ch - b'0') } else { None }
@@ -1112,7 +1123,7 @@ impl Ascii {
     ///
     /// Returns `Some(0..=15)` for `0..=9`, `A..=F`, or `a..=f`; returns `None`
     /// otherwise.
-    #[inline(always)]
+    #[inline]
     #[must_use]
     pub const fn byte_to_hex_digit(ch: u8) -> Option<u8> {
         if ch >= b'0' && ch <= b'9' {

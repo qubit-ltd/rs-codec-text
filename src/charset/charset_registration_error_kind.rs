@@ -7,7 +7,22 @@
 // =============================================================================
 use super::charset::Charset;
 
-/// Categorizes why a charset cannot be registered.
+/// Categorizes why a charset descriptor cannot be registered.
+///
+/// Invalid labels normalize to an empty lookup key. Conflicting labels are
+/// already owned by a built-in or registered charset.
+///
+/// # Examples
+///
+/// ```rust
+/// use qubit_codec_text::Charset;
+/// use qubit_codec_text::CharsetRegistrationErrorKind;
+///
+/// let error = Charset::try_new("", "Custom", &[])
+///     .expect_err("an empty identifier cannot be registered");
+/// assert_eq!(error.kind(), CharsetRegistrationErrorKind::InvalidLabel);
+/// ```
+#[must_use]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum CharsetRegistrationErrorKind {

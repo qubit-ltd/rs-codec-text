@@ -11,6 +11,15 @@ use crate::Unicode;
 use crate::UnicodeBom;
 
 /// Namespace for UTF-16 constants and code-unit classification helpers.
+///
+/// # Examples
+///
+/// ```
+/// use qubit_codec_text::Utf16;
+///
+/// assert!(Utf16::is_surrogate_pair(0xD800, 0xDC00));
+/// assert_eq!(Utf16::unit_len('🦀'), 2);
+/// ```
 pub enum Utf16 {}
 
 impl Utf16 {
@@ -30,7 +39,8 @@ impl Utf16 {
     /// # Returns
     ///
     /// Returns `true` if `unit` is in `0xD800..=0xDBFF`.
-    #[inline(always)]
+    #[must_use]
+    #[inline]
     pub const fn is_high_surrogate(unit: u16) -> bool {
         (unit as u32) >= Unicode::HIGH_SURROGATE_MIN && (unit as u32) <= Unicode::HIGH_SURROGATE_MAX
     }
@@ -44,7 +54,8 @@ impl Utf16 {
     /// # Returns
     ///
     /// Returns `true` if `unit` is in `0xDC00..=0xDFFF`.
-    #[inline(always)]
+    #[must_use]
+    #[inline]
     pub const fn is_low_surrogate(unit: u16) -> bool {
         (unit as u32) >= Unicode::LOW_SURROGATE_MIN && (unit as u32) <= Unicode::LOW_SURROGATE_MAX
     }
@@ -58,7 +69,8 @@ impl Utf16 {
     /// # Returns
     ///
     /// Returns `true` if `unit` is in `0xD800..=0xDFFF`.
-    #[inline(always)]
+    #[must_use]
+    #[inline]
     pub const fn is_surrogate(unit: u16) -> bool {
         (unit as u32) >= Unicode::SURROGATE_MIN && (unit as u32) <= Unicode::SURROGATE_MAX
     }
@@ -72,7 +84,8 @@ impl Utf16 {
     /// # Returns
     ///
     /// Returns `true` for non-surrogate units.
-    #[inline(always)]
+    #[must_use]
+    #[inline]
     pub const fn is_single_unit(unit: u16) -> bool {
         !Self::is_surrogate(unit)
     }
@@ -88,7 +101,8 @@ impl Utf16 {
     ///
     /// Returns `true` if `high` is a high surrogate and `low` is a low
     /// surrogate.
-    #[inline(always)]
+    #[must_use]
+    #[inline]
     pub const fn is_surrogate_pair(high: u16, low: u16) -> bool {
         Self::is_high_surrogate(high) && Self::is_low_surrogate(low)
     }
@@ -103,7 +117,8 @@ impl Utf16 {
     ///
     /// Returns `1` for BMP scalar values and `2` for supplementary scalar
     /// values.
-    #[inline(always)]
+    #[must_use]
+    #[inline]
     pub const fn unit_len(ch: char) -> usize {
         if (ch as u32) >= Unicode::SUPPLEMENTARY_MIN {
             2

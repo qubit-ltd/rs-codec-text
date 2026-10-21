@@ -29,6 +29,20 @@ use crate::UnmappableAction;
 ///
 /// - `C`: Low-level charset codec used to encode one character into target
 ///   storage units.
+///
+/// # Examples
+///
+/// ```
+/// use qubit_codec_text::CharsetEncoder;
+/// use qubit_codec_text::Utf8Codec;
+///
+/// let mut encoder = CharsetEncoder::new(Utf8Codec);
+/// let mut output = [0; 20];
+/// let written = encoder
+///     .transcode_complete_into(&['h', 'e', 'l', 'l', 'o'], &mut output)
+///     .expect("UTF-8 encoding succeeds");
+/// assert_eq!(&output[..written], b"hello");
+/// ```
 #[derive(Debug)]
 pub struct CharsetEncoder<C>
 where
@@ -100,6 +114,15 @@ where
 
     /// Creates an encoder with an explicit unmappable-input policy.
     ///
+    /// # Parameters
+    ///
+    /// - `codec`: Low-level codec used to encode output units.
+    /// - `policy`: Action and replacement used for unmappable input.
+    ///
+    /// # Returns
+    ///
+    /// Returns an encoder configured with `policy`.
+    ///
     /// # Errors
     ///
     /// Returns an error when `policy` uses replacement and the replacement
@@ -118,7 +141,7 @@ where
     ///
     /// Returns the action used when target encoding cannot represent a
     /// character.
-    #[inline(always)]
+    #[inline]
     #[must_use]
     pub const fn unmappable_action(&self) -> UnmappableAction {
         self.policy.unmappable_action()
@@ -130,7 +153,7 @@ where
     ///
     /// Returns the character encoded when [`UnmappableAction::Replace`] is
     /// used.
-    #[inline(always)]
+    #[inline]
     #[must_use]
     pub const fn replacement(&self) -> char {
         self.policy.replacement()
@@ -141,7 +164,7 @@ where
     /// # Returns
     ///
     /// Returns the charset reported by the low-level codec.
-    #[inline(always)]
+    #[inline]
     #[must_use]
     pub fn charset(&self) -> crate::Charset {
         self.codec().charset()
@@ -152,7 +175,7 @@ where
     /// # Returns
     ///
     /// Returns a shared reference to the codec owned by this encoder.
-    #[inline(always)]
+    #[inline]
     #[must_use]
     pub fn codec(&self) -> &C {
         self.engine.codec()
@@ -167,7 +190,7 @@ where
     /// # Returns
     ///
     /// Returns a mutable reference to the codec owned by this encoder.
-    #[inline(always)]
+    #[inline]
     #[must_use]
     pub fn codec_mut(&mut self) -> &mut C {
         self.engine.codec_mut()
@@ -180,7 +203,7 @@ where
     /// # Returns
     ///
     /// Returns the low-level codec owned by this encoder.
-    #[inline(always)]
+    #[inline]
     #[must_use]
     pub fn into_codec(self) -> C {
         let (codec, _) = self.engine.into_parts();
@@ -222,7 +245,6 @@ where
     /// Framework failures and unencodable values are attached to this
     /// encoder's charset. Codec-domain errors retain their original charset
     /// error.
-    #[must_use]
     #[inline]
     pub fn map_transcode_error(&self, error: TranscodeEncodeErrorOf<C>) -> CharsetEncodeError {
         CharsetEncodeError::from_transcode_error(self.charset(), error)
@@ -279,32 +301,32 @@ where
 
     /// Returns the maximum number of target units needed for `input_len`
     /// characters.
-    #[inline(always)]
+    #[inline]
     fn max_transcode_output_len(&self, input_len: usize) -> Result<usize, CapacityError> {
         self.engine.max_transcode_output_len(input_len)
     }
 
     /// Returns the maximum target units emitted by finishing internal state.
-    #[inline(always)]
+    #[inline]
     fn max_finish_output_len(&self) -> Result<usize, CapacityError> {
         self.engine.max_finish_output_len()
     }
 
     /// Returns the maximum target units emitted when resetting stream state.
-    #[inline(always)]
+    #[inline]
     fn max_reset_output_len(&self) -> Result<usize, CapacityError> {
         self.engine.max_reset_output_len()
     }
 
     /// Runs encoder reset while keeping encoder policy.
-    #[inline(always)]
+    #[inline]
     fn reset(&mut self, output: &mut [C::Unit], output_index: usize) -> Result<usize, Self::Error> {
         self.engine.reset(output, output_index)
     }
 
     /// Encodes characters into the target charset while applying unmappable
     /// policy.
-    #[inline(always)]
+    #[inline]
     fn transcode(
         &mut self,
         input: &[char],
@@ -316,7 +338,7 @@ where
     }
 
     /// Finishes encoder-owned final output after EOF.
-    #[inline(always)]
+    #[inline]
     fn finish(&mut self, output: &mut [C::Unit], output_index: usize) -> Result<usize, Self::Error> {
         self.engine.finish(output, output_index)
     }

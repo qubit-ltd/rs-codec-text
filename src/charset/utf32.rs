@@ -11,6 +11,15 @@ use crate::Unicode;
 use crate::UnicodeBom;
 
 /// Namespace for UTF-32 constants and code-unit classification helpers.
+///
+/// # Examples
+///
+/// ```
+/// use qubit_codec_text::Utf32;
+///
+/// assert!(Utf32::is_valid_unit('🦀' as u32));
+/// assert_eq!(Utf32::unit_len('🦀'), 1);
+/// ```
 pub enum Utf32 {}
 
 impl Utf32 {
@@ -30,7 +39,8 @@ impl Utf32 {
     /// # Returns
     ///
     /// Returns `true` if `unit` is a valid Unicode scalar value.
-    #[inline(always)]
+    #[must_use]
+    #[inline]
     pub const fn is_valid_unit(unit: u32) -> bool {
         Unicode::is_scalar_value(unit)
     }
@@ -44,7 +54,8 @@ impl Utf32 {
     /// # Returns
     ///
     /// Always returns `1`.
-    #[inline(always)]
+    #[must_use]
+    #[inline]
     pub const fn unit_len(_ch: char) -> usize {
         1
     }

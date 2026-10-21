@@ -99,6 +99,26 @@ impl Codec for Utf32U32Codec {
 
     const MAX_DECODE_UNITS_PER_VALUE: usize = 1;
 
+    /// Decodes one UTF-32 scalar value from the unit at `input_index`.
+    ///
+    /// # Parameters
+    ///
+    /// - `input`: UTF-32 scalar-value units.
+    /// - `input_index`: Index of the unit to decode.
+    ///
+    /// # Returns
+    ///
+    /// Returns the decoded character and the number of consumed units, which
+    /// is always one.
+    ///
+    /// # Errors
+    ///
+    /// Returns a decode error when the unit is not a valid Unicode scalar
+    /// value.
+    ///
+    /// # Safety
+    ///
+    /// `input_index` must identify a readable element in `input`.
     #[inline]
     unsafe fn decode(
         &mut self,
@@ -110,6 +130,21 @@ impl Codec for Utf32U32Codec {
         Ok((ch, consumed))
     }
 
+    /// Encodes one character as a UTF-32 scalar-value unit.
+    ///
+    /// # Parameters
+    ///
+    /// - `ch`: Character to encode.
+    /// - `output`: Destination UTF-32 unit buffer.
+    /// - `output_index`: Index at which to write the encoded unit.
+    ///
+    /// # Returns
+    ///
+    /// Returns the number of written units, which is always one.
+    ///
+    /// # Safety
+    ///
+    /// `output_index` must identify a writable element in `output`.
     #[inline]
     unsafe fn encode(&mut self, ch: &char, output: &mut [u32], output_index: usize) -> CharsetEncodeResult<usize> {
         let written = encode_units_char(*ch, output, output_index);
@@ -126,7 +161,7 @@ impl Codec for Utf32U32Codec {
 /// # Arguments
 ///
 /// * `input` - UTF-32 unit slice to decode from.
-/// * `index` - Start offset in `input`; must be `<= input.len()`.
+/// * `index` - Start offset in `input`; must be `< input.len()`.
 ///
 /// # Returns
 ///

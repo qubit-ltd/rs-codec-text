@@ -24,7 +24,6 @@
 ///
 /// Returns `Some(replacement)` when `ch` has a known ASCII folding replacement.
 /// Returns `None` when `ch` has no mapping in the table.
-#[must_use]
 pub(crate) fn fold_replacement(ch: char) -> Option<&'static str> {
     match ch {
         '\u{00C0}' => Some("A"), // À  [LATIN CAPITAL LETTER A WITH GRAVE]

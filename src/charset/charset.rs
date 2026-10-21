@@ -274,6 +274,7 @@ impl Charset {
     ///
     /// Returns the identifier used for equality, hashing, and stable
     /// diagnostic output.
+    #[must_use]
     #[inline]
     pub const fn id(self) -> &'static str {
         self.id
@@ -284,6 +285,7 @@ impl Charset {
     /// # Returns
     ///
     /// Returns the display name stored in this descriptor.
+    #[must_use]
     #[inline]
     pub const fn name(self) -> &'static str {
         self.name
@@ -294,6 +296,7 @@ impl Charset {
     /// # Returns
     ///
     /// Returns the static alias list stored in this descriptor.
+    #[must_use]
     #[inline]
     pub const fn aliases(self) -> &'static [&'static str] {
         self.aliases
@@ -365,6 +368,7 @@ impl Charset {
     ///
     /// Returns `true` when `label` matches the identifier, display name, or one
     /// of the aliases using loose label normalization.
+    #[must_use]
     pub fn matches_label(self, label: &str) -> bool {
         let label = normalize_label_loose(label);
         self.matches_normalized_label(&label, LabelNormalization::Loose)

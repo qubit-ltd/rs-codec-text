@@ -23,6 +23,23 @@ use crate::error::CharsetCodecDecodeResult;
 ///
 /// `AsciiCodec` converts between one-byte ASCII-encoded data and Unicode scalar
 /// values.
+///
+/// # Examples
+///
+/// ```rust
+/// use qubit_codec::Codec;
+/// use qubit_codec_text::AsciiCodec;
+///
+/// let mut codec = AsciiCodec;
+/// let mut output = [0_u8; 1];
+/// unsafe {
+///     codec.encode(&'A', &mut output, 0).expect("ASCII buffer fits");
+/// }
+/// let (value, consumed) = unsafe {
+///     codec.decode(&output, 0).expect("valid ASCII")
+/// };
+/// assert_eq!(('A', 1), (value, consumed.get()));
+/// ```
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
 pub struct AsciiCodec;
 

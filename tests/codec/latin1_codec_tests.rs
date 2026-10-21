@@ -31,7 +31,6 @@ fn test_latin1_codec_exposes_identity_and_limits() {
     assert_eq!(1, codec.encode_len(&'A'));
 
     assert_eq!(Charset::ISO_8859_1, codec.charset());
-    assert_eq!(Charset::ISO_8859_1, codec.charset());
 }
 
 #[test]

@@ -20,7 +20,23 @@ use crate::CharsetEncodeErrorKind;
 /// index associated with the failure. For buffer errors this is the
 /// caller-supplied output index. Errors tied to a raw code point or character
 /// value expose that value through [`Self::kind`] and [`Self::value`].
+///
+/// # Examples
+///
+/// ```
+/// use qubit_codec_text::{Charset, CharsetEncodeError, CharsetEncodeErrorKind};
+///
+/// let error = CharsetEncodeError::new(
+///     Charset::UTF_8,
+///     CharsetEncodeErrorKind::UnmappableCharacter { value: '中' as u32 },
+///     2,
+/// );
+/// assert_eq!(error.charset(), Charset::UTF_8);
+/// assert_eq!(error.index(), 2);
+/// assert_eq!(error.value(), Some('中' as u32));
+/// ```
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[must_use]
 pub struct CharsetEncodeError {
     /// Target charset of the operation that produced this error.
     charset: Charset,
@@ -42,7 +58,6 @@ impl CharsetEncodeError {
     ///
     /// Framework failures and unencodable values are mapped with `charset`;
     /// codec-domain errors retain their original charset error.
-    #[must_use]
     pub fn from_transcode_error(charset: Charset, error: TranscodeEncodeError<Self, char>) -> Self {
         match error {
             TranscodeEncodeError::Failure(failure) => Self::map_transcode_failure(charset, failure),
@@ -67,7 +82,6 @@ impl CharsetEncodeError {
     /// Decode-only framework failures are reported as
     /// [`CharsetEncodeErrorKind::UnexpectedTranscodeFailure`] instead of
     /// being misreported as output-length overflow.
-    #[must_use]
     pub fn map_transcode_failure(charset: Charset, error: TranscodeFailure) -> Self {
         use TranscodeFailure::IncompleteInput;
         use TranscodeFailure::InsufficientOutput;
@@ -110,7 +124,6 @@ impl CharsetEncodeError {
     }
 
     /// Maps a transcode-layer unencodable value into a charset encode error.
-    #[must_use]
     pub fn map_unencodable(charset: Charset, input_index: usize, value: Option<char>) -> Self {
         Self::new(
             charset,

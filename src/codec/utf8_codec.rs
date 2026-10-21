@@ -121,7 +121,7 @@ impl Codec for Utf8Codec {
 /// slice as closed at EOF: complete shorter UTF-8 sequences still decode, while
 /// truncated sequences return [`CharsetDecodeErrorKind::IncompleteSequence`].
 ///
-/// # Arguments
+/// # Parameters
 ///
 /// * `input` - UTF-8 byte slice to decode from.
 /// * `index` - Start offset in `input`; must be `<= input.len()`.
@@ -173,7 +173,7 @@ fn decode_prefix(input: &[u8], index: usize) -> CharsetDecodeResult<(char, NonZe
 /// The function writes the byte sequence for `ch` and returns how many bytes
 /// were written.
 ///
-/// # Arguments
+/// # Parameters
 ///
 /// * `ch` - The character to encode.
 /// * `output` - Destination buffer.
@@ -194,7 +194,7 @@ fn encode_char(ch: char, output: &mut [u8], index: usize) -> usize {
 
 /// Decodes a two-byte UTF-8 sequence starting at `index`.
 ///
-/// # Arguments
+/// # Parameters
 ///
 /// * `input` - Byte slice containing the sequence.
 /// * `index` - Start offset of a two-byte leading byte.
@@ -219,7 +219,7 @@ fn decode_two(input: &[u8], index: usize) -> CharsetDecodeResult<u32> {
 /// This is used after the total sequence length is known, to catch malformed
 /// continuation bytes before more data arrives.
 ///
-/// # Arguments
+/// # Parameters
 ///
 /// * `input` - Prefix slice being decoded.
 /// * `index` - Start offset of the current UTF-8 sequence.
@@ -241,7 +241,7 @@ fn validate_partial(input: &[u8], index: usize) -> CharsetDecodeResult<()> {
 
 /// Checks whether `second` is legal for a UTF-8 leading byte `first`.
 ///
-/// # Arguments
+/// # Parameters
 ///
 /// * `first` - UTF-8 leading byte.
 /// * `second` - Byte to validate as the first continuation-like byte.
@@ -264,7 +264,7 @@ fn is_valid_second_byte(first: u8, second: u8) -> bool {
 
 /// Decodes a three-byte UTF-8 sequence starting at `index`.
 ///
-/// # Arguments
+/// # Parameters
 ///
 /// * `input` - Byte slice containing the sequence.
 /// * `index` - Start offset of a three-byte leading byte.
@@ -287,7 +287,7 @@ fn decode_three(input: &[u8], index: usize) -> CharsetDecodeResult<u32> {
 
 /// Decodes a four-byte UTF-8 sequence starting at `index`.
 ///
-/// # Arguments
+/// # Parameters
 ///
 /// * `input` - Byte slice containing the sequence.
 /// * `index` - Start offset of a four-byte leading byte.

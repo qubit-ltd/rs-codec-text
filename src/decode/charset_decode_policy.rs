@@ -9,6 +9,17 @@ use crate::MalformedAction;
 
 /// Malformed-input and incomplete-EOF policy used by charset decoders and
 /// converters.
+///
+/// # Examples
+///
+/// ```
+/// use qubit_codec_text::CharsetDecodePolicy;
+/// use qubit_codec_text::MalformedAction;
+///
+/// let policy = CharsetDecodePolicy::replace('?');
+/// assert_eq!(policy.malformed_action(), MalformedAction::Replace);
+/// assert_eq!(policy.replacement(), '?');
+/// ```
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub struct CharsetDecodePolicy {
     /// Action used for malformed input units and incomplete tails at EOF.

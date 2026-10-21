@@ -6,6 +6,16 @@
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
 /// Namespace for UTF-8 constants and byte classification helpers.
+///
+/// # Examples
+///
+/// ```
+/// use qubit_codec_text::Utf8;
+///
+/// assert!(Utf8::is_single_byte(b'A'));
+/// assert_eq!(Some(4), Utf8::byte_len_from_leading_byte(0xf0));
+/// assert_eq!(4, Utf8::byte_len('😀'));
+/// ```
 pub enum Utf8 {}
 
 impl Utf8 {
@@ -24,7 +34,8 @@ impl Utf8 {
     /// # Returns
     ///
     /// Returns `true` if `byte` is in `0x00..=0x7F`.
-    #[inline(always)]
+    #[must_use]
+    #[inline]
     pub const fn is_single_byte(byte: u8) -> bool {
         byte <= 0x7f
     }
@@ -38,7 +49,8 @@ impl Utf8 {
     /// # Returns
     ///
     /// Returns `true` if `byte` is in `0xC2..=0xF4`.
-    #[inline(always)]
+    #[must_use]
+    #[inline]
     pub const fn is_leading_byte(byte: u8) -> bool {
         byte >= 0xc2 && byte <= 0xf4
     }
@@ -52,7 +64,8 @@ impl Utf8 {
     /// # Returns
     ///
     /// Returns `true` if `byte` matches the `10xxxxxx` continuation pattern.
-    #[inline(always)]
+    #[must_use]
+    #[inline]
     pub const fn is_continuation_byte(byte: u8) -> bool {
         (byte & 0xc0) == 0x80
     }
@@ -67,7 +80,7 @@ impl Utf8 {
     ///
     /// Returns `Some(1..=4)` for valid ASCII or leading bytes, and `None` for
     /// continuation bytes or invalid leading bytes.
-    #[inline(always)]
+    #[inline]
     pub const fn byte_len_from_leading_byte(byte: u8) -> Option<usize> {
         if byte <= 0x7f {
             Some(1)
@@ -91,7 +104,8 @@ impl Utf8 {
     /// # Returns
     ///
     /// Returns `1`, `2`, `3`, or `4`.
-    #[inline(always)]
+    #[must_use]
+    #[inline]
     pub const fn byte_len(ch: char) -> usize {
         let code_point = ch as u32;
         if code_point <= 0x7f {

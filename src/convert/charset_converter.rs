@@ -42,6 +42,8 @@ use crate::UnmappableAction;
 /// - `D`: Low-level charset codec used by the source decoder.
 /// - `E`: Low-level charset codec used by the target encoder.
 ///
+/// # Examples
+///
 /// ```rust
 /// use qubit_codec::{
 ///     TranscodeStatus,
@@ -331,7 +333,6 @@ where
     ///
     /// Returns a [`CharsetConvertError`] carrying this converter's source or
     /// target charset as appropriate.
-    #[must_use]
     #[inline]
     pub fn map_transcode_error(&self, error: TranscodeConvertErrorOf<D, E>) -> CharsetConvertError {
         CharsetConvertError::from_transcode_error::<D, E>(self.source_charset(), self.target_charset(), error)

@@ -72,6 +72,7 @@ impl CharsetRegistrationError {
     /// # Returns
     ///
     /// Returns the static label from the candidate charset descriptor.
+    #[must_use]
     #[inline]
     pub const fn label(self) -> &'static str {
         self.label
@@ -106,6 +107,7 @@ impl CharsetRegistrationError {
     /// # Returns
     ///
     /// Returns the candidate charset descriptor.
+    #[must_use]
     #[inline]
     pub const fn candidate(self) -> Charset {
         self.candidate

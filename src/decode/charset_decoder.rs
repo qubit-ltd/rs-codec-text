@@ -37,6 +37,20 @@ use crate::UnicodeBom;
 ///
 /// - `C`: Low-level charset codec used to decode source storage units into one
 ///   Unicode scalar value.
+///
+/// # Examples
+///
+/// ```
+/// use qubit_codec_text::CharsetDecoder;
+/// use qubit_codec_text::Utf8Codec;
+///
+/// let mut decoder = CharsetDecoder::new(Utf8Codec);
+/// let mut output = ['\0'; 5];
+/// let count = decoder
+///     .transcode_complete_into(b"hello", &mut output)
+///     .expect("valid UTF-8 input should decode");
+/// assert_eq!(&output[..count], &['h', 'e', 'l', 'l', 'o']);
+/// ```
 #[derive(Debug)]
 pub struct CharsetDecoder<C>
 where
@@ -62,7 +76,7 @@ where
     ///
     /// Returns a decoder whose malformed action is [`MalformedAction::Replace`]
     /// and whose replacement character is `U+FFFD`.
-    #[inline(always)]
+    #[inline]
     #[must_use]
     pub fn new(codec: C) -> Self {
         Self::with_policy(codec, CharsetDecodePolicy::default())
@@ -92,7 +106,7 @@ where
     /// # Returns
     ///
     /// Returns the charset reported by the low-level codec.
-    #[inline(always)]
+    #[inline]
     #[must_use]
     pub fn charset(&self) -> crate::Charset {
         self.codec().charset()
@@ -103,7 +117,7 @@ where
     /// # Returns
     ///
     /// Returns a shared reference to the codec owned by this decoder.
-    #[inline(always)]
+    #[inline]
     #[must_use]
     pub fn codec(&self) -> &C {
         self.engine.codec()
@@ -118,7 +132,7 @@ where
     /// # Returns
     ///
     /// Returns a mutable reference to the codec owned by this decoder.
-    #[inline(always)]
+    #[inline]
     #[must_use]
     pub fn codec_mut(&mut self) -> &mut C {
         self.engine.codec_mut()
@@ -143,7 +157,7 @@ where
     /// # Returns
     ///
     /// Returns the action used when source input is malformed.
-    #[inline(always)]
+    #[inline]
     #[must_use]
     pub const fn malformed_action(&self) -> MalformedAction {
         self.policy.malformed_action()
@@ -154,7 +168,7 @@ where
     /// # Returns
     ///
     /// Returns the character emitted when [`MalformedAction::Replace`] is used.
-    #[inline(always)]
+    #[inline]
     #[must_use]
     pub const fn replacement(&self) -> char {
         self.policy.replacement()
@@ -191,6 +205,9 @@ where
     }
 
     /// Decodes source units after the caller has established end of input.
+    ///
+    /// Any valid but incomplete input tail is handled according to the
+    /// configured malformed-input policy.
     #[inline]
     pub fn transcode_eof(
         &mut self,
@@ -277,7 +294,6 @@ where
     /// Returns the incremental BOM detection status plus the original input
     /// slice for [`BomDetectStatus::Pending`] and [`BomDetectStatus::None`],
     /// or the input slice after the BOM prefix for [`BomDetectStatus::Match`].
-    #[must_use]
     pub fn detect_and_strip_bom_progress(input: &[u8], eof: bool) -> (BomDetectStatus, &[u8]) {
         match UnicodeBom::detect_progress(input, eof) {
             BomDetectStatus::Match(bom) => (BomDetectStatus::Match(bom), &input[bom.bytes().len()..]),
@@ -295,33 +311,33 @@ where
     type Error = TranscodeDecodeErrorOf<C>;
 
     /// Returns the maximum number of characters decoded from `input_len` units.
-    #[inline(always)]
+    #[inline]
     fn max_transcode_output_len(&self, input_len: usize) -> Result<usize, CapacityError> {
         self.engine.max_transcode_output_len(input_len)
     }
 
     /// Returns the maximum number of characters emitted by finishing internal
     /// state.
-    #[inline(always)]
+    #[inline]
     fn max_finish_output_len(&self) -> Result<usize, CapacityError> {
         self.engine.max_finish_output_len()
     }
 
     /// Returns the maximum characters emitted when resetting stream state.
-    #[inline(always)]
+    #[inline]
     fn max_reset_output_len(&self) -> Result<usize, CapacityError> {
         self.engine.max_reset_output_len()
     }
 
     /// Runs decoder reset while keeping decoder policy.
-    #[inline(always)]
+    #[inline]
     fn reset(&mut self, output: &mut [char], output_index: usize) -> Result<usize, Self::Error> {
         self.engine.reset(output, output_index)
     }
 
     /// Decodes source units into Unicode scalar values while applying malformed
     /// policy.
-    #[inline(always)]
+    #[inline]
     fn transcode(
         &mut self,
         input: &[C::Unit],
@@ -332,7 +348,7 @@ where
         self.engine.transcode(input, input_index, output, output_index)
     }
 
-    #[inline(always)]
+    #[inline]
     fn transcode_eof(
         &mut self,
         input: &[C::Unit],
@@ -344,7 +360,7 @@ where
     }
 
     /// Finishes decoder-owned final output after EOF.
-    #[inline(always)]
+    #[inline]
     fn finish(&mut self, output: &mut [char], output_index: usize) -> Result<usize, Self::Error> {
         self.engine.finish(output, output_index)
     }

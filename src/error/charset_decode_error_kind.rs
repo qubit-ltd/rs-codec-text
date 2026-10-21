@@ -8,8 +8,19 @@
 use thiserror::Error;
 
 /// Classifies failures detected while decoding encoded units into Unicode text.
+///
+/// # Examples
+///
+/// ```
+/// use qubit_codec_text::CharsetDecodeErrorKind;
+///
+/// let error = CharsetDecodeErrorKind::malformed(0xff);
+/// assert!(error.is_malformed_input());
+/// assert_eq!(error.value(), Some(0xff));
+/// ```
 #[derive(Clone, Copy, Debug, Eq, Error, PartialEq)]
 #[non_exhaustive]
+#[must_use]
 pub enum CharsetDecodeErrorKind {
     /// The requested input unit index is outside the input buffer.
     #[error("The input unit index is outside the input buffer.")]
@@ -81,7 +92,6 @@ impl CharsetDecodeErrorKind {
     /// # Returns
     ///
     /// Returns [`Self::MalformedSequence`] carrying `value`.
-    #[must_use]
     #[inline]
     pub const fn malformed(value: u32) -> Self {
         Self::MalformedSequence { value: Some(value) }
@@ -92,7 +102,6 @@ impl CharsetDecodeErrorKind {
     /// # Returns
     ///
     /// Returns [`Self::MalformedSequence`] with no associated raw value.
-    #[must_use]
     #[inline]
     pub const fn malformed_unknown() -> Self {
         Self::MalformedSequence { value: None }
@@ -105,7 +114,6 @@ impl CharsetDecodeErrorKind {
     /// - `Some(required)` for [`Self::IncompleteSequence`] and
     ///   [`Self::BufferTooSmall`];
     /// - `None` for all other variants.
-    #[must_use]
     #[inline]
     pub const fn required(self) -> Option<usize> {
         match self {
@@ -128,7 +136,6 @@ impl CharsetDecodeErrorKind {
     /// - `Some(available)` for [`Self::IncompleteSequence`] and
     ///   [`Self::BufferTooSmall`];
     /// - `None` for all other variants.
-    #[must_use]
     #[inline]
     pub const fn available(self) -> Option<usize> {
         match self {
@@ -152,7 +159,6 @@ impl CharsetDecodeErrorKind {
     ///   malformed unit value is available.
     /// - `Some(value)` for [`Self::InvalidCodePoint`].
     /// - `None` for other variants.
-    #[must_use]
     #[inline]
     pub const fn value(self) -> Option<u32> {
         match self {
@@ -184,7 +190,6 @@ impl CharsetDecodeErrorKind {
     ///
     /// Returns `Some((required, available))` for [`Self::IncompleteSequence`],
     /// or `None` for all other variants.
-    #[must_use]
     #[inline]
     pub const fn incomplete(self) -> Option<(usize, usize)> {
         match self {

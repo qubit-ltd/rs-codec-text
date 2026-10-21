@@ -30,7 +30,7 @@ impl Latin1 {
     ///
     /// Returns `true` for every byte value because ISO-8859-1 maps all
     /// `0x00..=0xFF` bytes.
-    #[inline(always)]
+    #[inline]
     #[must_use]
     pub const fn is_latin1_byte(_value: u8) -> bool {
         true
@@ -75,7 +75,7 @@ impl Latin1 {
     /// # Returns
     ///
     /// Returns `true` for tab, line feed, form feed, carriage return, or space.
-    #[inline(always)]
+    #[inline]
     #[must_use]
     pub const fn is_whitespace_byte(value: u8) -> bool {
         Ascii::is_whitespace_byte(value)
@@ -126,7 +126,7 @@ impl Latin1 {
     /// # Returns
     ///
     /// Returns `true` if `value` is an ISO-8859-1 encoded letter.
-    #[inline(always)]
+    #[inline]
     #[must_use]
     pub const fn is_letter_byte(value: u8) -> bool {
         Self::is_uppercase_letter_byte(value) || Self::is_lowercase_letter_byte(value) || value == 0xaa || value == 0xba
@@ -178,7 +178,7 @@ impl Latin1 {
     ///
     /// Returns `true` for `A..=Z`, `U+00C0..=U+00D6`, and
     /// `U+00D8..=U+00DE`.
-    #[inline(always)]
+    #[inline]
     #[must_use]
     pub const fn is_uppercase_letter_byte(value: u8) -> bool {
         Ascii::is_uppercase_letter_byte(value) || (value >= 0xc0 && value <= 0xd6) || (value >= 0xd8 && value <= 0xde)
@@ -230,7 +230,7 @@ impl Latin1 {
     ///
     /// Returns `true` for `a..=z`, `U+00B5`, `U+00DF`,
     /// `U+00E0..=U+00F6`, and `U+00F8..=U+00FF`.
-    #[inline(always)]
+    #[inline]
     #[must_use]
     pub const fn is_lowercase_letter_byte(value: u8) -> bool {
         Ascii::is_lowercase_letter_byte(value)
@@ -285,7 +285,7 @@ impl Latin1 {
     /// # Returns
     ///
     /// Returns `true` for `0..=9`.
-    #[inline(always)]
+    #[inline]
     #[must_use]
     pub const fn is_digit_byte(value: u8) -> bool {
         Ascii::is_digit_byte(value)
@@ -336,7 +336,7 @@ impl Latin1 {
     /// # Returns
     ///
     /// Returns `true` for `0..=9`, `A..=F`, or `a..=f`.
-    #[inline(always)]
+    #[inline]
     #[must_use]
     pub const fn is_hex_digit_byte(value: u8) -> bool {
         Ascii::is_hex_digit_byte(value)
@@ -387,7 +387,7 @@ impl Latin1 {
     /// # Returns
     ///
     /// Returns `true` for `0..=7`.
-    #[inline(always)]
+    #[inline]
     #[must_use]
     pub const fn is_octal_digit_byte(value: u8) -> bool {
         Ascii::is_octal_digit_byte(value)
@@ -438,7 +438,7 @@ impl Latin1 {
     /// # Returns
     ///
     /// Returns `true` for Latin-1 letters and `0..=9`.
-    #[inline(always)]
+    #[inline]
     #[must_use]
     pub const fn is_letter_or_digit_byte(value: u8) -> bool {
         Self::is_letter_byte(value) || Self::is_digit_byte(value)
@@ -489,7 +489,7 @@ impl Latin1 {
     /// # Returns
     ///
     /// Returns `true` for bytes outside the C0, DEL, and C1 control ranges.
-    #[inline(always)]
+    #[inline]
     #[must_use]
     pub const fn is_printable_byte(value: u8) -> bool {
         !Self::is_control_byte(value)
@@ -540,7 +540,7 @@ impl Latin1 {
     /// # Returns
     ///
     /// Returns `true` for C0 controls, DEL, or C1 controls.
-    #[inline(always)]
+    #[inline]
     #[must_use]
     pub const fn is_control_byte(value: u8) -> bool {
         value < 0x20 || (value >= 0x7f && value <= 0x9f)
@@ -591,7 +591,7 @@ impl Latin1 {
     /// # Returns
     ///
     /// Returns the character with the same scalar value as `value`.
-    #[inline(always)]
+    #[inline]
     #[must_use]
     pub const fn byte_to_char(value: u8) -> char {
         value as char
@@ -606,7 +606,7 @@ impl Latin1 {
     /// # Returns
     ///
     /// Returns the code point with the same numeric value as `value`.
-    #[inline(always)]
+    #[inline]
     #[must_use]
     pub const fn byte_to_code_point(value: u8) -> u32 {
         value as u32
@@ -622,7 +622,7 @@ impl Latin1 {
     /// # Returns
     ///
     /// Returns `true` if both bytes match after Latin-1 lowercase conversion.
-    #[inline(always)]
+    #[inline]
     #[must_use]
     pub const fn equals_ignore_case_byte(left: u8, right: u8) -> bool {
         if left == right {
@@ -683,7 +683,7 @@ impl Latin1 {
     ///
     /// Returns the uppercase Latin-1 equivalent when one exists; otherwise
     /// returns `value` unchanged.
-    #[inline(always)]
+    #[inline]
     #[must_use]
     pub const fn byte_to_uppercase(value: u8) -> u8 {
         if Ascii::is_lowercase_letter_byte(value)
@@ -744,7 +744,7 @@ impl Latin1 {
     ///
     /// Returns the lowercase Latin-1 equivalent when one exists; otherwise
     /// returns `value` unchanged.
-    #[inline(always)]
+    #[inline]
     #[must_use]
     pub const fn byte_to_lowercase(value: u8) -> u8 {
         if Ascii::is_uppercase_letter_byte(value)
@@ -844,7 +844,7 @@ impl Latin1 {
     /// # Returns
     ///
     /// Returns `Some(0..=9)` for `0..=9`; otherwise returns `None`.
-    #[inline(always)]
+    #[inline]
     #[must_use]
     pub const fn byte_to_digit(value: u8) -> Option<u8> {
         Ascii::byte_to_digit(value)
@@ -896,7 +896,7 @@ impl Latin1 {
     ///
     /// Returns `Some(0..=15)` for ASCII hexadecimal digits; otherwise returns
     /// `None`.
-    #[inline(always)]
+    #[inline]
     #[must_use]
     pub const fn byte_to_hex_digit(value: u8) -> Option<u8> {
         Ascii::byte_to_hex_digit(value)

@@ -30,7 +30,6 @@ fn test_ascii_codec_exposes_identity_and_limits() {
     assert_eq!(1, codec.encode_len(&'A'));
 
     assert_eq!(Charset::ASCII, codec.charset());
-    assert_eq!(Charset::ASCII, codec.charset());
 }
 
 #[test]

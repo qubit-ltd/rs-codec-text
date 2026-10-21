@@ -51,13 +51,53 @@ impl<C> TranscodeDecodeHooks<C> for CharsetDecodeHooks
 where
     C: CharsetCodec,
 {
-    /// Returns the maximum number of characters decoded from `input_len` units.
+    /// Returns a safe output bound for decoding `input_len` source units.
+    ///
+    /// Each source unit can produce at most one Unicode scalar value, so the
+    /// input length is also a sufficient upper bound.
+    ///
+    /// # Parameters
+    ///
+    /// - `_codec`: Codec whose decode operation is being bounded; it does not
+    ///   affect this bound.
+    /// - `input_len`: Number of source units to decode.
+    ///
+    /// # Returns
+    ///
+    /// Returns `input_len` as the maximum output length.
+    ///
+    /// # Errors
+    ///
+    /// This implementation cannot fail and always returns `Ok`.
     #[inline]
     fn max_transcode_output_len(&self, _codec: &C, input_len: usize) -> Result<usize, CapacityError> {
         Ok(input_len)
     }
 
-    /// Handles a charset decode failure during `transcode`.
+    /// Applies the configured policy to a charset decode failure.
+    ///
+    /// Malformed input is reported, skipped, or replaced according to
+    /// `malformed_action`. Other codec errors are always reported. The error's
+    /// consumed width determines how many source units the engine advances.
+    ///
+    /// # Parameters
+    ///
+    /// - `_codec`: Codec that produced the failure; the policy does not mutate
+    ///   it.
+    /// - `error`: Charset error describing the failed decode.
+    /// - `_consumed`: Engine-provided consumed width, unused because the
+    ///   charset error carries the authoritative malformed width.
+    /// - `context`: Decode position used to locate a reported error.
+    ///
+    /// # Returns
+    ///
+    /// Returns an action instructing the engine to reject, skip, or emit a
+    /// replacement character.
+    ///
+    /// # Errors
+    ///
+    /// Returns a transcode decode error for malformed input under `Report`,
+    /// or for any non-malformed charset decode error.
     fn handle_invalid_decode(
         &mut self,
         _codec: &mut C,
@@ -79,11 +119,31 @@ where
         Err(TranscodeDecodeError::domain_main(*error, context.input_index()))
     }
 
-    /// Selects the malformed-input action for a source tail left incomplete at
-    /// end of input.
+    /// Selects the action for a source tail left incomplete at end of input.
     ///
     /// Incomplete EOF tails use the same policy as malformed source input.
     /// The engine preserves the optional codec error when reporting is chosen.
+    ///
+    /// # Parameters
+    ///
+    /// - `_codec`: Codec that encountered the incomplete tail; it is not
+    ///   changed by this policy.
+    /// - `_source`: Optional codec error describing the incomplete tail; the
+    ///   action is selected from the configured policy regardless of its
+    ///   presence.
+    /// - `_required_total`: Total source units required to complete the
+    ///   sequence; handling is delegated to the engine after selection.
+    /// - `_context`: Decode position used by the engine when applying the
+    ///   selected action.
+    ///
+    /// # Returns
+    ///
+    /// Returns the reject, skip, or replacement action matching the configured
+    /// malformed-input policy.
+    ///
+    /// # Errors
+    ///
+    /// This implementation cannot fail and always returns `Ok`.
     fn handle_incomplete_decode(
         &mut self,
         _codec: &mut C,

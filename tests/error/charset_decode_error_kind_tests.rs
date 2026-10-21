@@ -68,11 +68,11 @@ fn test_charset_decode_error_kind_displays_messages() {
 #[test]
 fn test_charset_decode_error_kind_malformed_constructors() {
     assert_eq!(
-        CharsetDecodeErrorKind::malformed(0x80),
+        CharsetDecodeErrorKind::MalformedSequence { value: Some(0x80) },
         CharsetDecodeErrorKind::malformed(0x80),
     );
     assert_eq!(
-        CharsetDecodeErrorKind::malformed_unknown(),
+        CharsetDecodeErrorKind::MalformedSequence { value: None },
         CharsetDecodeErrorKind::malformed_unknown(),
     );
 }

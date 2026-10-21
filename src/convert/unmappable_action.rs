@@ -5,7 +5,19 @@
 //
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
-/// Policy used when a character cannot be represented by the target charset.
+/// Chooses how encoding handles a character unsupported by the target charset.
+///
+/// `Report` preserves the error for the caller, `Ignore` omits the character,
+/// and `Replace` encodes the replacement configured by the encoder policy.
+///
+/// # Examples
+///
+/// ```
+/// use qubit_codec_text::UnmappableAction;
+///
+/// let action = UnmappableAction::Replace;
+/// assert_eq!(UnmappableAction::Replace, action);
+/// ```
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
 pub enum UnmappableAction {
     /// Return the unmappable-character error to the caller.

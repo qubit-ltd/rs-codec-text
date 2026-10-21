@@ -26,6 +26,21 @@ use crate::CharsetDecodeErrorKind;
 /// an extra status wrapper. Buffer index and output-capacity failures are
 /// represented by dedicated [`CharsetDecodeErrorKind`] variants so the public
 /// decoder API can expose a single domain error type.
+///
+/// # Examples
+///
+/// ```
+/// use qubit_codec_text::{Charset, CharsetDecodeError, CharsetDecodeErrorKind};
+///
+/// let error = CharsetDecodeError::new(
+///     Charset::UTF_8,
+///     CharsetDecodeErrorKind::malformed(0xff),
+///     2,
+/// );
+/// assert_eq!(error.charset(), Charset::UTF_8);
+/// assert_eq!(error.index(), 2);
+/// assert_eq!(error.value(), Some(0xff));
+/// ```
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct CharsetDecodeError {
     /// Charset being decoded when this error was detected.

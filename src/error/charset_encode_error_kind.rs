@@ -8,8 +8,22 @@
 use thiserror::Error;
 
 /// Classifies failures detected while encoding Unicode text into encoded units.
+///
+/// # Examples
+///
+/// ```
+/// use qubit_codec_text::CharsetEncodeErrorKind;
+///
+/// let kind = CharsetEncodeErrorKind::BufferTooSmall {
+///     required: 2,
+///     available: 1,
+/// };
+/// assert_eq!(kind.required(), Some(2));
+/// assert_eq!(kind.available(), Some(1));
+/// ```
 #[derive(Clone, Copy, Debug, Eq, Error, PartialEq)]
 #[non_exhaustive]
+#[must_use]
 pub enum CharsetEncodeErrorKind {
     /// The supplied code point is not a valid Unicode scalar value.
     #[error("The code point is not a valid Unicode scalar value.")]

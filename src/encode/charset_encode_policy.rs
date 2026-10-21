@@ -11,6 +11,22 @@ use crate::CharsetEncodeErrorKind;
 use crate::UnmappableAction;
 
 /// Unmappable-input policy used by charset encoders and converters.
+///
+/// # Examples
+///
+/// ```
+/// use qubit_codec_text::CharsetEncodePolicy;
+///
+/// let policy = CharsetEncodePolicy::default();
+/// assert_eq!(
+///     policy.replacement(),
+///     CharsetEncodePolicy::DEFAULT_REPLACEMENT,
+/// );
+/// assert_eq!(
+///     policy.unmappable_action(),
+///     qubit_codec_text::UnmappableAction::Replace,
+/// );
+/// ```
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub struct CharsetEncodePolicy {
     /// Action used for unmappable input characters.

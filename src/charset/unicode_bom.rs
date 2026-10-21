@@ -115,6 +115,7 @@ impl UnicodeBom {
     ///
     /// Returns a static byte slice containing the BOM bytes.
     #[inline]
+    #[must_use]
     pub const fn bytes(self) -> &'static [u8] {
         match self {
             Self::Utf8 => &[0xef, 0xbb, 0xbf],
@@ -131,6 +132,7 @@ impl UnicodeBom {
     ///
     /// Returns the number of bytes in this BOM.
     #[inline]
+    #[must_use]
     pub const fn byte_len(self) -> usize {
         match self {
             Self::Utf8 => 3,
@@ -146,6 +148,7 @@ impl UnicodeBom {
     /// Returns the corresponding [`Charset`], including fixed byte order for
     /// UTF-16 and UTF-32 BOMs.
     #[inline]
+    #[must_use]
     pub const fn charset(self) -> Charset {
         match self {
             Self::Utf8 => Charset::UTF_8,

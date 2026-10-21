@@ -15,7 +15,26 @@ use crate::CharsetDecodeError;
 use crate::CharsetEncodeError;
 
 /// Error reported while converting between two charsets.
+///
+/// # Examples
+///
+/// ```
+/// use qubit_codec_text::Charset;
+/// use qubit_codec_text::CharsetConvertError;
+/// use qubit_codec_text::CharsetDecodeError;
+/// use qubit_codec_text::CharsetDecodeErrorKind;
+///
+/// let decode_error = CharsetDecodeError::new(
+///     Charset::UTF_8,
+///     CharsetDecodeErrorKind::UnexpectedTranscodeFailure,
+///     0,
+/// );
+/// let error = CharsetConvertError::from(decode_error);
+///
+/// assert!(matches!(error, CharsetConvertError::Decode(_)));
+/// ```
 #[derive(Clone, Copy, Debug, Eq, PartialEq, thiserror::Error)]
+#[must_use]
 #[non_exhaustive]
 pub enum CharsetConvertError {
     /// Source decoding failed.
@@ -41,7 +60,6 @@ impl CharsetConvertError {
     /// Returns a source [`Self::Decode`] error for source failures and a target
     /// [`Self::Encode`] error for target failures. Domain errors retain their
     /// original charset context.
-    #[must_use]
     pub fn from_transcode_error<D, E>(
         source_charset: Charset,
         target_charset: Charset,
@@ -76,7 +94,6 @@ impl CharsetConvertError {
     /// Returns [`Self::Decode`] for source-input failures and [`Self::Encode`]
     /// for target-output failures. Other framework failures remain decode-side
     /// unexpected failures to preserve the prior error contract.
-    #[must_use]
     fn from_transcode_failure(source_charset: Charset, target_charset: Charset, failure: TranscodeFailure) -> Self {
         match failure {
             failure @ (TranscodeFailure::InvalidInputIndex { .. }

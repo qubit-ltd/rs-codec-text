@@ -51,7 +51,10 @@ impl<C> TranscodeEncodeHooks<C> for CharsetEncodeHooks
 where
     C: CharsetCodec,
 {
-    /// Handles one character rejected by the charset codec.
+    /// Applies the configured policy to one character rejected by the codec.
+    ///
+    /// `Report` returns a charset error tied to the input index, `Ignore`
+    /// skips the character, and `Replace` emits the configured replacement.
     #[inline]
     fn handle_unencodable_encode(
         &mut self,
@@ -70,6 +73,20 @@ where
 }
 
 /// Returns the encoded width of a replacement character.
+///
+/// # Type Parameters
+///
+/// - `C`: Charset codec used to determine encodability and encoded width.
+///
+/// # Parameters
+///
+/// - `codec`: Codec whose target encoding determines the character width.
+/// - `ch`: Character whose encoded width is requested.
+///
+/// # Returns
+///
+/// Returns the number of encoded units, or an error carrying the target
+/// charset and the unmappable character when `codec` cannot encode `ch`.
 pub(super) fn replacement_len<C>(codec: &C, ch: char) -> CharsetEncodeResult<usize>
 where
     C: CharsetCodec,
@@ -80,7 +97,16 @@ where
     Ok(codec.encode_len(&ch))
 }
 
-/// Creates an unmappable-character error for `ch`.
+/// Creates an unmappable-character error with the codec charset and input
+/// index.
+///
+/// The error kind stores `ch` as its raw Unicode scalar value. The caller
+/// supplies `index` so the same helper can report either a source position or
+/// a validation error with a sentinel position.
+///
+/// # Type Parameters
+///
+/// - `C`: Charset codec that supplies the target charset.
 fn unmappable_error<C>(codec: &C, ch: char, index: usize) -> CharsetEncodeError
 where
     C: CharsetCodec,

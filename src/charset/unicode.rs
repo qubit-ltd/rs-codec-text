@@ -6,6 +6,16 @@
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
 /// Namespace for Unicode constants and encoding-independent code point helpers.
+///
+/// # Examples
+///
+/// ```
+/// use qubit_codec_text::Unicode;
+///
+/// assert!(Unicode::is_scalar_value('🦀' as u32));
+/// assert_eq!(Some('🦀'), Unicode::to_char('🦀' as u32));
+/// assert_eq!(None, Unicode::to_char(Unicode::SURROGATE_MIN));
+/// ```
 pub enum Unicode {}
 
 impl Unicode {

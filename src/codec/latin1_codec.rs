@@ -21,6 +21,23 @@ use crate::error::CharsetCodecDecodeResult;
 /// Single-byte ISO-8859-1 codec for bytes.
 ///
 /// `Latin1Codec` converts between ISO-8859-1 bytes and Unicode scalar values.
+///
+/// # Examples
+///
+/// ```rust
+/// use qubit_codec::Codec;
+/// use qubit_codec_text::Latin1Codec;
+///
+/// let mut codec = Latin1Codec;
+/// let mut output = [0_u8; 1];
+/// let written = unsafe {
+///     codec.encode(&'é', &mut output, 0).expect("Latin-1 buffer fits")
+/// };
+/// let (value, consumed) = unsafe {
+///     codec.decode(&output[..written], 0).expect("valid Latin-1")
+/// };
+/// assert_eq!(('é', 1), (value, consumed.get()));
+/// ```
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
 pub struct Latin1Codec;
 
