@@ -11,8 +11,8 @@ publish = false
 cargo-fuzz = true
 
 [dependencies]
-libfuzzer-sys = "0.4"
-qubit-codec = "0.16"
+libfuzzer-sys = "^0.4"
+qubit-codec = "^0.16"
 qubit-codec-text = { path = ".." }
 
 [[bin]]
