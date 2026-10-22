@@ -5,7 +5,9 @@
 //
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
+use core::num::NonZeroUsize;
 use std::cell::Cell;
+use std::hint::black_box;
 use std::rc::Rc;
 
 use qubit_codec::CapacityError;
@@ -97,7 +99,7 @@ macro_rules! impl_test_codec {
                 &mut self,
                 _input: &[u8],
                 input_index: usize,
-            ) -> Result<(char, core::num::NonZeroUsize), DecodeFailure<CharsetDecodeError>> {
+            ) -> Result<(char, NonZeroUsize), DecodeFailure<CharsetDecodeError>> {
                 let kind = CharsetDecodeErrorKind::malformed_unknown();
                 Err(CharsetDecodeError::new(self.charset(), kind, input_index).into_codec_failure())
             }
@@ -169,7 +171,7 @@ impl Codec for NonDefaultUnitCodec {
         &mut self,
         _input: &[NonDefaultUnit],
         input_index: usize,
-    ) -> Result<(char, core::num::NonZeroUsize), DecodeFailure<CharsetDecodeError>> {
+    ) -> Result<(char, NonZeroUsize), DecodeFailure<CharsetDecodeError>> {
         let kind = CharsetDecodeErrorKind::malformed_unknown();
         Err(CharsetDecodeError::new(Charset::ASCII, kind, input_index).into_codec_failure())
     }
@@ -222,7 +224,7 @@ impl Codec for NonDebugUnitCodec {
         &mut self,
         _input: &[NonDebugUnit],
         input_index: usize,
-    ) -> Result<(char, core::num::NonZeroUsize), DecodeFailure<CharsetDecodeError>> {
+    ) -> Result<(char, NonZeroUsize), DecodeFailure<CharsetDecodeError>> {
         let kind = CharsetDecodeErrorKind::malformed_unknown();
         Err(CharsetDecodeError::new(Charset::ASCII, kind, input_index).into_codec_failure())
     }
@@ -284,7 +286,7 @@ impl Codec for InvalidBangCodec {
         &mut self,
         _input: &[u8],
         input_index: usize,
-    ) -> Result<(char, core::num::NonZeroUsize), DecodeFailure<CharsetDecodeError>> {
+    ) -> Result<(char, NonZeroUsize), DecodeFailure<CharsetDecodeError>> {
         let kind = CharsetDecodeErrorKind::malformed_unknown();
         Err(CharsetDecodeError::new(self.charset(), kind, input_index).into_codec_failure())
     }
@@ -327,7 +329,7 @@ impl Codec for FailingReplacementWriteCodec {
         &mut self,
         _input: &[u8],
         input_index: usize,
-    ) -> Result<(char, core::num::NonZeroUsize), DecodeFailure<CharsetDecodeError>> {
+    ) -> Result<(char, NonZeroUsize), DecodeFailure<CharsetDecodeError>> {
         let kind = CharsetDecodeErrorKind::malformed_unknown();
         Err(CharsetDecodeError::new(self.charset(), kind, input_index).into_codec_failure())
     }
@@ -367,7 +369,7 @@ impl Codec for EncodeResetErrorCodec {
         &mut self,
         _input: &[u8],
         input_index: usize,
-    ) -> Result<(char, core::num::NonZeroUsize), DecodeFailure<CharsetDecodeError>> {
+    ) -> Result<(char, NonZeroUsize), DecodeFailure<CharsetDecodeError>> {
         let kind = CharsetDecodeErrorKind::malformed_unknown();
         Err(CharsetDecodeError::new(self.charset(), kind, input_index).into_codec_failure())
     }
@@ -443,7 +445,7 @@ impl Codec for CountingAsciiEncoderCodec {
         &mut self,
         _input: &[u8],
         input_index: usize,
-    ) -> Result<(char, core::num::NonZeroUsize), DecodeFailure<CharsetDecodeError>> {
+    ) -> Result<(char, NonZeroUsize), DecodeFailure<CharsetDecodeError>> {
         let kind = CharsetDecodeErrorKind::malformed_unknown();
         Err(CharsetDecodeError::new(self.charset(), kind, input_index).into_codec_failure())
     }
@@ -511,14 +513,14 @@ fn test_charset_encoder_transcoder_trait_methods_forward() {
     let input = ['A'];
     let mut output = [0_u8; 1];
     let max_transcode_output_len: fn(&Encoder, usize) -> Result<usize, CapacityError> =
-        std::hint::black_box(<Encoder as Transcoder>::max_transcode_output_len);
+        black_box(<Encoder as Transcoder>::max_transcode_output_len);
     let max_finish_output_len: fn(&Encoder) -> Result<usize, CapacityError> =
-        std::hint::black_box(<Encoder as Transcoder>::max_finish_output_len);
+        black_box(<Encoder as Transcoder>::max_finish_output_len);
     let max_reset_output_len: fn(&Encoder) -> Result<usize, CapacityError> =
-        std::hint::black_box(<Encoder as Transcoder>::max_reset_output_len);
-    let reset: OutputFn = std::hint::black_box(<Encoder as Transcoder>::reset);
-    let transcode: TranscodeFn = std::hint::black_box(<Encoder as Transcoder>::transcode);
-    let finish: OutputFn = std::hint::black_box(<Encoder as Transcoder>::finish);
+        black_box(<Encoder as Transcoder>::max_reset_output_len);
+    let reset: OutputFn = black_box(<Encoder as Transcoder>::reset);
+    let transcode: TranscodeFn = black_box(<Encoder as Transcoder>::transcode);
+    let finish: OutputFn = black_box(<Encoder as Transcoder>::finish);
 
     assert_eq!(Ok(1), max_transcode_output_len(&encoder, 1));
     assert_eq!(Ok(0), max_finish_output_len(&encoder));
@@ -560,12 +562,12 @@ fn test_charset_encoder_complete_into_maps_framework_errors() {
 
 #[test]
 fn test_charset_encode_policy_constructors_and_default_for() {
-    let replace: fn(char) -> CharsetEncodePolicy = std::hint::black_box(CharsetEncodePolicy::replace);
-    let ignore: fn() -> CharsetEncodePolicy = std::hint::black_box(CharsetEncodePolicy::ignore);
+    let replace: fn(char) -> CharsetEncodePolicy = black_box(CharsetEncodePolicy::replace);
+    let ignore: fn() -> CharsetEncodePolicy = black_box(CharsetEncodePolicy::ignore);
     let ignore_with_replacement: fn(char) -> CharsetEncodePolicy =
-        std::hint::black_box(CharsetEncodePolicy::ignore_with_replacement);
-    let report: fn() -> CharsetEncodePolicy = std::hint::black_box(CharsetEncodePolicy::report);
-    let default: fn() -> CharsetEncodePolicy = std::hint::black_box(CharsetEncodePolicy::default);
+        black_box(CharsetEncodePolicy::ignore_with_replacement);
+    let report: fn() -> CharsetEncodePolicy = black_box(CharsetEncodePolicy::report);
+    let default: fn() -> CharsetEncodePolicy = black_box(CharsetEncodePolicy::default);
 
     assert_eq!(UnmappableAction::Replace, replace('!').unmappable_action());
     assert_eq!('!', replace('!').replacement());

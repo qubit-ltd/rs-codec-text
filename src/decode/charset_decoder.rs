@@ -176,6 +176,11 @@ where
 
     /// Runs decoder reset.
     ///
+    /// # Parameters
+    ///
+    /// - `output`: Buffer receiving any characters emitted during reset.
+    /// - `output_index`: Starting index at which reset output is written.
+    ///
     /// # Errors
     ///
     /// Returns a transcode decode error when `output_index` is invalid, output
@@ -187,6 +192,13 @@ where
     }
 
     /// Decodes source units into Unicode scalar values.
+    ///
+    /// # Parameters
+    ///
+    /// - `input`: Source units available for decoding.
+    /// - `input_index`: Starting index of the source units to decode.
+    /// - `output`: Buffer receiving decoded Unicode scalar values.
+    /// - `output_index`: Starting index at which decoded values are written.
     ///
     /// # Errors
     ///
@@ -208,6 +220,13 @@ where
     ///
     /// Any valid but incomplete input tail is handled according to the
     /// configured malformed-input policy.
+    ///
+    /// # Parameters
+    ///
+    /// - `input`: Source units available at end of input.
+    /// - `input_index`: Starting index of the source units to decode.
+    /// - `output`: Buffer receiving decoded values or replacement characters.
+    /// - `output_index`: Starting index at which decoded values are written.
     #[inline]
     pub fn transcode_eof(
         &mut self,
@@ -223,13 +242,17 @@ where
     ///
     /// Framework failures are attached to this decoder's charset. Codec-domain
     /// errors retain their original charset error.
-    #[must_use]
     #[inline]
     pub fn map_transcode_error(&self, error: TranscodeDecodeErrorOf<C>) -> CharsetDecodeError {
         CharsetDecodeError::from_transcode_error(self.charset(), error)
     }
 
     /// Finishes decoder-owned final output after EOF.
+    ///
+    /// # Parameters
+    ///
+    /// - `output`: Buffer receiving any characters emitted during finalization.
+    /// - `output_index`: Starting index at which final output is written.
     ///
     /// # Errors
     ///
@@ -241,6 +264,11 @@ where
     }
 
     /// Runs a complete `reset -> transcode -> finish` decode stream.
+    ///
+    /// # Parameters
+    ///
+    /// - `input`: Complete source stream to decode.
+    /// - `output`: Buffer receiving decoded Unicode scalar values.
     ///
     /// # Errors
     ///

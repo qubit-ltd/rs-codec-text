@@ -5,6 +5,8 @@
 //
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
+use core::num::NonZeroUsize;
+
 use qubit_codec::Codec;
 use qubit_codec::DecodeFailure;
 use qubit_codec_text::AsciiCodec;
@@ -14,7 +16,7 @@ use qubit_codec_text::CharsetDecodeError;
 use qubit_codec_text::CharsetDecodeErrorKind;
 use qubit_codec_text::CharsetEncodeResult;
 
-type DecodedCharResult = Result<(char, core::num::NonZeroUsize), DecodeFailure<CharsetDecodeError>>;
+type DecodedCharResult = Result<(char, NonZeroUsize), DecodeFailure<CharsetDecodeError>>;
 type DecodeFn = unsafe fn(&mut AsciiCodec, &[u8], usize) -> DecodedCharResult;
 type EncodeFn = unsafe fn(&mut AsciiCodec, &char, &mut [u8], usize) -> CharsetEncodeResult<usize>;
 

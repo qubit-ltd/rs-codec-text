@@ -22,7 +22,8 @@ impl Utf8 {
     /// Maximum number of UTF-8 bytes needed for one Unicode scalar value.
     pub const MAX_UNITS_PER_CHAR: usize = 4;
 
-    /// Maximum number of UTF-8 bytes needed for one Unicode scalar value.
+    /// Alias for [`Self::MAX_UNITS_PER_CHAR`], the maximum number of UTF-8
+    /// bytes needed for one Unicode scalar value.
     pub const MAX_BYTES_PER_CHAR: usize = Self::MAX_UNITS_PER_CHAR;
 
     /// Tests whether a byte encodes an ASCII scalar value by itself.

@@ -32,7 +32,18 @@ impl CharsetDecodePolicy {
     /// Default replacement character used when malformed input is replaced.
     pub const DEFAULT_REPLACEMENT: char = '\u{fffd}';
 
-    /// Creates a policy for malformed input and incomplete tails at EOF.
+    /// Creates a policy for malformed input units and incomplete tails at EOF.
+    ///
+    /// # Parameters
+    ///
+    /// * `malformed_action` selects whether decoding reports, ignores, or
+    ///   replaces invalid input.
+    /// * `replacement` is emitted when `malformed_action` is
+    ///   [`MalformedAction::Replace`].
+    ///
+    /// # Returns
+    ///
+    /// A policy containing the supplied action and replacement character.
     #[must_use]
     #[inline]
     pub const fn new(malformed_action: MalformedAction, replacement: char) -> Self {
@@ -43,6 +54,14 @@ impl CharsetDecodePolicy {
     }
 
     /// Creates a replacement policy.
+    ///
+    /// # Parameters
+    ///
+    /// * `replacement` is emitted for malformed input and incomplete tails.
+    ///
+    /// # Returns
+    ///
+    /// A policy that replaces malformed input with `replacement`.
     #[must_use]
     #[inline]
     pub const fn replace(replacement: char) -> Self {
@@ -51,6 +70,11 @@ impl CharsetDecodePolicy {
 
     /// Creates an ignore policy with the default replacement retained for
     /// metadata.
+    ///
+    /// # Returns
+    ///
+    /// A policy that skips malformed input and retains
+    /// [`Self::DEFAULT_REPLACEMENT`] as metadata.
     #[must_use]
     #[inline]
     pub const fn ignore() -> Self {
@@ -58,6 +82,15 @@ impl CharsetDecodePolicy {
     }
 
     /// Creates an ignore policy with explicit replacement metadata.
+    ///
+    /// # Parameters
+    ///
+    /// * `replacement` is retained as policy metadata; it is not emitted by the
+    ///   ignore action.
+    ///
+    /// # Returns
+    ///
+    /// A policy that skips malformed input and retains `replacement`.
     #[must_use]
     #[inline]
     pub const fn ignore_with_replacement(replacement: char) -> Self {
@@ -66,6 +99,11 @@ impl CharsetDecodePolicy {
 
     /// Creates a report policy with the default replacement retained for
     /// metadata.
+    ///
+    /// # Returns
+    ///
+    /// A policy that reports malformed input and retains
+    /// [`Self::DEFAULT_REPLACEMENT`] as metadata.
     #[must_use]
     #[inline]
     pub const fn report() -> Self {
@@ -73,6 +111,10 @@ impl CharsetDecodePolicy {
     }
 
     /// Returns the malformed-input action.
+    ///
+    /// # Returns
+    ///
+    /// The action applied to malformed input and incomplete tails at EOF.
     #[must_use]
     #[inline]
     pub const fn malformed_action(self) -> MalformedAction {
@@ -80,6 +122,11 @@ impl CharsetDecodePolicy {
     }
 
     /// Returns the replacement character.
+    ///
+    /// # Returns
+    ///
+    /// The replacement character retained by this policy. It is emitted only
+    /// when [`Self::malformed_action`] is [`MalformedAction::Replace`].
     #[must_use]
     #[inline]
     pub const fn replacement(self) -> char {

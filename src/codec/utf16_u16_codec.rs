@@ -213,7 +213,7 @@ fn unit_at(input: &[u16], index: usize) -> u16 {
 ///
 /// # Returns
 ///
-/// `Ok(usize)` with the number of written UTF-16 units (`1` or `2`).
+/// The number of written UTF-16 units (`1` or `2`).
 #[inline]
 fn encode_units_char(ch: char, output: &mut [u16], index: usize) -> usize {
     let length = Utf16::unit_len(ch);

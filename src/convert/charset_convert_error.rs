@@ -49,6 +49,11 @@ pub enum CharsetConvertError {
 impl CharsetConvertError {
     /// Maps a low-level converter error into a charset-specific error.
     ///
+    /// # Type Parameters
+    ///
+    /// - `D`: Source codec used to identify the low-level decoder.
+    /// - `E`: Target codec used to identify the low-level encoder.
+    ///
     /// # Parameters
     ///
     /// - `source_charset`: Charset attached to source-side framework failures.

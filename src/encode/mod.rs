@@ -5,6 +5,8 @@
 //
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
+//! Charset encoding policy and encoder APIs.
+
 mod charset_encode_hooks;
 mod charset_encode_policy;
 mod charset_encoder;

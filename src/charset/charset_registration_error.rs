@@ -17,6 +17,18 @@ use super::charset_registration_error_kind::CharsetRegistrationErrorKind;
 /// make global lookup ambiguous. Label comparison uses the same loose
 /// normalization as [`Charset::from_label`], so conflicts include case
 /// differences and `-` / `_` separator differences.
+///
+/// # Examples
+///
+/// ```rust
+/// use qubit_codec_text::{Charset, CharsetRegistrationErrorKind};
+///
+/// let error = Charset::try_new("", "Custom", &[])
+///     .expect_err("an empty identifier cannot be registered");
+/// assert_eq!(error.kind(), CharsetRegistrationErrorKind::InvalidLabel);
+/// assert_eq!(error.label(), "");
+/// ```
+#[must_use]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct CharsetRegistrationError {
     /// Candidate label that failed validation or conflicts.

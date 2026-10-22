@@ -8,6 +8,16 @@
 use super::Ascii;
 
 /// Namespace for ISO-8859-1 / Latin-1 character and code point helpers.
+///
+/// # Examples
+///
+/// ```
+/// use qubit_codec_text::Latin1;
+///
+/// assert!(Latin1::is_latin1_byte(0xff));
+/// assert!(Latin1::is_latin1_char('ÿ'));
+/// assert_eq!(Latin1::byte_to_char(0xff), 'ÿ');
+/// ```
 pub enum Latin1 {}
 
 impl Latin1 {

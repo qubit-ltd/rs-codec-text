@@ -81,20 +81,6 @@ impl CharsetEncodePolicy {
         Self::new(UnmappableAction::Report, Self::DEFAULT_REPLACEMENT)
     }
 
-    /// Returns the unmappable-input action.
-    #[must_use]
-    #[inline]
-    pub const fn unmappable_action(self) -> UnmappableAction {
-        self.unmappable_action
-    }
-
-    /// Returns the replacement character.
-    #[must_use]
-    #[inline]
-    pub const fn replacement(self) -> char {
-        self.replacement
-    }
-
     /// Returns the default replacement policy supported by `codec`.
     ///
     /// # Parameters
@@ -124,6 +110,20 @@ impl CharsetEncodePolicy {
             value: Self::DEFAULT_FALLBACK_REPLACEMENT as u32,
         };
         Err(CharsetEncodeError::new(codec.charset(), kind, 0))
+    }
+
+    /// Returns the unmappable-input action.
+    #[must_use]
+    #[inline]
+    pub const fn unmappable_action(self) -> UnmappableAction {
+        self.unmappable_action
+    }
+
+    /// Returns the replacement character.
+    #[must_use]
+    #[inline]
+    pub const fn replacement(self) -> char {
+        self.replacement
     }
 }
 

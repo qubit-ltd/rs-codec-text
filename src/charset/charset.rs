@@ -312,6 +312,7 @@ impl Charset {
     ///
     /// Returns [`Self::UTF_16LE`] for little-endian byte order and
     /// [`Self::UTF_16BE`] for big-endian byte order.
+    #[must_use]
     #[inline]
     pub const fn from_utf16_byte_order(byte_order: ByteOrder) -> Self {
         match byte_order {
@@ -332,6 +333,7 @@ impl Charset {
     ///
     /// Returns [`Self::UTF_32LE`] for little-endian byte order and
     /// [`Self::UTF_32BE`] for big-endian byte order.
+    #[must_use]
     #[inline]
     pub const fn from_utf32_byte_order(byte_order: ByteOrder) -> Self {
         match byte_order {

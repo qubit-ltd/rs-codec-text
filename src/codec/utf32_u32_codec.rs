@@ -154,11 +154,11 @@ impl Codec for Utf32U32Codec {
     }
 }
 
-/// Decodes the first UTF-32 character from a closed `u32` buffer.
+/// Decodes the first UTF-32 character from a `u32` unit buffer.
 ///
 /// Each UTF-32 unit is interpreted as a Unicode scalar value directly.
 ///
-/// # Arguments
+/// # Parameters
 ///
 /// * `input` - UTF-32 unit slice to decode from.
 /// * `index` - Start offset in `input`; must be `< input.len()`.
@@ -187,7 +187,7 @@ fn decode_units_prefix(input: &[u32], index: usize) -> CharsetDecodeResult<(char
 
 /// Encodes one character into a UTF-32 `u32` unit at `index` in `output`.
 ///
-/// # Arguments
+/// # Parameters
 ///
 /// * `ch` - The character to encode.
 /// * `output` - Destination unit buffer.

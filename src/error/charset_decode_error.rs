@@ -42,6 +42,7 @@ use crate::CharsetDecodeErrorKind;
 /// assert_eq!(error.value(), Some(0xff));
 /// ```
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[must_use]
 pub struct CharsetDecodeError {
     /// Charset being decoded when this error was detected.
     charset: Charset,
@@ -68,7 +69,10 @@ impl CharsetDecodeError {
     ///
     /// Framework failures are mapped with `charset`; codec-domain errors retain
     /// their original charset error.
-    #[must_use]
+    ///
+    /// # Returns
+    ///
+    /// Returns the mapped charset decoding error.
     pub fn from_transcode_error(charset: Charset, error: TranscodeDecodeError<Self>) -> Self {
         match error {
             TranscodeDecodeError::Failure(failure) => Self::map_transcode_failure(charset, failure),
@@ -89,7 +93,6 @@ impl CharsetDecodeError {
     /// failures retain their original indices and sizes. Encode-only framework
     /// failures are reported as
     /// [`CharsetDecodeErrorKind::UnexpectedTranscodeFailure`].
-    #[must_use]
     pub fn map_transcode_failure(charset: Charset, error: TranscodeFailure) -> Self {
         use TranscodeFailure::IncompleteInput;
         use TranscodeFailure::InsufficientOutput;
@@ -169,7 +172,6 @@ impl CharsetDecodeError {
     /// # Returns
     ///
     /// Returns this error carrying the supplied consumption count.
-    #[must_use]
     #[inline]
     pub const fn with_consumed(self, consumed: NonZeroUsize) -> Self {
         Self {

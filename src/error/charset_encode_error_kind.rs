@@ -94,7 +94,6 @@ impl CharsetEncodeErrorKind {
     /// - `Some(value)` for [`Self::InvalidCodePoint`] and
     ///   [`Self::UnmappableCharacter`];
     /// - `None` for other kinds.
-    #[must_use]
     #[inline]
     pub const fn value(self) -> Option<u32> {
         match self {
@@ -110,14 +109,16 @@ impl CharsetEncodeErrorKind {
         }
     }
 
-    /// Returns the number of required output units for this kind, if available.
+    /// Returns the number of required units for this kind, if available.
+    ///
+    /// The units are output units for [`Self::BufferTooSmall`] and input units
+    /// for [`Self::IncompleteInput`].
     ///
     /// # Returns
     ///
     /// - `Some(required)` for [`Self::BufferTooSmall`] and
     ///   [`Self::IncompleteInput`];
     /// - `None` for all other variants.
-    #[must_use]
     #[inline]
     pub const fn required(self) -> Option<usize> {
         match self {
@@ -132,15 +133,17 @@ impl CharsetEncodeErrorKind {
         }
     }
 
-    /// Returns the number of currently available output units for this kind, if
+    /// Returns the number of currently available units for this kind, if
     /// available.
+    ///
+    /// The units are output units for [`Self::BufferTooSmall`] and input units
+    /// for [`Self::IncompleteInput`].
     ///
     /// # Returns
     ///
     /// - `Some(available)` for [`Self::BufferTooSmall`] and
     ///   [`Self::IncompleteInput`];
     /// - `None` for all other variants.
-    #[must_use]
     #[inline]
     pub const fn available(self) -> Option<usize> {
         match self {
@@ -162,7 +165,6 @@ impl CharsetEncodeErrorKind {
     ///
     /// - `Some(input_len)` for [`Self::InvalidInputIndex`];
     /// - `None` for other variants.
-    #[must_use]
     #[inline]
     pub const fn input_len(self) -> Option<usize> {
         match self {
@@ -185,7 +187,6 @@ impl CharsetEncodeErrorKind {
     ///
     /// - `Some(output_len)` for [`Self::InvalidOutputIndex`];
     /// - `None` for other variants.
-    #[must_use]
     #[inline]
     pub const fn output_len(self) -> Option<usize> {
         match self {

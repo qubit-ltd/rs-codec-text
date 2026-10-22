@@ -55,6 +55,11 @@ where
     ///
     /// `Report` returns a charset error tied to the input index, `Ignore`
     /// skips the character, and `Replace` emits the configured replacement.
+    ///
+    /// # Errors
+    ///
+    /// Returns a transcode error containing an unmappable-character charset
+    /// error when the configured action is [`UnmappableAction::Report`].
     #[inline]
     fn handle_unencodable_encode(
         &mut self,
@@ -87,6 +92,11 @@ where
 ///
 /// Returns the number of encoded units, or an error carrying the target
 /// charset and the unmappable character when `codec` cannot encode `ch`.
+///
+/// # Errors
+///
+/// Returns [`CharsetEncodeError`] when `codec` cannot encode `ch`; the error
+/// records the target charset and character value.
 pub(super) fn replacement_len<C>(codec: &C, ch: char) -> CharsetEncodeResult<usize>
 where
     C: CharsetCodec,
