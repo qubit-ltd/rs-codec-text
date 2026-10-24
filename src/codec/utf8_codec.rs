@@ -116,15 +116,17 @@ impl Codec for Utf8Codec {
 /// Decodes the first UTF-8 character from a closed byte slice starting at
 /// `index`.
 ///
-/// The caller normally provides at least `Utf8::MAX_UNITS_PER_CHAR` readable
-/// bytes from `index`. If fewer bytes are present, this function treats the
-/// slice as closed at EOF: complete shorter UTF-8 sequences still decode, while
-/// truncated sequences return [`CharsetDecodeErrorKind::IncompleteSequence`].
+/// The caller provides at least one readable byte from `index`, matching
+/// [`Codec::MIN_UNITS_PER_VALUE`](qubit_codec::Codec::MIN_UNITS_PER_VALUE).
+/// The helper checks the width indicated by a multibyte leading byte before
+/// reading continuation bytes. A truncated sequence returns
+/// [`CharsetDecodeErrorKind::IncompleteSequence`]; single-byte characters are
+/// decoded directly.
 ///
 /// # Parameters
 ///
 /// * `input` - UTF-8 byte slice to decode from.
-/// * `index` - Start offset in `input`; must be `<= input.len()`.
+/// * `index` - Start offset in `input`; at least one byte must be readable.
 ///
 /// # Returns
 ///
@@ -177,7 +179,8 @@ fn decode_prefix(input: &[u8], index: usize) -> CharsetDecodeResult<(char, NonZe
 ///
 /// * `ch` - The character to encode.
 /// * `output` - Destination buffer.
-/// * `index` - Start offset in `output`; must satisfy `index <= output.len()`.
+/// * `index` - Start offset in `output`; `Utf8::byte_len(ch)` bytes must be
+///   writable from this offset.
 ///
 /// # Returns
 ///

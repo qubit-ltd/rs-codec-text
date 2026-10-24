@@ -160,10 +160,11 @@ impl Codec for Utf16ByteCodec {
 ///
 /// # Arguments
 ///
-/// * `input` - UTF-16 encoded byte slice. Callers using closed-prefix decoding
-///   provide at least [`Utf16::MAX_BYTES_PER_CHAR`] readable bytes unless EOF
-///   has been reached.
-/// * `index` - Start offset in `input` bytes; must be `<= input.len()`.
+/// * `input` - UTF-16 encoded byte slice. At least two bytes must be readable
+///   from `index`; the helper checks that four bytes are available before
+///   reading the second unit of a surrogate pair.
+/// * `index` - Start byte offset in `input`; at least two bytes must be
+///   readable.
 /// * `byte_order` - Byte order used to read UTF-16 units.
 ///
 /// # Returns
@@ -214,7 +215,8 @@ fn decode_bytes_prefix(input: &[u8], index: usize, byte_order: ByteOrder) -> Cha
 /// * `ch` - The character to encode.
 /// * `output` - Byte destination.
 /// * `byte_order` - Byte order for writing UTF-16 units.
-/// * `index` - Start offset in `output` bytes; must be `<= output.len()`.
+/// * `index` - Start byte offset in `output`; `Utf16::unit_len(ch) * 2` bytes
+///   must be writable from this offset.
 ///
 /// # Returns
 ///

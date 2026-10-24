@@ -229,8 +229,15 @@ where
     /// Returns the target codec mutably.
     ///
     /// Mutating target codec configuration while a conversion is active can
-    /// invalidate buffered encode state and replacement validation assumptions.
-    /// Reset the converter before continuing with the modified codec.
+    /// invalidate buffered encode state. Reset before continuing, but note
+    /// that reset does not revalidate the configured replacement. Under a
+    /// `Replace` policy, ensure the replacement remains encodable after the
+    /// change; the default policy also relies on the codec's existing `?`
+    /// fallback contract. If that cannot be guaranteed, save the intended
+    /// policies, consume the converter with [`Self::into_codecs`], then
+    /// reconstruct it with [`Self::from_codecs_with_policies`] and handle
+    /// validation errors. Reconstruction discards wrapper state and does not
+    /// preserve pending input or output.
     ///
     /// # Returns
     ///

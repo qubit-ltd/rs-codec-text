@@ -17,8 +17,9 @@ use crate::CharsetEncodeErrorKind;
 /// Error reported by a charset encoder.
 ///
 /// The error always carries the target charset, error kind, and operation
-/// index associated with the failure. For buffer errors this is the
-/// caller-supplied output index. Errors tied to a raw code point or character
+/// index associated with the failure. The index refers to input `char` values
+/// for input errors and target codec units for output index or capacity errors.
+/// Errors tied to a raw code point or character
 /// value expose that value through [`Self::kind`] and [`Self::value`].
 ///
 /// # Examples
@@ -82,6 +83,9 @@ impl CharsetEncodeError {
     /// Decode-only framework failures are reported as
     /// [`CharsetEncodeErrorKind::UnexpectedTranscodeFailure`] instead of
     /// being misreported as output-length overflow.
+    /// This mapper uses `usize::MAX` when an overflow or otherwise unexpected
+    /// framework failure has no concrete index; directly constructed errors
+    /// are not restricted to that sentinel.
     pub fn map_transcode_failure(charset: Charset, error: TranscodeFailure) -> Self {
         use TranscodeFailure::IncompleteInput;
         use TranscodeFailure::InsufficientOutput;
@@ -141,7 +145,9 @@ impl CharsetEncodeError {
     ///
     /// - `charset`: The target charset.
     /// - `kind`: The failure category.
-    /// - `index`: The operation index associated with the failure.
+    /// - `index`: The operation index associated with `kind`: an input `char`
+    ///   position for input errors or a target-unit position for output index
+    ///   and capacity errors.
     ///
     /// # Returns
     ///
@@ -151,24 +157,27 @@ impl CharsetEncodeError {
         Self { charset, kind, index }
     }
 
-    /// Returns required output units for this encoding error, if reported.
+    /// Returns the required count for this encoding error, if reported.
     ///
     /// # Returns
     ///
-    /// Returns `Some(required)` for [`CharsetEncodeErrorKind::BufferTooSmall`]
-    /// and [`CharsetEncodeErrorKind::IncompleteInput`], otherwise `None`.
+    /// Returns target codec units for
+    /// [`CharsetEncodeErrorKind::BufferTooSmall`] or input units for
+    /// [`CharsetEncodeErrorKind::IncompleteInput`]; returns `None` for
+    /// other kinds.
     #[inline]
     pub const fn required(self) -> Option<usize> {
         self.kind.required()
     }
 
-    /// Returns available output units for this encoding error, if reported.
+    /// Returns the available count for this encoding error, if reported.
     ///
     /// # Returns
     ///
-    /// Returns `Some(available)` for
-    /// [`CharsetEncodeErrorKind::BufferTooSmall`] and
-    /// [`CharsetEncodeErrorKind::IncompleteInput`], otherwise `None`.
+    /// Returns available target codec units for
+    /// [`CharsetEncodeErrorKind::BufferTooSmall`] or available input units for
+    /// [`CharsetEncodeErrorKind::IncompleteInput`]; returns `None` for other
+    /// kinds.
     #[inline]
     pub const fn available(self) -> Option<usize> {
         self.kind.available()
@@ -209,7 +218,9 @@ impl CharsetEncodeError {
     ///
     /// # Returns
     ///
-    /// Returns the stored index.
+    /// Returns an input `char` position for input errors or a target codec-unit
+    /// position for output index and capacity errors. Interpret it together
+    /// with [`Self::kind`].
     #[inline]
     pub const fn index(self) -> usize {
         self.index

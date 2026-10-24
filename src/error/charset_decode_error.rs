@@ -18,8 +18,10 @@ use crate::CharsetDecodeErrorKind;
 
 /// Error reported by a charset decoder.
 ///
-/// The error always carries the charset, error kind, and input unit index at
-/// which the failure was detected. Errors that decode a raw numeric value, such
+/// The error always carries the charset, error kind, and operation index at
+/// which the failure was detected. The index refers to source units for input
+/// errors and to output `char` slots for output index or capacity errors.
+/// Errors that decode a raw numeric value, such
 /// as malformed input units or invalid UTF-32 scalar values, carry that value
 /// through [`Self::kind`] and [`Self::value`]. Invalid-input errors may also
 /// carry a consumed-unit count so buffered decoders can make progress without
@@ -48,7 +50,7 @@ pub struct CharsetDecodeError {
     charset: Charset,
     /// Failure category describing the decoding error.
     kind: CharsetDecodeErrorKind,
-    /// Input unit index at which decoding failure occurred.
+    /// Source-unit or output-character index associated with the failure.
     index: usize,
     /// Units that may be consumed after invalid input.
     consumed: Option<NonZeroUsize>,
@@ -93,6 +95,9 @@ impl CharsetDecodeError {
     /// failures retain their original indices and sizes. Encode-only framework
     /// failures are reported as
     /// [`CharsetDecodeErrorKind::UnexpectedTranscodeFailure`].
+    /// This mapper uses `usize::MAX` when an overflow or otherwise unexpected
+    /// framework failure has no concrete index; directly constructed errors
+    /// are not restricted to that sentinel.
     pub fn map_transcode_failure(charset: Charset, error: TranscodeFailure) -> Self {
         use TranscodeFailure::IncompleteInput;
         use TranscodeFailure::InsufficientOutput;
@@ -138,7 +143,9 @@ impl CharsetDecodeError {
     ///
     /// - `charset`: The charset being decoded.
     /// - `kind`: The failure category.
-    /// - `index`: The input unit index where the failure was detected.
+    /// - `index`: The operation index associated with `kind`: a source-unit
+    ///   position for input errors, or an output-character position for output
+    ///   index and capacity errors.
     ///
     /// # Returns
     ///
@@ -184,6 +191,12 @@ impl CharsetDecodeError {
 
     /// Converts this error into the failure type returned by
     /// [`qubit_codec::Codec::decode`].
+    ///
+    /// # Panics
+    ///
+    /// Panics when the kind is `IncompleteSequence { required: 0, .. }` and
+    /// debug assertions are enabled. Without debug assertions, that invalid
+    /// incomplete error is converted to `invalid_unknown`.
     #[inline]
     pub fn into_codec_failure(self) -> DecodeFailure<Self> {
         if let Some((required, _)) = self.kind.incomplete() {
@@ -224,35 +237,38 @@ impl CharsetDecodeError {
         self.kind
     }
 
-    /// Returns the input unit index associated with this error.
+    /// Returns the operation index associated with this error.
     ///
     /// # Returns
     ///
-    /// Returns the index at which the error was detected.
+    /// Returns a source-unit position for input errors or an output-character
+    /// position for output index and capacity errors. Interpret it together
+    /// with [`Self::kind`].
     #[inline]
     pub const fn index(self) -> usize {
         self.index
     }
 
-    /// Returns required input units for this decoding error, if reported.
+    /// Returns the required count for this decoding error, if reported.
     ///
     /// # Returns
     ///
-    /// Returns `Some(required)` for
-    /// [`CharsetDecodeErrorKind::IncompleteSequence`] and
-    /// [`CharsetDecodeErrorKind::BufferTooSmall`], otherwise `None`.
+    /// Returns source units for [`CharsetDecodeErrorKind::IncompleteSequence`]
+    /// or output `char` slots for [`CharsetDecodeErrorKind::BufferTooSmall`];
+    /// returns `None` for other kinds.
     #[inline]
     pub const fn required(self) -> Option<usize> {
         self.kind.required()
     }
 
-    /// Returns available input units for this decoding error, if reported.
+    /// Returns the available count for this decoding error, if reported.
     ///
     /// # Returns
     ///
-    /// Returns `Some(available)` for
-    /// [`CharsetDecodeErrorKind::IncompleteSequence`] and
-    /// [`CharsetDecodeErrorKind::BufferTooSmall`], otherwise `None`.
+    /// Returns available source units for
+    /// [`CharsetDecodeErrorKind::IncompleteSequence`] or available output
+    /// `char` slots for [`CharsetDecodeErrorKind::BufferTooSmall`]; returns
+    /// `None` for other kinds.
     #[inline]
     pub const fn available(self) -> Option<usize> {
         self.kind.available()

@@ -118,7 +118,9 @@ impl Codec for Utf32U32Codec {
     ///
     /// # Safety
     ///
-    /// `input_index` must identify a readable element in `input`.
+    /// `input_index` must be a valid boundary in `input`, with at least
+    /// `MIN_UNITS_PER_VALUE` readable units from that index. For this codec,
+    /// that is one `u32` unit.
     #[inline]
     unsafe fn decode(
         &mut self,
@@ -144,7 +146,10 @@ impl Codec for Utf32U32Codec {
     ///
     /// # Safety
     ///
-    /// `output_index` must identify a writable element in `output`.
+    /// `can_encode_value` must return `true` for `ch`, and `output` must have
+    /// either one writable unit from `output_index` or the exact length
+    /// returned by `encode_len` for this value and codec state. Both lengths
+    /// are one unit for this codec.
     #[inline]
     unsafe fn encode(&mut self, ch: &char, output: &mut [u32], output_index: usize) -> CharsetEncodeResult<usize> {
         let written = encode_units_char(*ch, output, output_index);
@@ -161,7 +166,7 @@ impl Codec for Utf32U32Codec {
 /// # Parameters
 ///
 /// * `input` - UTF-32 unit slice to decode from.
-/// * `index` - Start offset in `input`; must be `< input.len()`.
+/// * `index` - Start offset in `input`; at least one unit must be readable.
 ///
 /// # Returns
 ///
@@ -191,7 +196,7 @@ fn decode_units_prefix(input: &[u32], index: usize) -> CharsetDecodeResult<(char
 ///
 /// * `ch` - The character to encode.
 /// * `output` - Destination unit buffer.
-/// * `index` - Start offset in `output`; must satisfy `index < output.len()`.
+/// * `index` - Start offset in `output`; one unit must be writable.
 ///
 /// # Returns
 ///

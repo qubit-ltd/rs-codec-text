@@ -136,10 +136,10 @@ impl Codec for Utf16U16Codec {
 ///
 /// # Arguments
 ///
-/// * `input` - UTF-16 unit slice to decode from. Normal streaming callers
-///   provide at least [`Utf16::MAX_UNITS_PER_CHAR`] readable units unless EOF
-///   has been reached.
-/// * `index` - Start offset in `input`; must be `<= input.len()`.
+/// * `input` - UTF-16 unit slice to decode from. At least one unit must be
+///   readable from `index`; the helper checks that a second unit is available
+///   before reading a surrogate pair.
+/// * `index` - Start offset in `input`; at least one unit must be readable.
 ///
 /// # Returns
 ///
@@ -209,7 +209,8 @@ fn unit_at(input: &[u16], index: usize) -> u16 {
 ///
 /// * `ch` - The character to encode.
 /// * `output` - Destination unit buffer.
-/// * `index` - Start offset in `output`; must be `<= output.len()`.
+/// * `index` - Start offset in `output`; `Utf16::unit_len(ch)` units must be
+///   writable from this offset.
 ///
 /// # Returns
 ///

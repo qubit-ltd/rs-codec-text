@@ -38,11 +38,12 @@ use crate::CharsetEncodeError;
 /// Implementors inherit the unsafe [`Codec`] contract and must keep these
 /// charset-specific invariants true:
 ///
-/// - [`Codec::decode`] is called only with `index < input.len()`, and must not
-///   read outside `input[index..]`. If the visible input is a valid prefix of a
-///   longer sequence, return
-///   [`crate::CharsetDecodeErrorKind::IncompleteSequence`] instead of consuming
-///   it as malformed input.
+/// - Before calling [`Codec::decode`], callers must provide a valid input
+///   boundary and at least [`Codec::MIN_UNITS_PER_VALUE`] readable units from
+///   `input_index`. Implementations must not read beyond the available units. A
+///   valid prefix may still be incomplete even when the minimum readable width
+///   is satisfied; return [`crate::CharsetDecodeErrorKind::IncompleteSequence`]
+///   in that case.
 /// - malformed and invalid-code-point errors may report a consumed-unit count
 ///   with [`CharsetDecodeError::with_consumed`]. The count must be non-zero and
 ///   should describe the smallest invalid sequence width known to the codec.
@@ -55,9 +56,11 @@ use crate::CharsetEncodeError;
 ///   [`crate::CharsetConverter`] policy must be able to encode `?`. Failure to
 ///   encode `?` is an implementation bug; those constructors intentionally
 ///   panic to expose it immediately.
-/// - [`Codec::encode`] is called only after the caller reserved the exact
-///   writable range reported by `encode_len`, and must not write outside that
-///   range.
+/// - [`Codec::encode`] is called only after the caller has confirmed that
+///   [`Codec::can_encode_value`] returns `true` and reserved either the exact
+///   writable range reported by `encode_len` for the same value and codec
+///   state, or at least [`Codec::MAX_ENCODE_UNITS_PER_VALUE`]. It must not
+///   write outside the reserved range.
 /// - codecs whose [`Codec::Unit`] is `u16` or `u32` operate on already-formed
 ///   host values, not serialized bytes. Use byte-oriented codecs when byte
 ///   order matters across files, processes, or network boundaries.

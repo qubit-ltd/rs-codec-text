@@ -200,11 +200,19 @@ where
     /// - `output`: Buffer receiving decoded Unicode scalar values.
     /// - `output_index`: Starting index at which decoded values are written.
     ///
+    /// # Returns
+    ///
+    /// Returns progress relative to `input_index` and `output_index`.
+    /// `Complete` means the available input was consumed, `NeedInput` means a
+    /// valid incomplete suffix remains, and `NeedOutput` means more output
+    /// capacity is needed to continue. The buffer may still have unused slots.
+    /// `NeedOutput` is normal backpressure and is returned as `Ok`.
+    ///
     /// # Errors
     ///
-    /// Returns a transcode decode error when indices are invalid, output
-    /// capacity is insufficient, input is malformed under the configured
-    /// policy, or the codec reports another decode-domain error.
+    /// Returns a transcode decode error for invalid indices, malformed input
+    /// under the configured `Report` policy, or another decode-domain failure.
+    /// Output backpressure is reported through `NeedOutput`, not as an error.
     #[inline]
     pub fn transcode(
         &mut self,

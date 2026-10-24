@@ -184,8 +184,14 @@ where
     /// Returns the wrapped low-level codec mutably.
     ///
     /// Mutating codec configuration while a stream is active can invalidate
-    /// buffered encode state and replacement validation assumptions. Reset the
-    /// encoder before continuing with the modified codec.
+    /// buffered encode state. Reset before continuing, but note that reset does
+    /// not revalidate the configured replacement. Under a `Replace` policy,
+    /// ensure the replacement remains encodable after the change; the default
+    /// policy also relies on the codec's existing `?` fallback contract. If
+    /// that cannot be guaranteed, save the policy, consume the encoder with
+    /// [`Self::into_codec`], then reconstruct it with [`Self::with_policy`]
+    /// and handle validation errors. Reconstruction discards wrapper state and
+    /// does not preserve pending input or output.
     ///
     /// # Returns
     ///
@@ -224,11 +230,20 @@ where
 
     /// Encodes characters into target units.
     ///
+    /// # Returns
+    ///
+    /// Returns progress relative to `input_index` and `output_index`.
+    /// `Complete` means the available input was consumed; `NeedOutput` means
+    /// more output capacity is needed to continue. The buffer may still have
+    /// unused slots. `NeedOutput` is normal backpressure and is returned as
+    /// `Ok`.
+    ///
     /// # Errors
     ///
-    /// Returns a transcode encode error when indices are invalid, output
-    /// capacity is insufficient, a character is unmappable under the
-    /// configured policy, or the codec reports another encode-domain error.
+    /// Returns a transcode encode error for invalid indices, a character that
+    /// is unmappable under the configured `Report` policy, or another
+    /// encode-domain failure. Output backpressure is reported through
+    /// `NeedOutput`, not as an error.
     #[inline]
     pub fn transcode(
         &mut self,

@@ -157,7 +157,7 @@ impl Codec for Utf32ByteCodec {
 /// # Arguments
 ///
 /// * `input` - UTF-32 encoded byte slice.
-/// * `index` - Start byte offset; must be `<= input.len()`.
+/// * `index` - Start byte offset; at least four bytes must be readable.
 /// * `byte_order` - Byte order used to read a `u32` unit.
 ///
 /// # Returns
@@ -195,7 +195,7 @@ fn decode_bytes_prefix(
 /// * `ch` - The character to encode.
 /// * `output` - Destination byte buffer.
 /// * `byte_order` - Byte order used to write the 4-byte representation.
-/// * `index` - Start byte offset; must satisfy `index <= output.len()`.
+/// * `index` - Start byte offset; four bytes must be writable.
 ///
 /// # Returns
 ///

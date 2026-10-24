@@ -107,12 +107,12 @@ impl CharsetDecodeErrorKind {
         Self::MalformedSequence { value: None }
     }
 
-    /// Returns the number of required input units for this kind, if available.
+    /// Returns the required count for this kind, if available.
     ///
     /// # Returns
     ///
-    /// - `Some(required)` for [`Self::IncompleteSequence`] and
-    ///   [`Self::BufferTooSmall`];
+    /// - source units for [`Self::IncompleteSequence`];
+    /// - output `char` slots for [`Self::BufferTooSmall`];
     /// - `None` for all other variants.
     #[inline]
     pub const fn required(self) -> Option<usize> {
@@ -128,13 +128,12 @@ impl CharsetDecodeErrorKind {
         }
     }
 
-    /// Returns the number of currently available input units for this kind, if
-    /// available.
+    /// Returns the available count for this kind, if available.
     ///
     /// # Returns
     ///
-    /// - `Some(available)` for [`Self::IncompleteSequence`] and
-    ///   [`Self::BufferTooSmall`];
+    /// - source units for [`Self::IncompleteSequence`];
+    /// - output `char` slots for [`Self::BufferTooSmall`];
     /// - `None` for all other variants.
     #[inline]
     pub const fn available(self) -> Option<usize> {
