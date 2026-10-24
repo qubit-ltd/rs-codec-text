@@ -2,7 +2,7 @@
 
 [English](user_guide.md) · [README](../README.zh_CN.md) · [API 文档](https://docs.rs/qubit-codec-text)
 
-本文适用于 `qubit-codec-text` 0.6，面向构建缓冲区级解析器、协议处理器和 I/O
+本文适用于 `qubit-codec-text` 0.9，面向构建缓冲区级解析器、协议处理器和 I/O
 adapter 的开发者：既要保留转换进度，也要明确选择畸形或不可映射数据的处理方式。
 
 ## 概念模型
@@ -29,8 +29,8 @@ adapter 的开发者：既要保留转换进度，也要明确选择畸形或不
 
 ```toml
 [dependencies]
-qubit-codec-text = "0.6"
-qubit-codec = "0.12"
+qubit-codec-text = "0.9"
+qubit-codec = "0.17"
 ```
 
 只有在需要序列化 `Charset` 时才启用可选 `serde` feature。
@@ -41,14 +41,49 @@ qubit-codec = "0.12"
 use qubit_codec_text::{CharsetConverter, Utf16U16Codec, Utf8Codec};
 
 let mut converter = CharsetConverter::from_codecs(Utf8Codec, Utf16U16Codec);
-let mut output = [0_u16; 2];
+let mut output = [0_u16; 12];
 let written = converter
     .transcode_complete_into("A中".as_bytes(), &mut output)
     .expect("完整 UTF-8 输入且输出空间足够");
 
 assert_eq!(2, written);
-assert_eq!([0x0041, 0x4e2d], output);
+assert_eq!([0x0041, 0x4e2d], output[..written]);
 ```
+
+### 流式处理直到 EOF
+
+开流阶段的 `read()` 和 `written()` 表示相对于本次传入输入、输出下标的增量。
+`NeedInput` 表示不完整尾部尚未消费；保留该尾部，并在下一块输入到达后拼接重试。
+遇到 `NeedOutput` 时，先排空已生成的输出，再按报告的进度推进输入和输出位置后重试。
+converter 也可能在内部保留待写字符，因此不要重复提交已报告为已读的输入。
+
+调用方确认输入结束后，将保留尾部传给 `transcode_eof`。若返回 `NeedOutput`，继续排空或
+扩展输出缓冲区并再次调用 `transcode_eof`，直到 EOF 输入处理完毕。随后才能调用
+`finish` 写出生命周期尾部。`finish` 不接收输入，不能处理调用方保存的不完整尾部。
+
+下面示例展示默认 `Replace` 策略如何在 EOF 时将两个 UTF-8 前缀字节替换为 U+FFFD：
+
+```rust
+use qubit_codec::TranscodeStatus;
+use qubit_codec_text::{CharsetDecoder, Utf8Codec};
+
+let mut decoder = CharsetDecoder::new(Utf8Codec);
+let mut output = ['\0'; 1];
+assert_eq!(0, decoder.reset(&mut output, 0).expect("reset"));
+let pending = [0xe4, 0xb8];
+let open = decoder.transcode(&pending, 0, &mut output, 0).expect("open stream");
+assert!(matches!(open.status(), TranscodeStatus::NeedInput { .. }));
+assert_eq!((0, 0), (open.read(), open.written()));
+let eof = decoder.transcode_eof(&pending, 0, &mut output, 0).expect("EOF replacement");
+assert_eq!(TranscodeStatus::Complete, eof.status());
+assert_eq!((2, 1), (eof.read(), eof.written()));
+assert_eq!('\u{fffd}', output[0]);
+assert_eq!(0, decoder.finish(&mut output, 1).expect("finish"));
+```
+
+使用 `Ignore` 时，EOF 会消费尾部但不输出；使用 `Report` 时会返回错误。`NeedOutput` 是
+通过 `Ok` 返回的正常输出背压，不是错误。开流阶段的 `Complete` 只表示当前输入已处理，
+并不表示上游已经到达 EOF。
 
 输出为 `char` 时使用 `CharsetDecoder::new(Utf8Codec)`；输入为 `char` 时使用
 `CharsetEncoder::new(Utf8Codec)`。当 decoder 输入以不完整序列结束时，

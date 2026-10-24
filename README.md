@@ -15,14 +15,14 @@ ASCII, Latin-1, UTF-8, UTF-16, and UTF-32 while keeping progress and policy expl
 
 ```toml
 [dependencies]
-qubit-codec-text = "0.8"
-qubit-codec = "0.16"
+qubit-codec-text = "0.9"
+qubit-codec = "0.17"
 ```
 
 Enable serialization of `Charset` only when needed:
 
 ```toml
-qubit-codec-text = { version = "0.8", features = ["serde"] }
+qubit-codec-text = { version = "0.9", features = ["serde"] }
 ```
 
 ## Quick Start
@@ -33,13 +33,13 @@ Convert UTF-8 bytes to UTF-16 code units with a caller-owned output buffer:
 use qubit_codec_text::{CharsetConverter, Utf16U16Codec, Utf8Codec};
 
 let mut converter = CharsetConverter::from_codecs(Utf8Codec, Utf16U16Codec);
-let mut output = [0_u16; 2];
+let mut output = [0_u16; 6];
 let written = converter
     .transcode_complete_into("AB".as_bytes(), &mut output)
     .expect("UTF-8 text converts to UTF-16");
 
 assert_eq!(2, written);
-assert_eq!([65, 66], output);
+assert_eq!([65, 66], output[..written]);
 ```
 
 ## Why This Project Exists

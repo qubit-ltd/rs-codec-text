@@ -15,14 +15,14 @@
 
 ```toml
 [dependencies]
-qubit-codec-text = "0.8"
-qubit-codec = "0.16"
+qubit-codec-text = "0.9"
+qubit-codec = "0.17"
 ```
 
 只有需要序列化 `Charset` 时才启用 `serde`：
 
 ```toml
-qubit-codec-text = { version = "0.8", features = ["serde"] }
+qubit-codec-text = { version = "0.9", features = ["serde"] }
 ```
 
 ## 快速开始
@@ -33,13 +33,13 @@ qubit-codec-text = { version = "0.8", features = ["serde"] }
 use qubit_codec_text::{CharsetConverter, Utf16U16Codec, Utf8Codec};
 
 let mut converter = CharsetConverter::from_codecs(Utf8Codec, Utf16U16Codec);
-let mut output = [0_u16; 2];
+let mut output = [0_u16; 6];
 let written = converter
     .transcode_complete_into("AB".as_bytes(), &mut output)
     .expect("UTF-8 文本可转换为 UTF-16");
 
 assert_eq!(2, written);
-assert_eq!([65, 66], output);
+assert_eq!([65, 66], output[..written]);
 ```
 
 ## 为什么需要这个项目

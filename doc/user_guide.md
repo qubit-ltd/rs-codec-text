@@ -2,7 +2,7 @@
 
 [中文](user_guide.zh_CN.md) · [README](../README.md) · [API reference](https://docs.rs/qubit-codec-text)
 
-This guide applies to `qubit-codec-text` 0.6. It is for developers building
+This guide applies to `qubit-codec-text` 0.9. It is for developers building
 buffer-oriented parsers, protocol handlers, and I/O adapters that must preserve
 conversion progress and choose how malformed or unmappable data is handled.
 
@@ -33,8 +33,8 @@ tail, handle output backpressure, and call `finish` only after EOF.
 
 ```toml
 [dependencies]
-qubit-codec-text = "0.6"
-qubit-codec = "0.12"
+qubit-codec-text = "0.9"
+qubit-codec = "0.17"
 ```
 
 Enable the optional `serde` feature only to serialize `Charset` values.
@@ -45,14 +45,55 @@ Enable the optional `serde` feature only to serialize `Charset` values.
 use qubit_codec_text::{CharsetConverter, Utf16U16Codec, Utf8Codec};
 
 let mut converter = CharsetConverter::from_codecs(Utf8Codec, Utf16U16Codec);
-let mut output = [0_u16; 2];
+let mut output = [0_u16; 12];
 let written = converter
     .transcode_complete_into("A中".as_bytes(), &mut output)
     .expect("complete UTF-8 input and sufficient output");
 
 assert_eq!(2, written);
-assert_eq!([0x0041, 0x4e2d], output);
+assert_eq!([0x0041, 0x4e2d], output[..written]);
 ```
+
+### Streaming input through EOF
+
+During an open stream, `read()` and `written()` are increments from the input
+and output indices passed to that call. `NeedInput` leaves an incomplete tail
+unconsumed; retain it and append the next input chunk. On `NeedOutput`, drain
+the produced output and advance by the reported progress before retrying. A
+converter may also hold a pending character internally, so do not replay input
+that was already reported as read.
+
+After the caller knows that input has ended, pass the retained tail to
+`transcode_eof`. Continue draining or enlarging output and calling
+`transcode_eof` while it reports `NeedOutput`. Only after all EOF input has
+been handled should the caller call `finish` for lifecycle output. `finish`
+does not receive input and cannot process a saved incomplete tail.
+
+This example shows a two-byte UTF-8 prefix becoming U+FFFD at EOF under the
+default `Replace` policy:
+
+```rust
+use qubit_codec::TranscodeStatus;
+use qubit_codec_text::{CharsetDecoder, Utf8Codec};
+
+let mut decoder = CharsetDecoder::new(Utf8Codec);
+let mut output = ['\0'; 1];
+assert_eq!(0, decoder.reset(&mut output, 0).expect("reset"));
+let pending = [0xe4, 0xb8];
+let open = decoder.transcode(&pending, 0, &mut output, 0).expect("open stream");
+assert!(matches!(open.status(), TranscodeStatus::NeedInput { .. }));
+assert_eq!((0, 0), (open.read(), open.written()));
+let eof = decoder.transcode_eof(&pending, 0, &mut output, 0).expect("EOF replacement");
+assert_eq!(TranscodeStatus::Complete, eof.status());
+assert_eq!((2, 1), (eof.read(), eof.written()));
+assert_eq!('\u{fffd}', output[0]);
+assert_eq!(0, decoder.finish(&mut output, 1).expect("finish"));
+```
+
+With `Ignore`, EOF consumes the tail without output; with `Report`, it returns
+an error. A `NeedOutput` result is normal backpressure (`Ok`), not an error.
+An open-stream `Complete` means the current input was consumed, not that the
+upstream has reached EOF.
 
 Use `CharsetDecoder::new(Utf8Codec)` when output is `char` values, or
 `CharsetEncoder::new(Utf8Codec)` when input is `char` values. The
