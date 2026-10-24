@@ -203,6 +203,29 @@ fn test_charset_serde_serializes_as_id_and_deserializes_known_label() {
     serde_json::from_str::<Charset>("123").expect_err("charset serde representation must be a string");
 }
 
+#[cfg(feature = "serde")]
+#[test]
+fn test_charset_serde_accepts_reader() {
+    let actual: Charset =
+        serde_json::from_reader(b"\"utf-8\"".as_slice()).expect("reader-backed known label should deserialize");
+    assert_eq!(Charset::UTF_8, actual);
+}
+
+#[cfg(feature = "serde")]
+#[test]
+fn test_charset_serde_accepts_owned_value() {
+    let actual: Charset = serde_json::from_value(serde_json::Value::String("utf-8".to_owned()))
+        .expect("owned known label should deserialize");
+    assert_eq!(Charset::UTF_8, actual);
+}
+
+#[cfg(feature = "serde")]
+#[test]
+fn test_charset_serde_accepts_escaped_label() {
+    let actual: Charset = serde_json::from_str(r#""utf\u002d8""#).expect("escaped known label should deserialize");
+    assert_eq!(Charset::UTF_8, actual);
+}
+
 #[test]
 fn test_charset_register_rejects_conflicting_labels() {
     let candidate = Charset::new_static("x-qubit-conflicting-utf8", "Qubit Conflicting UTF8", &["utf8"]);

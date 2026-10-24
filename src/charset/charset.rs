@@ -512,8 +512,8 @@ impl<'de> Deserialize<'de> for Charset {
     where
         D: Deserializer<'de>,
     {
-        let id = <&str>::deserialize(deserializer)?;
-        Self::from_label(id).ok_or_else(|| de::Error::custom(format!("unknown charset `{id}`")))
+        let id = String::deserialize(deserializer)?;
+        Self::from_label(&id).ok_or_else(|| de::Error::custom(format!("unknown charset `{id}`")))
     }
 }
 
