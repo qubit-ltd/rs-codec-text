@@ -11,7 +11,6 @@ use std::rc::Rc;
 use qubit_codec::CapacityError;
 use qubit_codec::Codec;
 use qubit_codec::DecodeFailure;
-use qubit_codec::TranscodeConvertError;
 use qubit_codec::TranscodeConvertErrorOf;
 use qubit_codec::TranscodeConverter;
 use qubit_codec::TranscodeFailure;
@@ -37,34 +36,6 @@ use qubit_codec_text::Utf16U16Codec;
 fn reset_for_test<T: Transcoder>(transcoder: &mut T) {
     let mut output: [T::Output; 0] = [];
     assert!(transcoder.reset(&mut output, 0).is_ok());
-}
-
-fn map_convert_error(error: TranscodeConvertErrorOf<Utf8Codec, Utf16U16Codec>) -> CharsetConvertError {
-    match error {
-        TranscodeConvertError::Failure(failure) => map_convert_failure(failure),
-        TranscodeConvertError::DecodeDomain(error) => CharsetConvertError::Decode(error.into_source()),
-        TranscodeConvertError::EncodeDomain(error) => CharsetConvertError::Encode(error.into_source()),
-        TranscodeConvertError::Unencodable { input_index, value } => {
-            CharsetConvertError::Encode(CharsetEncodeError::map_unencodable(Charset::UTF_8, input_index, value))
-        }
-    }
-}
-
-fn map_convert_failure(failure: TranscodeFailure) -> CharsetConvertError {
-    match failure {
-        TranscodeFailure::InvalidInputIndex { .. }
-        | TranscodeFailure::IncompleteInput { .. }
-        | TranscodeFailure::TrailingInput { .. } => {
-            CharsetConvertError::Decode(CharsetDecodeError::map_transcode_failure(Charset::UTF_8, failure))
-        }
-        TranscodeFailure::InvalidOutputIndex { .. }
-        | TranscodeFailure::InvalidOutputRange { .. }
-        | TranscodeFailure::InsufficientOutput { .. }
-        | TranscodeFailure::OutputLengthOverflow => {
-            CharsetConvertError::Encode(CharsetEncodeError::map_transcode_failure(Charset::UTF_8, failure))
-        }
-        _ => CharsetConvertError::Decode(CharsetDecodeError::map_transcode_failure(Charset::UTF_8, failure)),
-    }
 }
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -225,7 +196,7 @@ impl Codec for CountingEncodeProbeCodec {
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Default)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 struct NonDefaultUnit(u8);
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -515,14 +486,21 @@ fn test_charset_converter_complete_into_maps_framework_errors() {
     assert_eq!(['A' as u16, 'B' as u16], output[..written]);
 
     let mut short_output = [0_u16; 2];
-    let error = converter
+    let raw_error = converter
         .transcode_complete_into(b"AB", &mut short_output)
-        .map_err(map_convert_error)
         .expect_err("complete conversion maps insufficient output");
+    let error = converter.map_transcode_error(raw_error);
 
     match error {
         CharsetConvertError::Encode(error) => {
-            assert!(matches!(error.kind(), CharsetEncodeErrorKind::BufferTooSmall { .. },));
+            assert_eq!(Charset::UTF_16, error.charset());
+            assert_eq!(
+                CharsetEncodeErrorKind::BufferTooSmall {
+                    required: 8,
+                    available: 2
+                },
+                error.kind(),
+            );
             assert_eq!(0, error.index());
         }
         other => panic!("expected encode capacity error, got {other:?}"),
@@ -566,19 +544,24 @@ fn test_charset_converter_applies_decode_policy_to_eof_tail() {
     )
     .expect("report policy should be encodable");
     let mut report_output = [0_u16; 6];
-    let error = report
+    let raw_error = report
         .transcode_complete_into(&[0xe4], &mut report_output)
-        .map_err(map_convert_error)
         .expect_err("report policy should reject incomplete UTF-8 at EOF");
-    assert!(matches!(
-        error,
-        CharsetConvertError::Decode(error)
-            if error.kind()
-                == CharsetDecodeErrorKind::IncompleteSequence {
+    let error = report.map_transcode_error(raw_error);
+    match error {
+        CharsetConvertError::Decode(error) => {
+            assert_eq!(Charset::UTF_8, error.charset());
+            assert_eq!(0, error.index());
+            assert_eq!(
+                CharsetDecodeErrorKind::IncompleteSequence {
                     required: 3,
-                    available: 1,
-                }
-    ));
+                    available: 1
+                },
+                error.kind()
+            );
+        }
+        other => panic!("expected decode error, got {other:?}"),
+    }
 }
 
 #[test]
@@ -711,13 +694,14 @@ fn test_charset_converter_reports_invalid_input_index() {
     let input = b"A";
     let mut output = [0_u16; 1];
 
-    let error = converter
+    let raw_error = converter
         .transcode(input, input.len() + 1, &mut output, 0)
-        .map_err(map_convert_error)
         .expect_err("input index outside input slice should fail");
+    let error = converter.map_transcode_error(raw_error);
 
     match error {
         CharsetConvertError::Decode(error) => {
+            assert_eq!(Charset::UTF_8, error.charset());
             assert_eq!(input.len() + 1, error.index());
             assert_eq!(
                 CharsetDecodeErrorKind::InvalidInputIndex { input_len: input.len() },
@@ -803,12 +787,13 @@ fn test_charset_converter_finish_reports_need_output_for_starting_pending_charac
     assert_eq!(1, progress.read());
     assert_eq!(0, progress.written());
 
-    let error = converter
+    let raw_error = converter
         .finish(&mut empty_output, 0)
-        .map_err(map_convert_error)
         .expect_err("pending character still needs output at finish");
+    let error = converter.map_transcode_error(raw_error);
     match error {
         CharsetConvertError::Encode(error) => {
+            assert_eq!(Charset::UTF_16, error.charset());
             assert_eq!(0, error.index());
             assert_eq!(
                 CharsetEncodeErrorKind::BufferTooSmall {
@@ -828,12 +813,13 @@ fn test_charset_converter_finish_delegates_to_target_encoder() {
     reset_for_test(&mut converter);
     let mut output = [];
 
-    let error = converter
+    let raw_error = converter
         .finish(&mut output, 1)
-        .map_err(map_convert_error)
         .expect_err("target encoder reports out-of-range output index");
+    let error = converter.map_transcode_error(raw_error);
     match error {
         CharsetConvertError::Encode(error) => {
+            assert_eq!(Charset::UTF_16, error.charset());
             assert_eq!(1, error.index());
             assert_eq!(
                 CharsetEncodeErrorKind::InvalidOutputIndex { output_len: 0 },
@@ -965,11 +951,18 @@ fn test_charset_converter_propagates_decode_and_encode_errors() {
     reset_for_test(&mut converter);
     let mut output = [0_u16; 1];
 
-    let error = converter
+    let raw_error = converter
         .transcode(&[0x80, b'A', b'B', b'C'], 0, &mut output, 0)
-        .map_err(map_convert_error)
         .expect_err("malformed source input is reported");
-    assert!(matches!(error, CharsetConvertError::Decode(_)));
+    let error = converter.map_transcode_error(raw_error);
+    match error {
+        CharsetConvertError::Decode(error) => {
+            assert_eq!(Charset::UTF_8, error.charset());
+            assert_eq!(0, error.index());
+            assert_eq!(CharsetDecodeErrorKind::malformed(0x80), error.kind());
+        }
+        other => panic!("expected decode error, got {other:?}"),
+    }
 
     let mut converter = CharsetConverter::from_codecs_with_policies(
         Utf8Codec,
@@ -981,11 +974,21 @@ fn test_charset_converter_propagates_decode_and_encode_errors() {
     reset_for_test(&mut converter);
     let mut ascii_output = [0_u8; 1];
 
-    let error = converter
+    let raw_error = converter
         .transcode("é".as_bytes(), 0, &mut ascii_output, 0)
-        .map_err(map_convert_error)
         .expect_err("unmappable target character is reported");
-    assert!(matches!(error, CharsetConvertError::Encode(_)));
+    let error = converter.map_transcode_error(raw_error);
+    match error {
+        CharsetConvertError::Encode(error) => {
+            assert_eq!(Charset::ASCII, error.charset());
+            assert_eq!(0, error.index());
+            assert_eq!(
+                CharsetEncodeErrorKind::UnmappableCharacter { value: 'é' as u32 },
+                error.kind()
+            );
+        }
+        other => panic!("expected encode error, got {other:?}"),
+    }
 }
 
 #[test]
@@ -993,13 +996,14 @@ fn test_charset_converter_maps_source_decode_reset_error() {
     let mut converter = CharsetConverter::from_codecs(FailingLifecycleCodec::<0>, AsciiBytesCodec);
     let mut output = [];
 
-    let error = converter
+    let raw_error = converter
         .reset(&mut output, 0)
-        .map_err(map_convert_error)
         .expect_err("source decode reset error should be mapped");
+    let error = converter.map_transcode_error(raw_error);
 
     match error {
         CharsetConvertError::Decode(error) => {
+            assert_eq!(Charset::ASCII, error.charset());
             assert_eq!(CharsetDecodeErrorKind::malformed_unknown(), error.kind());
             assert_eq!(0, error.index());
         }
@@ -1015,13 +1019,14 @@ fn test_charset_converter_maps_source_decode_finish_error() {
     let mut output = [];
     reset_for_test(&mut converter);
 
-    let error = converter
+    let raw_error = converter
         .finish(&mut output, 0)
-        .map_err(map_convert_error)
         .expect_err("source decode flush error should be mapped");
+    let error = converter.map_transcode_error(raw_error);
 
     match error {
         CharsetConvertError::Decode(error) => {
+            assert_eq!(Charset::ASCII, error.charset());
             assert_eq!(CharsetDecodeErrorKind::malformed_unknown(), error.kind());
             assert_eq!(0, error.index());
         }
@@ -1036,13 +1041,14 @@ fn test_charset_converter_maps_target_encode_reset_error() {
     let mut converter = CharsetConverter::from_codecs(AsciiBytesCodec, FailingLifecycleCodec::<2>);
     let mut output = [];
 
-    let error = converter
+    let raw_error = converter
         .reset(&mut output, 0)
-        .map_err(map_convert_error)
         .expect_err("target encode reset error should be mapped");
+    let error = converter.map_transcode_error(raw_error);
 
     match error {
         CharsetConvertError::Encode(error) => {
+            assert_eq!(Charset::ASCII, error.charset());
             assert_eq!(
                 CharsetEncodeErrorKind::InvalidOutputIndex { output_len: 0 },
                 error.kind()
@@ -1061,13 +1067,14 @@ fn test_charset_converter_maps_target_encode_finish_error() {
     let mut output = [];
     reset_for_test(&mut converter);
 
-    let error = converter
+    let raw_error = converter
         .finish(&mut output, 0)
-        .map_err(map_convert_error)
         .expect_err("target encode flush error should be mapped");
+    let error = converter.map_transcode_error(raw_error);
 
     match error {
         CharsetConvertError::Encode(error) => {
+            assert_eq!(Charset::ASCII, error.charset());
             assert_eq!(
                 CharsetEncodeErrorKind::InvalidOutputIndex { output_len: 0 },
                 error.kind()

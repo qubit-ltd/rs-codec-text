@@ -139,7 +139,7 @@ impl CharsetCodec for AsciiBytesCodec {
 
 impl_test_codec!(AsciiBytesCodec, 1, |ch: char| ch.is_ascii());
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Default)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 struct NonDefaultUnit(u8);
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
