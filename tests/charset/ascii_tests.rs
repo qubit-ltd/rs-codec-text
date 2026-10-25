@@ -5,6 +5,9 @@
 //
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
+use std::panic::AssertUnwindSafe;
+use std::panic::catch_unwind;
+
 use qubit_codec_text::Ascii;
 
 #[test]
@@ -141,4 +144,32 @@ fn test_ascii_fold_matches_java_ascii_fold_examples() {
     assert_eq!('A', buffer[0]);
 
     assert_eq!("AE", Ascii::fold_to_string('Æ'));
+}
+
+#[test]
+fn test_fold_buffer_offset_preserves_unwritten_slots() {
+    let cases: &[(char, &[char])] = &[('A', &['A']), ('中', &['中']), ('\u{247d}', &['(', '1', '0', ')'])];
+    for &(input, expected) in cases {
+        let mut output = ['#'; 8];
+        let written = Ascii::fold(input, &mut output, 2);
+        assert_eq!(expected.len(), written);
+        assert_eq!(expected, &output[2..2 + written]);
+        assert!(output[..2].iter().all(|&ch| ch == '#'));
+        assert!(output[2 + written..].iter().all(|&ch| ch == '#'));
+    }
+
+    let mut exact = ['#'; 2 + Ascii::MAX_FOLDING_COUNT];
+    assert_eq!(4, Ascii::fold('\u{247d}', &mut exact, 2));
+    assert_eq!(['#', '#', '(', '1', '0', ')'], exact);
+}
+
+#[test]
+fn test_fold_buffer_invalid_capacity_panics_before_writing() {
+    for (len, offset) in [(0, 0), (4, 1), (4, 4), (4, 5), (4, usize::MAX)] {
+        let mut output = vec!['#'; len];
+        let original = output.clone();
+        let result = catch_unwind(AssertUnwindSafe(|| Ascii::fold('A', &mut output, offset)));
+        assert!(result.is_err(), "len={len}, offset={offset}");
+        assert_eq!(original, output, "precondition failure must not write");
+    }
 }
