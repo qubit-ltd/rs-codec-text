@@ -38,6 +38,81 @@ fn reset_for_test<T: Transcoder>(transcoder: &mut T) {
     assert!(transcoder.reset(&mut output, 0).is_ok());
 }
 
+fn run_chunked_backpressure(input: &[u8], controls: &[u8]) -> Vec<u16> {
+    let mut converter = CharsetConverter::from_codecs(Utf8Codec, Utf16U16Codec);
+    assert_eq!(0, converter.reset(&mut [], 0).expect("reset"));
+    let mut control_cursor = 0_usize;
+    let mut next_control = || {
+        let value = if controls.is_empty() {
+            0
+        } else {
+            controls[control_cursor % controls.len()] as usize
+        };
+        control_cursor = control_cursor.wrapping_add(1);
+        value
+    };
+    let mut pending = Vec::new();
+    let mut result = Vec::new();
+    let mut added = 0;
+    let mut consumed = 0;
+    let mut feed = true;
+    let mut eof = false;
+    let mut minimum_window = 0;
+    let mut steps = 0;
+    let max_steps = input.len().saturating_mul(64).saturating_add(128);
+    loop {
+        steps += 1;
+        assert!(steps <= max_steps, "stream did not converge");
+        if feed {
+            if added == input.len() {
+                eof = true;
+            } else {
+                let count = (next_control() % 7 + 1).min(input.len() - added);
+                pending.extend_from_slice(&input[added..added + count]);
+                added += count;
+            }
+            feed = false;
+        }
+        let window = (next_control() % 3).max(minimum_window);
+        minimum_window = 0;
+        let mut output = vec![0_u16; window];
+        let progress = if eof {
+            converter.transcode_eof(&pending, 0, &mut output, 0)
+        } else {
+            converter.transcode(&pending, 0, &mut output, 0)
+        }
+        .expect("Replace accepts arbitrary UTF-8");
+        assert!(progress.read() <= pending.len());
+        assert!(progress.written() <= output.len());
+        consumed += progress.read();
+        result.extend_from_slice(&output[..progress.written()]);
+        pending.drain(..progress.read());
+        match progress.status() {
+            TranscodeStatus::Complete => {
+                assert!(pending.is_empty());
+                if eof {
+                    break;
+                }
+                feed = true;
+            }
+            TranscodeStatus::NeedInput { .. } => {
+                assert!(!eof, "EOF must resolve incomplete input");
+                feed = true;
+            }
+            TranscodeStatus::NeedOutput { required } => {
+                if progress.read() == 0 && progress.written() == 0 {
+                    minimum_window = required.get();
+                }
+            }
+        }
+    }
+    assert_eq!(input.len(), added);
+    assert_eq!(input.len(), consumed);
+    assert!(pending.is_empty());
+    assert_eq!(0, converter.finish(&mut [], 0).expect("finish"));
+    result
+}
+
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 struct AsciiBytesCodec;
 
@@ -1145,4 +1220,79 @@ fn test_charset_converter_converts_available_utf8_to_ascii_without_finish() {
     assert_eq!(4, progress.read());
     assert_eq!(4, progress.written());
     assert_eq!(*b"ABCD", output);
+}
+
+#[test]
+fn test_chunked_backpressure_matches_stdlib_through_eof() {
+    let payloads: &[&[u8]] = &[
+        b"",
+        b"ABC",
+        "A中😀".as_bytes(),
+        &[0xff, b'A', 0xe4, 0xb8],
+        &[0xe2, 0x82],
+        &[0xf0, 0x9f, 0x98, 0x80, 0xc0, 0xaf, b'Z'],
+    ];
+    let schedules: &[&[u8]] = &[&[], &[0], &[1], &[2], &[0, 1, 2, 6, 0, 4]];
+    for input in payloads {
+        let expected: Vec<u16> = String::from_utf8_lossy(input).encode_utf16().collect();
+        for controls in schedules {
+            assert_eq!(
+                expected,
+                run_chunked_backpressure(input, controls),
+                "input={input:02x?}, controls={controls:?}",
+            );
+        }
+    }
+}
+
+#[test]
+fn test_chunked_backpressure_expands_for_non_bmp_output() {
+    let input = "😀".as_bytes();
+    let mut converter = CharsetConverter::from_codecs(Utf8Codec, Utf16U16Codec);
+    reset_for_test(&mut converter);
+    let mut short_output = [0_u16; 1];
+
+    let first = converter
+        .transcode(input, 0, &mut short_output, 0)
+        .expect("one output slot cannot hold a surrogate pair");
+    assert!(matches!(first.status(), TranscodeStatus::NeedOutput { required } if required.get() == 2));
+    assert_eq!(input.len(), first.read());
+    assert_eq!(0, first.written());
+
+    let mut expanded_output = [0_u16; 2];
+    let second = converter
+        .transcode(&input[first.read()..], 0, &mut expanded_output, 0)
+        .expect("retry pending non-BMP output with required capacity");
+    assert_eq!(TranscodeStatus::Complete, second.status());
+    assert_eq!(0, second.read());
+    assert_eq!(2, second.written());
+    assert_eq!(input.len(), first.read() + second.read());
+    assert_eq!(2, first.written() + second.written());
+    assert_eq!("😀".encode_utf16().collect::<Vec<_>>(), expanded_output);
+}
+
+#[test]
+fn test_chunked_backpressure_expands_for_incomplete_eof_tail() {
+    let input = &[0xe2, 0x82];
+    let mut converter = CharsetConverter::from_codecs(Utf8Codec, Utf16U16Codec);
+    reset_for_test(&mut converter);
+    let mut empty_output = [];
+
+    let first = converter
+        .transcode_eof(input, 0, &mut empty_output, 0)
+        .expect("EOF replacement can remain pending under output backpressure");
+    assert!(matches!(first.status(), TranscodeStatus::NeedOutput { required } if required.get() == 1));
+    assert_eq!(input.len(), first.read());
+    assert_eq!(0, first.written());
+
+    let mut expanded_output = [0_u16; 1];
+    let second = converter
+        .transcode_eof(&input[first.read()..], 0, &mut expanded_output, 0)
+        .expect("retry pending EOF replacement with required capacity");
+    assert_eq!(TranscodeStatus::Complete, second.status());
+    assert_eq!(0, second.read());
+    assert_eq!(1, second.written());
+    assert_eq!(input.len(), first.read() + second.read());
+    assert_eq!(1, first.written() + second.written());
+    assert_eq!(0xfffd, expanded_output[0]);
 }

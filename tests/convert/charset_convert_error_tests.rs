@@ -5,8 +5,11 @@
 //
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
+use core::num::NonZeroUsize;
+
 use qubit_codec::TranscodeConvertError;
 use qubit_codec::TranscodeConvertErrorOf;
+use qubit_codec::TranscodeDomainError;
 use qubit_codec::TranscodeFailure;
 use qubit_codec_text::AsciiCodec;
 use qubit_codec_text::Charset;
@@ -17,6 +20,7 @@ use qubit_codec_text::CharsetDecodeErrorKind;
 use qubit_codec_text::CharsetEncodeError;
 use qubit_codec_text::CharsetEncodeErrorKind;
 use qubit_codec_text::Utf8Codec;
+use qubit_codec_text::Utf16U16Codec;
 
 #[test]
 fn test_charset_convert_error_wraps_decode_and_encode_errors() {
@@ -179,4 +183,19 @@ fn test_charset_convert_error_maps_actual_before_reset() {
         )),
         converter.map_transcode_error(failure),
     );
+}
+
+#[test]
+fn test_domain_mapping_keeps_source_but_discards_outer_context() {
+    let source = CharsetDecodeError::new(Charset::UTF_8, CharsetDecodeErrorKind::malformed(0xff), 1);
+    let domain = TranscodeDomainError::main_with_consumed(source, 7, NonZeroUsize::new(2));
+    let mapped = CharsetConvertError::from_transcode_error::<Utf8Codec, Utf16U16Codec>(
+        Charset::UTF_8,
+        Charset::UTF_16,
+        TranscodeConvertError::DecodeDomain(domain),
+    );
+
+    assert_eq!(CharsetConvertError::Decode(source), mapped);
+    assert_eq!(1, source.index());
+    assert_eq!(NonZeroUsize::new(1), source.consumed());
 }

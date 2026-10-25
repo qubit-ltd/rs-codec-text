@@ -255,6 +255,32 @@ treat `NeedInput` as a malformed error: preserve the tail and retry it with
 later input. At EOF, a remaining incomplete sequence is handled by the
 configured policy: replacement, discard, or an error.
 
+`NeedInput` and `NeedOutput` are successful progress states. An `Err` is not a
+transaction boundary: it does not roll back output already written or codec
+state, and it does not provide complete read/written progress. Do not replay the
+original input range unless an explicit recovery protocol permits it. Reset
+starts a new logical stream, but it cannot undo output already delivered to an
+application. Decoder EOF processing and the complete convenience methods can
+also fail after writing an output prefix.
+
+When mapping a transcode error to `CharsetDecodeError`, `CharsetEncodeError`, or
+`CharsetConvertError`, domain source data such as charset, kind, and its own
+index or consumed count is retained. The mapping discards the outer phase and
+the outer `input_index` and `input_consumed`; source-owned index or consumption
+values may differ from those outer fields. Inspect the original error before
+mapping if the outer context is needed, and do not infer a resume position from
+the mapped error. Converter lifecycle failures continue to map to
+`CharsetConvertError::Decode` for compatibility; that does not indicate
+malformed source text.
+
+For an all-or-nothing message boundary, convert into a temporary buffer owned
+by that message and publish it only after the complete conversion succeeds. If
+conversion fails, discard that message's staged output; do not replay its input
+into a live sink based only on the mapped diagnostic. After successful reset,
+process a new message as a new logical stream. For example, an ASCII encoder
+using `Report` can write `A` before returning an error for `中`; that prefix is
+observable in the caller's staging buffer even though the call failed.
+
 ## Troubleshooting
 
 | Symptom | Check |

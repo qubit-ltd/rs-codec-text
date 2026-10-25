@@ -125,6 +125,48 @@ fn test_charset_decode_error_exposes_consumption_and_incomplete_details() {
 }
 
 #[test]
+fn test_consumption_explicit_override_preserves_existing_semantics() {
+    let cases = [
+        (CharsetDecodeErrorKind::malformed(0x80), true),
+        (CharsetDecodeErrorKind::InvalidCodePoint { value: 0x110000 }, true),
+        (
+            CharsetDecodeErrorKind::IncompleteSequence {
+                required: 3,
+                available: 1,
+            },
+            false,
+        ),
+        (CharsetDecodeErrorKind::LifecyclePoisoned, false),
+        (
+            CharsetDecodeErrorKind::BufferTooSmall {
+                required: 2,
+                available: 0,
+            },
+            false,
+        ),
+        (CharsetDecodeErrorKind::InvalidInputIndex { input_len: 1 }, false),
+    ];
+    let count = NonZeroUsize::new(2).expect("two is non-zero");
+    for (kind, default_known) in cases {
+        let original = CharsetDecodeError::new(Charset::UTF_8, kind, 4);
+        assert_eq!(default_known, original.consumed().is_some());
+        if default_known {
+            assert_eq!(NonZeroUsize::new(1), original.consumed());
+        }
+        let error = original.with_consumed(count);
+        assert_eq!(Some(count), error.consumed());
+        assert_eq!(Some(count), error.offset_by(8).consumed());
+        assert_eq!(12, error.offset_by(8).index());
+        let expected = if kind.is_incomplete() {
+            DecodeFailure::incomplete_with_source(error, NonZeroUsize::new(3).expect("three is non-zero"))
+        } else {
+            DecodeFailure::invalid(error, count)
+        };
+        assert_eq!(expected, error.into_codec_failure());
+    }
+}
+
+#[test]
 fn test_charset_decode_error_keeps_buffer_too_small_invalid() {
     let error = CharsetDecodeError::new(
         Charset::UTF_8,

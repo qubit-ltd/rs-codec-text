@@ -58,7 +58,11 @@ impl CharsetEncodeError {
     /// Maps an encoder transcode error into a charset encode error.
     ///
     /// Framework failures and unencodable values are mapped with `charset`;
-    /// codec-domain errors retain their original charset error.
+    /// codec-domain errors retain their source error data. Mapping a domain
+    /// error discards the outer phase, input index, and input-consumption
+    /// metadata; inspect the original transcode error first when that context
+    /// is needed. Source-owned index and consumption values may differ from the
+    /// outer values.
     pub fn from_transcode_error(charset: Charset, error: TranscodeEncodeError<Self, char>) -> Self {
         match error {
             TranscodeEncodeError::Failure(failure) => Self::map_transcode_failure(charset, failure),

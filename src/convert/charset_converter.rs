@@ -45,9 +45,12 @@ use crate::UnmappableAction;
 /// At confirmed EOF, pass the retained suffix to `transcode_eof` and continue
 /// through output backpressure before calling `finish`. A successful finish
 /// closes the stream; reset before starting another one. The complete helper
-/// performs reset and finish itself. Lifecycle errors are not evidence of
-/// malformed source text; see [`CharsetConvertError`] for the compatibility
-/// mapping of those failures. Their core failure variants are
+/// performs reset and finish itself. An error does not roll back prior output
+/// or codec state and does not provide complete progress; reset starts a new
+/// logical stream but cannot undo output already delivered to the application.
+/// Lifecycle errors are
+/// not evidence of malformed source text; see [`CharsetConvertError`] for the
+/// compatibility mapping of those failures. Their core failure variants are
 /// [`qubit_codec::TranscodeFailure::TranscodeBeforeReset`],
 /// [`qubit_codec::TranscodeFailure::FinishBeforeReset`],
 /// [`qubit_codec::TranscodeFailure::TranscodeAfterFinish`],
@@ -424,7 +427,11 @@ where
     /// # Returns
     ///
     /// Returns a [`CharsetConvertError`] carrying this converter's source or
-    /// target charset as appropriate.
+    /// target charset as appropriate. Mapping a domain error preserves the
+    /// source error's own data but discards its outer phase, input index, and
+    /// input-consumption metadata. Inspect the original transcode error before
+    /// mapping it if that context is needed; source-owned index and consumption
+    /// values may differ from the outer values.
     #[inline]
     pub fn map_transcode_error(&self, error: TranscodeConvertErrorOf<D, E>) -> CharsetConvertError {
         CharsetConvertError::from_transcode_error::<D, E>(self.source_charset(), self.target_charset(), error)
@@ -461,7 +468,12 @@ where
     ///
     /// Returns a transcode convert error when source decoding or target
     /// encoding fails, or when framework-level index and capacity checks
-    /// fail.
+    /// fail. An error does not roll back prior output or codec state and does
+    /// not provide complete progress. Do not replay the original input range
+    /// unless an explicit recovery protocol permits it. Reset starts a new
+    /// logical stream; it cannot undo output already delivered to the
+    /// application. See [`qubit_codec::Transcoder::transcode`] for the core
+    /// contract.
     #[inline]
     pub fn transcode(
         &mut self,
@@ -481,7 +493,11 @@ where
     ///
     /// Returns a transcode convert error when EOF source input violates the
     /// configured decode policy, target encoding fails, or framework-level
-    /// index and capacity checks fail.
+    /// index and capacity checks fail. An error may leave output already
+    /// written and codec state changed, and it does not provide complete
+    /// progress. Do not replay the original input range without an explicit
+    /// recovery protocol. Reset cannot undo output already delivered to the
+    /// application.
     #[inline]
     pub fn transcode_eof(
         &mut self,
@@ -501,8 +517,9 @@ where
     /// cannot be encoded or written to the target output buffer. Call this
     /// after EOF input is handled. A preflight index or capacity failure can
     /// be corrected and retried; after finalization starts, a failure may
-    /// change state, so successfully reset before reuse. A successful finish
-    /// closes the stream.
+    /// change state and leave output written, so successfully reset before
+    /// reuse. A successful finish closes the stream. Reset cannot undo output
+    /// already delivered to the application.
     #[inline]
     pub fn finish(
         &mut self,
@@ -520,7 +537,10 @@ where
     ///
     /// Returns a transcode convert error when source decoding or target
     /// encoding fails under the configured policies, or when the supplied
-    /// output buffer is too small.
+    /// output buffer is too small. Failure may leave an output prefix and
+    /// changed codec state; the error does not provide complete progress.
+    /// Reset cannot undo output already delivered to the application, so stage
+    /// output when the complete result must be published atomically.
     #[inline]
     pub fn transcode_complete_into(
         &mut self,

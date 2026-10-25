@@ -31,6 +31,9 @@ use crate::UnmappableAction;
 /// drain output and resume from the reported progress. A successful `finish`
 /// closes the stream; reset before starting another one. The complete helper
 /// performs reset and finish itself.
+/// An error does not roll back prior output or encoder state and does not
+/// provide complete progress; reset starts a new logical stream but cannot
+/// undo output already delivered to the application.
 /// Lifecycle misuse is reported with lifecycle-specific
 /// [`crate::CharsetEncodeErrorKind`] values; it is distinct from unmappable
 /// input and policy-reported encode errors. The corresponding core failures are
@@ -57,6 +60,29 @@ use crate::UnmappableAction;
 ///     .transcode_complete_into(&['h', 'e', 'l', 'l', 'o'], &mut output)
 ///     .expect("UTF-8 encoding succeeds");
 /// assert_eq!(&output[..written], b"hello");
+/// ```
+///
+/// A reported error can occur after a valid output prefix has been written.
+/// This example stages one message locally, publishes it only after complete
+/// success, and discards the staging buffer on failure. The error does not
+/// provide complete progress and does not imply that every failure writes one
+/// byte.
+///
+/// ```
+/// use qubit_codec_text::AsciiCodec;
+/// use qubit_codec_text::CharsetEncodePolicy;
+/// use qubit_codec_text::CharsetEncoder;
+///
+/// let mut encoder = CharsetEncoder::with_policy(AsciiCodec, CharsetEncodePolicy::report())
+///     .expect("Report needs no encodable replacement");
+/// let mut output = [0_u8; 4];
+/// encoder.reset(&mut output, 0).expect("reset");
+/// let error = encoder.transcode(&['A', '中'], 0, &mut output, 0)
+///     .expect_err("ASCII cannot encode the second character");
+/// assert_eq!(b'A', output[0]);
+/// let _diagnostic = encoder.map_transcode_error(error);
+/// // This buffer is message-local staging. Publish it only after complete success.
+/// // On failure discard this message's staging; do not replay it into a live sink.
 /// ```
 #[derive(Debug)]
 pub struct CharsetEncoder<C>
@@ -264,7 +290,12 @@ where
     /// Returns a transcode encode error for invalid indices, a character that
     /// is unmappable under the configured `Report` policy, or another
     /// encode-domain failure. Output backpressure is reported through
-    /// `NeedOutput`, not as an error.
+    /// `NeedOutput`, not as an error. An error does not roll back prior output
+    /// or codec state and does not provide complete progress. Do not replay
+    /// the original input range unless an explicit recovery protocol permits
+    /// it. Reset starts a new logical stream; it cannot undo output already
+    /// delivered to the application. See
+    /// [`qubit_codec::Transcoder::transcode`] for the core contract.
     #[inline]
     pub fn transcode(
         &mut self,
@@ -279,8 +310,11 @@ where
     /// Maps an encoder transcode error into a charset encode error.
     ///
     /// Framework failures and unencodable values are attached to this
-    /// encoder's charset. Codec-domain errors retain their original charset
-    /// error.
+    /// encoder's charset. Codec-domain errors retain their source data, but
+    /// mapping a domain error discards its outer phase, input index, and
+    /// input-consumption metadata. Inspect the original transcode error before
+    /// mapping it if that context is needed; source-owned index and consumption
+    /// values may differ from the outer values.
     #[inline]
     pub fn map_transcode_error(&self, error: TranscodeEncodeErrorOf<C>) -> CharsetEncodeError {
         CharsetEncodeError::from_transcode_error(self.charset(), error)
@@ -294,8 +328,9 @@ where
     /// written or when the codec reports a final encode-domain error. Call
     /// this after all input has been encoded. A preflight index or capacity
     /// failure can be corrected and retried; after finalization starts, a
-    /// failure may change state, so successfully reset before reuse. A
-    /// successful finish closes the stream.
+    /// failure may change state and leave output written, so successfully
+    /// reset before reuse. A successful finish closes the stream. Reset cannot
+    /// undo output already delivered to the application.
     #[inline]
     pub fn finish(&mut self, output: &mut [C::Unit], output_index: usize) -> Result<usize, TranscodeEncodeErrorOf<C>> {
         self.engine.finish(output, output_index)
@@ -309,7 +344,11 @@ where
     ///
     /// Returns a transcode encode error when the supplied output buffer is too
     /// small, a character cannot be represented under the configured policy,
-    /// or the codec reports a charset-domain encode error.
+    /// or the codec reports a charset-domain encode error. Failure may leave an
+    /// output prefix and changed codec state; the error does not provide
+    /// complete progress. Reset cannot undo output already delivered to the
+    /// application, so stage output when the complete result must be published
+    /// atomically.
     #[inline]
     pub fn transcode_complete_into(
         &mut self,

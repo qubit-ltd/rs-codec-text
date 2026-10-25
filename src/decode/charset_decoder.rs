@@ -40,6 +40,9 @@ use crate::UnicodeBom;
 /// the caller to drain output and resume from the reported progress. A
 /// successful `finish` closes the stream; reset before starting another one.
 /// The complete helper performs reset and finish itself.
+/// An error does not roll back prior output or decoder state and does not
+/// provide complete progress; reset starts a new logical stream but cannot
+/// undo output already delivered to the application.
 /// Lifecycle misuse is reported with lifecycle-specific
 /// [`crate::CharsetDecodeErrorKind`] values; it is distinct from malformed
 /// input and policy-reported decode errors. The corresponding core failures are
@@ -236,6 +239,12 @@ where
     /// Returns a transcode decode error for invalid indices, malformed input
     /// under the configured `Report` policy, or another decode-domain failure.
     /// Output backpressure is reported through `NeedOutput`, not as an error.
+    /// An error does not roll back prior output or codec state and does not
+    /// provide complete progress. Do not replay the original input range
+    /// unless an explicit recovery protocol permits it. Reset starts a new
+    /// logical stream; it cannot undo output already delivered to the
+    /// application. See [`qubit_codec::Transcoder::transcode`] for the core
+    /// contract.
     #[inline]
     pub fn transcode(
         &mut self,
@@ -253,6 +262,11 @@ where
     /// configured malformed-input policy.
     /// Keep calling after `NeedOutput` until EOF input and pending output have
     /// been handled. Do not use `finish` to process an input tail.
+    /// An error may leave decoded output already written and codec state
+    /// changed. It does not provide complete progress; do not replay the
+    /// original input range without an explicit recovery protocol. Reset
+    /// starts a new logical stream but cannot undo output already delivered
+    /// to the application. See [`qubit_codec::Transcoder::transcode`].
     ///
     /// # Parameters
     ///
@@ -274,7 +288,11 @@ where
     /// Maps a decoder transcode error into a charset decode error.
     ///
     /// Framework failures are attached to this decoder's charset. Codec-domain
-    /// errors retain their original charset error.
+    /// errors retain their source data, but mapping a domain error discards
+    /// its outer phase, input index, and input-consumption metadata. Inspect
+    /// the original transcode error before mapping it if that context is
+    /// needed; source-owned index and consumption values may differ from the
+    /// outer values.
     #[inline]
     pub fn map_transcode_error(&self, error: TranscodeDecodeErrorOf<C>) -> CharsetDecodeError {
         CharsetDecodeError::from_transcode_error(self.charset(), error)
@@ -293,8 +311,9 @@ where
     /// written or when the codec reports a final decode-domain error. Call
     /// this after EOF input has been handled. A preflight index or capacity
     /// failure can be corrected and retried; after finalization starts, a
-    /// failure may change state, so successfully reset before reuse. A
-    /// successful finish closes the stream.
+    /// failure may change state and leave output written, so successfully
+    /// reset before reuse. A successful finish closes the stream. Reset cannot
+    /// undo output already delivered to the application.
     #[inline]
     pub fn finish(&mut self, output: &mut [char], output_index: usize) -> Result<usize, TranscodeDecodeErrorOf<C>> {
         self.engine.finish(output, output_index)
@@ -314,7 +333,11 @@ where
     ///
     /// Returns a transcode decode error when the supplied output buffer is too
     /// small, the configured policy reports an incomplete sequence, or the
-    /// codec reports another charset-domain decode error.
+    /// codec reports another charset-domain decode error. Failure may leave an
+    /// output prefix and changed codec state; the error does not provide
+    /// complete progress. Reset cannot undo output already delivered to the
+    /// application, so stage output when the complete result must be published
+    /// atomically.
     #[inline]
     pub fn transcode_complete_into(
         &mut self,

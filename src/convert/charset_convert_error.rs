@@ -64,7 +64,10 @@ impl CharsetConvertError {
     ///
     /// Returns a source [`Self::Decode`] error for source failures and a target
     /// [`Self::Encode`] error for target failures. Domain errors retain their
-    /// original charset context.
+    /// source error data but lose the outer phase, input index, and
+    /// input-consumption metadata. Inspect the original transcode error before
+    /// mapping it when that context is needed; source-owned index and
+    /// consumption values may differ from the outer values.
     pub fn from_transcode_error<D, E>(
         source_charset: Charset,
         target_charset: Charset,

@@ -228,6 +228,24 @@ assert_eq!(0, decoder.finish(&mut output, 1).expect("finish"));
 `NeedInput` 不是畸形错误：保留尾部并在后续输入到达后重试。EOF 后仍残留的不完整序列
 会按照已配置的策略处理：替换、丢弃或返回错误。
 
+`NeedInput` 和 `NeedOutput` 是携带进度的成功状态。`Err` 不构成事务边界：它不会回滚
+已写输出或 codec 状态，也不提供完整的已读/已写进度。除非明确的恢复协议允许，否则不要
+重放原调用的输入范围。reset 会开始新的逻辑流，但无法撤销已经交付给应用的输出。解码器
+EOF 处理和完整便捷方法也可能在写出输出前缀后失败。
+
+将转码错误映射为 `CharsetDecodeError`、`CharsetEncodeError` 或 `CharsetConvertError` 时，
+会保留领域错误自身的数据，例如 charset、kind、自身下标或 consumed 数；映射会丢弃外层
+phase、`input_index` 和 `input_consumed`。领域错误自带的下标或消费数可能与这些外层字段
+不同。若需要外层上下文，请在映射前检查原始错误；不要根据映射后的错误推断续传位置。
+为兼容性，converter 生命周期错误仍映射为 `CharsetConvertError::Decode`，这不表示源文本
+畸形。
+
+如果业务要求整条消息要么全部发布、要么全部丢弃，应先转换到该消息专用的临时缓冲区，
+仅在完整转换成功后发布。转换失败时丢弃该消息的暂存输出；不要仅凭映射后的诊断把输入
+重放到正在使用的 sink。成功 reset 后，再把新消息作为新的逻辑流处理。例如，ASCII encoder
+使用 `Report` 处理 `A中` 时，可能先将 `A` 写入调用方的暂存缓冲区，再对 `中` 返回错误；
+即使调用失败，该前缀仍然可以观察到。
+
 ## 排障
 
 | 现象 | 检查方式 |

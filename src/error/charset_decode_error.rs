@@ -70,7 +70,10 @@ impl CharsetDecodeError {
     /// Maps a decoder transcode error into a charset decode error.
     ///
     /// Framework failures are mapped with `charset`; codec-domain errors retain
-    /// their original charset error.
+    /// their source error data. Mapping a domain error discards the outer
+    /// phase, input index, and input-consumption metadata; inspect the original
+    /// transcode error first when that context is needed. Source-owned index
+    /// and consumption values may differ from the outer values.
     ///
     /// # Returns
     ///
@@ -157,6 +160,9 @@ impl CharsetDecodeError {
     ///   position for input errors, or an output-character position for output
     ///   index and capacity errors.
     ///
+    /// Malformed input and invalid code-point errors default to a consumption
+    /// count of one. All other kinds default to no consumption metadata.
+    ///
     /// # Returns
     ///
     /// Returns a decoding error carrying the supplied context.
@@ -185,11 +191,17 @@ impl CharsetDecodeError {
         }
     }
 
-    /// Returns a copy of this error with invalid-input consumption context.
+    /// Returns a copy of this error with an explicit consumption count.
     ///
     /// # Parameters
     ///
-    /// - `consumed`: Number of units that may be consumed to make progress.
+    /// - `consumed`: Number of units supplied by the caller as consumption
+    ///   metadata.
+    ///
+    /// This overrides the default metadata for any error kind. The caller is
+    /// responsible for ensuring that the count is valid for the input and its
+    /// recovery protocol. This metadata does not make input safe to skip for
+    /// lifecycle or other non-input errors.
     ///
     /// # Returns
     ///
@@ -206,6 +218,11 @@ impl CharsetDecodeError {
 
     /// Converts this error into the failure type returned by
     /// [`qubit_codec::Codec::decode`].
+    ///
+    /// Incomplete input takes precedence over consumption metadata and remains
+    /// an incomplete failure even when an explicit count was supplied. Other
+    /// kinds use the stored count to select an invalid failure, or become an
+    /// invalid-unknown failure when no count is present.
     ///
     /// # Panics
     ///
@@ -300,13 +317,14 @@ impl CharsetDecodeError {
         self.kind.value()
     }
 
-    /// Returns units that may be consumed after this invalid-input error.
+    /// Returns the stored consumption metadata, if any.
     ///
     /// # Returns
     ///
-    /// Returns `Some(consumed)` for malformed and invalid-code-point input, or
-    /// `None` for all other kinds, including incomplete input and lifecycle
-    /// failures.
+    /// Returns the stored consumption metadata. A newly constructed malformed
+    /// or invalid-code-point error defaults to `Some(1)`; other newly
+    /// constructed kinds default to `None`. An explicit value supplied through
+    /// [`Self::with_consumed`] is returned for any kind.
     #[inline]
     pub const fn consumed(self) -> Option<NonZeroUsize> {
         self.consumed
