@@ -140,15 +140,17 @@ impl Codec for Utf16ByteCodec {
 
     #[inline]
     unsafe fn decode(&mut self, input: &[u8], input_index: usize) -> CharsetCodecDecodeResult<(char, NonZeroUsize)> {
-        let (ch, consumed) =
-            decode_bytes_prefix(input, input_index, self.byte_order).map_err(CharsetDecodeError::into_codec_failure)?;
+        // SAFETY: Codec::decode requires the two-byte minimum readable unit.
+        let (ch, consumed) = unsafe { decode_bytes_prefix(input, input_index, self.byte_order) }
+            .map_err(CharsetDecodeError::into_codec_failure)?;
         debug_assert!(consumed.get() <= input.len().saturating_sub(input_index));
         Ok((ch, consumed))
     }
 
     #[inline]
     unsafe fn encode(&mut self, ch: &char, output: &mut [u8], output_index: usize) -> CharsetEncodeResult<usize> {
-        let written = encode_bytes_char(*ch, output, self.byte_order, output_index);
+        // SAFETY: Codec::encode guarantees encode_len(ch) writable bytes.
+        let written = unsafe { encode_bytes_char(*ch, output, self.byte_order, output_index) };
         debug_assert_eq!(written, ch.len_utf16() * 2);
         debug_assert!(written <= output.len().saturating_sub(output_index));
         Ok(written)
@@ -182,18 +184,28 @@ impl Codec for Utf16ByteCodec {
 ///   scalar value.
 /// * `CharsetDecodeErrorKind::IncompleteSequence` when EOF appears before a
 ///   complete UTF-16 unit or surrogate pair is available.
+///
+/// # Safety
+///
+/// `input` must contain at least two readable bytes starting at `index`.
 #[inline]
-fn decode_bytes_prefix(input: &[u8], index: usize, byte_order: ByteOrder) -> CharsetDecodeResult<(char, NonZeroUsize)> {
+unsafe fn decode_bytes_prefix(
+    input: &[u8],
+    index: usize,
+    byte_order: ByteOrder,
+) -> CharsetDecodeResult<(char, NonZeroUsize)> {
     let charset = Charset::from_utf16_byte_order(byte_order);
     debug_assert!(SliceRange::range_fits(input.len(), index, 2));
     let available = input.len() - index;
-    let first = read_ordered_u16(input, index, byte_order);
+    // SAFETY: The two-byte minimum range was established by Codec::decode.
+    let first = unsafe { read_ordered_u16(input, index, byte_order) };
     if Utf16::is_high_surrogate(first) {
         if available < 4 {
             let kind = CharsetDecodeErrorKind::IncompleteSequence { required: 4, available };
             return Err(CharsetDecodeError::new(charset, kind, index));
         }
-        let second = read_ordered_u16(input, index + 2, byte_order);
+        // SAFETY: available >= 4 establishes the full pair and non-overflowing offset.
+        let second = unsafe { read_ordered_u16(input, index + 2, byte_order) };
         match Utf16::compose_pair(first, second).and_then(Unicode::to_char) {
             Some(ch) => Ok((ch, nonzero(4))),
             None => {
@@ -222,20 +234,28 @@ fn decode_bytes_prefix(input: &[u8], index: usize, byte_order: ByteOrder) -> Cha
 ///
 /// # Returns
 ///
-/// `Ok(usize)` with the number of bytes written (`2` for BMP, `4` for
-/// supplementary).
+/// The number of bytes written (`2` for BMP, `4` for supplementary).
+///
+/// # Safety
+///
+/// `output` must have `Utf16::unit_len(ch) * 2` writable bytes starting at
+/// `index`.
 #[inline]
-fn encode_bytes_char(ch: char, output: &mut [u8], byte_order: ByteOrder, index: usize) -> usize {
+unsafe fn encode_bytes_char(ch: char, output: &mut [u8], byte_order: ByteOrder, index: usize) -> usize {
     let required = Utf16::unit_len(ch) * 2;
     debug_assert!(SliceRange::range_fits(output.len(), index, required));
     let code_point = ch as u32;
     if required == 2 {
-        write_ordered_u16(output, index, code_point as u16, byte_order);
+        // SAFETY: The required output range contains the first UTF-16 unit.
+        unsafe { write_ordered_u16(output, index, code_point as u16, byte_order) };
     } else {
         let high = Utf16::high_surrogate(code_point).expect("supplementary scalar has high surrogate");
         let low = Utf16::low_surrogate(code_point).expect("supplementary scalar has low surrogate");
-        write_ordered_u16(output, index, high, byte_order);
-        write_ordered_u16(output, index + 2, low, byte_order);
+        // SAFETY: The four-byte output range contains the first unit.
+        unsafe { write_ordered_u16(output, index, high, byte_order) };
+        // SAFETY: The four-byte output range contains the second unit and prevents
+        // offset overflow.
+        unsafe { write_ordered_u16(output, index + 2, low, byte_order) };
     }
     required
 }
@@ -252,15 +272,17 @@ fn encode_bytes_char(ch: char, output: &mut [u8], byte_order: ByteOrder, index: 
 /// # Returns
 ///
 /// Returns the decoded UTF-16 unit.
+///
+/// # Safety
+///
+/// `input` must have two readable bytes starting at `index`.
 #[inline]
-fn read_ordered_u16(input: &[u8], index: usize, byte_order: ByteOrder) -> u16 {
-    // SAFETY: The caller guarantees that two bytes are readable from `index`.
-    let bytes = unsafe {
-        [
-            UncheckedSlice::read(input, index),
-            UncheckedSlice::read(input, index + 1),
-        ]
-    };
+unsafe fn read_ordered_u16(input: &[u8], index: usize, byte_order: ByteOrder) -> u16 {
+    // SAFETY: The required two-byte range includes its first byte.
+    let first = unsafe { UncheckedSlice::read(input, index) };
+    // SAFETY: The required two-byte range includes index + 1 without overflow.
+    let second = unsafe { UncheckedSlice::read(input, index + 1) };
+    let bytes = [first, second];
     match byte_order {
         ByteOrder::BigEndian => u16::from_be_bytes(bytes),
         ByteOrder::LittleEndian => u16::from_le_bytes(bytes),
@@ -277,16 +299,19 @@ fn read_ordered_u16(input: &[u8], index: usize, byte_order: ByteOrder) -> u16 {
 ///   writable from this offset.
 /// - `unit`: UTF-16 unit to write.
 /// - `byte_order`: Byte order used to serialize the unit.
+///
+/// # Safety
+///
+/// `output` must have two writable bytes starting at `index`.
 #[inline]
-fn write_ordered_u16(output: &mut [u8], index: usize, unit: u16, byte_order: ByteOrder) {
+unsafe fn write_ordered_u16(output: &mut [u8], index: usize, unit: u16, byte_order: ByteOrder) {
     let bytes = match byte_order {
         ByteOrder::BigEndian => unit.to_be_bytes(),
         ByteOrder::LittleEndian => unit.to_le_bytes(),
         ByteOrder::NativeEndian => unit.to_ne_bytes(),
     };
-    // SAFETY: The caller guarantees that two bytes are writable from `index`.
-    unsafe {
-        UncheckedSlice::write(output, index, bytes[0]);
-        UncheckedSlice::write(output, index + 1, bytes[1]);
-    }
+    // SAFETY: The required two-byte range includes its first byte.
+    unsafe { UncheckedSlice::write(output, index, bytes[0]) };
+    // SAFETY: The required two-byte range includes index + 1 without overflow.
+    unsafe { UncheckedSlice::write(output, index + 1, bytes[1]) };
 }

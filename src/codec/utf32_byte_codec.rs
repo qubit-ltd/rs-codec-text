@@ -137,15 +137,17 @@ impl Codec for Utf32ByteCodec {
         input: &[u8],
         input_index: usize,
     ) -> CharsetCodecDecodeResult<(char, core::num::NonZeroUsize)> {
-        let (ch, consumed) =
-            decode_bytes_prefix(input, input_index, self.byte_order).map_err(CharsetDecodeError::into_codec_failure)?;
+        // SAFETY: Codec::decode requires four readable bytes.
+        let (ch, consumed) = unsafe { decode_bytes_prefix(input, input_index, self.byte_order) }
+            .map_err(CharsetDecodeError::into_codec_failure)?;
         debug_assert!(consumed.get() <= input.len().saturating_sub(input_index));
         Ok((ch, consumed))
     }
 
     #[inline]
     unsafe fn encode(&mut self, ch: &char, output: &mut [u8], output_index: usize) -> CharsetEncodeResult<usize> {
-        let written = encode_bytes_char(*ch, output, self.byte_order, output_index);
+        // SAFETY: Codec::encode guarantees encode_len(ch) writable bytes.
+        let written = unsafe { encode_bytes_char(*ch, output, self.byte_order, output_index) };
         debug_assert_eq!(written, Utf32::MAX_BYTES_PER_CHAR);
         debug_assert!(written <= output.len().saturating_sub(output_index));
         Ok(Utf32::MAX_BYTES_PER_CHAR)
@@ -172,15 +174,20 @@ impl Codec for Utf32ByteCodec {
 ///   valid scalar. UTF-32 stores a numeric scalar value directly, so surrogate
 ///   code points and values above `0x10FFFF` are reported as invalid code
 ///   points instead of malformed multi-unit structure.
+///
+/// # Safety
+///
+/// `input` must have four readable bytes starting at `index`.
 #[inline]
-fn decode_bytes_prefix(
+unsafe fn decode_bytes_prefix(
     input: &[u8],
     index: usize,
     byte_order: ByteOrder,
 ) -> CharsetDecodeResult<(char, core::num::NonZeroUsize)> {
     let charset = Charset::from_utf32_byte_order(byte_order);
     debug_assert!(SliceRange::range_fits(input.len(), index, 4));
-    let unit = read_ordered_u32(input, index, byte_order);
+    // SAFETY: The four-byte minimum range was established by Codec::decode.
+    let unit = unsafe { read_ordered_u32(input, index, byte_order) };
     match Unicode::to_char(unit) {
         Some(ch) => Ok((ch, nonzero(4))),
         None => {
@@ -201,12 +208,17 @@ fn decode_bytes_prefix(
 ///
 /// # Returns
 ///
-/// `Ok(4)` on success, because UTF-32 always occupies exactly four bytes.
+/// Returns the number of bytes written, always four for UTF-32.
+///
+/// # Safety
+///
+/// `output` must have four writable bytes starting at `index`.
 #[inline]
-fn encode_bytes_char(ch: char, output: &mut [u8], byte_order: ByteOrder, index: usize) -> usize {
+unsafe fn encode_bytes_char(ch: char, output: &mut [u8], byte_order: ByteOrder, index: usize) -> usize {
     let required = Utf32::MAX_BYTES_PER_CHAR;
     debug_assert!(SliceRange::range_fits(output.len(), index, required));
-    write_ordered_u32(output, index, ch as u32, byte_order);
+    // SAFETY: The required four-byte range includes the serialized unit.
+    unsafe { write_ordered_u32(output, index, ch as u32, byte_order) };
     required
 }
 
@@ -222,17 +234,21 @@ fn encode_bytes_char(ch: char, output: &mut [u8], byte_order: ByteOrder, index: 
 /// # Returns
 ///
 /// Returns the decoded UTF-32 unit.
+///
+/// # Safety
+///
+/// `input` must have four readable bytes starting at `index`.
 #[inline]
-fn read_ordered_u32(input: &[u8], index: usize, byte_order: ByteOrder) -> u32 {
-    // SAFETY: The caller guarantees that four bytes are readable from `index`.
-    let bytes = unsafe {
-        [
-            UncheckedSlice::read(input, index),
-            UncheckedSlice::read(input, index + 1),
-            UncheckedSlice::read(input, index + 2),
-            UncheckedSlice::read(input, index + 3),
-        ]
-    };
+unsafe fn read_ordered_u32(input: &[u8], index: usize, byte_order: ByteOrder) -> u32 {
+    // SAFETY: The required four-byte range includes its first byte.
+    let first = unsafe { UncheckedSlice::read(input, index) };
+    // SAFETY: The required four-byte range includes index + 1 without overflow.
+    let second = unsafe { UncheckedSlice::read(input, index + 1) };
+    // SAFETY: The required four-byte range includes index + 2 without overflow.
+    let third = unsafe { UncheckedSlice::read(input, index + 2) };
+    // SAFETY: The required four-byte range includes index + 3 without overflow.
+    let fourth = unsafe { UncheckedSlice::read(input, index + 3) };
+    let bytes = [first, second, third, fourth];
     match byte_order {
         ByteOrder::BigEndian => u32::from_be_bytes(bytes),
         ByteOrder::LittleEndian => u32::from_le_bytes(bytes),
@@ -249,18 +265,23 @@ fn read_ordered_u32(input: &[u8], index: usize, byte_order: ByteOrder) -> u32 {
 ///   writable from this offset.
 /// - `unit`: UTF-32 unit to write.
 /// - `byte_order`: Byte order used to serialize the unit.
+///
+/// # Safety
+///
+/// `output` must have four writable bytes starting at `index`.
 #[inline]
-fn write_ordered_u32(output: &mut [u8], index: usize, unit: u32, byte_order: ByteOrder) {
+unsafe fn write_ordered_u32(output: &mut [u8], index: usize, unit: u32, byte_order: ByteOrder) {
     let bytes = match byte_order {
         ByteOrder::BigEndian => unit.to_be_bytes(),
         ByteOrder::LittleEndian => unit.to_le_bytes(),
         ByteOrder::NativeEndian => unit.to_ne_bytes(),
     };
-    // SAFETY: The caller guarantees that four bytes are writable from `index`.
-    unsafe {
-        UncheckedSlice::write(output, index, bytes[0]);
-        UncheckedSlice::write(output, index + 1, bytes[1]);
-        UncheckedSlice::write(output, index + 2, bytes[2]);
-        UncheckedSlice::write(output, index + 3, bytes[3]);
-    }
+    // SAFETY: The required four-byte range includes its first byte.
+    unsafe { UncheckedSlice::write(output, index, bytes[0]) };
+    // SAFETY: The required four-byte range includes index + 1 without overflow.
+    unsafe { UncheckedSlice::write(output, index + 1, bytes[1]) };
+    // SAFETY: The required four-byte range includes index + 2 without overflow.
+    unsafe { UncheckedSlice::write(output, index + 2, bytes[2]) };
+    // SAFETY: The required four-byte range includes index + 3 without overflow.
+    unsafe { UncheckedSlice::write(output, index + 3, bytes[3]) };
 }

@@ -99,14 +99,17 @@ impl Codec for Utf8Codec {
 
     #[inline]
     unsafe fn decode(&mut self, input: &[u8], input_index: usize) -> CharsetCodecDecodeResult<(char, NonZeroUsize)> {
-        let (ch, consumed) = decode_prefix(input, input_index).map_err(CharsetDecodeError::into_codec_failure)?;
+        // SAFETY: Codec::decode requires at least MIN_UNITS_PER_VALUE (one byte).
+        let (ch, consumed) =
+            unsafe { decode_prefix(input, input_index) }.map_err(CharsetDecodeError::into_codec_failure)?;
         debug_assert!(consumed.get() <= input.len().saturating_sub(input_index));
         Ok((ch, consumed))
     }
 
     #[inline]
     unsafe fn encode(&mut self, ch: &char, output: &mut [u8], output_index: usize) -> CharsetEncodeResult<usize> {
-        let written = encode_char(*ch, output, output_index);
+        // SAFETY: Codec::encode guarantees encode_len(ch) writable bytes.
+        let written = unsafe { encode_char(*ch, output, output_index) };
         debug_assert_eq!(written, Utf8::byte_len(*ch));
         debug_assert!(written <= output.len().saturating_sub(output_index));
         Ok(written)
@@ -117,7 +120,7 @@ impl Codec for Utf8Codec {
 /// `index`.
 ///
 /// The caller provides at least one readable byte from `index`, matching
-/// [`Codec::MIN_UNITS_PER_VALUE`](qubit_codec::Codec::MIN_UNITS_PER_VALUE).
+/// [`Codec::MIN_UNITS_PER_VALUE`].
 /// The helper checks the width indicated by a multibyte leading byte before
 /// reading continuation bytes. A truncated sequence returns
 /// [`CharsetDecodeErrorKind::IncompleteSequence`]; single-byte characters are
@@ -138,8 +141,12 @@ impl Codec for Utf8Codec {
 ///   continuation bytes are invalid for UTF-8.
 /// * `CharsetDecodeErrorKind::IncompleteSequence` when EOF appears before the
 ///   complete UTF-8 sequence is available.
+///
+/// # Safety
+///
+/// `index` must be strictly smaller than `input.len()`.
 #[inline]
-fn decode_prefix(input: &[u8], index: usize) -> CharsetDecodeResult<(char, NonZeroUsize)> {
+unsafe fn decode_prefix(input: &[u8], index: usize) -> CharsetDecodeResult<(char, NonZeroUsize)> {
     debug_assert!(index < input.len());
     // SAFETY: The caller guarantees that at least one byte is readable from
     // `index`.
@@ -152,7 +159,8 @@ fn decode_prefix(input: &[u8], index: usize) -> CharsetDecodeResult<(char, NonZe
         }
     };
     if !SliceRange::range_fits(input.len(), index, length) {
-        validate_partial(input, index)?;
+        // SAFETY: The helper's one-byte minimum range was established above.
+        unsafe { validate_partial(input, index)? };
         let kind = CharsetDecodeErrorKind::IncompleteSequence {
             required: length,
             available: input.len() - index,
@@ -161,9 +169,18 @@ fn decode_prefix(input: &[u8], index: usize) -> CharsetDecodeResult<(char, NonZe
     }
     let code_point = match length {
         1 => first as u32,
-        2 => decode_two(input, index)?,
-        3 => decode_three(input, index)?,
-        4 => decode_four(input, index)?,
+        2 => {
+            // SAFETY: range_fits above established the complete two-byte sequence.
+            unsafe { decode_two(input, index)? }
+        }
+        3 => {
+            // SAFETY: range_fits above established the complete three-byte sequence.
+            unsafe { decode_three(input, index)? }
+        }
+        4 => {
+            // SAFETY: range_fits above established the complete four-byte sequence.
+            unsafe { decode_four(input, index)? }
+        }
         _ => unreachable!("UTF-8 sequence length is limited to four bytes"),
     };
     let ch = Unicode::to_char(code_point).expect("well-formed UTF-8 decodes to a Unicode scalar");
@@ -184,12 +201,16 @@ fn decode_prefix(input: &[u8], index: usize) -> CharsetDecodeResult<(char, NonZe
 ///
 /// # Returns
 ///
-/// `Ok(usize)` with the number of UTF-8 bytes written (`1..=4`).
+/// The number of UTF-8 bytes written (`1..=4`).
+///
+/// # Safety
+///
+/// `output` must have `Utf8::byte_len(ch)` writable bytes starting at `index`.
 #[inline]
-fn encode_char(ch: char, output: &mut [u8], index: usize) -> usize {
+unsafe fn encode_char(ch: char, output: &mut [u8], index: usize) -> usize {
     let length = Utf8::byte_len(ch);
-    // SAFETY: The caller guarantees that `length` bytes are writable from
-    // `index`; `encode_utf8` writes directly into that checked range.
+    // SAFETY: The helper precondition guarantees `length` writable bytes from
+    // `index`, and `subslice_mut` constructs exactly that range.
     let target = unsafe { UncheckedSlice::subslice_mut(output, index, length) };
     ch.encode_utf8(target);
     length
@@ -210,10 +231,17 @@ fn encode_char(ch: char, output: &mut [u8], index: usize) -> usize {
 ///
 /// * `CharsetDecodeErrorKind::MalformedSequence` when the second byte is not a
 ///   valid UTF-8 continuation byte.
+///
+/// # Safety
+///
+/// `input` must contain the complete two-byte sequence starting at `index`,
+/// with a valid two-byte UTF-8 leading byte at `index`.
 #[inline]
-fn decode_two(input: &[u8], index: usize) -> CharsetDecodeResult<u32> {
-    let first = byte_at(input, index);
-    let second = validate_second_byte(input, index)?;
+unsafe fn decode_two(input: &[u8], index: usize) -> CharsetDecodeResult<u32> {
+    // SAFETY: The required complete two-byte sequence includes its first byte.
+    let first = unsafe { byte_at(input, index) };
+    // SAFETY: The required complete two-byte sequence includes both bytes.
+    let second = unsafe { validate_second_byte(input, index)? };
     Ok((((first & 0x1f) as u32) << 6) | ((second & 0x3f) as u32))
 }
 
@@ -231,13 +259,19 @@ fn decode_two(input: &[u8], index: usize) -> CharsetDecodeResult<u32> {
 ///
 /// `Ok(())` if currently available bytes are structurally valid, otherwise a
 /// decoding error describing the first malformed position.
+///
+/// # Safety
+///
+/// `index` must be strictly smaller than `input.len()`.
 #[inline]
-fn validate_partial(input: &[u8], index: usize) -> CharsetDecodeResult<()> {
+unsafe fn validate_partial(input: &[u8], index: usize) -> CharsetDecodeResult<()> {
     if SliceRange::range_fits(input.len(), index, 2) {
-        validate_second_byte(input, index)?;
+        // SAFETY: range_fits established two readable bytes.
+        unsafe { validate_second_byte(input, index)? };
     }
     if SliceRange::range_fits(input.len(), index, 3) {
-        validate_continuation_byte(input, index, 2)?;
+        // SAFETY: range_fits established three readable bytes.
+        unsafe { validate_continuation_byte(input, index, 2)? };
     }
     Ok(())
 }
@@ -280,11 +314,19 @@ fn is_valid_second_byte(first: u8, second: u8) -> bool {
 ///
 /// * `CharsetDecodeErrorKind::MalformedSequence` when the second or third byte
 ///   is invalid.
+///
+/// # Safety
+///
+/// `input` must contain the complete three-byte sequence starting at `index`,
+/// with a valid three-byte UTF-8 leading byte at `index`.
 #[inline]
-fn decode_three(input: &[u8], index: usize) -> CharsetDecodeResult<u32> {
-    let first = byte_at(input, index);
-    let second = validate_second_byte(input, index)?;
-    let third = validate_continuation_byte(input, index, 2)?;
+unsafe fn decode_three(input: &[u8], index: usize) -> CharsetDecodeResult<u32> {
+    // SAFETY: The complete sequence range includes its first byte.
+    let first = unsafe { byte_at(input, index) };
+    // SAFETY: The complete sequence range includes its first two bytes.
+    let second = unsafe { validate_second_byte(input, index)? };
+    // SAFETY: The complete sequence range includes byte offset 2.
+    let third = unsafe { validate_continuation_byte(input, index, 2)? };
     Ok((((first & 0x0f) as u32) << 12) | (((second & 0x3f) as u32) << 6) | ((third & 0x3f) as u32))
 }
 
@@ -303,12 +345,21 @@ fn decode_three(input: &[u8], index: usize) -> CharsetDecodeResult<u32> {
 ///
 /// * `CharsetDecodeErrorKind::MalformedSequence` when any continuation byte is
 ///   invalid.
+///
+/// # Safety
+///
+/// `input` must contain the complete four-byte sequence starting at `index`,
+/// with a valid four-byte UTF-8 leading byte at `index`.
 #[inline]
-fn decode_four(input: &[u8], index: usize) -> CharsetDecodeResult<u32> {
-    let first = byte_at(input, index);
-    let second = validate_second_byte(input, index)?;
-    let third = validate_continuation_byte(input, index, 2)?;
-    let fourth = validate_continuation_byte(input, index, 3)?;
+unsafe fn decode_four(input: &[u8], index: usize) -> CharsetDecodeResult<u32> {
+    // SAFETY: The complete sequence range includes its first byte.
+    let first = unsafe { byte_at(input, index) };
+    // SAFETY: The complete sequence range includes its first two bytes.
+    let second = unsafe { validate_second_byte(input, index)? };
+    // SAFETY: The complete sequence range includes byte offset 2.
+    let third = unsafe { validate_continuation_byte(input, index, 2)? };
+    // SAFETY: The complete sequence range includes byte offset 3.
+    let fourth = unsafe { validate_continuation_byte(input, index, 3)? };
     Ok((((first & 0x07) as u32) << 18)
         | (((second & 0x3f) as u32) << 12)
         | (((third & 0x3f) as u32) << 6)
@@ -316,10 +367,16 @@ fn decode_four(input: &[u8], index: usize) -> CharsetDecodeResult<u32> {
 }
 
 /// Validates the first continuation-like byte after a UTF-8 leading byte.
+///
+/// # Safety
+///
+/// `input` must contain at least two readable bytes starting at `index`.
 #[inline]
-fn validate_second_byte(input: &[u8], index: usize) -> CharsetDecodeResult<u8> {
-    let first = byte_at(input, index);
-    let second = byte_at(input, index + 1);
+unsafe fn validate_second_byte(input: &[u8], index: usize) -> CharsetDecodeResult<u8> {
+    // SAFETY: The required two-byte range includes the leading byte.
+    let first = unsafe { byte_at(input, index) };
+    // SAFETY: The required two-byte range includes index + 1 without overflow.
+    let second = unsafe { byte_at(input, index + 1) };
     if is_valid_second_byte(first, second) {
         Ok(second)
     } else {
@@ -328,9 +385,16 @@ fn validate_second_byte(input: &[u8], index: usize) -> CharsetDecodeResult<u8> {
 }
 
 /// Validates a regular UTF-8 continuation byte at `offset` from `index`.
+///
+/// # Safety
+///
+/// `input` must contain a readable byte at `index + offset`, and that addition
+/// must not overflow.
 #[inline]
-fn validate_continuation_byte(input: &[u8], index: usize, offset: usize) -> CharsetDecodeResult<u8> {
-    let byte = byte_at(input, index + offset);
+unsafe fn validate_continuation_byte(input: &[u8], index: usize, offset: usize) -> CharsetDecodeResult<u8> {
+    // SAFETY: The caller establishes the requested byte range and non-overflowing
+    // offset.
+    let byte = unsafe { byte_at(input, index + offset) };
     if Utf8::is_continuation_byte(byte) {
         Ok(byte)
     } else {
@@ -349,9 +413,13 @@ fn malformed_byte_error(byte: u8, index: usize, consumed: NonZeroUsize) -> Chars
 }
 
 /// Reads one byte from an already checked slice.
+///
+/// # Safety
+///
+/// `index` must be strictly smaller than `input.len()`.
 #[inline]
-fn byte_at(input: &[u8], index: usize) -> u8 {
+unsafe fn byte_at(input: &[u8], index: usize) -> u8 {
     debug_assert!(index < input.len());
-    // SAFETY: Callers check sequence availability before reading the byte.
+    // SAFETY: The caller establishes `index < input.len()` as required above.
     unsafe { UncheckedSlice::read(input, index) }
 }

@@ -127,7 +127,9 @@ impl Codec for Utf32U32Codec {
         input: &[u32],
         input_index: usize,
     ) -> CharsetCodecDecodeResult<(char, core::num::NonZeroUsize)> {
-        let (ch, consumed) = decode_units_prefix(input, input_index).map_err(CharsetDecodeError::into_codec_failure)?;
+        // SAFETY: Codec::decode requires one readable unit.
+        let (ch, consumed) =
+            unsafe { decode_units_prefix(input, input_index) }.map_err(CharsetDecodeError::into_codec_failure)?;
         debug_assert!(consumed.get() <= input.len().saturating_sub(input_index));
         Ok((ch, consumed))
     }
@@ -152,7 +154,8 @@ impl Codec for Utf32U32Codec {
     /// are one unit for this codec.
     #[inline]
     unsafe fn encode(&mut self, ch: &char, output: &mut [u32], output_index: usize) -> CharsetEncodeResult<usize> {
-        let written = encode_units_char(*ch, output, output_index);
+        // SAFETY: Codec::encode guarantees encode_len(ch) writable units.
+        let written = unsafe { encode_units_char(*ch, output, output_index) };
         debug_assert_eq!(written, Utf32::MAX_UNITS_PER_CHAR);
         debug_assert!(written <= output.len().saturating_sub(output_index));
         Ok(Utf32::MAX_UNITS_PER_CHAR)
@@ -176,10 +179,14 @@ impl Codec for Utf32U32Codec {
 ///
 /// * `CharsetDecodeErrorKind::InvalidCodePoint` when `input[index]` is not a
 ///   valid scalar.
+///
+/// # Safety
+///
+/// `index` must be strictly smaller than `input.len()`.
 #[inline]
-fn decode_units_prefix(input: &[u32], index: usize) -> CharsetDecodeResult<(char, core::num::NonZeroUsize)> {
+unsafe fn decode_units_prefix(input: &[u32], index: usize) -> CharsetDecodeResult<(char, core::num::NonZeroUsize)> {
     debug_assert!(index < input.len());
-    // SAFETY: The caller guarantees that `index` is readable.
+    // SAFETY: The helper precondition establishes `index < input.len()`.
     let unit = unsafe { UncheckedSlice::read(input, index) };
     match Unicode::to_char(unit) {
         Some(ch) => Ok((ch, core::num::NonZeroUsize::MIN)),
@@ -200,11 +207,16 @@ fn decode_units_prefix(input: &[u32], index: usize) -> CharsetDecodeResult<(char
 ///
 /// # Returns
 ///
-/// Always `Ok(1)` to indicate one unit was written.
+/// Returns the number of written units, which is always one.
+///
+/// # Safety
+///
+/// `output` must have one writable unit at `index`.
 #[inline]
-fn encode_units_char(ch: char, output: &mut [u32], index: usize) -> usize {
+unsafe fn encode_units_char(ch: char, output: &mut [u32], index: usize) -> usize {
     debug_assert!(index < output.len());
-    // SAFETY: The caller guarantees that one unit is writable at `index`.
+    // SAFETY: The helper precondition establishes that one unit is writable at
+    // `index`.
     unsafe {
         UncheckedSlice::write(output, index, ch as u32);
     }

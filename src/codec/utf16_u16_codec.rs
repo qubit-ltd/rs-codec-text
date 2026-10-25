@@ -112,14 +112,17 @@ impl Codec for Utf16U16Codec {
         input: &[u16],
         input_index: usize,
     ) -> CharsetCodecDecodeResult<(char, core::num::NonZeroUsize)> {
-        let (ch, consumed) = decode_units_prefix(input, input_index).map_err(CharsetDecodeError::into_codec_failure)?;
+        // SAFETY: Codec::decode requires at least one readable unit.
+        let (ch, consumed) =
+            unsafe { decode_units_prefix(input, input_index) }.map_err(CharsetDecodeError::into_codec_failure)?;
         debug_assert!(consumed.get() <= input.len().saturating_sub(input_index));
         Ok((ch, consumed))
     }
 
     #[inline]
     unsafe fn encode(&mut self, ch: &char, output: &mut [u16], output_index: usize) -> CharsetEncodeResult<usize> {
-        let written = encode_units_char(*ch, output, output_index);
+        // SAFETY: Codec::encode guarantees encode_len(ch) writable units.
+        let written = unsafe { encode_units_char(*ch, output, output_index) };
         debug_assert_eq!(written, ch.len_utf16());
         debug_assert!(written <= output.len().saturating_sub(output_index));
         Ok(written)
@@ -160,8 +163,12 @@ impl Codec for Utf16U16Codec {
 ///
 /// This function does not panic for invalid UTF-16 input because invalid input
 /// is surfaced as `CharsetDecodeError`.
+///
+/// # Safety
+///
+/// `input` must have at least one readable unit starting at `index`.
 #[inline]
-fn decode_units_prefix(input: &[u16], index: usize) -> CharsetDecodeResult<(char, core::num::NonZeroUsize)> {
+unsafe fn decode_units_prefix(input: &[u16], index: usize) -> CharsetDecodeResult<(char, core::num::NonZeroUsize)> {
     debug_assert!(index < input.len());
     // SAFETY: The caller guarantees that at least one unit is readable from
     // `index`.
@@ -174,7 +181,8 @@ fn decode_units_prefix(input: &[u16], index: usize) -> CharsetDecodeResult<(char
             };
             return Err(CharsetDecodeError::new(Charset::UTF_16, kind, index));
         }
-        let second = unit_at(input, index + 1);
+        // SAFETY: range_fits above established both units and the safe offset.
+        let second = unsafe { unit_at(input, index + 1) };
         match Utf16::compose_pair(first, second).and_then(Unicode::to_char) {
             Some(ch) => Ok((ch, nonzero(2))),
             None => {
@@ -193,10 +201,14 @@ fn decode_units_prefix(input: &[u16], index: usize) -> CharsetDecodeResult<(char
 }
 
 /// Reads one UTF-16 unit from an already checked slice.
+///
+/// # Safety
+///
+/// `index` must be strictly smaller than `input.len()`.
 #[inline]
-fn unit_at(input: &[u16], index: usize) -> u16 {
+unsafe fn unit_at(input: &[u16], index: usize) -> u16 {
     debug_assert!(index < input.len());
-    // SAFETY: Callers check sequence availability before reading the unit.
+    // SAFETY: The helper precondition establishes `index < input.len()`.
     unsafe { UncheckedSlice::read(input, index) }
 }
 
@@ -215,25 +227,32 @@ fn unit_at(input: &[u16], index: usize) -> u16 {
 /// # Returns
 ///
 /// The number of written UTF-16 units (`1` or `2`).
+///
+/// # Safety
+///
+/// `output` must have `Utf16::unit_len(ch)` writable units starting at `index`.
 #[inline]
-fn encode_units_char(ch: char, output: &mut [u16], index: usize) -> usize {
+unsafe fn encode_units_char(ch: char, output: &mut [u16], index: usize) -> usize {
     let length = Utf16::unit_len(ch);
     debug_assert!(
         SliceRange::range_fits(output.len(), index, length),
         "index + length exceeds output length"
     );
     let code_point = ch as u32;
-    unsafe {
-        // SAFETY: The caller guarantees that `length` units are writable from
-        // `index`.
-        if length == 1 {
-            UncheckedSlice::write(output, index, code_point as u16);
-        } else {
+    if length == 1 {
+        // SAFETY: The required one-unit range includes index.
+        unsafe { UncheckedSlice::write(output, index, code_point as u16) };
+    } else {
+        // SAFETY: The required two-unit range includes index.
+        unsafe {
             UncheckedSlice::write(
                 output,
                 index,
                 Utf16::high_surrogate(code_point).expect("supplementary scalar has high surrogate"),
             );
+        }
+        // SAFETY: The required two-unit range includes index + 1 without overflow.
+        unsafe {
             UncheckedSlice::write(
                 output,
                 index + 1,
