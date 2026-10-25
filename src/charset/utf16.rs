@@ -215,6 +215,12 @@ impl Utf16 {
     /// # Returns
     ///
     /// Returns `Some(ByteOrder)` for UTF-16 BOM prefixes, or `None` otherwise.
+    ///
+    /// This method first applies the cross-encoding longest-prefix rules of
+    /// [`UnicodeBom::detect`](crate::UnicodeBom::detect), then accepts only
+    /// UTF-16 matches. In particular, `FF FE` is detected as UTF-16LE and
+    /// returns `Some(ByteOrder::LittleEndian)`, while `FF FE 00 00` is
+    /// classified as UTF-32LE and returns `None` here.
     pub fn detect_bom(bytes: &[u8]) -> Option<ByteOrder> {
         match UnicodeBom::detect(bytes) {
             Some(UnicodeBom::Utf16BigEndian) => Some(ByteOrder::BigEndian),

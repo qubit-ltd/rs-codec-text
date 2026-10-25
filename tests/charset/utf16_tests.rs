@@ -9,6 +9,17 @@ use qubit_codec::ByteOrder;
 use qubit_codec_text::Utf16;
 
 #[test]
+fn test_utf16_detect_bom_uses_global_longest_match() {
+    assert_eq!(Some(ByteOrder::LittleEndian), Utf16::detect_bom(&[0xff, 0xfe]));
+    assert_eq!(None, Utf16::detect_bom(&[0xff, 0xfe, 0x00, 0x00]));
+    assert_eq!(None, Utf16::detect_bom(&[0xff, 0xfe, 0x00, 0x00, 0x41, 0x00]));
+    assert_eq!(
+        Some(ByteOrder::LittleEndian),
+        Utf16::detect_bom(&[0xff, 0xfe, 0x41, 0x00])
+    );
+}
+
+#[test]
 fn test_utf16_classifies_units_and_surrogate_pairs() {
     assert!(Utf16::is_single_unit('A' as u16));
     assert!(!Utf16::is_single_unit(0xd83d));
