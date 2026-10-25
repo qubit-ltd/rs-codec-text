@@ -37,6 +37,23 @@ use crate::UnmappableAction;
 /// responsible for passing any incomplete input tail to
 /// [`Transcoder::transcode_eof`] before finishing the logical stream.
 ///
+/// Construction does not initialize a stream. Call [`Self::reset`] and check
+/// its result before streaming. During an open stream, `Complete` means only
+/// that the current input was consumed. On `NeedInput`, retain the unread
+/// suffix and append the next chunk; on `NeedOutput`, collect output and
+/// advance by the reported `read()` and `written()` counts before resuming.
+/// At confirmed EOF, pass the retained suffix to `transcode_eof` and continue
+/// through output backpressure before calling `finish`. A successful finish
+/// closes the stream; reset before starting another one. The complete helper
+/// performs reset and finish itself. Lifecycle errors are not evidence of
+/// malformed source text; see [`CharsetConvertError`] for the compatibility
+/// mapping of those failures. Their core failure variants are
+/// [`qubit_codec::TranscodeFailure::TranscodeBeforeReset`],
+/// [`qubit_codec::TranscodeFailure::FinishBeforeReset`],
+/// [`qubit_codec::TranscodeFailure::TranscodeAfterFinish`],
+/// [`qubit_codec::TranscodeFailure::FinishAfterFinish`], and
+/// [`qubit_codec::TranscodeFailure::LifecyclePoisoned`].
+///
 /// # Type Parameters
 ///
 /// - `D`: Low-level charset codec used by the source decoder.
@@ -71,6 +88,74 @@ use crate::UnmappableAction;
 /// assert_eq!(2, progress.read());
 /// assert_eq!(2, progress.written());
 /// assert_eq!([65, 66], output);
+/// ```
+///
+/// The following complete example keeps an incomplete UTF-8 suffix between
+/// chunks, drains output backpressure, and applies the default replacement
+/// policy to an incomplete suffix at EOF. The two-unit output window makes the
+/// supplementary character require another drain after the preceding BMP
+/// character has used one slot.
+///
+/// ```rust
+/// use qubit_codec::TranscodeStatus;
+/// use qubit_codec_text::CharsetConverter;
+/// use qubit_codec_text::Utf16U16Codec;
+/// use qubit_codec_text::Utf8Codec;
+///
+/// fn drain(
+///     converter: &mut CharsetConverter<Utf8Codec, Utf16U16Codec>,
+///     pending: &mut Vec<u8>,
+///     eof: bool,
+///     result: &mut Vec<u16>,
+///     observed: &mut (bool, bool),
+/// ) {
+///     loop {
+///         let mut output = [0_u16; 2];
+///         let progress = if eof {
+///             converter.transcode_eof(pending, 0, &mut output, 0)
+///         } else {
+///             converter.transcode(pending, 0, &mut output, 0)
+///         }.expect("default replacement policy");
+///         result.extend_from_slice(&output[..progress.written()]);
+///         pending.drain(..progress.read());
+///         match progress.status() {
+///             TranscodeStatus::Complete => break,
+///             TranscodeStatus::NeedInput { .. } => {
+///                 assert!(!eof);
+///                 observed.0 = true;
+///                 break;
+///             }
+///             TranscodeStatus::NeedOutput { .. } => {
+///                 observed.1 = true;
+///                 assert!(progress.read() > 0 || progress.written() > 0);
+///             }
+///         }
+///     }
+/// }
+///
+/// fn main() {
+///     let mut converter = CharsetConverter::from_codecs(Utf8Codec, Utf16U16Codec);
+///     // These built-in codecs have no reset or finish output.
+///     assert_eq!(0, converter.reset(&mut [], 0).expect("reset"));
+///     let chunks: [&[u8]; 3] = [
+///         &[0x41, 0xe4],
+///         &[0xb8, 0xad, 0xf0, 0x9f, 0x98, 0x80],
+///         &[0xe2, 0x82],
+///     ];
+///     let mut pending = Vec::new();
+///     let mut result = Vec::new();
+///     let mut observed = (false, false);
+///     for chunk in chunks {
+///         pending.extend_from_slice(chunk);
+///         drain(&mut converter, &mut pending, false, &mut result, &mut observed);
+///     }
+///     drain(&mut converter, &mut pending, true, &mut result, &mut observed);
+///     assert!(pending.is_empty());
+///     assert_eq!(0, converter.finish(&mut [], 0).expect("finish"));
+///     assert!(observed.0, "the example must exercise NeedInput");
+///     assert!(observed.1, "the example must exercise NeedOutput");
+///     assert_eq!(vec![0x0041, 0x4e2d, 0xd83d, 0xde00, 0xfffd], result);
+/// }
 /// ```
 #[derive(Debug)]
 pub struct CharsetConverter<D, E>
@@ -351,7 +436,11 @@ where
     ///
     /// Returns a transcode convert error when reset output cannot be written or
     /// when source decode reset or target encode reset reports a
-    /// charset-domain error.
+    /// charset-domain error. Index and capacity checks happen before reset
+    /// begins, so correct the arguments and retry those failures. If reset has
+    /// begun and then fails, state may have changed; successfully reset before
+    /// reuse. Any business data that must be replayed or recovered remains the
+    /// caller's responsibility.
     #[inline]
     pub fn reset(
         &mut self,
@@ -362,6 +451,11 @@ where
     }
 
     /// Converts source units into target units.
+    ///
+    /// `Complete` means only that the available input was consumed. On
+    /// `NeedInput`, preserve the unread suffix and append later input. On
+    /// `NeedOutput`, collect output and advance input by `read()` before
+    /// resuming; the converter may retain a decoded character internally.
     ///
     /// # Errors
     ///
@@ -380,6 +474,8 @@ where
     }
 
     /// Converts source units after the caller has established end of input.
+    /// Continue after `NeedOutput` until the EOF input and pending output have
+    /// been handled. `finish` does not accept or process an input tail.
     ///
     /// # Errors
     ///
@@ -402,7 +498,11 @@ where
     /// # Errors
     ///
     /// Returns a transcode convert error when pending or final decoded values
-    /// cannot be encoded or written to the target output buffer.
+    /// cannot be encoded or written to the target output buffer. Call this
+    /// after EOF input is handled. A preflight index or capacity failure can
+    /// be corrected and retried; after finalization starts, a failure may
+    /// change state, so successfully reset before reuse. A successful finish
+    /// closes the stream.
     #[inline]
     pub fn finish(
         &mut self,
@@ -412,7 +512,9 @@ where
         self.engine.finish(output, output_index)
     }
 
-    /// Runs a complete `reset -> transcode -> finish` conversion stream.
+    /// Runs a complete `reset -> transcode -> finish` conversion stream. This
+    /// helper initializes and closes the stream itself; do not call `reset`
+    /// first. Use the streaming methods for chunked input.
     ///
     /// # Errors
     ///

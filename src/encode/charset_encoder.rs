@@ -25,6 +25,21 @@ use crate::UnmappableAction;
 /// configured [`UnmappableAction`] whenever the codec reports that an input
 /// character cannot be represented by the target charset.
 ///
+/// Construction does not initialize a stream. Call [`Self::reset`] and check
+/// its result before using `transcode` or `finish`. During an open stream,
+/// `Complete` means only that the current input was consumed; on `NeedOutput`,
+/// drain output and resume from the reported progress. A successful `finish`
+/// closes the stream; reset before starting another one. The complete helper
+/// performs reset and finish itself.
+/// Lifecycle misuse is reported with lifecycle-specific
+/// [`crate::CharsetEncodeErrorKind`] values; it is distinct from unmappable
+/// input and policy-reported encode errors. The corresponding core failures are
+/// [`qubit_codec::TranscodeFailure::TranscodeBeforeReset`],
+/// [`qubit_codec::TranscodeFailure::FinishBeforeReset`],
+/// [`qubit_codec::TranscodeFailure::TranscodeAfterFinish`],
+/// [`qubit_codec::TranscodeFailure::FinishAfterFinish`], and
+/// [`qubit_codec::TranscodeFailure::LifecyclePoisoned`].
+///
 /// # Type Parameters
 ///
 /// - `C`: Low-level charset codec used to encode one character into target
@@ -216,13 +231,17 @@ where
         codec
     }
 
-    /// Runs encoder reset.
+    /// Runs encoder reset, initializing a new logical stream.
     ///
     /// # Errors
     ///
     /// Returns a transcode encode error when `output_index` is invalid, output
     /// capacity is insufficient, or encoder reset emits a charset-domain
-    /// error.
+    /// error. Index and capacity checks happen before reset begins, so correct
+    /// the arguments and retry those failures. If reset has begun and then
+    /// fails, state may have changed; successfully reset before reuse. Any
+    /// business data that must be replayed or recovered remains the caller's
+    /// responsibility.
     #[inline]
     pub fn reset(&mut self, output: &mut [C::Unit], output_index: usize) -> Result<usize, TranscodeEncodeErrorOf<C>> {
         self.engine.reset(output, output_index)
@@ -237,6 +256,8 @@ where
     /// more output capacity is needed to continue. The buffer may still have
     /// unused slots. `NeedOutput` is normal backpressure and is returned as
     /// `Ok`.
+    /// On `NeedOutput`, consume the produced output and advance input by
+    /// `read()` before resuming; do not submit already-read input again.
     ///
     /// # Errors
     ///
@@ -270,13 +291,19 @@ where
     /// # Errors
     ///
     /// Returns a transcode encode error when finalization output cannot be
-    /// written or when the codec reports a final encode-domain error.
+    /// written or when the codec reports a final encode-domain error. Call
+    /// this after all input has been encoded. A preflight index or capacity
+    /// failure can be corrected and retried; after finalization starts, a
+    /// failure may change state, so successfully reset before reuse. A
+    /// successful finish closes the stream.
     #[inline]
     pub fn finish(&mut self, output: &mut [C::Unit], output_index: usize) -> Result<usize, TranscodeEncodeErrorOf<C>> {
         self.engine.finish(output, output_index)
     }
 
-    /// Runs a complete `reset -> transcode -> finish` encode stream.
+    /// Runs a complete `reset -> transcode -> finish` encode stream. This
+    /// helper initializes and closes the stream itself; do not call `reset`
+    /// first. Use `transcode` and `finish` directly for incremental input.
     ///
     /// # Errors
     ///

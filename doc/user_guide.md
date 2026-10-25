@@ -69,6 +69,109 @@ After the caller knows that input has ended, pass the retained tail to
 been handled should the caller call `finish` for lifecycle output. `finish`
 does not receive input and cannot process a saved incomplete tail.
 
+The following complete UTF-8 to UTF-16 example uses three chunks and a
+two-unit output window. It asserts that both `NeedInput` and `NeedOutput`
+actually occur. These built-in codecs emit no reset or finish output, so empty
+lifecycle buffers are sufficient here; custom codecs may need output space.
+The `transcode_complete_into` helper runs reset and finish itself, so do not
+reset before calling it.
+
+```rust
+use qubit_codec::TranscodeStatus;
+use qubit_codec_text::CharsetConverter;
+use qubit_codec_text::Utf16U16Codec;
+use qubit_codec_text::Utf8Codec;
+
+fn drain(
+    converter: &mut CharsetConverter<Utf8Codec, Utf16U16Codec>,
+    pending: &mut Vec<u8>,
+    eof: bool,
+    result: &mut Vec<u16>,
+    observed: &mut (bool, bool),
+) {
+    loop {
+        let mut output = [0_u16; 2];
+        let progress = if eof {
+            converter.transcode_eof(pending, 0, &mut output, 0)
+        } else {
+            converter.transcode(pending, 0, &mut output, 0)
+        }.expect("default replacement policy");
+        result.extend_from_slice(&output[..progress.written()]);
+        pending.drain(..progress.read());
+        match progress.status() {
+            TranscodeStatus::Complete => break,
+            TranscodeStatus::NeedInput { .. } => {
+                assert!(!eof);
+                observed.0 = true;
+                break;
+            }
+            TranscodeStatus::NeedOutput { .. } => {
+                observed.1 = true;
+                assert!(progress.read() > 0 || progress.written() > 0);
+            }
+        }
+    }
+}
+
+fn main() {
+    let mut converter = CharsetConverter::from_codecs(Utf8Codec, Utf16U16Codec);
+    // These built-in codecs have no reset or finish output.
+    assert_eq!(0, converter.reset(&mut [], 0).expect("reset"));
+    let chunks: [&[u8]; 3] = [
+        &[0x41, 0xe4],
+        &[0xb8, 0xad, 0xf0, 0x9f, 0x98, 0x80],
+        &[0xe2, 0x82],
+    ];
+    let mut pending = Vec::new();
+    let mut result = Vec::new();
+    let mut observed = (false, false);
+    for chunk in chunks {
+        pending.extend_from_slice(chunk);
+        drain(&mut converter, &mut pending, false, &mut result, &mut observed);
+    }
+    drain(&mut converter, &mut pending, true, &mut result, &mut observed);
+    assert!(pending.is_empty());
+    assert_eq!(0, converter.finish(&mut [], 0).expect("finish"));
+    assert!(observed.0, "the example must exercise NeedInput");
+    assert!(observed.1, "the example must exercise NeedOutput");
+    assert_eq!(vec![0x0041, 0x4e2d, 0xd83d, 0xde00, 0xfffd], result);
+}
+```
+
+The first chunk leaves `E4` unread; the second completes `中`. One output slot
+then remains, but `😀` needs a surrogate pair, so the call must report
+`NeedOutput` and drain again. The third chunk leaves an incomplete tail, which
+`transcode_eof` handles under the default `Replace` policy as U+FFFD. Each call
+appends only written output and removes only the reported read prefix. If a
+general call reports zero-progress `NeedOutput`, enlarge output to its
+`required` value before retrying.
+
+### Stream state and recovery
+
+| Event or result | Next action |
+| --- | --- |
+| New decoder, encoder, or converter | Successfully call `reset` before streaming. |
+| Open-stream `Complete` | The available input was consumed; more chunks may follow. |
+| `NeedInput` | Keep the unread suffix and append the next chunk. |
+| `NeedOutput` | Collect output, advance input by `read()`, then continue without replaying consumed input. |
+| Confirmed EOF | Pass the retained suffix to `transcode_eof`; continue through `NeedOutput` until EOF input and pending output are handled. |
+| Successful `finish` | The logical stream is closed; successfully reset before another stream. |
+| Reset/finish index or capacity precheck fails | Correct the index or buffer and retry. |
+| Reset/finish begins and then fails | State may have changed; successfully reset before reuse. The application owns replay or recovery of business data. |
+
+Lifecycle failures have dedicated kinds: `TranscodeBeforeReset`,
+`FinishBeforeReset`, `TranscodeAfterFinish`, `FinishAfterFinish`, and
+`LifecyclePoisoned`. They describe call ordering or uncertain lifecycle state,
+not malformed text. Other failures, such as malformed input, unmappable
+characters, and capacity errors, follow their decode or encode policies. The
+`transcode_complete_into` helpers run the full lifecycle themselves and need
+no preceding reset. These wrapper kinds correspond to core
+[`TranscodeFailure::TranscodeBeforeReset`](https://docs.rs/qubit-codec/0.17.0/qubit_codec/enum.TranscodeFailure.html#variant.TranscodeBeforeReset),
+[`FinishBeforeReset`](https://docs.rs/qubit-codec/0.17.0/qubit_codec/enum.TranscodeFailure.html#variant.FinishBeforeReset),
+[`TranscodeAfterFinish`](https://docs.rs/qubit-codec/0.17.0/qubit_codec/enum.TranscodeFailure.html#variant.TranscodeAfterFinish),
+[`FinishAfterFinish`](https://docs.rs/qubit-codec/0.17.0/qubit_codec/enum.TranscodeFailure.html#variant.FinishAfterFinish), and
+[`LifecyclePoisoned`](https://docs.rs/qubit-codec/0.17.0/qubit_codec/enum.TranscodeFailure.html#variant.LifecyclePoisoned).
+
 This example shows a two-byte UTF-8 prefix becoming U+FFFD at EOF under the
 default `Replace` policy:
 
@@ -142,6 +245,9 @@ sequences, malformed input, invalid scalar values, capacity, and unmappable
 characters where applicable. `CharsetConverter::map_transcode_error` maps a
 low-level converter failure to `CharsetConvertError`, identifying whether the
 source decoding or target encoding side failed.
+For compatibility, converter lifecycle failures are routed through
+`CharsetConvertError::Decode`; this does not mean the source text is malformed.
+Target output failures remain `Encode`.
 
 In streaming code, `TranscodeProgress` describes how many units were read and
 written and reports a status such as `NeedInput` or output backpressure. Do not

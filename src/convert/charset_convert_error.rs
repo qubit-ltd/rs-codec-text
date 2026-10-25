@@ -97,8 +97,16 @@ impl CharsetConvertError {
     /// # Returns
     ///
     /// Returns [`Self::Decode`] for source-input failures and [`Self::Encode`]
-    /// for target-output failures. Other framework failures remain decode-side
-    /// unexpected failures to preserve the prior error contract.
+    /// for target-output failures. Lifecycle failures are routed to
+    /// [`Self::Decode`] to preserve the existing compatibility contract;
+    /// this routing does not mean that source input is malformed. Other
+    /// framework failures remain decode-side unexpected failures to
+    /// preserve the prior error contract. The underlying lifecycle variants
+    /// are [`TranscodeFailure::TranscodeBeforeReset`],
+    /// [`TranscodeFailure::FinishBeforeReset`],
+    /// [`TranscodeFailure::TranscodeAfterFinish`],
+    /// [`TranscodeFailure::FinishAfterFinish`], and
+    /// [`TranscodeFailure::LifecyclePoisoned`].
     fn from_transcode_failure(source_charset: Charset, target_charset: Charset, failure: TranscodeFailure) -> Self {
         match failure {
             failure @ (TranscodeFailure::InvalidInputIndex { .. }

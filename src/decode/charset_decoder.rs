@@ -33,6 +33,22 @@ use crate::UnicodeBom;
 /// incomplete EOF tails through [`Transcoder::transcode_eof`] before calling
 /// [`Transcoder::finish`].
 ///
+/// Construction does not initialize a stream. Call [`Self::reset`] and check
+/// its result before using `transcode`, `transcode_eof`, or `finish`. During an
+/// open stream, `Complete` means only that the current input was consumed;
+/// `NeedInput` leaves an incomplete suffix unconsumed, and `NeedOutput` asks
+/// the caller to drain output and resume from the reported progress. A
+/// successful `finish` closes the stream; reset before starting another one.
+/// The complete helper performs reset and finish itself.
+/// Lifecycle misuse is reported with lifecycle-specific
+/// [`crate::CharsetDecodeErrorKind`] values; it is distinct from malformed
+/// input and policy-reported decode errors. The corresponding core failures are
+/// [`qubit_codec::TranscodeFailure::TranscodeBeforeReset`],
+/// [`qubit_codec::TranscodeFailure::FinishBeforeReset`],
+/// [`qubit_codec::TranscodeFailure::TranscodeAfterFinish`],
+/// [`qubit_codec::TranscodeFailure::FinishAfterFinish`], and
+/// [`qubit_codec::TranscodeFailure::LifecyclePoisoned`].
+///
 /// # Type Parameters
 ///
 /// - `C`: Low-level charset codec used to decode source storage units into one
@@ -185,7 +201,11 @@ where
     ///
     /// Returns a transcode decode error when `output_index` is invalid, output
     /// capacity is insufficient, or decoder reset emits a charset-domain
-    /// error.
+    /// error. Index and capacity checks happen before reset begins, so correct
+    /// the arguments and retry those failures. If reset has begun and then
+    /// fails, state may have changed; successfully reset before reuse. Any
+    /// business data that must be replayed or recovered remains the caller's
+    /// responsibility.
     #[inline]
     pub fn reset(&mut self, output: &mut [char], output_index: usize) -> Result<usize, TranscodeDecodeErrorOf<C>> {
         self.engine.reset(output, output_index)
@@ -207,6 +227,9 @@ where
     /// valid incomplete suffix remains, and `NeedOutput` means more output
     /// capacity is needed to continue. The buffer may still have unused slots.
     /// `NeedOutput` is normal backpressure and is returned as `Ok`.
+    /// Preserve an unconsumed suffix on `NeedInput`. On `NeedOutput`, consume
+    /// the produced output and advance input by `read()` before resuming; do
+    /// not submit already-read input again.
     ///
     /// # Errors
     ///
@@ -228,6 +251,8 @@ where
     ///
     /// Any valid but incomplete input tail is handled according to the
     /// configured malformed-input policy.
+    /// Keep calling after `NeedOutput` until EOF input and pending output have
+    /// been handled. Do not use `finish` to process an input tail.
     ///
     /// # Parameters
     ///
@@ -265,13 +290,20 @@ where
     /// # Errors
     ///
     /// Returns a transcode decode error when finalization output cannot be
-    /// written or when the codec reports a final decode-domain error.
+    /// written or when the codec reports a final decode-domain error. Call
+    /// this after EOF input has been handled. A preflight index or capacity
+    /// failure can be corrected and retried; after finalization starts, a
+    /// failure may change state, so successfully reset before reuse. A
+    /// successful finish closes the stream.
     #[inline]
     pub fn finish(&mut self, output: &mut [char], output_index: usize) -> Result<usize, TranscodeDecodeErrorOf<C>> {
         self.engine.finish(output, output_index)
     }
 
-    /// Runs a complete `reset -> transcode -> finish` decode stream.
+    /// Runs a complete `reset -> transcode -> finish` decode stream. This
+    /// helper initializes and closes the stream itself; do not call `reset`
+    /// first. Use `transcode`, `transcode_eof`, and `finish` directly for
+    /// chunked input.
     ///
     /// # Parameters
     ///

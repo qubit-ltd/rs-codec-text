@@ -61,6 +61,103 @@ converter 也可能在内部保留待写字符，因此不要重复提交已报�
 扩展输出缓冲区并再次调用 `transcode_eof`，直到 EOF 输入处理完毕。随后才能调用
 `finish` 写出生命周期尾部。`finish` 不接收输入，不能处理调用方保存的不完整尾部。
 
+下面的 UTF-8 转 UTF-16 完整示例使用三块输入和两个码元的输出窗口，并断言运行时确实
+遇到 `NeedInput` 与 `NeedOutput`。示例所用的内置 codec 在 reset 和 finish 时都没有输出，
+因此可以传空生命周期缓冲区；自定义 codec 可能需要输出空间。`transcode_complete_into`
+会自行执行 reset 和 finish，不要在调用前重复 reset。
+
+```rust
+use qubit_codec::TranscodeStatus;
+use qubit_codec_text::CharsetConverter;
+use qubit_codec_text::Utf16U16Codec;
+use qubit_codec_text::Utf8Codec;
+
+fn drain(
+    converter: &mut CharsetConverter<Utf8Codec, Utf16U16Codec>,
+    pending: &mut Vec<u8>,
+    eof: bool,
+    result: &mut Vec<u16>,
+    observed: &mut (bool, bool),
+) {
+    loop {
+        let mut output = [0_u16; 2];
+        let progress = if eof {
+            converter.transcode_eof(pending, 0, &mut output, 0)
+        } else {
+            converter.transcode(pending, 0, &mut output, 0)
+        }.expect("default replacement policy");
+        result.extend_from_slice(&output[..progress.written()]);
+        pending.drain(..progress.read());
+        match progress.status() {
+            TranscodeStatus::Complete => break,
+            TranscodeStatus::NeedInput { .. } => {
+                assert!(!eof);
+                observed.0 = true;
+                break;
+            }
+            TranscodeStatus::NeedOutput { .. } => {
+                observed.1 = true;
+                assert!(progress.read() > 0 || progress.written() > 0);
+            }
+        }
+    }
+}
+
+fn main() {
+    let mut converter = CharsetConverter::from_codecs(Utf8Codec, Utf16U16Codec);
+    // 这两个内置 codec 在 reset 和 finish 时都没有输出。
+    assert_eq!(0, converter.reset(&mut [], 0).expect("reset"));
+    let chunks: [&[u8]; 3] = [
+        &[0x41, 0xe4],
+        &[0xb8, 0xad, 0xf0, 0x9f, 0x98, 0x80],
+        &[0xe2, 0x82],
+    ];
+    let mut pending = Vec::new();
+    let mut result = Vec::new();
+    let mut observed = (false, false);
+    for chunk in chunks {
+        pending.extend_from_slice(chunk);
+        drain(&mut converter, &mut pending, false, &mut result, &mut observed);
+    }
+    drain(&mut converter, &mut pending, true, &mut result, &mut observed);
+    assert!(pending.is_empty());
+    assert_eq!(0, converter.finish(&mut [], 0).expect("finish"));
+    assert!(observed.0, "the example must exercise NeedInput");
+    assert!(observed.1, "the example must exercise NeedOutput");
+    assert_eq!(vec![0x0041, 0x4e2d, 0xd83d, 0xde00, 0xfffd], result);
+}
+```
+
+第一块会留下未消费的 `E4`，第二块补齐“中”。此时输出窗口只剩一个 UTF-16 码元，
+而“😀”需要一对代理码元，因此必须经历 `NeedOutput` 并继续排空。第三块留下不完整尾部；
+确认 EOF 后交给 `transcode_eof`，默认 `Replace` 策略会输出 U+FFFD。每次调用后，示例只
+追加实际写出的输出，并从 `pending` 删除已读前缀。一般情况下若 `NeedOutput` 没有读写进度，
+应按其 `required` 值扩充输出缓冲区再重试。
+
+### 流状态与恢复
+
+| 事件或结果 | 后续操作 |
+| --- | --- |
+| 新建 decoder、encoder 或 converter | 流式调用前先成功执行 `reset`。 |
+| 开流阶段返回 `Complete` | 当前可用输入已消费；后续仍可继续接收数据块。 |
+| 返回 `NeedInput` | 保留未读尾部，拼接下一块输入后再试。 |
+| 返回 `NeedOutput` | 收下已生成的输出，按 `read()` 推进输入，再继续；不要重放已消费的数据。 |
+| 确认 EOF | 把保留尾部传给 `transcode_eof`；持续处理 `NeedOutput`，直到 EOF 输入和待写输出都处理完。 |
+| `finish` 成功 | 当前逻辑流已关闭；新流开始前先成功执行 `reset`。 |
+| reset/finish 的下标或容量预检失败 | 修正下标或缓冲区后重试。 |
+| reset/finish 已开始执行后失败 | 状态可能已经变化；复用前必须成功 reset。业务数据如何重放或恢复由应用负责。 |
+
+生命周期错误有专门的 kind：`TranscodeBeforeReset`、`FinishBeforeReset`、
+`TranscodeAfterFinish`、`FinishAfterFinish` 和 `LifecyclePoisoned`。它们表示调用顺序错误或
+生命周期状态不确定，不代表文本格式错误。畸形输入、目标不可映射字符和容量错误仍按各自
+的 decode/encode 规则处理。`transcode_complete_into` 会自行完成整个生命周期，无须事先
+调用 `reset`。这些 wrapper kind 对应 core 的
+[`TranscodeFailure::TranscodeBeforeReset`](https://docs.rs/qubit-codec/0.17.0/qubit_codec/enum.TranscodeFailure.html#variant.TranscodeBeforeReset)、
+[`FinishBeforeReset`](https://docs.rs/qubit-codec/0.17.0/qubit_codec/enum.TranscodeFailure.html#variant.FinishBeforeReset)、
+[`TranscodeAfterFinish`](https://docs.rs/qubit-codec/0.17.0/qubit_codec/enum.TranscodeFailure.html#variant.TranscodeAfterFinish)、
+[`FinishAfterFinish`](https://docs.rs/qubit-codec/0.17.0/qubit_codec/enum.TranscodeFailure.html#variant.FinishAfterFinish) 和
+[`LifecyclePoisoned`](https://docs.rs/qubit-codec/0.17.0/qubit_codec/enum.TranscodeFailure.html#variant.LifecyclePoisoned)。
+
 下面示例展示默认 `Replace` 策略如何在 EOF 时将两个 UTF-8 前缀字节替换为 U+FFFD：
 
 ```rust
@@ -124,6 +221,8 @@ assert_eq!(0, decoder.finish(&mut output, 1).expect("finish"));
 种类和下标。错误种类会在适用时区分不完整序列、畸形输入、无效标量、容量和不可映射
 字符。`CharsetConverter::map_transcode_error` 可将底层 converter failure
 映射为 `CharsetConvertError`，说明失败发生在源端解码还是目标端编码。
+为保持兼容性，converter 的生命周期错误归入 `CharsetConvertError::Decode`；这不表示源文本
+畸形。目标输出错误仍归入 `Encode`。
 
 流式代码通过 `TranscodeProgress` 得到已读/已写码元数和 `NeedInput`、输出背压等状态。
 `NeedInput` 不是畸形错误：保留尾部并在后续输入到达后重试。EOF 后仍残留的不完整序列
