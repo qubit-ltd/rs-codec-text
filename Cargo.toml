@@ -58,7 +58,7 @@ path = "tests/charset/mod.rs"
 [dependencies]
 thiserror = "^2.0"
 qubit-utils = "^0.3"
-qubit-codec = { path = "../rs-codec", version = "0.17" }
+qubit-codec = { version = "0.17" }
 
 serde = { version = "^1.0", optional = true }
 
