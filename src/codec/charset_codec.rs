@@ -47,6 +47,28 @@ use crate::CharsetEncodeError;
 /// - malformed and invalid-code-point errors may report a consumed-unit count
 ///   with [`CharsetDecodeError::with_consumed`]. The count must be non-zero and
 ///   should describe the smallest invalid sequence width known to the codec.
+///   Charset decoder recovery uses this error's width to advance after a
+///   malformed sequence. For a multi-unit invalid sequence, set the width with
+///   [`CharsetDecodeError::with_consumed`] and then use
+///   [`CharsetDecodeError::into_codec_failure`] so the error and decode failure
+///   carry the same width. Avoid constructing conflicting widths manually.
+///
+///   ```
+///   use core::num::NonZeroUsize;
+///   use qubit_codec_text::Charset;
+///   use qubit_codec_text::CharsetDecodeError;
+///   use qubit_codec_text::CharsetDecodeErrorKind;
+///
+///   let width = NonZeroUsize::new(2).expect("non-zero malformed width");
+///   let error = CharsetDecodeError::new(
+///       Charset::UTF_16LE,
+///       CharsetDecodeErrorKind::malformed(0xdc00),
+///       0,
+///   ).with_consumed(width);
+///   let failure = error.into_codec_failure();
+///   assert_eq!(Some(width), failure.consumed_units());
+///   assert_eq!(Some(width), failure.invalid_source().unwrap().consumed());
+///   ```
 /// - [`Codec::can_encode_value`] must return `true` before callers use
 ///   [`Codec::encode_len`] or enter [`Codec::encode`] for a value. `encode_len`
 ///   must not exceed [`Codec::MAX_ENCODE_UNITS_PER_VALUE`] and must match the

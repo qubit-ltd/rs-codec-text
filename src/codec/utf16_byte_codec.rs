@@ -112,8 +112,10 @@ impl CharsetCodec for Utf16ByteCodec {
     ///
     /// # Returns
     ///
-    /// Returns [`Charset::UTF_16BE`] when configured with
-    /// `ByteOrder::BigEndian`, otherwise [`Charset::UTF_16LE`].
+    /// Returns [`Charset::UTF_16BE`] for [`ByteOrder::BigEndian`] and
+    /// [`Charset::UTF_16LE`] for [`ByteOrder::LittleEndian`].
+    /// [`ByteOrder::NativeEndian`] selects the corresponding charset for the
+    /// target platform's native byte order.
     #[inline]
     fn charset(&self) -> Charset {
         Charset::from_utf16_byte_order(self.byte_order)
