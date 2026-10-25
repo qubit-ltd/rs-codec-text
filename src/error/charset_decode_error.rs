@@ -94,16 +94,21 @@ impl CharsetDecodeError {
     /// Returns the charset-level representation of `error`. Buffer and index
     /// failures retain their original indices and sizes. Encode-only framework
     /// failures are reported as
-    /// [`CharsetDecodeErrorKind::UnexpectedTranscodeFailure`].
-    /// This mapper uses `usize::MAX` when an overflow or otherwise unexpected
-    /// framework failure has no concrete index; directly constructed errors
-    /// are not restricted to that sentinel.
+    /// [`CharsetDecodeErrorKind::UnexpectedTranscodeFailure`]. Lifecycle
+    /// failures retain their specific kind. This mapper uses `usize::MAX` when
+    /// a failure has no concrete index; directly constructed errors are not
+    /// restricted to that sentinel.
     pub fn map_transcode_failure(charset: Charset, error: TranscodeFailure) -> Self {
+        use TranscodeFailure::FinishAfterFinish;
+        use TranscodeFailure::FinishBeforeReset;
         use TranscodeFailure::IncompleteInput;
         use TranscodeFailure::InsufficientOutput;
         use TranscodeFailure::InvalidInputIndex;
         use TranscodeFailure::InvalidOutputIndex;
+        use TranscodeFailure::LifecyclePoisoned;
         use TranscodeFailure::OutputLengthOverflow;
+        use TranscodeFailure::TranscodeAfterFinish;
+        use TranscodeFailure::TranscodeBeforeReset;
 
         match error {
             InvalidInputIndex { index, input_len } => {
@@ -124,6 +129,11 @@ impl CharsetDecodeError {
                 output_index,
             ),
             OutputLengthOverflow => Self::new(charset, CharsetDecodeErrorKind::OutputLengthOverflow, usize::MAX),
+            TranscodeBeforeReset => Self::new(charset, CharsetDecodeErrorKind::TranscodeBeforeReset, usize::MAX),
+            FinishBeforeReset => Self::new(charset, CharsetDecodeErrorKind::FinishBeforeReset, usize::MAX),
+            TranscodeAfterFinish => Self::new(charset, CharsetDecodeErrorKind::TranscodeAfterFinish, usize::MAX),
+            FinishAfterFinish => Self::new(charset, CharsetDecodeErrorKind::FinishAfterFinish, usize::MAX),
+            LifecyclePoisoned => Self::new(charset, CharsetDecodeErrorKind::LifecyclePoisoned, usize::MAX),
             IncompleteInput {
                 input_index,
                 required,
@@ -165,6 +175,11 @@ impl CharsetDecodeError {
                 | CharsetDecodeErrorKind::BufferTooSmall { .. }
                 | CharsetDecodeErrorKind::OutputLengthOverflow
                 | CharsetDecodeErrorKind::UnexpectedTranscodeFailure
+                | CharsetDecodeErrorKind::TranscodeBeforeReset
+                | CharsetDecodeErrorKind::FinishBeforeReset
+                | CharsetDecodeErrorKind::TranscodeAfterFinish
+                | CharsetDecodeErrorKind::FinishAfterFinish
+                | CharsetDecodeErrorKind::LifecyclePoisoned
                 | CharsetDecodeErrorKind::IncompleteSequence { .. } => None,
             },
         }
@@ -290,7 +305,8 @@ impl CharsetDecodeError {
     /// # Returns
     ///
     /// Returns `Some(consumed)` for malformed and invalid-code-point input, or
-    /// `None` for incomplete input.
+    /// `None` for all other kinds, including incomplete input and lifecycle
+    /// failures.
     #[inline]
     pub const fn consumed(self) -> Option<NonZeroUsize> {
         self.consumed

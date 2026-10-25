@@ -11,6 +11,7 @@ use qubit_codec::TranscodeFailure;
 use qubit_codec_text::AsciiCodec;
 use qubit_codec_text::Charset;
 use qubit_codec_text::CharsetConvertError;
+use qubit_codec_text::CharsetConverter;
 use qubit_codec_text::CharsetDecodeError;
 use qubit_codec_text::CharsetDecodeErrorKind;
 use qubit_codec_text::CharsetEncodeError;
@@ -123,5 +124,59 @@ fn test_charset_convert_error_maps_every_converter_error_domain() {
             5,
         )),
         error,
+    );
+}
+
+#[test]
+fn test_charset_convert_error_preserves_lifecycle_failures() {
+    let cases = [
+        (
+            TranscodeFailure::TranscodeBeforeReset,
+            CharsetDecodeErrorKind::TranscodeBeforeReset,
+        ),
+        (
+            TranscodeFailure::FinishBeforeReset,
+            CharsetDecodeErrorKind::FinishBeforeReset,
+        ),
+        (
+            TranscodeFailure::TranscodeAfterFinish,
+            CharsetDecodeErrorKind::TranscodeAfterFinish,
+        ),
+        (
+            TranscodeFailure::FinishAfterFinish,
+            CharsetDecodeErrorKind::FinishAfterFinish,
+        ),
+        (
+            TranscodeFailure::LifecyclePoisoned,
+            CharsetDecodeErrorKind::LifecyclePoisoned,
+        ),
+    ];
+    for (failure, kind) in cases {
+        let framework: TranscodeConvertErrorOf<Utf8Codec, AsciiCodec> = TranscodeConvertError::Failure(failure);
+        let mapped = CharsetConvertError::from_transcode_error::<Utf8Codec, AsciiCodec>(
+            Charset::UTF_8,
+            Charset::ASCII,
+            framework,
+        );
+        assert_eq!(
+            CharsetConvertError::Decode(CharsetDecodeError::new(Charset::UTF_8, kind, usize::MAX)),
+            mapped,
+        );
+    }
+}
+
+#[test]
+fn test_charset_convert_error_maps_actual_before_reset() {
+    let mut converter = CharsetConverter::from_codecs(Utf8Codec, AsciiCodec);
+    let failure = converter
+        .transcode(b"A", 0, &mut [0_u8; 1], 0)
+        .expect_err("a new converter requires reset");
+    assert_eq!(
+        CharsetConvertError::Decode(CharsetDecodeError::new(
+            Charset::UTF_8,
+            CharsetDecodeErrorKind::TranscodeBeforeReset,
+            usize::MAX,
+        )),
+        converter.map_transcode_error(failure),
     );
 }

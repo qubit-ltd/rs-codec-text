@@ -10,6 +10,8 @@ use qubit_codec::TranscodeFailure;
 use qubit_codec_text::Charset;
 use qubit_codec_text::CharsetEncodeError;
 use qubit_codec_text::CharsetEncodeErrorKind;
+use qubit_codec_text::CharsetEncoder;
+use qubit_codec_text::Utf8Codec;
 
 #[test]
 fn test_charset_encode_error_exposes_context() {
@@ -162,8 +164,92 @@ fn test_charset_encode_error_maps_transcode_failures() {
     assert_eq!(usize::MAX, error.index());
 
     let error = CharsetEncodeError::map_transcode_failure(Charset::UTF_8, TranscodeFailure::FinishAfterFinish);
-    assert_eq!(CharsetEncodeErrorKind::UnexpectedTranscodeFailure, error.kind(),);
+    assert_eq!(CharsetEncodeErrorKind::FinishAfterFinish, error.kind(),);
     assert_eq!(usize::MAX, error.index());
+}
+
+#[test]
+fn test_charset_encode_error_preserves_lifecycle_failures() {
+    let cases = [
+        (
+            TranscodeFailure::TranscodeBeforeReset,
+            CharsetEncodeErrorKind::TranscodeBeforeReset,
+        ),
+        (
+            TranscodeFailure::FinishBeforeReset,
+            CharsetEncodeErrorKind::FinishBeforeReset,
+        ),
+        (
+            TranscodeFailure::TranscodeAfterFinish,
+            CharsetEncodeErrorKind::TranscodeAfterFinish,
+        ),
+        (
+            TranscodeFailure::FinishAfterFinish,
+            CharsetEncodeErrorKind::FinishAfterFinish,
+        ),
+        (
+            TranscodeFailure::LifecyclePoisoned,
+            CharsetEncodeErrorKind::LifecyclePoisoned,
+        ),
+    ];
+    for (failure, kind) in cases {
+        let error = CharsetEncodeError::map_transcode_failure(Charset::UTF_8, failure);
+        assert_eq!(kind, error.kind());
+        assert_eq!(Charset::UTF_8, error.charset());
+        assert_eq!(usize::MAX, error.index());
+        assert_eq!(None, kind.required());
+        assert_eq!(None, kind.available());
+        assert_eq!(None, kind.value());
+        assert_eq!(None, kind.input_len());
+        assert_eq!(None, kind.output_len());
+    }
+}
+
+#[test]
+fn test_charset_encode_lifecycle_error_kind_displays_specific_cause() {
+    let cases = [
+        (
+            CharsetEncodeErrorKind::TranscodeBeforeReset,
+            "transcode called before reset",
+        ),
+        (CharsetEncodeErrorKind::FinishBeforeReset, "finish called before reset"),
+        (
+            CharsetEncodeErrorKind::TranscodeAfterFinish,
+            "transcode called after finish without an intervening reset",
+        ),
+        (
+            CharsetEncodeErrorKind::FinishAfterFinish,
+            "finish called twice without an intervening reset",
+        ),
+        (
+            CharsetEncodeErrorKind::LifecyclePoisoned,
+            "transcoder lifecycle is poisoned; a successful reset is required",
+        ),
+    ];
+    for (kind, message) in cases {
+        assert_eq!(message, kind.to_string());
+    }
+}
+
+#[test]
+fn test_charset_encode_error_maps_actual_after_finish() {
+    let mut encoder = CharsetEncoder::new(Utf8Codec);
+    encoder.reset(&mut [], 0).expect("reset");
+    encoder.finish(&mut [], 0).expect("finish");
+    let failure = encoder
+        .transcode(&['A'], 0, &mut [0_u8; 1], 0)
+        .expect_err("a finished encoder requires reset");
+    assert_eq!(
+        CharsetEncodeErrorKind::TranscodeAfterFinish,
+        encoder.map_transcode_error(failure).kind(),
+    );
+    encoder.reset(&mut [], 0).expect("successful reset opens a new stream");
+    let mut output = [0_u8; 1];
+    let progress = encoder
+        .transcode(&['A'], 0, &mut output, 0)
+        .expect("encode after reset");
+    assert_eq!((1, 1), (progress.read(), progress.written()));
+    assert_eq!(*b"A", output);
 }
 
 #[test]

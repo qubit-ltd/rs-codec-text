@@ -82,17 +82,22 @@ impl CharsetEncodeError {
     /// failures retain their original indices and sizes.
     /// Decode-only framework failures are reported as
     /// [`CharsetEncodeErrorKind::UnexpectedTranscodeFailure`] instead of
-    /// being misreported as output-length overflow.
-    /// This mapper uses `usize::MAX` when an overflow or otherwise unexpected
-    /// framework failure has no concrete index; directly constructed errors
-    /// are not restricted to that sentinel.
+    /// being misreported as output-length overflow. Lifecycle failures retain
+    /// their specific kind. This mapper uses `usize::MAX` when a failure has no
+    /// concrete index; directly constructed errors are not restricted to that
+    /// sentinel.
     pub fn map_transcode_failure(charset: Charset, error: TranscodeFailure) -> Self {
+        use TranscodeFailure::FinishAfterFinish;
+        use TranscodeFailure::FinishBeforeReset;
         use TranscodeFailure::IncompleteInput;
         use TranscodeFailure::InsufficientOutput;
         use TranscodeFailure::InvalidInputIndex;
         use TranscodeFailure::InvalidOutputIndex;
+        use TranscodeFailure::LifecyclePoisoned;
         use TranscodeFailure::OutputLengthOverflow;
         use TranscodeFailure::TrailingInput;
+        use TranscodeFailure::TranscodeAfterFinish;
+        use TranscodeFailure::TranscodeBeforeReset;
 
         match error {
             InvalidInputIndex { index, input_len } => {
@@ -123,6 +128,11 @@ impl CharsetEncodeError {
                 input_index,
             ),
             TrailingInput { .. } => Self::new(charset, CharsetEncodeErrorKind::UnexpectedTranscodeFailure, usize::MAX),
+            TranscodeBeforeReset => Self::new(charset, CharsetEncodeErrorKind::TranscodeBeforeReset, usize::MAX),
+            FinishBeforeReset => Self::new(charset, CharsetEncodeErrorKind::FinishBeforeReset, usize::MAX),
+            TranscodeAfterFinish => Self::new(charset, CharsetEncodeErrorKind::TranscodeAfterFinish, usize::MAX),
+            FinishAfterFinish => Self::new(charset, CharsetEncodeErrorKind::FinishAfterFinish, usize::MAX),
+            LifecyclePoisoned => Self::new(charset, CharsetEncodeErrorKind::LifecyclePoisoned, usize::MAX),
             _ => Self::new(charset, CharsetEncodeErrorKind::UnexpectedTranscodeFailure, usize::MAX),
         }
     }

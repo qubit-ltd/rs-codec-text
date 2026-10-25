@@ -61,6 +61,26 @@ pub enum CharsetEncodeErrorKind {
     #[error("The transcode framework reported an unexpected encode failure.")]
     UnexpectedTranscodeFailure,
 
+    /// Transcoding was attempted before the first successful reset.
+    #[error("transcode called before reset")]
+    TranscodeBeforeReset,
+
+    /// Finalization was attempted before the first successful reset.
+    #[error("finish called before reset")]
+    FinishBeforeReset,
+
+    /// Transcoding was attempted after finalization without another reset.
+    #[error("transcode called after finish without an intervening reset")]
+    TranscodeAfterFinish,
+
+    /// Finalization was attempted twice without another reset.
+    #[error("finish called twice without an intervening reset")]
+    FinishAfterFinish,
+
+    /// Lifecycle execution failed; a successful reset is required before reuse.
+    #[error("transcoder lifecycle is poisoned; a successful reset is required")]
+    LifecyclePoisoned,
+
     /// The supplied output buffer is too small for the encoded character.
     #[error("The output buffer is too small (required {required} units, available {available} units).")]
     BufferTooSmall {
@@ -104,6 +124,11 @@ impl CharsetEncodeErrorKind {
             | Self::InvalidOutputIndex { .. }
             | Self::UnencodableValue
             | Self::UnexpectedTranscodeFailure
+            | Self::TranscodeBeforeReset
+            | Self::FinishBeforeReset
+            | Self::TranscodeAfterFinish
+            | Self::FinishAfterFinish
+            | Self::LifecyclePoisoned
             | Self::OutputLengthOverflow
             | Self::IncompleteInput { .. } => None,
         }
@@ -129,6 +154,11 @@ impl CharsetEncodeErrorKind {
             | Self::UnmappableCharacter { .. }
             | Self::UnencodableValue
             | Self::UnexpectedTranscodeFailure
+            | Self::TranscodeBeforeReset
+            | Self::FinishBeforeReset
+            | Self::TranscodeAfterFinish
+            | Self::FinishAfterFinish
+            | Self::LifecyclePoisoned
             | Self::OutputLengthOverflow => None,
         }
     }
@@ -154,6 +184,11 @@ impl CharsetEncodeErrorKind {
             | Self::UnmappableCharacter { .. }
             | Self::UnencodableValue
             | Self::UnexpectedTranscodeFailure
+            | Self::TranscodeBeforeReset
+            | Self::FinishBeforeReset
+            | Self::TranscodeAfterFinish
+            | Self::FinishAfterFinish
+            | Self::LifecyclePoisoned
             | Self::OutputLengthOverflow => None,
         }
     }
@@ -175,6 +210,11 @@ impl CharsetEncodeErrorKind {
             | Self::InvalidOutputIndex { .. }
             | Self::UnencodableValue
             | Self::UnexpectedTranscodeFailure
+            | Self::TranscodeBeforeReset
+            | Self::FinishBeforeReset
+            | Self::TranscodeAfterFinish
+            | Self::FinishAfterFinish
+            | Self::LifecyclePoisoned
             | Self::OutputLengthOverflow
             | Self::IncompleteInput { .. } => None,
         }
@@ -197,6 +237,11 @@ impl CharsetEncodeErrorKind {
             | Self::BufferTooSmall { .. }
             | Self::UnencodableValue
             | Self::UnexpectedTranscodeFailure
+            | Self::TranscodeBeforeReset
+            | Self::FinishBeforeReset
+            | Self::TranscodeAfterFinish
+            | Self::FinishAfterFinish
+            | Self::LifecyclePoisoned
             | Self::OutputLengthOverflow
             | Self::IncompleteInput { .. } => None,
         }

@@ -55,6 +55,26 @@ pub enum CharsetDecodeErrorKind {
     #[error("The transcode layer reported an unexpected framework failure.")]
     UnexpectedTranscodeFailure,
 
+    /// Transcoding was attempted before the first successful reset.
+    #[error("transcode called before reset")]
+    TranscodeBeforeReset,
+
+    /// Finalization was attempted before the first successful reset.
+    #[error("finish called before reset")]
+    FinishBeforeReset,
+
+    /// Transcoding was attempted after finalization without another reset.
+    #[error("transcode called after finish without an intervening reset")]
+    TranscodeAfterFinish,
+
+    /// Finalization was attempted twice without another reset.
+    #[error("finish called twice without an intervening reset")]
+    FinishAfterFinish,
+
+    /// Lifecycle execution failed; a successful reset is required before reuse.
+    #[error("transcoder lifecycle is poisoned; a successful reset is required")]
+    LifecyclePoisoned,
+
     /// The input units do not form a well-formed encoded sequence.
     #[error("The encoded text sequence is malformed.")]
     MalformedSequence {
@@ -123,6 +143,11 @@ impl CharsetDecodeErrorKind {
             | Self::InvalidOutputIndex { .. }
             | Self::OutputLengthOverflow
             | Self::UnexpectedTranscodeFailure
+            | Self::TranscodeBeforeReset
+            | Self::FinishBeforeReset
+            | Self::TranscodeAfterFinish
+            | Self::FinishAfterFinish
+            | Self::LifecyclePoisoned
             | Self::MalformedSequence { .. }
             | Self::InvalidCodePoint { .. } => None,
         }
@@ -144,6 +169,11 @@ impl CharsetDecodeErrorKind {
             | Self::InvalidOutputIndex { .. }
             | Self::OutputLengthOverflow
             | Self::UnexpectedTranscodeFailure
+            | Self::TranscodeBeforeReset
+            | Self::FinishBeforeReset
+            | Self::TranscodeAfterFinish
+            | Self::FinishAfterFinish
+            | Self::LifecyclePoisoned
             | Self::MalformedSequence { .. }
             | Self::InvalidCodePoint { .. } => None,
         }
@@ -168,6 +198,11 @@ impl CharsetDecodeErrorKind {
             | Self::BufferTooSmall { .. }
             | Self::OutputLengthOverflow
             | Self::UnexpectedTranscodeFailure
+            | Self::TranscodeBeforeReset
+            | Self::FinishBeforeReset
+            | Self::TranscodeAfterFinish
+            | Self::FinishAfterFinish
+            | Self::LifecyclePoisoned
             | Self::IncompleteSequence { .. } => None,
         }
     }
@@ -198,6 +233,11 @@ impl CharsetDecodeErrorKind {
             | Self::BufferTooSmall { .. }
             | Self::OutputLengthOverflow
             | Self::UnexpectedTranscodeFailure
+            | Self::TranscodeBeforeReset
+            | Self::FinishBeforeReset
+            | Self::TranscodeAfterFinish
+            | Self::FinishAfterFinish
+            | Self::LifecyclePoisoned
             | Self::MalformedSequence { .. }
             | Self::InvalidCodePoint { .. } => None,
         }
