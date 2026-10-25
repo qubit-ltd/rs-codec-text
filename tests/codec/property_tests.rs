@@ -98,6 +98,30 @@ proptest! {
             .max_total_output_len(bytes.len())
             .expect("UTF-8 decoder output bound should be representable");
         let mut output = vec!['\0'; capacity];
-        let _ = decoder.transcode_complete_into(&bytes, &mut output);
+        let written = decoder
+            .transcode_complete_into(&bytes, &mut output)
+            .expect("default replacement policy must accept arbitrary UTF-8 bytes");
+        let actual = output[..written].iter().collect::<String>();
+        let expected = String::from_utf8_lossy(&bytes).into_owned();
+        prop_assert_eq!(actual, expected);
+    }
+}
+
+#[test]
+fn test_utf8_replacement_matches_stdlib_for_malformed_boundaries() {
+    let cases: &[&[u8]] = &[
+        b"",
+        b"ASCII",
+        &[0xff, b'A'],
+        &[0xe4, 0xb8, b'A'],
+        &[0xc0, 0xaf],
+        &[0xed, 0xa0, 0x80],
+        &[0xe2, 0x82],
+    ];
+    for &bytes in cases {
+        let mut decoder = CharsetDecoder::new(Utf8Codec);
+        let actual = decode_string(&mut decoder, bytes).expect("default replacement policy must accept complete input");
+        let expected = String::from_utf8_lossy(bytes);
+        assert_eq!(expected.as_ref(), actual, "input: {bytes:02x?}");
     }
 }
