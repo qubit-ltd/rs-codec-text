@@ -8,6 +8,9 @@
 use std::collections::hash_map::DefaultHasher;
 use std::hash::Hash;
 use std::hash::Hasher;
+use std::sync::Arc;
+use std::sync::Barrier;
+use std::thread;
 
 use qubit_codec::ByteOrder;
 use qubit_codec_text::Charset;
@@ -319,6 +322,90 @@ fn test_charset_registry_supports_concurrent_access() {
         )),
         Charset::from_whatwg_label("x-qubit-threaded-c-alias")
     );
+}
+
+#[test]
+fn test_registry_race_rejects_conflicting_alias() {
+    let candidates = [
+        Charset::new_static("x-rct-45d23b3e-race-a", "Race A 45d23b3e", &["x-rct-45d23b3e-shared"]),
+        Charset::new_static("x-rct-45d23b3e-race-b", "Race B 45d23b3e", &["X_RCT_45D23B3E_SHARED"]),
+    ];
+    let barrier = Arc::new(Barrier::new(2));
+    let handles: Vec<_> = candidates
+        .into_iter()
+        .map(|candidate| {
+            let barrier = Arc::clone(&barrier);
+            thread::spawn(move || {
+                barrier.wait();
+                candidate.register()
+            })
+        })
+        .collect();
+    let outcomes: Vec<_> = handles
+        .into_iter()
+        .map(|handle| handle.join().expect("registration thread should finish"))
+        .collect();
+    let winners: Vec<_> = outcomes
+        .iter()
+        .filter_map(|result| result.as_ref().ok().copied())
+        .collect();
+
+    assert_eq!(1, winners.len());
+    let winner = winners[0];
+    let failures: Vec<_> = outcomes.iter().filter_map(|result| result.as_ref().err()).collect();
+
+    assert_eq!(1, failures.len());
+    assert_eq!(Some(winner), failures[0].existing());
+    assert!(matches!(
+        failures[0].kind(),
+        CharsetRegistrationErrorKind::ConflictingLabel { existing } if existing == winner
+    ));
+    assert_eq!(Some(winner), Charset::from_label("x-rct-45d23b3e-shared"));
+    assert_eq!(Some(winner), Charset::from_label("X_RCT_45D23B3E_SHARED"));
+    assert_eq!(
+        1,
+        Charset::registered()
+            .iter()
+            .filter(|value| candidates.contains(value))
+            .count()
+    );
+}
+
+#[test]
+fn test_registry_race_same_descriptor_is_idempotent() {
+    let candidate = Charset::new_static(
+        "x-rct-45d23b3e-idempotent",
+        "Idempotent 45d23b3e",
+        &["x-rct-45d23b3e-idempotent-alias"],
+    );
+    let barrier = Arc::new(Barrier::new(2));
+    let handles: Vec<_> = (0..2)
+        .map(|_| {
+            let barrier = Arc::clone(&barrier);
+            thread::spawn(move || {
+                barrier.wait();
+                candidate.register()
+            })
+        })
+        .collect();
+
+    for handle in handles {
+        assert_eq!(
+            candidate,
+            handle
+                .join()
+                .expect("registration thread should finish")
+                .expect("same descriptor should register")
+        );
+    }
+    assert_eq!(
+        1,
+        Charset::registered()
+            .iter()
+            .filter(|value| value.id() == candidate.id())
+            .count()
+    );
+    assert_eq!(Some(candidate), Charset::from_label("x-rct-45d23b3e-idempotent-alias"));
 }
 
 #[test]
