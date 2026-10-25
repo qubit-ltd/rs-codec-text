@@ -73,7 +73,7 @@ fn bench_decode<C>(
             let written = decoder
                 .transcode_complete_into(black_box(input), output.as_mut_slice())
                 .expect("valid fixture should decode");
-            black_box((written, output[0..written].as_ptr()));
+            black_box(&output[..written]);
         });
     });
 }
@@ -83,24 +83,23 @@ fn decode_utf8_window(
     decoder: &mut CharsetDecoder<Utf8Codec>,
     input: &[u8],
     output: &mut [char],
-) -> (u64, usize, usize) {
+) -> (usize, usize, usize) {
     decoder.reset(&mut [], 0).expect("UTF-8 reset should be infallible");
     let mut input_index = 0;
-    let mut checksum = 0_u64;
+    let mut written_total = 0;
     while input_index < input.len() {
         let progress = decoder
             .transcode(input, input_index, output, 0)
             .expect("valid UTF-8 fixture should decode");
         input_index += progress.read();
-        for &character in &output[..progress.written()] {
-            checksum = checksum.rotate_left(5).wrapping_add(u64::from(character as u32));
-        }
+        written_total += progress.written();
+        black_box(&output[..progress.written()]);
         if progress.is_complete() {
             break;
         }
     }
     let finished = decoder.finish(&mut [], 0).expect("UTF-8 finish");
-    (checksum, input_index, finished)
+    (written_total, input_index, finished)
 }
 
 fn bench_convert<D, E>(
@@ -158,9 +157,28 @@ fn bench_charset_transcode(criterion: &mut Criterion) {
     for window in [7_usize, 31] {
         let name = format!("utf8_output_window_{window}");
         let mut validation_decoder = CharsetDecoder::new(Utf8Codec);
+        validation_decoder.reset(&mut [], 0).expect("validation reset");
         let mut validation_output = vec!['\0'; window];
-        let (_, consumed, finished) =
+        let mut input_index = 0;
+        let mut char_index = 0;
+        while input_index < utf8.len() {
+            let progress = validation_decoder
+                .transcode(&utf8, input_index, &mut validation_output, 0)
+                .expect("valid fixture");
+            let next = char_index + progress.written();
+            assert_eq!(&chars[char_index..next], &validation_output[..progress.written()]);
+            assert!(progress.read() > 0 || progress.written() > 0);
+            input_index += progress.read();
+            char_index = next;
+        }
+        assert_eq!(utf8.len(), input_index);
+        assert_eq!(chars.len(), char_index);
+        assert_eq!(0, validation_decoder.finish(&mut [], 0).expect("validation finish"));
+
+        let mut validation_decoder = CharsetDecoder::new(Utf8Codec);
+        let (written, consumed, finished) =
             decode_utf8_window(&mut validation_decoder, &utf8, validation_output.as_mut_slice());
+        assert_eq!(chars.len(), written);
         assert_eq!(utf8.len(), consumed);
         assert_eq!(0, finished);
 
