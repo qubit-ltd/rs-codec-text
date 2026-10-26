@@ -11,6 +11,14 @@ use std::panic::catch_unwind;
 use qubit_codec_text::Ascii;
 
 #[test]
+fn test_ascii_eot_constants_preserve_legacy_aliases() {
+    assert_eq!('\u{0004}', Ascii::END_OF_TRANSMISSION_CHAR);
+    assert_eq!(0x04_u8, Ascii::END_OF_TRANSMISSION_BYTE);
+    assert_eq!(Ascii::END_OF_TRANSMISSION_CHAR, Ascii::START_OF_TRANSMISSION_CHAR);
+    assert_eq!(Ascii::END_OF_TRANSMISSION_BYTE, Ascii::START_OF_TRANSMISSION_BYTE);
+}
+
+#[test]
 fn test_ascii_classifies_ascii_code_points() {
     assert!(Ascii::is_ascii_byte(b'A'));
     assert!(!Ascii::is_ascii_byte(0x80));

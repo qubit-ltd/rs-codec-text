@@ -53,11 +53,21 @@ impl Ascii {
     /// ASCII ETX as a byte.
     pub const END_OF_TEXT_BYTE: u8 = Self::END_OF_TEXT_CHAR as u8;
 
-    /// ASCII EOT.
-    pub const START_OF_TRANSMISSION_CHAR: char = '\u{0004}';
+    /// ASCII end of transmission (EOT), U+0004.
+    pub const END_OF_TRANSMISSION_CHAR: char = '\u{0004}';
 
-    /// ASCII EOT as a byte.
-    pub const START_OF_TRANSMISSION_BYTE: u8 = Self::START_OF_TRANSMISSION_CHAR as u8;
+    /// ASCII end of transmission (EOT) as byte 0x04.
+    pub const END_OF_TRANSMISSION_BYTE: u8 = Self::END_OF_TRANSMISSION_CHAR as u8;
+
+    /// Historical misnomer retained as a compatibility alias for
+    /// [`Self::END_OF_TRANSMISSION_CHAR`]. This character marks end of
+    /// transmission, not start of transmission.
+    pub const START_OF_TRANSMISSION_CHAR: char = Self::END_OF_TRANSMISSION_CHAR;
+
+    /// Historical misnomer retained as a compatibility alias for
+    /// [`Self::END_OF_TRANSMISSION_BYTE`]. This byte marks end of
+    /// transmission, not start of transmission.
+    pub const START_OF_TRANSMISSION_BYTE: u8 = Self::END_OF_TRANSMISSION_BYTE;
 
     /// ASCII ENQ.
     pub const ENQUIRY_CHAR: char = '\u{0005}';

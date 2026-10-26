@@ -62,7 +62,9 @@ impl CharsetEncodeError {
     /// error discards the outer phase, input index, and input-consumption
     /// metadata; inspect the original transcode error first when that context
     /// is needed. Source-owned index and consumption values may differ from the
-    /// outer values.
+    /// outer values. Framework failures may also lose context as described by
+    /// [`Self::map_transcode_failure`]; inspect the original error first when
+    /// its full diagnostic fields are needed.
     pub fn from_transcode_error(charset: Charset, error: TranscodeEncodeError<Self, char>) -> Self {
         match error {
             TranscodeEncodeError::Failure(failure) => Self::map_transcode_failure(charset, failure),
@@ -82,14 +84,19 @@ impl CharsetEncodeError {
     ///
     /// # Returns
     ///
-    /// Returns the charset-level representation of `error`. Buffer and index
-    /// failures retain their original indices and sizes.
-    /// Decode-only framework failures are reported as
-    /// [`CharsetEncodeErrorKind::UnexpectedTranscodeFailure`] instead of
-    /// being misreported as output-length overflow. Lifecycle failures retain
-    /// their specific kind. This mapper uses `usize::MAX` when a failure has no
-    /// concrete index; directly constructed errors are not restricted to that
-    /// sentinel.
+    /// Returns the charset-level representation of `error`.
+    /// `InvalidInputIndex`, `InvalidOutputIndex`, `InsufficientOutput`, and
+    /// `IncompleteInput` retain their original index and associated sizes.
+    /// Lifecycle failures retain their specific kind, and
+    /// `OutputLengthOverflow` retains its overflow kind; these mappings use
+    /// `usize::MAX` as the index.
+    /// Other failures, including `InvalidOutputRange` and `TrailingInput`,
+    /// become [`CharsetEncodeErrorKind::UnexpectedTranscodeFailure`] with
+    /// index `usize::MAX`; their original context is not retained.
+    /// Inspect or preserve the original transcode error before mapping when
+    /// those details are needed. The sentinel can therefore also indicate a
+    /// discarded position, rather than an originally absent position.
+    /// Directly constructed errors are not restricted to that sentinel.
     pub fn map_transcode_failure(charset: Charset, error: TranscodeFailure) -> Self {
         use TranscodeFailure::FinishAfterFinish;
         use TranscodeFailure::FinishBeforeReset;

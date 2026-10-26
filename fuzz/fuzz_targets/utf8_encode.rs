@@ -20,7 +20,10 @@ fuzz_target!(|data: &[u8]| {
         .map(|chunk| {
             let mut bytes = [0_u8; 4];
             bytes[..chunk.len()].copy_from_slice(chunk);
-            char::from_u32(u32::from_le_bytes(bytes)).unwrap_or(char::REPLACEMENT_CHARACTER)
+            // Index all Unicode scalar values while skipping surrogates.
+            let rank = u32::from_le_bytes(bytes) % 0x10_f800;
+            let value = if rank < 0xd800 { rank } else { rank + 0x800 };
+            char::from_u32(value).expect("rank mapping must produce a Unicode scalar value")
         })
         .collect::<Vec<_>>();
     let expected = chars.iter().collect::<String>();
