@@ -74,10 +74,10 @@ use crate::CharsetEncodeError;
 ///   must not exceed [`Codec::MAX_ENCODE_UNITS_PER_VALUE`] and must match the
 ///   number of units written by `encode` for the same value and codec state. A
 ///   zero length is valid for stateful codecs that deliberately buffer output.
-/// - With the default encoder or converter policy, the target codec must
-///   encode at least one of U+FFFD or the question mark. Constructors prefer
-///   U+FFFD and fall back to the question mark; they panic only when neither
-///   is encodable. Explicit ignore or report policies do not require these
+/// - With the default encoder or converter policy, the target codec must encode
+///   at least one of U+FFFD or the question mark. Constructors prefer U+FFFD
+///   and fall back to the question mark; they panic only when neither is
+///   encodable. Explicit ignore or report policies do not require these
 ///   replacement characters.
 /// - [`Codec::encode`] is called only after the caller has confirmed that
 ///   [`Codec::can_encode_value`] returns `true` and reserved either the exact

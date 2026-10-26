@@ -883,11 +883,7 @@ struct PrimaryReplacementOnlyCodec;
 
 impl CharsetCodec for PrimaryReplacementOnlyCodec {
     fn charset(&self) -> Charset {
-        Charset::new_static(
-            "x-primary-replacement",
-            "Primary replacement test codec",
-            &[],
-        )
+        Charset::new_static("x-primary-replacement", "Primary replacement test codec", &[])
     }
 }
 
@@ -918,12 +914,7 @@ impl Codec for PrimaryReplacementOnlyCodec {
         unsafe { Utf8Codec.decode(input, input_index) }
     }
 
-    unsafe fn encode(
-        &mut self,
-        value: &char,
-        output: &mut [u8],
-        output_index: usize,
-    ) -> CharsetEncodeResult<usize> {
+    unsafe fn encode(&mut self, value: &char, output: &mut [u8], output_index: usize) -> CharsetEncodeResult<usize> {
         debug_assert!(self.can_encode_value(value));
         // SAFETY: The caller reserved the UTF-8 width returned by encode_len.
         unsafe { Utf8Codec.encode(value, output, output_index) }
