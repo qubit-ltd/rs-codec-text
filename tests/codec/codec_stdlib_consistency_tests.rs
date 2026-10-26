@@ -10,10 +10,7 @@ use core::fmt::Debug;
 use qubit_codec::ByteOrder;
 use qubit_codec::Codec;
 use qubit_codec::DecodeFailure;
-use qubit_codec::TranscodeConvertError;
-use qubit_codec::TranscodeConvertErrorOf;
 use qubit_codec::TranscodeDecodeError;
-use qubit_codec::TranscodeFailure;
 use qubit_codec::TranscodeStatus;
 use qubit_codec::Transcoder;
 use qubit_codec_text::AsciiCodec;
@@ -25,7 +22,6 @@ use qubit_codec_text::CharsetDecodeError;
 use qubit_codec_text::CharsetDecodeErrorKind;
 use qubit_codec_text::CharsetDecodePolicy;
 use qubit_codec_text::CharsetDecoder;
-use qubit_codec_text::CharsetEncodeError;
 use qubit_codec_text::CharsetEncodePolicy;
 use qubit_codec_text::CharsetEncoder;
 use qubit_codec_text::Utf8Codec;
@@ -67,34 +63,6 @@ impl DecodeTranscodeErrorSource for TranscodeDecodeError<CharsetDecodeError> {
             }
             TranscodeDecodeError::Domain(error) => error.into_source(),
         }
-    }
-}
-
-fn map_convert_error(error: TranscodeConvertErrorOf<Utf8Codec, Utf16U16Codec>) -> CharsetConvertError {
-    match error {
-        TranscodeConvertError::Failure(failure) => map_convert_failure(failure),
-        TranscodeConvertError::DecodeDomain(error) => CharsetConvertError::Decode(error.into_source()),
-        TranscodeConvertError::EncodeDomain(error) => CharsetConvertError::Encode(error.into_source()),
-        TranscodeConvertError::Unencodable { input_index, value } => {
-            CharsetConvertError::Encode(CharsetEncodeError::map_unencodable(Charset::UTF_8, input_index, value))
-        }
-    }
-}
-
-fn map_convert_failure(failure: TranscodeFailure) -> CharsetConvertError {
-    match failure {
-        TranscodeFailure::InvalidInputIndex { .. }
-        | TranscodeFailure::IncompleteInput { .. }
-        | TranscodeFailure::TrailingInput { .. } => {
-            CharsetConvertError::Decode(CharsetDecodeError::map_transcode_failure(Charset::UTF_8, failure))
-        }
-        TranscodeFailure::InvalidOutputIndex { .. }
-        | TranscodeFailure::InvalidOutputRange { .. }
-        | TranscodeFailure::InsufficientOutput { .. }
-        | TranscodeFailure::OutputLengthOverflow => {
-            CharsetConvertError::Encode(CharsetEncodeError::map_transcode_failure(Charset::UTF_8, failure))
-        }
-        _ => CharsetConvertError::Decode(CharsetDecodeError::map_transcode_failure(Charset::UTF_8, failure)),
     }
 }
 
@@ -551,12 +519,13 @@ fn test_charset_converter_policies_handle_unicode_decode_and_encode_paths() {
     .expect("report policy should not pre-encode replacement");
     let mut output = [0_u8; 3];
     reset_for_test(&mut converter);
-    let error = converter
+    let raw_error = converter
         .transcode(input, 0, &mut output, 0)
-        .map_err(map_convert_error)
         .expect_err("unmappable target character should be reported");
+    let error = converter.map_transcode_error(raw_error);
     match error {
         CharsetConvertError::Encode(error) => {
+            assert_eq!(Charset::ASCII, error.charset());
             assert_eq!(Some('中' as u32), error.value());
             assert_eq!(1, error.index());
         }
@@ -879,12 +848,13 @@ fn assert_converter_decode_policies<D>(
     .expect("report decode policy should be constructible");
     let mut output = [0_u8; 2];
     reset_for_test(&mut converter);
-    let error = converter
+    let raw_error = converter
         .transcode(input, 0, &mut output, 0)
-        .map_err(map_convert_error)
         .expect_err("report decode policy should surface source error");
+    let error = converter.map_transcode_error(raw_error);
     match error {
         CharsetConvertError::Decode(error) => {
+            assert_eq!(converter.source_charset(), error.charset());
             assert_eq!(expected_kind, error.kind());
             assert_eq!(expected_index, error.index());
         }
