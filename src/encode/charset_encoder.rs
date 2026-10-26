@@ -117,20 +117,13 @@ where
     ///
     /// Panics when neither [`CharsetEncodePolicy::DEFAULT_REPLACEMENT`] nor
     /// [`CharsetEncodePolicy::DEFAULT_FALLBACK_REPLACEMENT`] can be encoded by
-    /// `codec`. This panic is intentional by design: reaching this branch means
-    /// the supplied codec implementation is wrong, because the API requires a
-    /// default replacement fallback that the codec can encode. Built-in codecs
-    /// can always encode the fallback `?`; custom [`crate::CharsetCodec`]
-    /// implementations that cannot encode it violate the replacement
-    /// invariant and must fail fast during construction rather than defer the
-    /// bug to user input.
+    /// `codec`. The constructor prefers U+FFFD and uses `?` when U+FFFD is
+    /// unavailable.
     #[must_use]
     pub fn new(codec: C) -> Self {
         let policy = CharsetEncodePolicy::default_for(&codec).unwrap_or_else(|error| {
-            // This panic is intentional. If default replacement selection gets
-            // here, the codec cannot encode even the required fallback `?`.
-            // That violates the codec invariant expected by this API, so
-            // construction fails fast to expose the broken codec implementation.
+            // If default replacement selection gets here, the codec cannot
+            // encode either supported default replacement.
             panic!(
                 "cannot initialize CharsetEncoder for {:?}: neither {:?} nor {:?} is encodable ({error})",
                 codec.charset(),
@@ -139,10 +132,8 @@ where
             )
         });
         let hooks = Self::create_hooks(&codec, policy)
-            // A policy chosen by `default_for` must be encodable; failing here
-            // can only mean the codec violates the replacement fallback
-            // invariant. This panic is deliberate for the same fail-fast reason
-            // as the default-policy panic above.
+            // A policy chosen by `default_for` must be encodable; failure here
+            // means the selected replacement is not encodable.
             .expect(
                 "validated default encode policy should create hooks; \
                  failure means the codec violated its replacement invariant",
@@ -358,7 +349,8 @@ where
         <Self as Transcoder>::transcode_complete_into(self, input, output)
     }
 
-    /// Creates encode hooks for `policy`.
+    /// Creates encode hooks for `policy`, validating the selected replacement
+    /// only when the action is `Replace`.
     pub(crate) fn create_hooks(
         codec: &C,
         policy: CharsetEncodePolicy,

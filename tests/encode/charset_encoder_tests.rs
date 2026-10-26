@@ -21,6 +21,7 @@ use qubit_codec::TranscodeStatus;
 use qubit_codec::Transcoder;
 use qubit_codec_text::Charset;
 use qubit_codec_text::CharsetCodec;
+use qubit_codec_text::CharsetConverter;
 use qubit_codec_text::CharsetDecodeError;
 use qubit_codec_text::CharsetDecodeErrorKind;
 use qubit_codec_text::CharsetEncodeError;
@@ -875,4 +876,84 @@ fn test_charset_encoder_exposes_configuration_and_formats_debug() {
     let debug = format!("{encoder:?}");
     assert!(debug.contains("CharsetEncoder"));
     assert!(debug.contains("policy"));
+}
+
+#[derive(Clone, Copy, Debug)]
+struct PrimaryReplacementOnlyCodec;
+
+impl CharsetCodec for PrimaryReplacementOnlyCodec {
+    fn charset(&self) -> Charset {
+        Charset::new_static(
+            "x-primary-replacement",
+            "Primary replacement test codec",
+            &[],
+        )
+    }
+}
+
+impl Codec for PrimaryReplacementOnlyCodec {
+    type Value = char;
+    type Unit = u8;
+    type DecodeError = CharsetDecodeError;
+    type EncodeError = CharsetEncodeError;
+
+    const MIN_UNITS_PER_VALUE: usize = 1;
+    const MAX_ENCODE_UNITS_PER_VALUE: usize = 4;
+    const MAX_DECODE_UNITS_PER_VALUE: usize = 4;
+
+    fn can_encode_value(&self, value: &char) -> bool {
+        *value != '?'
+    }
+
+    fn encode_len(&self, value: &char) -> usize {
+        Utf8Codec.encode_len(value)
+    }
+
+    unsafe fn decode(
+        &mut self,
+        input: &[u8],
+        input_index: usize,
+    ) -> Result<(char, NonZeroUsize), DecodeFailure<CharsetDecodeError>> {
+        // SAFETY: The caller supplies the readable bounds required by UTF-8.
+        unsafe { Utf8Codec.decode(input, input_index) }
+    }
+
+    unsafe fn encode(
+        &mut self,
+        value: &char,
+        output: &mut [u8],
+        output_index: usize,
+    ) -> CharsetEncodeResult<usize> {
+        debug_assert!(self.can_encode_value(value));
+        // SAFETY: The caller reserved the UTF-8 width returned by encode_len.
+        unsafe { Utf8Codec.encode(value, output, output_index) }
+    }
+}
+
+#[test]
+fn test_primary_replacement_without_question_mark() {
+    let codec = PrimaryReplacementOnlyCodec;
+    assert!(codec.can_encode_value(&'\u{fffd}'));
+    assert!(!codec.can_encode_value(&'?'));
+    assert_eq!(
+        CharsetEncodePolicy::default(),
+        CharsetEncodePolicy::default_for(&codec).unwrap(),
+    );
+
+    let mut encoder = CharsetEncoder::new(codec);
+    assert_eq!('\u{fffd}', encoder.replacement());
+    let mut encoded = [0_u8; 4];
+    let written = encoder
+        .transcode_complete_into(&['?'], &mut encoded)
+        .expect("the primary replacement is encodable");
+    assert_eq!(3, written);
+    assert_eq!("\u{fffd}".as_bytes(), &encoded[..written]);
+
+    let mut converter = CharsetConverter::from_codecs(Utf8Codec, codec);
+    let mut converted = [0_u8; 12];
+    let written = converter
+        .transcode_complete_into(b"?", &mut converted)
+        .expect("the converter uses the encodable primary replacement");
+    assert_eq!(3, written);
+    assert_eq!("\u{fffd}".as_bytes(), &converted[..written]);
 }

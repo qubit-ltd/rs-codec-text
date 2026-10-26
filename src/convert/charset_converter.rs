@@ -196,13 +196,9 @@ where
     /// # Panics
     ///
     /// Panics when neither default replacement can be encoded by `target`.
-    /// This panic is intentional by design: reaching this branch means the
-    /// target codec implementation is wrong, because the API requires a
-    /// fallback replacement that the codec can encode. Built-in codecs can
-    /// always encode the fallback `?`; custom [`crate::CharsetCodec`]
-    /// implementations that cannot encode it violate the replacement
-    /// invariant and must fail fast during converter construction rather than
-    /// defer the bug to user input.
+    /// Panics only when `target` cannot encode either U+FFFD or the fallback
+    /// `?`. The constructor prefers U+FFFD and uses `?` when U+FFFD is
+    /// unavailable.
     #[must_use]
     pub fn from_codecs(source: D, target: E) -> Self {
         let decode_policy = CharsetDecodePolicy::default();
@@ -556,14 +552,12 @@ where
     ///
     /// Panics when neither the default replacement nor the fallback replacement
     /// can be encoded by `target`. This panic is intentional: reaching this
-    /// branch means the target codec implementation violates the replacement
-    /// fallback invariant and should fail fast.
+    /// branch means the target cannot encode either supported default
+    /// replacement.
     fn default_encode_policy(target: &E) -> (CharsetEncodePolicy, CharsetEncodeHooks) {
         let policy = CharsetEncodePolicy::default_for(target).unwrap_or_else(|error| {
-            // This panic is intentional. If default replacement selection gets
-            // here, the target codec cannot encode even the required fallback
-            // `?`. That violates the codec invariant expected by this API, so
-            // construction fails fast to expose the broken codec implementation.
+            // If default replacement selection gets here, the target cannot
+            // encode either supported default replacement.
             panic!(
                 "cannot initialize CharsetConverter target for {:?}: neither {:?} nor {:?} is encodable ({error})",
                 target.charset(),
@@ -573,9 +567,7 @@ where
         });
         let hooks = CharsetEncoder::<E>::create_hooks(target, policy)
             // A policy chosen by `default_encode_policy` must be encodable;
-            // failing here can only mean the target codec violates the
-            // replacement fallback invariant. This panic is deliberate for the
-            // same fail-fast reason as the default-policy panic above.
+            // failure here means the selected replacement is not encodable.
             .expect(
                 "validated default encode policy should create hooks; \
                  failure means the codec violated its replacement invariant",
