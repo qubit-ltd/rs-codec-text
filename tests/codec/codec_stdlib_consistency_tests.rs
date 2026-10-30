@@ -24,6 +24,7 @@ use qubit_codec_text::CharsetDecodePolicy;
 use qubit_codec_text::CharsetDecoder;
 use qubit_codec_text::CharsetEncodePolicy;
 use qubit_codec_text::CharsetEncoder;
+use qubit_codec_text::Latin1Codec;
 use qubit_codec_text::Utf8Codec;
 use qubit_codec_text::Utf16ByteCodec;
 use qubit_codec_text::Utf16U16Codec;
@@ -922,4 +923,83 @@ fn encode_utf32_bytes(chars: &[char], order: ByteOrder) -> Vec<u8> {
             ByteOrder::NativeEndian => unit.to_le_bytes(),
         })
         .collect()
+}
+
+fn assert_encode_bounds<C>(mut codec: C, ch: char, expected: &[C::Unit], sentinel: C::Unit)
+where
+    C: CharsetCodec,
+    C::Unit: Copy + Clone + PartialEq + Debug,
+{
+    assert!(codec.can_encode_value(&ch));
+    assert_eq!(expected.len(), codec.encode_len(&ch));
+
+    for offset in [1, 3] {
+        for suffix in [0, 2] {
+            let mut output = vec![sentinel; offset + expected.len() + suffix];
+            assert_eq!(expected.len(), output.len() - offset - suffix);
+            // SAFETY: ch is encodable, offset is valid, and the remaining
+            // output holds at least encode_len(&ch) units.
+            let written =
+                unsafe { codec.encode(&ch, &mut output, offset) }.expect("valid input and sufficient capacity");
+            assert_eq!(expected.len(), written);
+            assert_eq!(expected, &output[offset..offset + written]);
+            assert!(output[..offset].iter().all(|unit| *unit == sentinel));
+            assert!(output[offset + written..].iter().all(|unit| *unit == sentinel));
+        }
+    }
+}
+
+#[test]
+fn test_builtin_codec_encode_bounds() {
+    for ch in ['\0', 'A', '\u{7f}'] {
+        let expected = [ch as u8];
+        assert_encode_bounds(AsciiCodec, ch, &expected, 0xa5);
+    }
+    for ch in ['\0', 'A', '\u{80}', '\u{ff}'] {
+        let expected = [ch as u8];
+        assert_encode_bounds(Latin1Codec, ch, &expected, 0xa5);
+    }
+
+    let chars = [
+        '\0',
+        '\u{7f}',
+        '\u{80}',
+        '\u{7ff}',
+        '\u{800}',
+        '\u{d7ff}',
+        '\u{e000}',
+        '\u{ffff}',
+        '\u{10000}',
+        '\u{10ffff}',
+    ];
+    for ch in chars {
+        let mut utf8 = [0; 4];
+        assert_encode_bounds(Utf8Codec, ch, ch.encode_utf8(&mut utf8).as_bytes(), 0xa5);
+
+        let mut utf16 = [0; 2];
+        assert_encode_bounds(Utf16U16Codec, ch, ch.encode_utf16(&mut utf16), 0xa55a);
+        let units = ch.encode_utf16(&mut utf16).to_vec();
+        for order in [ByteOrder::LittleEndian, ByteOrder::BigEndian, ByteOrder::NativeEndian] {
+            let expected: Vec<u8> = units
+                .iter()
+                .flat_map(|unit| match order {
+                    ByteOrder::LittleEndian => unit.to_le_bytes(),
+                    ByteOrder::BigEndian => unit.to_be_bytes(),
+                    ByteOrder::NativeEndian => unit.to_ne_bytes(),
+                })
+                .collect();
+            assert_encode_bounds(Utf16ByteCodec::new(order), ch, &expected, 0xa5);
+        }
+
+        assert_encode_bounds(Utf32U32Codec, ch, &[ch as u32], 0xa55a_a55a);
+        for order in [ByteOrder::LittleEndian, ByteOrder::BigEndian, ByteOrder::NativeEndian] {
+            let scalar = ch as u32;
+            let expected = match order {
+                ByteOrder::LittleEndian => scalar.to_le_bytes(),
+                ByteOrder::BigEndian => scalar.to_be_bytes(),
+                ByteOrder::NativeEndian => scalar.to_ne_bytes(),
+            };
+            assert_encode_bounds(Utf32ByteCodec::new(order), ch, &expected, 0xa5);
+        }
+    }
 }

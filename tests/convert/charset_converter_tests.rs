@@ -21,6 +21,7 @@ use qubit_codec::TranscodeFailure;
 use qubit_codec::TranscodeProgress;
 use qubit_codec::TranscodeStatus;
 use qubit_codec::Transcoder;
+use qubit_codec_text::AsciiCodec;
 use qubit_codec_text::Charset;
 use qubit_codec_text::CharsetCodec;
 use qubit_codec_text::CharsetConvertError;
@@ -42,6 +43,193 @@ use qubit_codec_text::Utf32ByteCodec;
 fn reset_for_test<T: Transcoder>(transcoder: &mut T) {
     let mut output: [T::Output; 0] = [];
     assert!(transcoder.reset(&mut output, 0).is_ok());
+}
+
+fn replacement_interaction_converter(policy: CharsetEncodePolicy) -> CharsetConverter<Utf8Codec, AsciiCodec> {
+    CharsetConverter::from_codecs_with_policies(Utf8Codec, AsciiCodec, CharsetDecodePolicy::replace('\u{fffd}'), policy)
+        .expect("ASCII policy is valid")
+}
+
+fn assert_replacement_report(
+    converter: &CharsetConverter<Utf8Codec, AsciiCodec>,
+    raw: TranscodeConvertErrorOf<Utf8Codec, AsciiCodec>,
+) {
+    match converter.map_transcode_error(raw) {
+        CharsetConvertError::Encode(error) => {
+            assert_eq!(Charset::ASCII, error.charset());
+            assert_eq!(
+                CharsetEncodeErrorKind::UnmappableCharacter { value: 0xfffd },
+                error.kind(),
+            );
+        }
+        other => panic!("expected target encode error, got {other:?}"),
+    }
+}
+
+#[test]
+fn test_replacement_policy_interaction_complete() {
+    let cases: &[(&[u8], &[u8], &[u8])] = &[(b"A\xffB", b"AB", b"A?B"), (b"A\xe4\xb8", b"A", b"A?")];
+    for &(input, ignored, replaced) in cases {
+        for policy in [CharsetEncodePolicy::ignore(), CharsetEncodePolicy::replace('?')] {
+            let expected = if policy == CharsetEncodePolicy::ignore() {
+                ignored
+            } else {
+                replaced
+            };
+            let mut converter = replacement_interaction_converter(policy);
+            let capacity = converter.max_total_output_len(input.len()).expect("output bound");
+            let mut output = vec![0; capacity];
+            let written = converter
+                .transcode_complete_into(input, &mut output)
+                .expect("conversion");
+            assert_eq!(expected, &output[..written]);
+        }
+        let mut converter = replacement_interaction_converter(CharsetEncodePolicy::report());
+        let capacity = converter.max_total_output_len(input.len()).expect("output bound");
+        let mut output = vec![0; capacity];
+        let raw = converter
+            .transcode_complete_into(input, &mut output)
+            .expect_err("report rejects replacement");
+        assert_eq!(b"A", &output[..1]);
+        assert_replacement_report(&converter, raw);
+    }
+}
+
+#[test]
+fn test_replacement_policy_interaction_chunked() {
+    for (input, ignored, replaced) in [
+        (b"A\xffB".as_slice(), b"AB".as_slice(), b"A?B".as_slice()),
+        (b"A\xe4\xb8", b"A".as_slice(), b"A?".as_slice()),
+    ] {
+        for policy in [
+            CharsetEncodePolicy::ignore(),
+            CharsetEncodePolicy::replace('?'),
+            CharsetEncodePolicy::report(),
+        ] {
+            for windows in [&[1][..], &[0, 1][..]] {
+                let mut converter = replacement_interaction_converter(policy);
+                reset_for_test(&mut converter);
+                let mut pending = Vec::new();
+                let mut output = Vec::new();
+                let mut added = 0;
+                let mut eof = false;
+                let mut min_window = 0;
+                let mut window_cursor = 0;
+                let mut steps = 0;
+                let mut reported = false;
+                loop {
+                    steps += 1;
+                    assert!(steps <= 128 + 64 * input.len(), "stream did not converge");
+                    if pending.is_empty() && added < input.len() {
+                        pending.push(input[added]);
+                        added += 1;
+                    } else if added == input.len() {
+                        eof = true;
+                    }
+                    let size = min_window.max(windows[window_cursor % windows.len()]);
+                    window_cursor += 1;
+                    min_window = 0;
+                    let mut window = vec![0; size];
+                    let result = if eof {
+                        converter.transcode_eof(&pending, 0, &mut window, 0)
+                    } else {
+                        converter.transcode(&pending, 0, &mut window, 0)
+                    };
+                    let progress = match result {
+                        Ok(progress) => progress,
+                        Err(raw) => {
+                            assert_eq!(CharsetEncodePolicy::report(), policy);
+                            assert_eq!(b"A", output.as_slice());
+                            assert_replacement_report(&converter, raw);
+                            reported = true;
+                            break;
+                        }
+                    };
+                    output.extend_from_slice(&window[..progress.written()]);
+                    pending.drain(..progress.read());
+                    match progress.status() {
+                        TranscodeStatus::Complete if eof => break,
+                        TranscodeStatus::NeedOutput { required } => min_window = required.get(),
+                        TranscodeStatus::NeedInput { .. } => {
+                            if added < input.len() {
+                                pending.push(input[added]);
+                                added += 1;
+                            }
+                        }
+                        TranscodeStatus::Complete => {}
+                    }
+                }
+                if policy == CharsetEncodePolicy::report() {
+                    assert!(reported);
+                } else {
+                    assert_eq!(
+                        if policy == CharsetEncodePolicy::ignore() {
+                            ignored
+                        } else {
+                            replaced
+                        },
+                        output
+                    );
+                    assert_eq!(0, converter.finish(&mut [], 0).expect("finish"));
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn test_replacement_policy_interaction_pending_retry() {
+    let mut converter = replacement_interaction_converter(CharsetEncodePolicy::replace('?'));
+    reset_for_test(&mut converter);
+    let mut initial = [0; 1];
+    let first = converter.transcode(b"A", 0, &mut initial, 0).expect("write prefix");
+    assert_eq!(b"A", &initial[..first.written()]);
+    assert_eq!(TranscodeStatus::Complete, first.status());
+    let mut empty = [];
+    let pending = converter
+        .transcode(b"\xff", 0, &mut empty, 0)
+        .expect("replacement waits for output");
+    assert!(matches!(pending.status(), TranscodeStatus::NeedOutput { .. }));
+    let mut retry = [0; 1];
+    let remaining = &b"\xff"[pending.read()..];
+    let resumed = converter
+        .transcode(remaining, 0, &mut retry, 0)
+        .expect("retry replacement");
+    assert_eq!(b"?", &retry[..resumed.written()]);
+    assert_eq!(remaining.len(), resumed.read());
+    let mut tail = [0; 1];
+    let last = converter.transcode(b"B", 0, &mut tail, 0).expect("convert tail");
+    assert_eq!(b"B", &tail[..last.written()]);
+    assert_eq!(1, last.read());
+    assert_eq!(0, converter.finish(&mut [], 0).expect("finish"));
+
+    let mut eof_converter = replacement_interaction_converter(CharsetEncodePolicy::replace('?'));
+    reset_for_test(&mut eof_converter);
+    let mut prefix = [0; 1];
+    let written = eof_converter
+        .transcode(b"A", 0, &mut prefix, 0)
+        .expect("write EOF prefix");
+    assert_eq!(b"A", &prefix[..written.written()]);
+    let mut no_output = [];
+    let blocked = eof_converter
+        .transcode_eof(b"\xe4\xb8", 0, &mut no_output, 0)
+        .expect("EOF replacement waits");
+    assert!(matches!(blocked.status(), TranscodeStatus::NeedOutput { .. }));
+    let mut replacement = [0; 1];
+    let eof_input = b"\xe4\xb8";
+    let remaining = &eof_input[blocked.read()..];
+    let retried = eof_converter
+        .transcode_eof(remaining, 0, &mut replacement, 0)
+        .expect("retry EOF replacement");
+    assert_eq!(b"?", &replacement[..retried.written()]);
+    assert_eq!(remaining.len(), retried.read());
+    let mut eof_tail = [0; 1];
+    let completed = eof_converter
+        .transcode_eof(&[], 0, &mut eof_tail, 0)
+        .expect("complete EOF");
+    assert_eq!(0, completed.written());
+    assert_eq!(TranscodeStatus::Complete, completed.status());
+    assert_eq!(0, eof_converter.finish(&mut [], 0).expect("finish EOF converter"));
 }
 
 fn assert_chunked_matches_complete<C, F>(
