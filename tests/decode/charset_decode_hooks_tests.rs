@@ -177,13 +177,8 @@ fn test_report_preserves_consumed_width_for_builtin_byte_codecs() {
     );
 }
 
-fn assert_decode_report<C>(
-    codec: C,
-    bytes: &[u8],
-    width: usize,
-    charset: Charset,
-    kind: CharsetDecodeErrorKind,
-) where
+fn assert_decode_report<C>(codec: C, bytes: &[u8], width: usize, charset: Charset, kind: CharsetDecodeErrorKind)
+where
     C: Copy + CharsetCodec + Codec<Value = char, Unit = u8, DecodeError = CharsetDecodeError>,
 {
     for start in [0, 1] {
