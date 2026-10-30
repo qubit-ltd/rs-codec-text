@@ -1191,6 +1191,25 @@ impl Ascii {
 
     /// Folds a Unicode character to its ASCII replacement.
     ///
+    /// Uses a fixed historical compatibility table ported from Java
+    /// `ltd.qubit.commons.text.Ascii#fold`. This is not a general-purpose
+    /// accent removal or Unicode normalization operation, and it does not
+    /// guarantee preservation of case or the base letter. For example, the
+    /// compatibility table maps `ẛ` to `f` and `ǥ` to `G`.
+    ///
+    /// Unmapped characters are preserved, so the result is not guaranteed to
+    /// contain only ASCII characters.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use qubit_codec_text::Ascii;
+    ///
+    /// let mut output = ['\0'; Ascii::MAX_FOLDING_COUNT];
+    /// let written = Ascii::fold('ẛ', &mut output, 0);
+    /// assert_eq!(&['f'], &output[..written]);
+    /// ```
+    ///
     /// # Parameters
     ///
     /// - `ch`: The character to fold.
@@ -1234,6 +1253,20 @@ impl Ascii {
     }
 
     /// Folds a Unicode character into an owned string.
+    ///
+    /// Uses the same historical Java compatibility table as [`Self::fold`],
+    /// with no guarantee of general-purpose accent removal, Unicode
+    /// normalization, or case and base-letter preservation. Unmapped characters
+    /// are preserved, so the result may contain non-ASCII characters.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use qubit_codec_text::Ascii;
+    ///
+    /// assert_eq!("G", Ascii::fold_to_string('ǥ'));
+    /// assert_eq!("中", Ascii::fold_to_string('中'));
+    /// ```
     ///
     /// # Parameters
     ///
