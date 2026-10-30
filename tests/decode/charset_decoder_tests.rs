@@ -160,6 +160,57 @@ impl Codec for PendingInvalidInputErrorCodec {
 }
 
 #[derive(Clone, Copy, Debug, Default)]
+struct NonPolicyErrorCodec {
+    wait_for_second_unit: bool,
+}
+
+impl CharsetCodec for NonPolicyErrorCodec {
+    fn charset(&self) -> Charset {
+        Charset::ASCII
+    }
+}
+
+impl Codec for NonPolicyErrorCodec {
+    type Value = char;
+    type Unit = u8;
+    type DecodeError = CharsetDecodeError;
+    type EncodeError = CharsetEncodeError;
+
+    const MIN_UNITS_PER_VALUE: usize = 1;
+    const MAX_ENCODE_UNITS_PER_VALUE: usize = 2;
+    const MAX_DECODE_UNITS_PER_VALUE: usize = 2;
+
+    unsafe fn decode(
+        &mut self,
+        input: &[u8],
+        input_index: usize,
+    ) -> Result<(char, core::num::NonZeroUsize), DecodeFailure<CharsetDecodeError>> {
+        let available = input.len() - input_index;
+        if self.wait_for_second_unit && available == 1 {
+            let error = CharsetDecodeError::new(
+                Charset::ASCII,
+                CharsetDecodeErrorKind::IncompleteSequence { required: 2, available },
+                input_index,
+            );
+            return Err(error.into_codec_failure());
+        }
+        let error = CharsetDecodeError::new(
+            Charset::ASCII,
+            CharsetDecodeErrorKind::UnexpectedTranscodeFailure,
+            input_index,
+        );
+        Err(DecodeFailure::invalid_unknown(error))
+    }
+
+    unsafe fn encode(&mut self, _value: &char, _output: &mut [u8], output_index: usize) -> CharsetEncodeResult<usize> {
+        let kind = CharsetEncodeErrorKind::UnmappableCharacter {
+            value: output_index as u32,
+        };
+        Err(CharsetEncodeError::new(Charset::ASCII, kind, output_index))
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default)]
 struct DecodeFlushErrorCodec;
 
 impl CharsetCodec for DecodeFlushErrorCodec {
@@ -815,20 +866,30 @@ fn test_charset_decoder_reset_reports_invalid_output_index() {
 
 #[test]
 fn test_charset_decoder_propagates_non_policy_errors_from_caller_preserved_input() {
-    let mut decoder = CharsetDecoder::with_policy(PendingInvalidInputErrorCodec, CharsetDecodePolicy::report());
-    reset_for_test(&mut decoder);
-    let mut output = ['\0'; 1];
+    for policy in [CharsetDecodePolicy::replace('!'), CharsetDecodePolicy::ignore()] {
+        let codec = NonPolicyErrorCodec {
+            wait_for_second_unit: true,
+        };
+        let mut decoder = CharsetDecoder::with_policy(codec, policy);
+        reset_for_test(&mut decoder);
+        let mut output = ['x'; 1];
 
-    let progress = decoder
-        .transcode(&[0], 0, &mut output, 0)
-        .expect("first unit is caller-owned incomplete input");
-    assert!(matches!(progress.status(), TranscodeStatus::NeedInput { .. }));
+        let progress = decoder
+            .transcode(&[0], 0, &mut output, 0)
+            .expect("first unit is caller-owned incomplete input");
+        assert!(matches!(progress.status(), TranscodeStatus::NeedInput { .. }));
+        assert_eq!(0, progress.read());
+        assert_eq!(0, progress.written());
 
-    let error = decoder
-        .transcode(&[0, 1], 0, &mut output, 0)
-        .expect_err("non-policy error should propagate from caller-preserved input");
-    assert_eq!(CharsetDecodeErrorKind::malformed_unknown(), error.kind());
-    assert_eq!(0, error.index());
+        let error = decoder
+            .transcode(&[0, 1], 0, &mut output, 0)
+            .expect_err("non-policy error should propagate from caller-preserved input");
+        let error = decoder.map_transcode_error(error);
+        assert_eq!(CharsetDecodeErrorKind::UnexpectedTranscodeFailure, error.kind());
+        assert_eq!(Charset::ASCII, error.charset());
+        assert_eq!(0, error.index());
+        assert_eq!(['x'], output, "policy must preserve output on domain error");
+    }
 }
 
 #[test]
@@ -846,6 +907,20 @@ fn test_charset_decoder_finish_ignores_caller_owned_incomplete_error() {
         .finish(&mut output, 0)
         .expect("finish does not process caller-owned incomplete input");
     assert_eq!(0, written);
+}
+
+#[test]
+fn test_charset_decoder_reports_malformed_unknown_decode_error() {
+    let mut decoder = CharsetDecoder::with_policy(InvalidInputErrorCodec, CharsetDecodePolicy::report());
+    reset_for_test(&mut decoder);
+    let error = decoder
+        .transcode(&[0], 0, &mut ['\0'], 0)
+        .expect_err("Report preserves malformed errors from the codec");
+    let error = decoder.map_transcode_error(error);
+
+    assert_eq!(CharsetDecodeErrorKind::malformed_unknown(), error.kind());
+    assert_eq!(Charset::ASCII, error.charset());
+    assert_eq!(0, error.index());
 }
 
 #[test]
@@ -904,16 +979,21 @@ fn test_charset_decoder_uses_default_consumed_for_malformed_without_metadata() {
 #[test]
 fn test_charset_decoder_propagates_non_policy_decoding_errors() {
     let input = [0_u8];
-    let mut output = ['\0'; 1];
-    let mut decoder = CharsetDecoder::with_policy(InvalidInputErrorCodec, CharsetDecodePolicy::report());
-    reset_for_test(&mut decoder);
+    for policy in [CharsetDecodePolicy::replace('!'), CharsetDecodePolicy::ignore()] {
+        let mut output = ['x'; 1];
+        let mut decoder = CharsetDecoder::with_policy(NonPolicyErrorCodec::default(), policy);
+        reset_for_test(&mut decoder);
 
-    let error = decoder
-        .transcode(&input, 0, &mut output, 0)
-        .expect_err("invalid-index error is not absorbed");
+        let error = decoder
+            .transcode(&input, 0, &mut output, 0)
+            .expect_err("non-policy domain error should propagate under every policy");
+        let error = decoder.map_transcode_error(error);
 
-    assert_eq!(CharsetDecodeErrorKind::malformed_unknown(), error.kind());
-    assert_eq!(0, error.index());
+        assert_eq!(CharsetDecodeErrorKind::UnexpectedTranscodeFailure, error.kind());
+        assert_eq!(Charset::ASCII, error.charset());
+        assert_eq!(0, error.index());
+        assert_eq!(['x'], output, "policy must preserve output on domain error");
+    }
 }
 
 #[test]

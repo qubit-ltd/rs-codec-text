@@ -8,6 +8,10 @@
 use std::cell::Cell;
 use std::rc::Rc;
 
+use proptest::arbitrary::any;
+use proptest::proptest;
+use proptest::test_runner::Config as ProptestConfig;
+use qubit_codec::ByteOrder;
 use qubit_codec::CapacityError;
 use qubit_codec::Codec;
 use qubit_codec::DecodeFailure;
@@ -31,26 +35,37 @@ use qubit_codec_text::CharsetEncodeResult;
 use qubit_codec_text::MalformedAction;
 use qubit_codec_text::UnmappableAction;
 use qubit_codec_text::Utf8Codec;
+use qubit_codec_text::Utf16ByteCodec;
 use qubit_codec_text::Utf16U16Codec;
+use qubit_codec_text::Utf32ByteCodec;
 
 fn reset_for_test<T: Transcoder>(transcoder: &mut T) {
     let mut output: [T::Output; 0] = [];
     assert!(transcoder.reset(&mut output, 0).is_ok());
 }
 
-fn run_chunked_backpressure(input: &[u8], controls: &[u8]) -> Vec<u16> {
-    let mut converter = CharsetConverter::from_codecs(Utf8Codec, Utf16U16Codec);
+fn assert_chunked_matches_complete<C, F>(
+    make_codec: F,
+    context: &str,
+    input: &[u8],
+    chunks: &[usize],
+    windows: &[usize],
+) where
+    C: CharsetCodec<Unit = u8>,
+    F: Fn() -> C,
+{
+    let mut baseline_converter = CharsetConverter::from_codecs(make_codec(), Utf16U16Codec);
+    let capacity = baseline_converter
+        .max_total_output_len(input.len())
+        .expect("complete output capacity");
+    let mut baseline = vec![0_u16; capacity];
+    let baseline_len = baseline_converter
+        .transcode_complete_into(input, &mut baseline)
+        .expect("complete conversion");
+    baseline.truncate(baseline_len);
+
+    let mut converter = CharsetConverter::from_codecs(make_codec(), Utf16U16Codec);
     assert_eq!(0, converter.reset(&mut [], 0).expect("reset"));
-    let mut control_cursor = 0_usize;
-    let mut next_control = || {
-        let value = if controls.is_empty() {
-            0
-        } else {
-            controls[control_cursor % controls.len()] as usize
-        };
-        control_cursor = control_cursor.wrapping_add(1);
-        value
-    };
     let mut pending = Vec::new();
     let mut result = Vec::new();
     let mut added = 0;
@@ -58,8 +73,10 @@ fn run_chunked_backpressure(input: &[u8], controls: &[u8]) -> Vec<u16> {
     let mut feed = true;
     let mut eof = false;
     let mut minimum_window = 0;
+    let mut chunk_cursor = 0;
+    let mut window_cursor = 0;
     let mut steps = 0;
-    let max_steps = input.len().saturating_mul(64).saturating_add(128);
+    let max_steps = 128_usize.saturating_add(64_usize.saturating_mul(input.len().saturating_add(chunks.len())));
     loop {
         steps += 1;
         assert!(steps <= max_steps, "stream did not converge");
@@ -67,13 +84,22 @@ fn run_chunked_backpressure(input: &[u8], controls: &[u8]) -> Vec<u16> {
             if added == input.len() {
                 eof = true;
             } else {
-                let count = (next_control() % 7 + 1).min(input.len() - added);
+                let requested = *chunks.get(chunk_cursor).expect("a chunk covers remaining input");
+                assert!(requested > 0, "input chunks must be positive");
+                let count = requested.min(input.len() - added);
                 pending.extend_from_slice(&input[added..added + count]);
                 added += count;
+                chunk_cursor += 1;
             }
             feed = false;
         }
-        let window = (next_control() % 3).max(minimum_window);
+        let requested_window = if windows.is_empty() {
+            1
+        } else {
+            windows[window_cursor % windows.len()]
+        };
+        window_cursor += 1;
+        let window = requested_window.max(minimum_window);
         minimum_window = 0;
         let mut output = vec![0_u16; window];
         let progress = if eof {
@@ -81,7 +107,7 @@ fn run_chunked_backpressure(input: &[u8], controls: &[u8]) -> Vec<u16> {
         } else {
             converter.transcode(&pending, 0, &mut output, 0)
         }
-        .expect("Replace accepts arbitrary UTF-8");
+        .expect("Replace accepts arbitrary byte input");
         assert!(progress.read() <= pending.len());
         assert!(progress.written() <= output.len());
         consumed += progress.read();
@@ -110,7 +136,47 @@ fn run_chunked_backpressure(input: &[u8], controls: &[u8]) -> Vec<u16> {
     assert_eq!(input.len(), consumed);
     assert!(pending.is_empty());
     assert_eq!(0, converter.finish(&mut [], 0).expect("finish"));
-    result
+    assert_eq!(
+        baseline,
+        result,
+        "chunked output differs from complete output: case={context}, codec={}, input={input:02x?}, chunks={chunks:?}, windows={windows:?}",
+        core::any::type_name::<C>(),
+    );
+}
+
+fn run_chunked_backpressure(input: &[u8], controls: &[u8]) -> Vec<u16> {
+    let mut added = 0;
+    let mut chunks = Vec::new();
+    while added < input.len() {
+        let control = if controls.is_empty() {
+            0
+        } else {
+            controls[chunks.len() % controls.len()] as usize
+        };
+        let count = (control % 7 + 1).min(input.len() - added);
+        chunks.push(count);
+        added += count;
+    }
+    let windows: Vec<usize> = if controls.is_empty() {
+        vec![1]
+    } else {
+        controls.iter().map(|value| *value as usize % 3).collect()
+    };
+    run_chunked_backpressure_result(input, &chunks, &windows)
+}
+
+fn run_chunked_backpressure_result(input: &[u8], chunks: &[usize], windows: &[usize]) -> Vec<u16> {
+    let mut converter = CharsetConverter::from_codecs(Utf8Codec, Utf16U16Codec);
+    let capacity = converter
+        .max_total_output_len(input.len())
+        .expect("complete output capacity");
+    let mut baseline = vec![0_u16; capacity];
+    let length = converter
+        .transcode_complete_into(input, &mut baseline)
+        .expect("complete conversion");
+    baseline.truncate(length);
+    assert_chunked_matches_complete(|| Utf8Codec, "Utf8Codec", input, chunks, windows);
+    baseline
 }
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -1295,4 +1361,166 @@ fn test_chunked_backpressure_expands_for_incomplete_eof_tail() {
     assert_eq!(input.len(), first.read() + second.read());
     assert_eq!(1, first.written() + second.written());
     assert_eq!(0xfffd, expanded_output[0]);
+}
+
+fn utf16_bytes(units: &[u16], order: ByteOrder) -> Vec<u8> {
+    units
+        .iter()
+        .flat_map(|unit| match order {
+            ByteOrder::LittleEndian => unit.to_le_bytes(),
+            ByteOrder::BigEndian => unit.to_be_bytes(),
+            ByteOrder::NativeEndian => unit.to_ne_bytes(),
+        })
+        .collect()
+}
+
+fn utf32_bytes(units: &[u32], order: ByteOrder) -> Vec<u8> {
+    units
+        .iter()
+        .flat_map(|unit| match order {
+            ByteOrder::LittleEndian => unit.to_le_bytes(),
+            ByteOrder::BigEndian => unit.to_be_bytes(),
+            ByteOrder::NativeEndian => unit.to_ne_bytes(),
+        })
+        .collect()
+}
+
+fn check_chunk_splits<C, F>(make_codec: F, context: &str, input: &[u8])
+where
+    C: CharsetCodec<Unit = u8>,
+    F: Fn() -> C + Copy,
+{
+    for windows in [&[0][..], &[1], &[2], &[0, 1, 2]] {
+        if input.is_empty() {
+            assert_chunked_matches_complete(make_codec, context, input, &[], windows);
+        } else {
+            for split in 1..input.len() {
+                assert_chunked_matches_complete(make_codec, context, input, &[split, input.len() - split], windows);
+            }
+            assert_chunked_matches_complete(make_codec, context, input, &vec![1; input.len()], windows);
+        }
+    }
+}
+
+#[test]
+fn test_multibyte_chunked_boundaries() {
+    for order in [ByteOrder::LittleEndian, ByteOrder::BigEndian] {
+        let utf16_context = format!("Utf16ByteCodec/{order:?}");
+        let utf32_context = format!("Utf32ByteCodec/{order:?}");
+        let valid = "A中😀";
+        let expected: Vec<u16> = valid.encode_utf16().collect();
+        let utf16 = utf16_bytes(&expected, order);
+        for windows in [&[0][..], &[1], &[2], &[0, 1, 2]] {
+            assert_chunked_matches_complete(
+                || Utf16ByteCodec::new(order),
+                &utf16_context,
+                &utf16,
+                &vec![1; utf16.len()],
+                windows,
+            );
+        }
+        let mut valid_converter = CharsetConverter::from_codecs(Utf16ByteCodec::new(order), Utf16U16Codec);
+        let mut valid_output = vec![0_u16; valid_converter.max_total_output_len(utf16.len()).expect("capacity")];
+        let valid_len = valid_converter
+            .transcode_complete_into(&utf16, &mut valid_output)
+            .expect("valid UTF-16");
+        assert_eq!(expected, valid_output[..valid_len]);
+
+        let utf16_cases = [
+            vec![],
+            utf16_bytes(&[0x0041], order),
+            utf16_bytes(&[0x4e2d], order),
+            utf16_bytes(&[0xd83d, 0xde00], order),
+            utf16_bytes(&[0xd800], order),
+            utf16_bytes(&[0xdc00], order),
+            utf16_bytes(&[0xd800, 0x0041], order),
+            vec![0x41],
+            [utf16_bytes(&[0xd800], order), vec![0x41]].concat(),
+        ];
+        for input in &utf16_cases {
+            check_chunk_splits(|| Utf16ByteCodec::new(order), &utf16_context, input);
+        }
+
+        let utf32_cases = [
+            vec![],
+            utf32_bytes(&[0x41], order),
+            utf32_bytes(&[0x4e2d], order),
+            utf32_bytes(&[0x1f600], order),
+            utf32_bytes(&[0xd800], order),
+            utf32_bytes(&[0x11_0000], order),
+            vec![0x41],
+            vec![0x41, 0x42],
+            vec![0x41, 0x42, 0x43],
+        ];
+        for input in &utf32_cases {
+            check_chunk_splits(|| Utf32ByteCodec::new(order), &utf32_context, input);
+        }
+        let utf32 = utf32_bytes(&[0x41, 0x4e2d, 0x1f600], order);
+        let mut valid_converter = CharsetConverter::from_codecs(Utf32ByteCodec::new(order), Utf16U16Codec);
+        let mut valid_output = vec![0_u16; valid_converter.max_total_output_len(utf32.len()).expect("capacity")];
+        let valid_len = valid_converter
+            .transcode_complete_into(&utf32, &mut valid_output)
+            .expect("valid UTF-32");
+        assert_eq!(expected, valid_output[..valid_len]);
+    }
+}
+
+#[test]
+fn test_multibyte_chunked_eof_backpressure() {
+    for order in [ByteOrder::LittleEndian, ByteOrder::BigEndian] {
+        let utf16_context = format!("Utf16ByteCodec/{order:?}");
+        let utf32_context = format!("Utf32ByteCodec/{order:?}");
+        let utf16_tail = [utf16_bytes(&[0xd800], order), vec![0x41]].concat();
+        assert_chunked_matches_complete(
+            || Utf16ByteCodec::new(order),
+            &utf16_context,
+            &utf16_tail,
+            &vec![1; utf16_tail.len()],
+            &[0],
+        );
+        for tail_len in 1..=3 {
+            let tail: Vec<u8> = (0..tail_len).map(|value| value as u8 + 0x41).collect();
+            assert_chunked_matches_complete(
+                || Utf32ByteCodec::new(order),
+                &utf32_context,
+                &tail,
+                &vec![1; tail_len],
+                &[0],
+            );
+        }
+    }
+}
+
+proptest! {
+    #![proptest_config(ProptestConfig::with_cases(64))]
+
+    #[test]
+    fn test_multibyte_chunked_property(
+        input in proptest::collection::vec(any::<u8>(), 0..=64),
+        controls in proptest::collection::vec(any::<u8>(), 0..=16),
+    ) {
+        let mut chunks = Vec::new();
+        let mut added = 0;
+        while added < input.len() {
+            let control = if controls.is_empty() {
+                0
+            } else {
+                controls[chunks.len() % controls.len()] as usize
+            };
+            let count = (control % 7 + 1).min(input.len() - added);
+            chunks.push(count);
+            added += count;
+        }
+        let windows = if controls.is_empty() {
+            vec![1]
+        } else {
+            controls.iter().map(|value| *value as usize % 3).collect::<Vec<_>>()
+        };
+        for order in [ByteOrder::LittleEndian, ByteOrder::BigEndian] {
+            let utf16_context = format!("Utf16ByteCodec/{order:?}");
+            let utf32_context = format!("Utf32ByteCodec/{order:?}");
+            assert_chunked_matches_complete(|| Utf16ByteCodec::new(order), &utf16_context, &input, &chunks, &windows);
+            assert_chunked_matches_complete(|| Utf32ByteCodec::new(order), &utf32_context, &input, &chunks, &windows);
+        }
+    }
 }
