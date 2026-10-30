@@ -248,8 +248,10 @@ impl CharsetDecodeErrorKind {
     /// # Returns
     ///
     /// Returns `true` for malformed sequences and invalid decoded scalar
-    /// values. Incomplete input is caller-owned tail data and is not
-    /// treated as malformed input by buffered charset decoders.
+    /// values. An incomplete tail in an open stream is awaiting more input;
+    /// at EOF, [`crate::CharsetDecoder::transcode_eof`] applies the configured
+    /// [`crate::MalformedAction`]. This predicate remains `false` for
+    /// [`Self::IncompleteSequence`] and does not describe the EOF policy.
     #[must_use]
     #[inline]
     pub const fn is_malformed_input(self) -> bool {
