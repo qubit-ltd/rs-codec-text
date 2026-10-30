@@ -324,6 +324,14 @@ where
     /// first. Use `transcode`, `transcode_eof`, and `finish` directly for
     /// chunked input.
     ///
+    /// Before resetting, this helper conservatively checks the sum of the
+    /// maximum reset, input-length transcode, and finish output capacities.
+    /// The input length is measured in source `C::Unit` values. This bound is
+    /// based on codec contracts rather than the actual text, so an output
+    /// buffer that would fit the result may still fail the preflight. Use
+    /// [`Transcoder::max_total_output_len`] with the input length to size the
+    /// output, or use the streaming methods with a fixed small output window.
+    ///
     /// # Parameters
     ///
     /// - `input`: Complete source stream to decode.
@@ -331,13 +339,15 @@ where
     ///
     /// # Errors
     ///
-    /// Returns a transcode decode error when the supplied output buffer is too
-    /// small, the configured policy reports an incomplete sequence, or the
-    /// codec reports another charset-domain decode error. Failure may leave an
-    /// output prefix and changed codec state; the error does not provide
-    /// complete progress. Reset cannot undo output already delivered to the
-    /// application, so stage output when the complete result must be published
-    /// atomically.
+    /// Returns a transcode decode error when the conservative capacity bound
+    /// overflows, the supplied output buffer is too small, the configured
+    /// policy reports an incomplete sequence, or the codec reports another
+    /// charset-domain decode error. Capacity preflight failures occur before
+    /// reset and do not modify the output or lifecycle state. Once processing
+    /// starts, failure may leave an output prefix and changed codec state;
+    /// the error does not provide complete progress. Reset cannot undo output
+    /// already delivered to the application, so stage output when the complete
+    /// result must be published atomically.
     #[inline]
     pub fn transcode_complete_into(
         &mut self,

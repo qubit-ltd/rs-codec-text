@@ -332,15 +332,25 @@ where
     /// helper initializes and closes the stream itself; do not call `reset`
     /// first. Use `transcode` and `finish` directly for incremental input.
     ///
+    /// Before resetting, this helper conservatively checks the sum of the
+    /// maximum reset, input-length transcode, and finish output capacities.
+    /// The input length is measured in `char` values. This bound is based on
+    /// codec contracts rather than the actual text, so an output buffer that
+    /// would fit the result may still fail the preflight. Use
+    /// [`Transcoder::max_total_output_len`] with the input length to size the
+    /// output, or use the streaming methods with a fixed small output window.
+    ///
     /// # Errors
     ///
-    /// Returns a transcode encode error when the supplied output buffer is too
-    /// small, a character cannot be represented under the configured policy,
-    /// or the codec reports a charset-domain encode error. Failure may leave an
-    /// output prefix and changed codec state; the error does not provide
-    /// complete progress. Reset cannot undo output already delivered to the
-    /// application, so stage output when the complete result must be published
-    /// atomically.
+    /// Returns a transcode encode error when the conservative capacity bound
+    /// overflows, the supplied output buffer is too small, a character cannot
+    /// be represented under the configured policy, or the codec reports a
+    /// charset-domain encode error. Capacity preflight failures occur before
+    /// reset and do not modify the output or lifecycle state. Once processing
+    /// starts, failure may leave an output prefix and changed codec state;
+    /// the error does not provide complete progress. Reset cannot undo output
+    /// already delivered to the application, so stage output when the complete
+    /// result must be published atomically.
     #[inline]
     pub fn transcode_complete_into(
         &mut self,
