@@ -174,8 +174,8 @@ impl CharsetEncodeError {
     ///
     /// - `charset`: The target charset.
     /// - `kind`: The failure category.
-    /// - `index`: The operation-specific position associated with `kind`.
-    ///   It is stored unchanged; no unit conversion or validation is performed.
+    /// - `index`: The operation-specific position associated with `kind`. It is
+    ///   stored unchanged; no unit conversion or validation is performed.
     ///
     /// # Returns
     ///

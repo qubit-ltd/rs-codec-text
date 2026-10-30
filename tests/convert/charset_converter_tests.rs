@@ -73,8 +73,8 @@ fn test_converter_encode_error_index_uses_source_units() {
     assert_eq!(2, error.index(), "converter input index counts UTF-8 bytes");
     assert_eq!(0xe9, output[0], "successful prefix remains observable");
 
-    let mut encoder = CharsetEncoder::with_policy(Latin1Codec, CharsetEncodePolicy::report())
-        .expect("valid report policy");
+    let mut encoder =
+        CharsetEncoder::with_policy(Latin1Codec, CharsetEncodePolicy::report()).expect("valid report policy");
     let chars = ['é', '中'];
     let capacity = encoder.max_total_output_len(chars.len()).expect("output bound");
     let mut encoded = vec![0_u8; capacity];
