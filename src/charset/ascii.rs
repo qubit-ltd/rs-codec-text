@@ -1080,7 +1080,6 @@ impl Ascii {
     ///
     /// Returns `Some(0..=9)` for `0..=9`; returns `None` otherwise.
     #[inline]
-    #[must_use]
     pub const fn byte_to_digit(ch: u8) -> Option<u8> {
         if Self::is_digit_byte(ch) { Some(ch - b'0') } else { None }
     }
@@ -1095,7 +1094,6 @@ impl Ascii {
     ///
     /// Returns `Some(0..=9)` for `0..=9`; returns `None` otherwise.
     #[inline]
-    #[must_use]
     pub const fn char_to_digit(ch: char) -> Option<u8> {
         if Self::is_digit_char(ch) {
             Some((ch as u8) - b'0')
@@ -1114,7 +1112,6 @@ impl Ascii {
     ///
     /// Returns `Some(0..=9)` for `0..=9`; returns `None` otherwise.
     #[inline]
-    #[must_use]
     pub const fn code_point_to_digit(ch: u32) -> Option<u8> {
         if Self::is_digit_code_point(ch) {
             Some((ch - '0' as u32) as u8)
@@ -1134,7 +1131,6 @@ impl Ascii {
     /// Returns `Some(0..=15)` for `0..=9`, `A..=F`, or `a..=f`; returns `None`
     /// otherwise.
     #[inline]
-    #[must_use]
     pub const fn byte_to_hex_digit(ch: u8) -> Option<u8> {
         if ch >= b'0' && ch <= b'9' {
             Some(ch - b'0')
@@ -1158,7 +1154,6 @@ impl Ascii {
     /// Returns `Some(0..=15)` for `0..=9`, `A..=F`, or `a..=f`; returns `None`
     /// otherwise.
     #[inline]
-    #[must_use]
     pub const fn char_to_hex_digit(ch: char) -> Option<u8> {
         if ch >= '0' && ch <= '9' {
             Some((ch as u8) - b'0')
@@ -1182,7 +1177,6 @@ impl Ascii {
     /// Returns `Some(0..=15)` for `0..=9`, `A..=F`, or `a..=f`; returns `None`
     /// otherwise.
     #[inline]
-    #[must_use]
     pub const fn code_point_to_hex_digit(ch: u32) -> Option<u8> {
         if ch >= '0' as u32 && ch <= '9' as u32 {
             Some((ch - '0' as u32) as u8)

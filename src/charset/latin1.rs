@@ -816,7 +816,6 @@ impl Latin1 {
     /// Returns `Some(byte)` when `value` is in `U+0000..=U+00FF`; otherwise
     /// returns `None`.
     #[inline]
-    #[must_use]
     pub const fn char_to_byte(value: char) -> Option<u8> {
         if Self::is_latin1_char(value) {
             Some(value as u8)
@@ -836,7 +835,6 @@ impl Latin1 {
     /// Returns `Some(byte)` when `value` is in `0x00..=0xFF`; otherwise
     /// returns `None`.
     #[inline]
-    #[must_use]
     pub const fn code_point_to_byte(value: u32) -> Option<u8> {
         if Self::is_latin1_code_point(value) {
             Some(value as u8)
@@ -855,7 +853,6 @@ impl Latin1 {
     ///
     /// Returns `Some(0..=9)` for `0..=9`; otherwise returns `None`.
     #[inline]
-    #[must_use]
     pub const fn byte_to_digit(value: u8) -> Option<u8> {
         Ascii::byte_to_digit(value)
     }
@@ -870,7 +867,6 @@ impl Latin1 {
     ///
     /// Returns `Some(0..=9)` for `0..=9`; otherwise returns `None`.
     #[inline]
-    #[must_use]
     pub const fn char_to_digit(value: char) -> Option<u8> {
         match Self::char_to_byte(value) {
             Some(value) => Self::byte_to_digit(value),
@@ -888,7 +884,6 @@ impl Latin1 {
     ///
     /// Returns `Some(0..=9)` for `0..=9`; otherwise returns `None`.
     #[inline]
-    #[must_use]
     pub const fn code_point_to_digit(value: u32) -> Option<u8> {
         match Self::code_point_to_byte(value) {
             Some(value) => Self::byte_to_digit(value),
@@ -907,7 +902,6 @@ impl Latin1 {
     /// Returns `Some(0..=15)` for ASCII hexadecimal digits; otherwise returns
     /// `None`.
     #[inline]
-    #[must_use]
     pub const fn byte_to_hex_digit(value: u8) -> Option<u8> {
         Ascii::byte_to_hex_digit(value)
     }
@@ -923,7 +917,6 @@ impl Latin1 {
     /// Returns `Some(0..=15)` for ASCII hexadecimal digits; otherwise returns
     /// `None`.
     #[inline]
-    #[must_use]
     pub const fn char_to_hex_digit(value: char) -> Option<u8> {
         match Self::char_to_byte(value) {
             Some(value) => Self::byte_to_hex_digit(value),
@@ -942,7 +935,6 @@ impl Latin1 {
     /// Returns `Some(0..=15)` for ASCII hexadecimal digits; otherwise returns
     /// `None`.
     #[inline]
-    #[must_use]
     pub const fn code_point_to_hex_digit(value: u32) -> Option<u8> {
         match Self::code_point_to_byte(value) {
             Some(value) => Self::byte_to_hex_digit(value),
@@ -961,7 +953,6 @@ impl Latin1 {
     /// Returns `Some(char)` when `value` is in `0x00..=0xFF`; otherwise
     /// returns `None`.
     #[inline]
-    #[must_use]
     pub const fn code_point_to_char(value: u32) -> Option<char> {
         if Self::is_latin1_code_point(value) {
             Some(Self::byte_to_char(value as u8))
