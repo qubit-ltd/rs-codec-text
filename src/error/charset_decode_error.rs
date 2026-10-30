@@ -24,10 +24,17 @@ use crate::CharsetDecodeErrorKind;
 /// Errors that decode a raw numeric value, such
 /// as malformed input units or invalid UTF-32 scalar values, carry that value
 /// through [`Self::kind`] and [`Self::value`]. Invalid-input errors may also
-/// carry a consumed-unit count so buffered decoders can make progress without
-/// an extra status wrapper. Buffer index and output-capacity failures are
-/// represented by dedicated [`CharsetDecodeErrorKind`] variants so the public
-/// decoder API can expose a single domain error type.
+/// carry a consumed-unit count. This domain
+/// diagnostic does not provide complete read/written progress for a buffered
+/// operation. Buffered [`crate::CharsetDecoder`] methods return core transcode
+/// errors and report successful progress separately. Use
+/// [`crate::CharsetDecoder::map_transcode_error`] or
+/// [`Self::from_transcode_error`] to obtain a charset-domain diagnostic,
+/// including dedicated variants for buffer-index and output-capacity failures.
+/// Mapping preserves domain source data but discards outer phase, input-index,
+/// and input-consumption context. Inspect the original transcode error first
+/// when that context is needed; do not infer a safe resume position from the
+/// mapped diagnostic.
 ///
 /// # Examples
 ///

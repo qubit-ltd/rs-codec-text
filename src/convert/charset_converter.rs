@@ -314,10 +314,12 @@ where
     ///
     /// Mutating target codec configuration while a conversion is active can
     /// invalidate buffered encode state. Reset before continuing, but note
-    /// that reset does not revalidate the configured replacement. Under a
-    /// `Replace` policy, ensure the replacement remains encodable after the
-    /// change; the default policy also relies on the codec's existing `?`
-    /// fallback contract. If that cannot be guaranteed, save the intended
+    /// that reset does not revalidate or reselect the configured replacement.
+    /// Under a `Replace` policy, ensure the selected replacement remains
+    /// encodable after the change. The default policy selects U+FFFD when
+    /// encodable and uses `?` only when U+FFFD is unavailable; it does not
+    /// require both characters to remain encodable. If the selected
+    /// replacement cannot be guaranteed to remain encodable, save the intended
     /// policies, consume the converter with [`Self::into_codecs`], then
     /// reconstruct it with [`Self::from_codecs_with_policies`] and handle
     /// validation errors. Reconstruction discards wrapper state and does not
