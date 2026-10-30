@@ -180,6 +180,32 @@ fn test_utf16_codecs_match_std_unit_round_trip() {
 fn test_utf16_byte_codecs_match_std_and_round_trip() {
     assert_utf16_byte_codec_round_trip(ByteOrder::LittleEndian);
     assert_utf16_byte_codec_round_trip(ByteOrder::BigEndian);
+    assert_utf16_byte_codec_round_trip(ByteOrder::NativeEndian);
+}
+
+#[test]
+fn test_utf16_native_endian_decode_reports_malformed_sequence() {
+    let mut codec = Utf16ByteCodec::new(ByteOrder::NativeEndian);
+    let expected_charset = if cfg!(target_endian = "little") {
+        Charset::UTF_16LE
+    } else {
+        Charset::UTF_16BE
+    };
+    let input = 0xdc00_u16.to_ne_bytes();
+    // SAFETY: Two readable bytes are available at input index zero.
+    let failure = unsafe { codec.decode(&input, 0) }.expect_err("a standalone low surrogate must be rejected");
+    match failure {
+        DecodeFailure::Invalid { source, consumed, .. } => {
+            assert_eq!(expected_charset, source.charset());
+            assert_eq!(
+                CharsetDecodeErrorKind::MalformedSequence { value: Some(0xdc00) },
+                source.kind(),
+            );
+            assert_eq!(0, source.index());
+            assert_eq!(Some(2), consumed.map(|count| count.get()));
+        }
+        other => panic!("expected invalid UTF-16 input, got {other:?}"),
+    }
 }
 
 #[test]
@@ -214,6 +240,31 @@ fn test_utf32_codecs_match_std_unit_round_trip() {
 fn test_utf32_byte_codecs_match_std_and_round_trip() {
     assert_utf32_byte_codec_round_trip(ByteOrder::LittleEndian);
     assert_utf32_byte_codec_round_trip(ByteOrder::BigEndian);
+    assert_utf32_byte_codec_round_trip(ByteOrder::NativeEndian);
+}
+
+#[test]
+fn test_utf32_native_endian_decode_reports_invalid_scalar() {
+    let mut codec = Utf32ByteCodec::new(ByteOrder::NativeEndian);
+    let expected_charset = if cfg!(target_endian = "little") {
+        Charset::UTF_32LE
+    } else {
+        Charset::UTF_32BE
+    };
+    for value in [0xd800_u32, 0x110000_u32] {
+        let input = value.to_ne_bytes();
+        // SAFETY: Four readable bytes are available at input index zero.
+        let failure = unsafe { codec.decode(&input, 0) }.expect_err("an invalid Unicode scalar must be rejected");
+        match failure {
+            DecodeFailure::Invalid { source, consumed, .. } => {
+                assert_eq!(expected_charset, source.charset());
+                assert_eq!(CharsetDecodeErrorKind::InvalidCodePoint { value }, source.kind());
+                assert_eq!(0, source.index());
+                assert_eq!(Some(4), consumed.map(|count| count.get()));
+            }
+            other => panic!("expected invalid UTF-32 input for {value:#x}, got {other:?}"),
+        }
+    }
 }
 
 #[test]
@@ -626,8 +677,7 @@ fn assert_utf16_byte_codec_round_trip(order: ByteOrder) {
         .flat_map(|unit| match order {
             ByteOrder::LittleEndian => unit.to_le_bytes().to_vec(),
             ByteOrder::BigEndian => unit.to_be_bytes().to_vec(),
-            ByteOrder::NativeEndian if cfg!(target_endian = "big") => unit.to_be_bytes().to_vec(),
-            ByteOrder::NativeEndian => unit.to_le_bytes().to_vec(),
+            ByteOrder::NativeEndian => unit.to_ne_bytes().to_vec(),
         })
         .collect();
 
@@ -653,8 +703,7 @@ fn assert_utf32_byte_codec_round_trip(order: ByteOrder) {
         .flat_map(|value| match order {
             ByteOrder::LittleEndian => value.to_le_bytes(),
             ByteOrder::BigEndian => value.to_be_bytes(),
-            ByteOrder::NativeEndian if cfg!(target_endian = "big") => value.to_be_bytes(),
-            ByteOrder::NativeEndian => value.to_le_bytes(),
+            ByteOrder::NativeEndian => value.to_ne_bytes(),
         })
         .collect();
 
