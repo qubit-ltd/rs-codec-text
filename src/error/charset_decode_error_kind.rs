@@ -83,7 +83,13 @@ pub enum CharsetDecodeErrorKind {
         value: Option<u32>,
     },
 
-    /// The closed input ended before a complete character was available.
+    /// The currently supplied input is insufficient to form a complete
+    /// character.
+    ///
+    /// This variant does not establish end of input. In an open stream, retain
+    /// the incomplete tail and supply more input. At EOF,
+    /// [`crate::CharsetDecoder::transcode_eof`] applies the configured
+    /// [`crate::MalformedAction`].
     #[error("The encoded text sequence is incomplete (required {required} units, available {available} units).")]
     IncompleteSequence {
         /// Total units required to complete the current sequence.
