@@ -342,6 +342,13 @@ the mapped error. Converter lifecycle failures continue to map to
 `CharsetConvertError::Decode` for compatibility; that does not indicate
 malformed source text.
 
+For `CharsetEncoder` input errors, `index()` counts entries in the input `char`
+slice. For unmappable-character reports from `CharsetConverter`, it counts
+source codec units in the input slice. For example, converting UTF-8 "é中" to
+Latin-1 with `Report` fails at byte index 2, while encoding `['é', '中']` fails
+at char index 1. Output positions use target codec units. Domain errors retain
+their producer's index semantics; the mapped index is not a safe resume cursor.
+
 For an all-or-nothing message boundary, convert into a temporary buffer owned
 by that message and publish it only after the complete conversion succeeds. If
 conversion fails, discard that message's staged output; do not replay its input

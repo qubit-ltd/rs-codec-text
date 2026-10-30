@@ -15,9 +15,11 @@
 ///
 /// # Returns
 ///
-/// Returns a lowercase ASCII string after trimming ASCII whitespace and
-/// removing `-` and `_` separators. Non-ASCII characters are preserved except
-/// for ASCII case conversion.
+/// Returns a string after trimming leading and trailing ASCII whitespace,
+/// removing `-` and `_` separators, and lowercasing ASCII letters. Non-ASCII
+/// characters are preserved. This function does not validate whether the
+/// label is supported or valid, and its output is not guaranteed to contain
+/// only ASCII.
 #[must_use]
 pub fn normalize_label_loose(label: &str) -> String {
     label
@@ -38,10 +40,12 @@ pub fn normalize_label_loose(label: &str) -> String {
 ///
 /// # Returns
 ///
-/// Returns a lowercase ASCII string after trimming ASCII whitespace. Unlike
-/// [`normalize_label_loose`], this function keeps punctuation and separators
-/// intact, matching the preprocessing step used before consulting the WHATWG
-/// Encoding Standard label table.
+/// Returns a string after trimming leading and trailing ASCII whitespace and
+/// lowercasing ASCII letters. Non-ASCII characters, punctuation, and
+/// separators are preserved. This is WHATWG-style preprocessing, not
+/// validation against the Encoding Standard label table; its output is not
+/// guaranteed to contain only ASCII. Unlike
+/// [`normalize_label_loose`], this function keeps `-` and `_` intact.
 #[must_use]
 pub fn normalize_label_whatwg(label: &str) -> String {
     label.trim_ascii().to_ascii_lowercase()

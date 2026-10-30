@@ -17,10 +17,19 @@ use crate::CharsetEncodeErrorKind;
 /// Error reported by a charset encoder.
 ///
 /// The error always carries the target charset, error kind, and operation
-/// index associated with the failure. The index refers to input `char` values
-/// for input errors and target codec units for output index or capacity errors.
-/// Errors tied to a raw code point or character
-/// value expose that value through [`Self::kind`] and [`Self::value`].
+/// index associated with the failure. Input positions depend on the producing
+/// operation: [`CharsetEncoder`](crate::CharsetEncoder) counts `char` entries,
+/// while unmappable-character reports from
+/// [`CharsetConverter`](crate::CharsetConverter) count source codec units in
+/// the input slice. Output index and capacity errors use target codec units.
+/// Codec-domain errors retain the producing codec's index semantics. Mapping
+/// does not convert these positions to character offsets or stream-wide
+/// offsets. Mappings that cannot preserve a position use `usize::MAX` as
+/// described by [`Self::map_transcode_failure`]; that sentinel can also mark a
+/// discarded position. Preserve the original transcode error when its outer
+/// context is needed, and do not treat a mapped index as a safe resume cursor.
+/// Errors tied to a raw code point or character value expose that value
+/// through [`Self::kind`] and [`Self::value`].
 ///
 /// # Examples
 ///
@@ -43,7 +52,7 @@ pub struct CharsetEncodeError {
     charset: Charset,
     /// Failure category describing why encoding could not proceed.
     kind: CharsetEncodeErrorKind,
-    /// Output unit index or input code point index where failure occurred.
+    /// Operation-specific input or output position associated with the failure.
     index: usize,
 }
 
@@ -166,9 +175,9 @@ impl CharsetEncodeError {
     ///
     /// - `charset`: The target charset.
     /// - `kind`: The failure category.
-    /// - `index`: The operation index associated with `kind`: an input `char`
-    ///   position for input errors or a target-unit position for output index
-    ///   and capacity errors.
+    /// - `index`: The operation-specific input or output position associated
+    ///   with `kind`. This constructor stores the supplied position without
+    ///   converting its units.
     ///
     /// # Returns
     ///
@@ -239,9 +248,17 @@ impl CharsetEncodeError {
     ///
     /// # Returns
     ///
-    /// Returns an input `char` position for input errors or a target codec-unit
-    /// position for output index and capacity errors. Interpret it together
-    /// with [`Self::kind`].
+    /// Input positions depend on the producing operation:
+    /// [`CharsetEncoder`](crate::CharsetEncoder) counts `char` entries, while
+    /// unmappable-character reports from
+    /// [`CharsetConverter`](crate::CharsetConverter) count source codec units
+    /// in the input slice. Output index and capacity errors use target codec
+    /// units. Codec-domain errors retain the producing codec's index
+    /// semantics. Mapping does not convert these positions to character
+    /// offsets or stream-wide offsets. Positions unavailable after mapping use
+    /// `usize::MAX` as described by [`Self::map_transcode_failure`], which can
+    /// also indicate a discarded position. Interpret the index together with
+    /// [`Self::kind`].
     #[inline]
     pub const fn index(self) -> usize {
         self.index
