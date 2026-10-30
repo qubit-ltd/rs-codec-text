@@ -207,7 +207,9 @@ assert_eq!(0, decoder.finish(&mut output, 1).expect("finish"));
 
 替换不可接受时，应使用 `CharsetDecodePolicy` 或 `CharsetEncodePolicy` 显式设置。
 `CharsetEncoder::with_policy` 与 `CharsetConverter::from_codecs_with_policies`
-会校验必须可由目标 codec 编码的替换字符。
+会校验当前状态下必须可由目标 codec 编码的替换字符。构造时验证成功不保证有状态 codec
+在后续状态仍能编码该字符。实际需要替换时，wrapper 会再次检查所选字符；若它已不可编码，
+转换返回编码侧领域错误并指出该字符，不会自动改用 `?`。
 
 ### 为 ASCII 选择替换策略
 
@@ -260,6 +262,9 @@ assert_eq!(b'A', staged[0]);
 可能已经写入 `A`。应用应丢弃该消息的暂存结果，不发布该前缀，也不根据映射后的错误重放原输入。
 显式传入策略不会自动调用 `default_for`。策略可能无效时，应使用能够返回配置错误的构造方法；
 例如 `rs-io-text` 中的 `CharsetTextWriter::try_new` 可以返回该错误。
+对于有状态 codec，构造时验证成功不保证替换字符在后续状态仍可编码。实际需要替换时若配置的
+字符已不可编码，转换返回编码侧错误；不会自动改用 `?`。失败前已写出的输出仍须按现有消息级
+暂存与恢复规则处理。
 
 ### BOM 与字节序
 
@@ -283,7 +288,9 @@ assert_eq!(b'A', staged[0]);
 字符。`CharsetConverter::map_transcode_error` 可将底层 converter failure
 映射为 `CharsetConvertError`，说明失败发生在源端解码还是目标端编码。
 为保持兼容性，converter 的生命周期错误归入 `CharsetConvertError::Decode`；这不表示源文本
-畸形。目标输出错误仍归入 `Encode`。
+畸形。目标输出错误仍归入 `Encode`。目标 codec 当前状态下无法编码所选替换字符，也属于目标
+编码错误；错误指出该替换字符，converter 的下标按源 codec 码元计数。构造时验证不构成永久
+可编码保证，也不会自动选择回退字符。
 
 流式代码通过 `TranscodeProgress` 得到已读/已写码元数和 `NeedInput`、输出背压等状态。
 `NeedInput` 不是畸形错误：保留尾部并在后续输入到达后重试。EOF 后仍残留的不完整序列

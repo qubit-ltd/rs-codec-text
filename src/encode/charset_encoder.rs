@@ -24,6 +24,11 @@ use crate::UnmappableAction;
 /// `CharsetEncoder` wraps a low-level [`crate::CharsetCodec`] and applies the
 /// configured [`UnmappableAction`] whenever the codec reports that an input
 /// character cannot be represented by the target charset.
+/// Replacement selection and construction-time validation use the codec's
+/// current state. The selected character is not automatically changed after
+/// reset or later encoding. If it becomes unencodable when replacement is
+/// needed, the encoder returns an encode-domain error identifying that
+/// replacement character.
 ///
 /// Construction does not initialize a stream. Call [`Self::reset`] and check
 /// its result before using `transcode` or `finish`. During an open stream,
@@ -158,7 +163,10 @@ where
     /// # Errors
     ///
     /// Returns an error when `policy` uses replacement and the replacement
-    /// character cannot be encoded by `codec`.
+    /// character cannot be encoded by `codec` in its current state. This
+    /// construction-time check does not guarantee that it remains encodable
+    /// after reset or later encoding; if it is unencodable when needed, the
+    /// encoder returns an encode-domain error identifying that character.
     pub fn with_policy(codec: C, policy: CharsetEncodePolicy) -> Result<Self, CharsetEncodeError> {
         let hooks = Self::create_hooks(&codec, policy)?;
         Ok(Self {

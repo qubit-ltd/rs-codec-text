@@ -30,6 +30,12 @@ use crate::UnmappableAction;
 /// The converter owns the source and target charset codecs plus the same
 /// decode/encode policy hooks used by [`crate::CharsetDecoder`] and
 /// [`crate::CharsetEncoder`].
+/// Replacement selection and construction-time validation use the target
+/// codec's current state. The selected character is not automatically changed
+/// after reset or later encoding. If it becomes unencodable when replacement
+/// is needed, conversion returns a target encode-domain error identifying that
+/// replacement character; it remains an encode-side error and its index is
+/// measured in source codec units.
 /// A decoded character may be kept pending inside the common buffered convert
 /// engine when the target output buffer is full. During
 /// [`Transcoder::finish`], the converter drains internally retained
@@ -490,7 +496,9 @@ where
     /// # Errors
     ///
     /// Returns a transcode convert error when EOF source input violates the
-    /// configured decode policy, target encoding fails, or framework-level
+    /// configured decode policy, target encoding fails (including when the
+    /// selected replacement is unencodable in the target codec's current
+    /// state), or framework-level
     /// index and capacity checks fail. An error may leave output already
     /// written and codec state changed, and it does not provide complete
     /// progress. Do not replay the original input range without an explicit

@@ -862,7 +862,9 @@ fn test_charset_encoder_replacement_width_is_prevalidated() {
     assert_eq!(2, progress.read());
     assert_eq!(2, progress.written());
     assert_eq!(b"A*", &output);
-    assert_eq!(4, encode_calls.get());
+    // Replacement is checked again in the current codec state before the
+    // transcode engine validates and encodes it.
+    assert_eq!(5, encode_calls.get());
 }
 
 #[test]

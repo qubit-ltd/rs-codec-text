@@ -228,7 +228,11 @@ error. They reject an output buffer that is too small.
 Choose an explicit policy with `CharsetDecodePolicy` or `CharsetEncodePolicy`
 when replacement is not acceptable. `CharsetEncoder::with_policy` and
 `CharsetConverter::from_codecs_with_policies` validate a replacement that must
-be encodable by the target codec.
+be encodable by the target codec in its current state. Construction-time
+validation does not guarantee that a stateful codec can still encode that
+character later. When replacement is needed, the wrapper checks the selected
+character again; if it is no longer encodable, conversion returns an
+encode-domain error identifying it and does not automatically fall back to `?`.
 
 ### Selecting a replacement for ASCII
 
@@ -283,6 +287,12 @@ For `A中B`, both target-aware default replacement and the explicit protocol
 replacement produce `A?B`. With `Report`, the staging buffer may already
 contain `A` when conversion fails. Discard the failed message's staged output;
 do not publish that prefix or replay the input from the mapped diagnostic.
+For a stateful codec, successful validation at construction does not guarantee
+that the selected replacement remains encodable in a later state. If it is
+unencodable when replacement is needed, conversion returns an encode-side
+error; it does not automatically choose `?`. Any output written before the
+failure remains subject to the message staging and recovery rules described
+below.
 Passing an explicit policy does not automatically call `default_for`. When a
 policy may be invalid, use a constructor that returns configuration errors;
 for example, `CharsetTextWriter::try_new` in `rs-io-text` can return that
@@ -316,7 +326,11 @@ low-level converter failure to `CharsetConvertError`, identifying whether the
 source decoding or target encoding side failed.
 For compatibility, converter lifecycle failures are routed through
 `CharsetConvertError::Decode`; this does not mean the source text is malformed.
-Target output failures remain `Encode`.
+Target output failures remain `Encode`. This includes a selected replacement
+that became unencodable in the target codec's current state. The error
+identifies that replacement character; for `CharsetConverter`, its index
+counts source codec units. Construction-time validation does not permanently
+guarantee encodability, and no automatic fallback is selected.
 
 In streaming code, `TranscodeProgress` describes how many units were read and
 written and reports a status such as `NeedInput` or output backpressure. Do not

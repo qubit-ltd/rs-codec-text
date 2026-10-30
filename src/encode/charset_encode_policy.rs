@@ -127,7 +127,9 @@ impl CharsetEncodePolicy {
     /// # Returns
     ///
     /// Returns a replacement policy using U+FFFD when it is encodable, or the
-    /// fallback `?` when only that candidate is encodable.
+    /// fallback `?` when only that candidate is encodable. Selection checks
+    /// the codec's current state; the selected character is not automatically
+    /// changed after reset or later encoding.
     ///
     /// # Errors
     ///

@@ -59,7 +59,10 @@ where
     /// # Errors
     ///
     /// Returns a transcode error containing an unmappable-character charset
-    /// error when the configured action is [`UnmappableAction::Report`].
+    /// error when the configured action is [`UnmappableAction::Report`], or
+    /// when the selected replacement character is no longer encodable in the
+    /// codec's current state. In the latter case, the error identifies the
+    /// replacement character.
     #[inline]
     fn handle_unencodable_encode(
         &mut self,
@@ -72,7 +75,13 @@ where
         match self.unmappable_action {
             UnmappableAction::Report => Err(TranscodeEncodeError::domain_main(error, input_index)),
             UnmappableAction::Ignore => Ok(EncodeUnencodableAction::Skip),
-            UnmappableAction::Replace => Ok(EncodeUnencodableAction::replace(self.replacement)),
+            UnmappableAction::Replace => {
+                if !codec.can_encode_value(&self.replacement) {
+                    let error = unmappable_error(codec, self.replacement, input_index);
+                    return Err(TranscodeEncodeError::domain_main(error, input_index));
+                }
+                Ok(EncodeUnencodableAction::replace(self.replacement))
+            }
         }
     }
 }

@@ -124,7 +124,12 @@ use crate::CharsetEncodeError;
 /// - With the default encoder or converter policy, the target codec must encode
 ///   at least one of U+FFFD or the question mark. Constructors prefer U+FFFD
 ///   and fall back to the question mark; they panic only when neither is
-///   encodable. Explicit ignore or report policies do not require these
+///   encodable in the codec's current state. This selection and construction-
+///   time validation do not guarantee that the selected character remains
+///   encodable after reset or later encoding. The wrapper checks it again when
+///   replacement is needed and returns an encode-domain error identifying the
+///   replacement if it is no longer encodable; it does not automatically select
+///   another character. Explicit ignore or report policies do not require these
 ///   replacement characters.
 /// - [`Codec::encode`] is called only after the caller has confirmed that
 ///   [`Codec::can_encode_value`] returns `true` and reserved either the exact
