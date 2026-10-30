@@ -76,9 +76,10 @@ where
 
     /// Applies the configured policy to a charset decode failure.
     ///
-    /// Malformed input is reported, skipped, or replaced according to
-    /// `malformed_action`. Other codec errors are always reported. The error's
-    /// consumed width determines how many source units the engine advances.
+    /// Malformed input is rejected, skipped, or replaced according to
+    /// `malformed_action`. For `Report`, the engine constructs the error and
+    /// preserves the malformed input's consumed width. Other codec errors are
+    /// always reported directly.
     ///
     /// # Parameters
     ///
@@ -96,8 +97,9 @@ where
     ///
     /// # Errors
     ///
-    /// Returns a transcode decode error for malformed input under `Report`,
-    /// or for any non-malformed charset decode error.
+    /// Returns a transcode decode error for any non-malformed charset decode
+    /// error. Malformed input under `Report` is returned as a reject action
+    /// and reported by the engine.
     fn handle_invalid_decode(
         &mut self,
         _codec: &mut C,
@@ -108,7 +110,7 @@ where
         if error.kind().is_malformed_input() {
             let consumed = error.consumed().expect("malformed decode errors carry consumed width");
             return match self.malformed_action {
-                MalformedAction::Report => Err(TranscodeDecodeError::domain_main(*error, context.input_index())),
+                MalformedAction::Report => Ok(DecodeInvalidAction::Reject),
                 MalformedAction::Ignore => Ok(DecodeInvalidAction::Skip { consumed }),
                 MalformedAction::Replace => Ok(DecodeInvalidAction::Emit {
                     value: self.replacement,

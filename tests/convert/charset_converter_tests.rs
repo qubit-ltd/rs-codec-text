@@ -5,6 +5,7 @@
 //
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
+use core::num::NonZeroUsize;
 use std::cell::Cell;
 use std::rc::Rc;
 
@@ -15,6 +16,7 @@ use qubit_codec::ByteOrder;
 use qubit_codec::CapacityError;
 use qubit_codec::Codec;
 use qubit_codec::DecodeFailure;
+use qubit_codec::TranscodeConvertError;
 use qubit_codec::TranscodeConvertErrorOf;
 use qubit_codec::TranscodeConverter;
 use qubit_codec::TranscodeFailure;
@@ -134,6 +136,76 @@ fn test_converter_encode_error_index_preserves_nonzero_source_offset() {
     );
     assert_eq!(3, error.index(), "index is absolute within the passed source slice");
     assert_eq!(0xe9, output[0]);
+}
+
+#[test]
+fn test_report_preserves_consumed_width_for_builtin_byte_codecs() {
+    assert_converter_report(
+        Utf16ByteCodec::new(ByteOrder::LittleEndian),
+        &[0x00, 0xdc],
+        2,
+        Charset::UTF_16LE,
+        CharsetDecodeErrorKind::malformed(0xdc00),
+    );
+    assert_converter_report(
+        Utf16ByteCodec::new(ByteOrder::BigEndian),
+        &[0xdc, 0x00],
+        2,
+        Charset::UTF_16BE,
+        CharsetDecodeErrorKind::malformed(0xdc00),
+    );
+    assert_converter_report(
+        Utf32ByteCodec::new(ByteOrder::LittleEndian),
+        &[0, 0, 0x11, 0],
+        4,
+        Charset::UTF_32LE,
+        CharsetDecodeErrorKind::InvalidCodePoint { value: 0x11_0000 },
+    );
+    assert_converter_report(
+        Utf32ByteCodec::new(ByteOrder::BigEndian),
+        &[0, 0x11, 0, 0],
+        4,
+        Charset::UTF_32BE,
+        CharsetDecodeErrorKind::InvalidCodePoint { value: 0x11_0000 },
+    );
+}
+
+fn assert_converter_report<C>(
+    codec: C,
+    bytes: &[u8],
+    width: usize,
+    charset: Charset,
+    kind: CharsetDecodeErrorKind,
+) where
+    C: Copy + CharsetCodec + Codec<Value = char, Unit = u8, DecodeError = CharsetDecodeError>,
+{
+    for start in [0, 1] {
+        let mut input = vec![0xaa; start];
+        input.extend_from_slice(bytes);
+        let mut converter = CharsetConverter::from_codecs_with_policies(
+            codec,
+            Utf8Codec,
+            CharsetDecodePolicy::report(),
+            CharsetEncodePolicy::report(),
+        )
+        .expect("report policies are valid");
+        reset_for_test(&mut converter);
+        let mut output = [0_u8; 4];
+        let error = converter
+            .transcode(&input, start, &mut output, 0)
+            .expect_err("report policy rejects malformed input");
+        let TranscodeConvertError::DecodeDomain(domain) = error else {
+            panic!("expected raw decode-domain error");
+        };
+        let expected_width = NonZeroUsize::new(width).expect("non-zero width");
+        assert_eq!(Some(start), domain.input_index());
+        assert_eq!(Some(expected_width), domain.input_consumed());
+        let source = domain.into_source();
+        assert_eq!(start, source.index());
+        assert_eq!(Some(expected_width), source.consumed());
+        assert_eq!(charset, source.charset());
+        assert_eq!(kind, source.kind());
+    }
 }
 
 #[test]

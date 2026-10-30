@@ -7,6 +7,7 @@
 // =============================================================================
 use core::num::NonZeroUsize;
 
+use qubit_codec::ByteOrder;
 use qubit_codec::Codec;
 use qubit_codec::DecodeFailure;
 use qubit_codec::TranscodeDecodeError;
@@ -20,6 +21,8 @@ use qubit_codec_text::CharsetDecoder;
 use qubit_codec_text::CharsetEncodeError;
 use qubit_codec_text::CharsetEncodeResult;
 use qubit_codec_text::Utf8Codec;
+use qubit_codec_text::Utf16ByteCodec;
+use qubit_codec_text::Utf32ByteCodec;
 
 #[derive(Clone, Copy, Debug)]
 struct WidthProbeCodec {
@@ -118,6 +121,7 @@ fn test_charset_decode_recovers_using_synchronized_consumed_width() {
             let TranscodeDecodeError::Domain(domain) = error else {
                 panic!("expected charset-domain error");
             };
+            assert_eq!(Some(two), domain.input_consumed());
             let source = domain.into_source();
             assert_eq!(CharsetDecodeErrorKind::malformed(0xff), source.kind());
             assert_eq!(0, source.index());
@@ -139,4 +143,68 @@ fn test_charset_decode_recovers_using_synchronized_consumed_width() {
     let failure = error.into_codec_failure();
     assert_eq!(Some(two), failure.consumed_units());
     assert_eq!(Some(two), failure.invalid_source().unwrap().consumed());
+}
+
+#[test]
+fn test_report_preserves_consumed_width_for_builtin_byte_codecs() {
+    assert_decode_report(
+        Utf16ByteCodec::new(ByteOrder::LittleEndian),
+        &[0x00, 0xdc],
+        2,
+        Charset::UTF_16LE,
+        CharsetDecodeErrorKind::malformed(0xdc00),
+    );
+    assert_decode_report(
+        Utf16ByteCodec::new(ByteOrder::BigEndian),
+        &[0xdc, 0x00],
+        2,
+        Charset::UTF_16BE,
+        CharsetDecodeErrorKind::malformed(0xdc00),
+    );
+    assert_decode_report(
+        Utf32ByteCodec::new(ByteOrder::LittleEndian),
+        &[0, 0, 0x11, 0],
+        4,
+        Charset::UTF_32LE,
+        CharsetDecodeErrorKind::InvalidCodePoint { value: 0x11_0000 },
+    );
+    assert_decode_report(
+        Utf32ByteCodec::new(ByteOrder::BigEndian),
+        &[0, 0x11, 0, 0],
+        4,
+        Charset::UTF_32BE,
+        CharsetDecodeErrorKind::InvalidCodePoint { value: 0x11_0000 },
+    );
+}
+
+fn assert_decode_report<C>(
+    codec: C,
+    bytes: &[u8],
+    width: usize,
+    charset: Charset,
+    kind: CharsetDecodeErrorKind,
+) where
+    C: Copy + CharsetCodec + Codec<Value = char, Unit = u8, DecodeError = CharsetDecodeError>,
+{
+    for start in [0, 1] {
+        let mut input = vec![0xaa; start];
+        input.extend_from_slice(bytes);
+        let mut decoder = CharsetDecoder::with_policy(codec, CharsetDecodePolicy::report());
+        let mut output = ['\0'; 1];
+        assert_eq!(0, decoder.reset(&mut [], 0).expect("reset"));
+        let error = decoder
+            .transcode(&input, start, &mut output, 0)
+            .expect_err("report policy rejects malformed input");
+        let TranscodeDecodeError::Domain(domain) = error else {
+            panic!("expected charset-domain error");
+        };
+        let expected_width = NonZeroUsize::new(width).expect("non-zero width");
+        assert_eq!(Some(start), domain.input_index());
+        assert_eq!(Some(expected_width), domain.input_consumed());
+        let source = domain.into_source();
+        assert_eq!(start, source.index());
+        assert_eq!(Some(expected_width), source.consumed());
+        assert_eq!(charset, source.charset());
+        assert_eq!(kind, source.kind());
+    }
 }
