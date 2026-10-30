@@ -109,3 +109,27 @@ fn test_utf16_u16_codec_direct_function_items_cover_trait_methods() {
     let (decoded, consumed) = unsafe { decode(&mut codec, &output, 0) }.expect("decode pair");
     assert_eq!(('😀', 2), (decoded, consumed.get()));
 }
+
+#[test]
+fn test_utf16_u16_codec_reports_consumption_at_nonzero_input_index() {
+    let mut codec = Utf16U16Codec;
+    let input = [0x0058, 0xd800, 0x0041];
+    let start = 1;
+    // SAFETY: Two u16 units are readable at start; the minimum is one.
+    let failure = unsafe { codec.decode(&input, start) }.expect_err("high surrogate before ASCII");
+    let DecodeFailure::Invalid { source, consumed, .. } = failure else {
+        panic!("expected malformed UTF-16 pair");
+    };
+    let width = consumed.expect("known malformed prefix width").get();
+    assert_eq!(Charset::UTF_16, source.charset());
+    assert_eq!(
+        CharsetDecodeErrorKind::MalformedSequence { value: Some(0x41) },
+        source.kind()
+    );
+    assert_eq!(2, source.index());
+    assert_eq!(1, width);
+    assert_eq!(Some(width), source.consumed().map(|value| value.get()));
+    // SAFETY: The recovery position has one readable non-surrogate u16 unit.
+    let (ch, used) = unsafe { codec.decode(&input, start + width) }.expect("following ASCII is preserved");
+    assert_eq!(('A', 1), (ch, used.get()));
+}

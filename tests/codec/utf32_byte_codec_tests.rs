@@ -88,3 +88,39 @@ fn test_utf32_byte_codec_direct_function_items_cover_trait_methods() {
     let (decoded, consumed) = unsafe { decode(&mut codec, &output, 0) }.expect("decode bytes");
     assert_eq!(('中', 4), (decoded, consumed.get()));
 }
+
+#[test]
+fn test_utf32_byte_codec_reports_consumption_at_nonzero_input_index() {
+    for (order, charset) in [
+        (ByteOrder::LittleEndian, Charset::UTF_32LE),
+        (ByteOrder::BigEndian, Charset::UTF_32BE),
+    ] {
+        for value in [0xd800, 0x110000] {
+            let mut input = Vec::new();
+            for unit in [0x0058_u32, value, 0x0041] {
+                let bytes = if order == ByteOrder::LittleEndian {
+                    unit.to_le_bytes()
+                } else {
+                    unit.to_be_bytes()
+                };
+                input.extend_from_slice(&bytes);
+            }
+            let mut codec = Utf32ByteCodec::new(order);
+            let start = 4;
+            // SAFETY: At least four bytes are readable at start.
+            let failure = unsafe { codec.decode(&input, start) }.expect_err("invalid scalar value");
+            let DecodeFailure::Invalid { source, consumed, .. } = failure else {
+                panic!("expected invalid UTF-32 scalar {value:#x} for {order:?}");
+            };
+            let width = consumed.expect("known invalid scalar width").get();
+            assert_eq!(charset, source.charset(), "byte order {order:?}");
+            assert_eq!(CharsetDecodeErrorKind::InvalidCodePoint { value }, source.kind());
+            assert_eq!(4, source.index(), "scalar {value:#x}, byte order {order:?}");
+            assert_eq!(4, width, "scalar {value:#x}, byte order {order:?}");
+            assert_eq!(Some(width), source.consumed().map(|value| value.get()));
+            // SAFETY: The recovery position has a complete four-byte ASCII unit.
+            let (ch, used) = unsafe { codec.decode(&input, start + width) }.expect("following ASCII is preserved");
+            assert_eq!(('A', 4), (ch, used.get()), "byte order {order:?}");
+        }
+    }
+}

@@ -85,3 +85,26 @@ fn test_utf32_u32_codec_direct_function_items_cover_trait_methods() {
     let (decoded, consumed) = unsafe { decode(&mut codec, &output, 0) }.expect("decode unit");
     assert_eq!(('中', 1), (decoded, consumed.get()));
 }
+
+#[test]
+fn test_utf32_u32_codec_reports_consumption_at_nonzero_input_index() {
+    for value in [0xd800, 0x110000] {
+        let mut codec = Utf32U32Codec;
+        let input = [0x0058, value, 0x0041];
+        let start = 1;
+        // SAFETY: One complete u32 unit is readable at start.
+        let failure = unsafe { codec.decode(&input, start) }.expect_err("invalid scalar value");
+        let DecodeFailure::Invalid { source, consumed, .. } = failure else {
+            panic!("expected invalid UTF-32 scalar {value:#x}");
+        };
+        let width = consumed.expect("known invalid scalar width").get();
+        assert_eq!(Charset::UTF_32, source.charset());
+        assert_eq!(CharsetDecodeErrorKind::InvalidCodePoint { value }, source.kind());
+        assert_eq!(1, source.index(), "scalar {value:#x}");
+        assert_eq!(1, width, "scalar {value:#x}");
+        assert_eq!(Some(width), source.consumed().map(|value| value.get()));
+        // SAFETY: The recovery position has one readable u32 unit.
+        let (ch, used) = unsafe { codec.decode(&input, start + width) }.expect("following ASCII is preserved");
+        assert_eq!(('A', 1), (ch, used.get()), "scalar {value:#x}");
+    }
+}

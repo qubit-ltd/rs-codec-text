@@ -118,3 +118,40 @@ fn test_utf16_byte_codec_direct_function_items_cover_trait_methods() {
     let (decoded, consumed) = unsafe { decode(&mut codec, &output, 0) }.expect("decode pair bytes");
     assert_eq!(('😀', 4), (decoded, consumed.get()));
 }
+
+#[test]
+fn test_utf16_byte_codec_reports_consumption_at_nonzero_input_index() {
+    let cases = [
+        (
+            ByteOrder::LittleEndian,
+            Charset::UTF_16LE,
+            [0x58, 0x00, 0x00, 0xd8, 0x41, 0x00],
+        ),
+        (
+            ByteOrder::BigEndian,
+            Charset::UTF_16BE,
+            [0x00, 0x58, 0xd8, 0x00, 0x00, 0x41],
+        ),
+    ];
+    for (order, charset, input) in cases {
+        let mut codec = Utf16ByteCodec::new(order);
+        let start = 2;
+        // SAFETY: Four bytes are readable at start; the minimum is two.
+        let failure = unsafe { codec.decode(&input, start) }.expect_err("high surrogate before ASCII");
+        let DecodeFailure::Invalid { source, consumed, .. } = failure else {
+            panic!("expected malformed UTF-16 byte pair for {order:?}");
+        };
+        let width = consumed.expect("known malformed prefix width").get();
+        assert_eq!(charset, source.charset(), "byte order {order:?}");
+        assert_eq!(
+            CharsetDecodeErrorKind::MalformedSequence { value: Some(0x41) },
+            source.kind()
+        );
+        assert_eq!(4, source.index(), "byte order {order:?}");
+        assert_eq!(2, width, "byte order {order:?}");
+        assert_eq!(Some(width), source.consumed().map(|value| value.get()));
+        // SAFETY: The recovery position has a complete two-byte ASCII unit.
+        let (ch, used) = unsafe { codec.decode(&input, start + width) }.expect("following ASCII is preserved");
+        assert_eq!(('A', 2), (ch, used.get()), "byte order {order:?}");
+    }
+}

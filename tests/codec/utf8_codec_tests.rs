@@ -132,3 +132,27 @@ fn test_utf8_codec_direct_function_items_cover_trait_methods() {
     let (decoded, consumed) = unsafe { decode(&mut codec, &output, 0) }.expect("decode UTF-8");
     assert_eq!(('😀', 4), (decoded, consumed.get()));
 }
+
+#[test]
+fn test_utf8_codec_reports_consumption_at_nonzero_input_index() {
+    let mut codec = Utf8Codec;
+    let input = [b'X', 0xe1, 0x80, b'A'];
+    let start = 1;
+    // SAFETY: Three bytes are readable at start, exceeding the one-byte minimum.
+    let failure = unsafe { codec.decode(&input, start) }.expect_err("invalid third UTF-8 byte");
+    let DecodeFailure::Invalid { source, consumed, .. } = failure else {
+        panic!("expected invalid UTF-8 input");
+    };
+    let width = consumed.expect("known malformed prefix width").get();
+    assert_eq!(Charset::UTF_8, source.charset());
+    assert_eq!(
+        CharsetDecodeErrorKind::MalformedSequence { value: Some(0x41) },
+        source.kind()
+    );
+    assert_eq!(3, source.index());
+    assert_eq!(2, width);
+    assert_eq!(Some(width), source.consumed().map(|value| value.get()));
+    // SAFETY: The recovery position has one readable ASCII byte.
+    let (ch, used) = unsafe { codec.decode(&input, start + width) }.expect("following ASCII is preserved");
+    assert_eq!(('A', 1), (ch, used.get()));
+}
