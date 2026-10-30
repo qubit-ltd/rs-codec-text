@@ -229,6 +229,64 @@ when replacement is not acceptable. `CharsetEncoder::with_policy` and
 `CharsetConverter::from_codecs_with_policies` validate a replacement that must
 be encodable by the target codec.
 
+### Selecting a replacement for ASCII
+
+An automatically constructed ASCII encoder chooses `?` as its replacement.
+`CharsetEncodePolicy::default()` always selects U+FFFD, which ASCII cannot
+encode, so passing it explicitly is rejected when constructing the encoder.
+Use `default_for(&codec)` when the replacement should match the target, or
+`replace('?')` when a protocol requires a fixed replacement. Use `report()`
+when unmappable characters must fail:
+
+```rust
+use qubit_codec_text::{
+    AsciiCodec, CharsetEncodeErrorKind, CharsetEncodePolicy, CharsetEncoder,
+};
+
+let automatic = CharsetEncoder::new(AsciiCodec);
+assert_eq!('?', automatic.replacement());
+
+let error = CharsetEncoder::with_policy(AsciiCodec, CharsetEncodePolicy::default())
+    .expect_err("ASCII cannot encode U+FFFD");
+assert_eq!(
+    CharsetEncodeErrorKind::UnmappableCharacter { value: 0xfffd },
+    error.kind(),
+);
+
+let input = ['A', '中', 'B'];
+let policy = CharsetEncodePolicy::default_for(&AsciiCodec).expect("ASCII fallback");
+let mut encoder = CharsetEncoder::with_policy(AsciiCodec, policy).expect("valid policy");
+let mut output = [0_u8; 3];
+let written = encoder.transcode_complete_into(&input, &mut output).expect("replace");
+assert_eq!(b"A?B", &output[..written]);
+
+let mut explicit = CharsetEncoder::with_policy(AsciiCodec, CharsetEncodePolicy::replace('?'))
+    .expect("ASCII replacement");
+let written = explicit.transcode_complete_into(&input, &mut output).expect("replace");
+assert_eq!(b"A?B", &output[..written]);
+
+let mut strict = CharsetEncoder::with_policy(AsciiCodec, CharsetEncodePolicy::report())
+    .expect("report does not encode replacement metadata");
+let mut staged = [0_u8; 3];
+let raw_error = strict.transcode_complete_into(&input, &mut staged)
+    .expect_err("ASCII rejects 中");
+let error = strict.map_transcode_error(raw_error);
+assert_eq!(
+    CharsetEncodeErrorKind::UnmappableCharacter { value: '中' as u32 },
+    error.kind(),
+);
+assert_eq!(b'A', staged[0]);
+```
+
+For `A中B`, both target-aware default replacement and the explicit protocol
+replacement produce `A?B`. With `Report`, the staging buffer may already
+contain `A` when conversion fails. Discard the failed message's staged output;
+do not publish that prefix or replay the input from the mapped diagnostic.
+Passing an explicit policy does not automatically call `default_for`. When a
+policy may be invalid, use a constructor that returns configuration errors;
+for example, `CharsetTextWriter::try_new` in `rs-io-text` can return that
+error.
+
 ### BOM and Byte Order
 
 `UnicodeBom::detect` recognizes UTF-8, UTF-16, and UTF-32 BOMs from closed

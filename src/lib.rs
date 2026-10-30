@@ -88,3 +88,8 @@ pub use util::normalize_label_whatwg;
 #[doc = include_str!("../README.md")]
 #[doc = include_str!("../README.zh_CN.md")]
 mod readme_examples {}
+
+#[cfg(doctest)]
+#[doc = include_str!("../doc/user_guide.md")]
+#[doc = include_str!("../doc/user_guide.zh_CN.md")]
+mod user_guide_examples {}

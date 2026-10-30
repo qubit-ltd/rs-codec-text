@@ -208,6 +208,58 @@ assert_eq!(0, decoder.finish(&mut output, 1).expect("finish"));
 `CharsetEncoder::with_policy` 与 `CharsetConverter::from_codecs_with_policies`
 会校验必须可由目标 codec 编码的替换字符。
 
+### 为 ASCII 选择替换策略
+
+自动构造的 ASCII encoder 会选择 `?` 作为替换字符。`CharsetEncodePolicy::default()`
+始终选择 U+FFFD，而 ASCII 无法编码它，因此显式传入该策略时，构造 encoder 会被拒绝。
+如果希望替换字符适配目标 codec，应使用 `default_for(&codec)`；如果协议要求固定替换字符，
+则使用 `replace('?')`。不允许替换不可映射字符时，使用 `report()`：
+
+```rust
+use qubit_codec_text::{
+    AsciiCodec, CharsetEncodeErrorKind, CharsetEncodePolicy, CharsetEncoder,
+};
+
+let automatic = CharsetEncoder::new(AsciiCodec);
+assert_eq!('?', automatic.replacement());
+
+let error = CharsetEncoder::with_policy(AsciiCodec, CharsetEncodePolicy::default())
+    .expect_err("ASCII cannot encode U+FFFD");
+assert_eq!(
+    CharsetEncodeErrorKind::UnmappableCharacter { value: 0xfffd },
+    error.kind(),
+);
+
+let input = ['A', '中', 'B'];
+let policy = CharsetEncodePolicy::default_for(&AsciiCodec).expect("ASCII fallback");
+let mut encoder = CharsetEncoder::with_policy(AsciiCodec, policy).expect("valid policy");
+let mut output = [0_u8; 3];
+let written = encoder.transcode_complete_into(&input, &mut output).expect("replace");
+assert_eq!(b"A?B", &output[..written]);
+
+let mut explicit = CharsetEncoder::with_policy(AsciiCodec, CharsetEncodePolicy::replace('?'))
+    .expect("ASCII replacement");
+let written = explicit.transcode_complete_into(&input, &mut output).expect("replace");
+assert_eq!(b"A?B", &output[..written]);
+
+let mut strict = CharsetEncoder::with_policy(AsciiCodec, CharsetEncodePolicy::report())
+    .expect("report does not encode replacement metadata");
+let mut staged = [0_u8; 3];
+let raw_error = strict.transcode_complete_into(&input, &mut staged)
+    .expect_err("ASCII rejects 中");
+let error = strict.map_transcode_error(raw_error);
+assert_eq!(
+    CharsetEncodeErrorKind::UnmappableCharacter { value: '中' as u32 },
+    error.kind(),
+);
+assert_eq!(b'A', staged[0]);
+```
+
+对于 `A中B`，目标相关默认替换和显式协议替换都会得到 `A?B`。`Report` 失败时，暂存缓冲区中
+可能已经写入 `A`。应用应丢弃该消息的暂存结果，不发布该前缀，也不根据映射后的错误重放原输入。
+显式传入策略不会自动调用 `default_for`。策略可能无效时，应使用能够返回配置错误的构造方法；
+例如 `rs-io-text` 中的 `CharsetTextWriter::try_new` 可以返回该错误。
+
 ### BOM 与字节序
 
 `UnicodeBom::detect` 在闭合输入中识别 UTF-8、UTF-16 和 UTF-32 BOM。流前缀可能
