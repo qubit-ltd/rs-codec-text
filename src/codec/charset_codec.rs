@@ -33,6 +33,53 @@ use crate::CharsetEncodeError;
 /// [`Codec::Unit`], keeping text wrappers bound to the same object without
 /// duplicating associated types.
 ///
+/// # Malformed-input recovery
+///
+/// For an [`qubit_codec::DecodeFailure::Invalid`] returned directly by
+/// [`Codec::decode`] for `input_index`, a known consumed width is measured
+/// from that call's `input_index` in the codec's input units. The next
+/// position after the malformed prefix is `input_index + consumed.get()`, not
+/// `source.index() + consumed.get()`. The source index identifies where the
+/// failure was detected; it can point to a valid following unit that must be
+/// preserved.
+///
+/// [`crate::Utf8Codec`] and byte-oriented UTF-16 codecs count bytes;
+/// [`crate::Utf16U16Codec`] counts `u16` units. `None` provides no recovery
+/// width. This rule does not apply to incomplete failures or provide a resume
+/// cursor for buffered transcode errors. Every subsequent unsafe decode must
+/// still satisfy its input-boundary and minimum-readable-width requirements.
+///
+/// ```
+/// use qubit_codec::Codec;
+/// use qubit_codec::DecodeFailure;
+///
+/// use qubit_codec_text::Utf8Codec;
+///
+/// let mut codec = Utf8Codec;
+/// let input = [b'X', 0xe1, 0x80, b'A'];
+/// let input_index = 1;
+/// // SAFETY: Three bytes are readable at input_index; UTF-8 requires at least one.
+/// let failure = unsafe { codec.decode(&input, input_index) }
+///     .expect_err("the UTF-8 prefix ends before ASCII A");
+/// let DecodeFailure::Invalid { source, consumed, .. } = failure else {
+///     panic!("expected an invalid UTF-8 sequence");
+/// };
+/// let width = consumed.expect("known malformed prefix width").get();
+/// assert_eq!(3, source.index());
+/// assert_eq!(2, width);
+/// let next_index = input_index + width;
+/// assert_eq!(3, next_index);
+/// // SAFETY: The recovery position retains one readable ASCII byte.
+/// let (ch, used) = unsafe { codec.decode(&input, next_index) }
+///     .expect("the valid following character is preserved");
+/// assert_eq!(('A', 1), (ch, used.get()));
+/// ```
+///
+/// For `u16` input `[0x0058, 0xd800, 0x0041]` starting at 1, the detection
+/// index is 2 and the width is 1, so decoding resumes at 2. The byte-oriented
+/// UTF-16 equivalent starts at byte index 2, detects the error at byte index
+/// 4, and reports width 2.
+///
 /// # Unsafe Codec Invariants
 ///
 /// Implementors inherit the unsafe [`Codec`] contract and must keep these

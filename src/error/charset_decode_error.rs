@@ -36,6 +36,14 @@ use crate::CharsetDecodeErrorKind;
 /// when that context is needed; do not infer a safe resume position from the
 /// mapped diagnostic.
 ///
+/// For an invalid source error returned directly by
+/// [`qubit_codec::Codec::decode`], [`Self::index`] is the detection position
+/// and may identify a valid following unit. [`Self::consumed`] describes the
+/// malformed prefix width from that decode call's input index. See
+/// [`crate::CharsetCodec`] for the recovery contract. Manually supplied
+/// metadata alone does not establish that retrying is safe, and buffered
+/// transcode diagnostics do not provide a general resume cursor.
+///
 /// # Examples
 ///
 /// ```
@@ -291,7 +299,11 @@ impl CharsetDecodeError {
     ///
     /// Returns a source-unit position for input errors or an output-character
     /// position for output index and capacity errors. Interpret it together
-    /// with [`Self::kind`].
+    /// with [`Self::kind`]. For a source error returned directly by a low-level
+    /// [`qubit_codec::Codec::decode`] call, this is where invalid input was
+    /// detected, not necessarily the start of the malformed prefix; it may
+    /// identify a valid following unit. See [`crate::CharsetCodec`] for the
+    /// original-call consumption and recovery contract.
     #[inline]
     pub const fn index(self) -> usize {
         self.index
@@ -341,6 +353,14 @@ impl CharsetDecodeError {
     /// or invalid-code-point error defaults to `Some(1)`; other newly
     /// constructed kinds default to `None`. An explicit value supplied through
     /// [`Self::with_consumed`] is returned for any kind.
+    ///
+    /// For an invalid source error returned directly by
+    /// [`qubit_codec::Codec::decode`], the width describes the malformed prefix
+    /// from that call's `input_index`, rather than from [`Self::index`]. `None`
+    /// supplies no recovery width. Manually supplied metadata alone does not
+    /// establish that a retry is safe, and buffered transcode diagnostics do
+    /// not provide a general resume cursor. See [`crate::CharsetCodec`] for the
+    /// shared contract.
     #[inline]
     pub const fn consumed(self) -> Option<NonZeroUsize> {
         self.consumed
