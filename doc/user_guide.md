@@ -42,17 +42,27 @@ Enable the optional `serde` feature only to serialize `Charset` values.
 ## Core Workflow
 
 ```rust
+use qubit_codec::Transcoder;
 use qubit_codec_text::{CharsetConverter, Utf16U16Codec, Utf8Codec};
 
+let input = "A中".as_bytes();
 let mut converter = CharsetConverter::from_codecs(Utf8Codec, Utf16U16Codec);
-let mut output = [0_u16; 12];
+let capacity = converter.max_total_output_len(input.len()).expect("capacity bound");
+let mut output = vec![0_u16; capacity];
 let written = converter
-    .transcode_complete_into("A中".as_bytes(), &mut output)
+    .transcode_complete_into(input, &mut output)
     .expect("complete UTF-8 input and sufficient output");
 
 assert_eq!(2, written);
 assert_eq!([0x0041, 0x4e2d], output[..written]);
 ```
+
+`max_total_output_len` sums the codec's maximum reset, transcode, and finish
+output bounds. The complete helper checks this conservative bound before reset;
+it does not trial-write the message. This input writes two code units while the
+required complete-call bound is eight. The capacity calculation can overflow,
+so handle its `Result`. Use streaming calls and handle `NeedOutput` when output
+must be limited to a small fixed window.
 
 ### Streaming input through EOF
 

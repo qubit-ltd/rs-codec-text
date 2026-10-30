@@ -527,13 +527,19 @@ where
 
     /// Runs a complete `reset -> transcode -> finish` conversion stream. This
     /// helper initializes and closes the stream itself; do not call `reset`
-    /// first. Use the streaming methods for chunked input.
+    /// first. Before resetting, it conservatively checks the sum of the
+    /// maximum reset, input-length transcode, and finish output capacities.
+    /// This bound is based on codec contracts rather than the actual text, so
+    /// an output buffer that would fit the result may still fail the preflight.
+    /// Use the streaming methods for chunked input or a fixed small output
+    /// window.
     ///
     /// # Errors
     ///
     /// Returns a transcode convert error when source decoding or target
-    /// encoding fails under the configured policies, or when the supplied
-    /// output buffer is too small. Failure may leave an output prefix and
+    /// encoding fails under the configured policies, when the conservative
+    /// capacity bound overflows, or when the supplied output buffer is too
+    /// small. Failure may leave an output prefix and
     /// changed codec state; the error does not provide complete progress.
     /// Reset cannot undo output already delivered to the application, so stage
     /// output when the complete result must be published atomically.

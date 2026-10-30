@@ -38,17 +38,25 @@ qubit-codec = "0.17"
 ## 核心流程
 
 ```rust
+use qubit_codec::Transcoder;
 use qubit_codec_text::{CharsetConverter, Utf16U16Codec, Utf8Codec};
 
+let input = "A中".as_bytes();
 let mut converter = CharsetConverter::from_codecs(Utf8Codec, Utf16U16Codec);
-let mut output = [0_u16; 12];
+let capacity = converter.max_total_output_len(input.len()).expect("容量上界");
+let mut output = vec![0_u16; capacity];
 let written = converter
-    .transcode_complete_into("A中".as_bytes(), &mut output)
+    .transcode_complete_into(input, &mut output)
     .expect("完整 UTF-8 输入且输出空间足够");
 
 assert_eq!(2, written);
 assert_eq!([0x0041, 0x4e2d], output[..written]);
 ```
+
+`max_total_output_len` 会把 codec 对 reset、转码和 finish 的最大输出容量相加。完整转换方法
+在 reset 前检查这个保守上界，不会先试写消息。本例实际只写入两个码元，但完整调用要求的
+上界为八个。容量计算可能溢出，因此要处理返回的 `Result`。如果必须限制为固定小窗口，
+请改用流式调用并处理 `NeedOutput`。
 
 ### 流式处理直到 EOF
 

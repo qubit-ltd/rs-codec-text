@@ -7,14 +7,37 @@
 // =============================================================================
 //! # Qubit Text Codec
 //!
-//! Low-level Unicode constants, character classification helpers, and text
-//! codec primitives for ASCII, ISO-8859-1, UTF-8, UTF-16, and UTF-32-oriented
-//! code.
+//! Buffer-oriented Unicode and charset conversion for ASCII, ISO-8859-1,
+//! UTF-8, UTF-16, and UTF-32.
 //!
-//! This crate deliberately stays below `std::io::Read` and `std::io::Write`.
-//! Concrete text I/O adapters are expected to own buffering, EOF handling, line
-//! endings, and `std::io::Error` mapping while using the codecs from this crate
-//! for strict buffer-level encoding and decoding.
+//! Use [`CharsetCodec`] implementations for strict single-value encoding and
+//! decoding. Use [`CharsetDecoder`], [`CharsetEncoder`], or
+//! [`CharsetConverter`] when a buffer-oriented stream needs malformed-input or
+//! unmappable-character policies and progress reporting. These wrappers default
+//! to `Replace`; configure a `Report` policy explicitly when replacement is
+//! unacceptable. I/O adapters above this crate own stream buffering, EOF
+//! handling, line endings, and `std::io::Error` mapping.
+//!
+//! The complete-conversion helpers use [`Transcoder`](qubit_codec::Transcoder)
+//! to manage reset and finish. Streaming callers manage that lifecycle
+//! themselves, retain unconsumed input, handle EOF, and finish only after EOF
+//! input has been processed.
+//!
+//! ```
+//! use qubit_codec::Transcoder;
+//! use qubit_codec_text::{CharsetConverter, Utf16U16Codec, Utf8Codec};
+//!
+//! let input = b"A\xe4\xb8\xad";
+//! let mut converter = CharsetConverter::from_codecs(Utf8Codec, Utf16U16Codec);
+//! let capacity = converter.max_total_output_len(input.len()).expect("capacity bound");
+//! let mut output = vec![0_u16; capacity];
+//! let written = converter.transcode_complete_into(input, &mut output).expect("conversion");
+//! assert_eq!([0x0041, 0x4e2d], output[..written]);
+//! ```
+//!
+//! See the [English user guide](https://github.com/qubit-ltd/rs-codec-text/blob/main/doc/user_guide.md)
+//! and [Chinese user guide](https://github.com/qubit-ltd/rs-codec-text/blob/main/doc/user_guide.zh_CN.md)
+//! for complete workflows and streaming examples.
 
 mod charset;
 mod codec;
@@ -60,3 +83,8 @@ pub use error::CharsetEncodeErrorKind;
 pub use error::CharsetEncodeResult;
 pub use util::normalize_label_loose;
 pub use util::normalize_label_whatwg;
+
+#[cfg(doctest)]
+#[doc = include_str!("../README.md")]
+#[doc = include_str!("../README.zh_CN.md")]
+mod readme_examples {}

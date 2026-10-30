@@ -30,17 +30,27 @@ qubit-codec-text = { version = "0.9", features = ["serde"] }
 Convert UTF-8 bytes to UTF-16 code units with a caller-owned output buffer:
 
 ```rust
+use qubit_codec::Transcoder;
 use qubit_codec_text::{CharsetConverter, Utf16U16Codec, Utf8Codec};
 
+let input = b"AB";
 let mut converter = CharsetConverter::from_codecs(Utf8Codec, Utf16U16Codec);
-let mut output = [0_u16; 6];
+let capacity = converter.max_total_output_len(input.len()).expect("capacity bound");
+let mut output = vec![0_u16; capacity];
 let written = converter
-    .transcode_complete_into("AB".as_bytes(), &mut output)
+    .transcode_complete_into(input, &mut output)
     .expect("UTF-8 text converts to UTF-16");
 
 assert_eq!(2, written);
 assert_eq!([65, 66], output[..written]);
 ```
+
+`transcode_complete_into` checks a conservative capacity bound for reset,
+transcoding, and finish before it resets the stream. It does not size the
+buffer by first trying the actual text; this example writes two code units but
+the complete call requires a bound of eight. Capacity calculation can overflow,
+so handle its `Result`. For a fixed small output window, use the streaming API
+and handle `NeedOutput`.
 
 ## Why This Project Exists
 

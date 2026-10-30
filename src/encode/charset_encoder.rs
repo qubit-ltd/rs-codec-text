@@ -218,9 +218,10 @@ where
     /// Mutating codec configuration while a stream is active can invalidate
     /// buffered encode state. Reset before continuing, but note that reset does
     /// not revalidate the configured replacement. Under a `Replace` policy,
-    /// ensure the replacement remains encodable after the change; the default
-    /// policy also relies on the codec's existing `?` fallback contract. If
-    /// that cannot be guaranteed, save the policy, consume the encoder with
+    /// ensure the current replacement remains encodable after the change. The
+    /// default constructor prefers U+FFFD and uses `?` only when U+FFFD cannot
+    /// be encoded. If the current replacement's encodability cannot be
+    /// guaranteed, save the policy, consume the encoder with
     /// [`Self::into_codec`], then reconstruct it with [`Self::with_policy`]
     /// and handle validation errors. Reconstruction discards wrapper state and
     /// does not preserve pending input or output.

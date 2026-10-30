@@ -30,17 +30,25 @@ qubit-codec-text = { version = "0.9", features = ["serde"] }
 使用调用方持有的输出缓冲区，将 UTF-8 字节转换为 UTF-16 码元：
 
 ```rust
+use qubit_codec::Transcoder;
 use qubit_codec_text::{CharsetConverter, Utf16U16Codec, Utf8Codec};
 
+let input = b"AB";
 let mut converter = CharsetConverter::from_codecs(Utf8Codec, Utf16U16Codec);
-let mut output = [0_u16; 6];
+let capacity = converter.max_total_output_len(input.len()).expect("容量上界");
+let mut output = vec![0_u16; capacity];
 let written = converter
-    .transcode_complete_into("AB".as_bytes(), &mut output)
+    .transcode_complete_into(input, &mut output)
     .expect("UTF-8 文本可转换为 UTF-16");
 
 assert_eq!(2, written);
 assert_eq!([65, 66], output[..written]);
 ```
+
+`transcode_complete_into` 会在 reset 前检查 reset、转码和 finish 所需的保守容量上界，
+不会先试写原文再按实际输出长度分配。本例实际只写入两个码元，但完整调用要求的上界为
+八个。容量计算可能溢出，因此要处理返回的 `Result`。固定小窗口应使用流式接口并处理
+`NeedOutput`。
 
 ## 为什么需要这个项目
 
