@@ -27,7 +27,8 @@ use crate::CharsetEncodeErrorKind;
 /// offsets. Mappings that cannot preserve a position use `usize::MAX` as
 /// described by [`Self::map_transcode_failure`]; that sentinel can also mark a
 /// discarded position. Preserve the original transcode error when its outer
-/// context is needed, and do not treat a mapped index as a safe resume cursor.
+/// context is needed. A retained pending value keeps its originating position;
+/// do not treat a mapped index as a safe resume cursor.
 /// Errors tied to a raw code point or character value expose that value
 /// through [`Self::kind`] and [`Self::value`].
 ///

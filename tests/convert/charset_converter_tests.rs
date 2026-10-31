@@ -49,6 +49,80 @@ fn reset_for_test<T: Transcoder>(transcoder: &mut T) {
     assert!(transcoder.reset(&mut output, 0).is_ok());
 }
 
+#[test]
+fn test_converter_encode_error_index_uses_source_units() {
+    let mut converter = CharsetConverter::from_codecs_with_policies(
+        Utf8Codec,
+        Latin1Codec,
+        CharsetDecodePolicy::report(),
+        CharsetEncodePolicy::report(),
+    )
+    .expect("valid report policies");
+    let input = "é中".as_bytes();
+    let capacity = converter.max_total_output_len(input.len()).expect("output bound");
+    let mut output = vec![0_u8; capacity];
+    let raw = converter
+        .transcode_complete_into(input, &mut output)
+        .expect_err("Latin-1 rejects 中");
+    let CharsetConvertError::Encode(error) = converter.map_transcode_error(raw) else {
+        panic!("expected target encoding error");
+    };
+    assert_eq!(Charset::ISO_8859_1, error.charset());
+    assert_eq!(
+        CharsetEncodeErrorKind::UnmappableCharacter { value: '中' as u32 },
+        error.kind(),
+    );
+    assert_eq!(2, error.index(), "converter input index counts UTF-8 bytes");
+    assert_eq!(0xe9, output[0], "successful prefix remains observable");
+
+    let mut encoder =
+        CharsetEncoder::with_policy(Latin1Codec, CharsetEncodePolicy::report())
+            .expect("valid report policy");
+    let chars = ['é', '中'];
+    let capacity = encoder.max_total_output_len(chars.len()).expect("output bound");
+    let mut encoded = vec![0_u8; capacity];
+    let raw = encoder
+        .transcode_complete_into(&chars, &mut encoded)
+        .expect_err("Latin-1 rejects 中");
+    let error = encoder.map_transcode_error(raw);
+    assert_eq!(1, error.index(), "encoder input index counts char entries");
+    assert_eq!(Charset::ISO_8859_1, error.charset());
+    assert_eq!(
+        CharsetEncodeErrorKind::UnmappableCharacter { value: '中' as u32 },
+        error.kind(),
+    );
+}
+
+#[test]
+fn test_converter_encode_error_index_preserves_nonzero_source_offset() {
+    let mut converter = CharsetConverter::from_codecs_with_policies(
+        Utf8Codec,
+        Latin1Codec,
+        CharsetDecodePolicy::report(),
+        CharsetEncodePolicy::report(),
+    )
+    .expect("valid report policies");
+    reset_for_test(&mut converter);
+    let mut output = [0_u8; 8];
+    let raw = converter
+        .transcode("!é中".as_bytes(), 1, &mut output, 0)
+        .expect_err("Latin-1 rejects 中 after a two-byte prefix");
+    let CharsetConvertError::Encode(error) = converter.map_transcode_error(raw) else {
+        panic!("expected target encoding error");
+    };
+    assert_eq!(Charset::ISO_8859_1, error.charset());
+    assert_eq!(
+        CharsetEncodeErrorKind::UnmappableCharacter { value: '中' as u32 },
+        error.kind(),
+    );
+    assert_eq!(
+        3,
+        error.index(),
+        "index is absolute within the passed source slice"
+    );
+    assert_eq!(0xe9, output[0]);
+}
+
 fn replacement_interaction_converter(policy: CharsetEncodePolicy) -> CharsetConverter<Utf8Codec, AsciiCodec> {
     CharsetConverter::from_codecs_with_policies(Utf8Codec, AsciiCodec, CharsetDecodePolicy::replace('\u{fffd}'), policy)
         .expect("ASCII policy is valid")

@@ -332,6 +332,14 @@ identifies that replacement character; for `CharsetConverter`, its index
 counts source codec units. Construction-time validation does not permanently
 guarantee encodability, and no automatic fallback is selected.
 
+For `CharsetEncoder` input errors, `index()` counts entries in the input `char`
+slice. For unmappable-character reports from `CharsetConverter`, it counts
+source codec units in the input that produced the value. Converting UTF-8
+`"é中"` to Latin-1 with `Report` fails at byte index 2, while encoding
+`['é', '中']` fails at char index 1. Output positions use target codec units.
+Domain errors retain their producer's position semantics; a mapped index is
+not a safe resume cursor.
+
 In streaming code, `TranscodeProgress` describes how many units were read and
 written and reports a status such as `NeedInput` or output backpressure. Do not
 treat `NeedInput` as a malformed error: preserve the tail and retry it with
