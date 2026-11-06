@@ -20,10 +20,8 @@ use crate::Charset;
 ///
 /// ```rust
 /// use qubit_codec::ByteOrder;
-/// use qubit_codec_text::{
-///     Charset,
-///     UnicodeBom,
-/// };
+/// use qubit_codec_text::Charset;
+/// use qubit_codec_text::UnicodeBom;
 ///
 /// let bom = UnicodeBom::detect(&[0xff, 0xfe, 0x00, 0x00]);
 /// assert_eq!(Some(UnicodeBom::Utf32LittleEndian), bom);

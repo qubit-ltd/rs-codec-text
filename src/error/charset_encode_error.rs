@@ -75,6 +75,11 @@ impl CharsetEncodeError {
     /// outer values. Framework failures may also lose context as described by
     /// [`Self::map_transcode_failure`]; inspect the original error first when
     /// its full diagnostic fields are needed.
+    ///
+    /// # Parameters
+    ///
+    /// - `charset`: Target charset associated with the mapped error.
+    /// - `error`: Transcode error whose failure details are mapped or retained.
     pub fn from_transcode_error(charset: Charset, error: TranscodeEncodeError<Self, char>) -> Self {
         match error {
             TranscodeEncodeError::Failure(failure) => Self::map_transcode_failure(charset, failure),
@@ -159,6 +164,14 @@ impl CharsetEncodeError {
     }
 
     /// Maps a transcode-layer unencodable value into a charset encode error.
+    ///
+    /// # Parameters
+    ///
+    /// - `charset`: Target charset associated with the error.
+    /// - `input_index`: Input position reported by the transcode layer,
+    ///   retained without converting its units.
+    /// - `value`: Optional unencodable character; `None` records that the raw
+    ///   character value was unavailable.
     pub fn map_unencodable(charset: Charset, input_index: usize, value: Option<char>) -> Self {
         Self::new(
             charset,

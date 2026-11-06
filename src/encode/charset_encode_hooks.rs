@@ -63,6 +63,13 @@ where
     /// when the selected replacement character is no longer encodable in the
     /// codec's current state. In the latter case, the error identifies the
     /// replacement character.
+    ///
+    /// # Parameters
+    ///
+    /// - `self`: Mutable hook state containing the unmappable-input policy.
+    /// - `codec`: Codec used to test and encode the original or replacement
+    ///   character.
+    /// - `context`: Rejected input character and its source index.
     #[inline]
     fn handle_unencodable_encode(
         &mut self,
@@ -126,6 +133,12 @@ where
 /// # Type Parameters
 ///
 /// - `C`: Charset codec that supplies the target charset.
+///
+/// # Parameters
+///
+/// - `codec`: Codec whose charset is attached to the error.
+/// - `ch`: Character that could not be encoded.
+/// - `index`: Operation-specific position associated with the failure.
 fn unmappable_error<C>(codec: &C, ch: char, index: usize) -> CharsetEncodeError
 where
     C: CharsetCodec,

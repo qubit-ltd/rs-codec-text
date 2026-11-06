@@ -89,9 +89,16 @@ impl CharsetCodec for Utf32U32Codec {
 }
 
 impl Codec for Utf32U32Codec {
+    /// Unicode scalar values represented as Rust `char` values.
     type Value = char;
+
+    /// Host `u32` values containing UTF-32 scalar values, not serialized bytes.
     type Unit = u32;
+
+    /// Errors produced when a unit is not a valid Unicode scalar value.
     type DecodeError = CharsetDecodeError;
+
+    /// Errors produced when a character cannot be represented by this codec.
     type EncodeError = CharsetEncodeError;
 
     const MIN_UNITS_PER_VALUE: usize = 1;

@@ -79,6 +79,10 @@ pub struct CharsetDecodeError {
 pub type CharsetDecodeResult<T> = Result<T, CharsetDecodeError>;
 
 /// Result type returned by [`qubit_codec::Codec`] charset decoders.
+///
+/// # Type Parameters
+///
+/// - `T`: Value produced when decoding succeeds.
 pub(crate) type CharsetCodecDecodeResult<T> = Result<T, DecodeFailure<CharsetDecodeError>>;
 
 impl CharsetDecodeError {
@@ -92,6 +96,12 @@ impl CharsetDecodeError {
     /// failures may also lose context as described by
     /// [`Self::map_transcode_failure`]; inspect the original error first when
     /// its full diagnostic fields are needed.
+    ///
+    /// # Parameters
+    ///
+    /// - `charset`: Charset to associate with framework failures. Domain errors
+    ///   retain the charset stored in their source error.
+    /// - `error`: Transcode-layer failure or domain error to map.
     ///
     /// # Returns
     ///

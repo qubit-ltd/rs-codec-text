@@ -285,7 +285,7 @@ where
     ///
     /// Returns a shared reference to the source codec owned by this converter.
     #[inline]
-    #[must_use]
+    #[must_use = "use the returned source codec reference"]
     pub fn source_codec(&self) -> &D {
         self.engine.source_codec()
     }
@@ -300,7 +300,7 @@ where
     ///
     /// Returns a mutable reference to the source codec owned by this converter.
     #[inline]
-    #[must_use]
+    #[must_use = "use the returned source codec reference"]
     pub fn source_codec_mut(&mut self) -> &mut D {
         self.engine.source_codec_mut()
     }
@@ -311,7 +311,7 @@ where
     ///
     /// Returns a shared reference to the target codec owned by this converter.
     #[inline]
-    #[must_use]
+    #[must_use = "use the returned target codec reference"]
     pub fn target_codec(&self) -> &E {
         self.engine.target_codec()
     }
@@ -335,7 +335,7 @@ where
     ///
     /// Returns a mutable reference to the target codec owned by this converter.
     #[inline]
-    #[must_use]
+    #[must_use = "use the returned target codec reference"]
     pub fn target_codec_mut(&mut self) -> &mut E {
         self.engine.target_codec_mut()
     }
@@ -443,6 +443,15 @@ where
 
     /// Resets converter state.
     ///
+    /// # Parameters
+    ///
+    /// - `output`: Complete target-unit buffer available for reset output.
+    /// - `output_index`: Absolute index where reset output may begin.
+    ///
+    /// # Returns
+    ///
+    /// Returns the number of target units written during reset.
+    ///
     /// # Errors
     ///
     /// Returns a transcode convert error when reset output cannot be written or
@@ -478,6 +487,18 @@ where
     /// logical stream; it cannot undo output already delivered to the
     /// application. See [`qubit_codec::Transcoder::transcode`] for the core
     /// contract.
+    ///
+    /// # Parameters
+    ///
+    /// - `input`: Complete source-unit buffer containing the available chunk.
+    /// - `input_index`: Absolute index of the first source unit to process.
+    /// - `output`: Complete target-unit buffer available for converted output.
+    /// - `output_index`: Absolute index where converted output may begin.
+    ///
+    /// # Returns
+    ///
+    /// Returns progress describing consumed input, written output, and whether
+    /// more input or output capacity is needed.
     #[inline]
     pub fn transcode(
         &mut self,
@@ -504,6 +525,18 @@ where
     /// progress. Do not replay the original input range without an explicit
     /// recovery protocol. Reset cannot undo output already delivered to the
     /// application.
+    ///
+    /// # Parameters
+    ///
+    /// - `input`: Complete source-unit buffer containing the final input chunk.
+    /// - `input_index`: Absolute index of the first source unit to process.
+    /// - `output`: Complete target-unit buffer available for converted output.
+    /// - `output_index`: Absolute index where converted output may begin.
+    ///
+    /// # Returns
+    ///
+    /// Returns progress describing consumed input, written output, and whether
+    /// more output capacity is needed.
     #[inline]
     pub fn transcode_eof(
         &mut self,
@@ -526,6 +559,15 @@ where
     /// change state and leave output written, so successfully reset before
     /// reuse. A successful finish closes the stream. Reset cannot undo output
     /// already delivered to the application.
+    ///
+    /// # Parameters
+    ///
+    /// - `output`: Complete target-unit buffer available for final output.
+    /// - `output_index`: Absolute index where final output may begin.
+    ///
+    /// # Returns
+    ///
+    /// Returns the number of target units written during finalization.
     #[inline]
     pub fn finish(
         &mut self,
@@ -553,6 +595,15 @@ where
     /// changed codec state; the error does not provide complete progress.
     /// Reset cannot undo output already delivered to the application, so stage
     /// output when the complete result must be published atomically.
+    ///
+    /// # Parameters
+    ///
+    /// - `input`: Complete source-unit slice to convert as one logical stream.
+    /// - `output`: Complete target-unit buffer for the converted result.
+    ///
+    /// # Returns
+    ///
+    /// Returns the number of target units written.
     #[inline]
     pub fn transcode_complete_into(
         &mut self,
@@ -570,6 +621,15 @@ where
     /// can be encoded by `target`. This panic is intentional: reaching this
     /// branch means the target cannot encode either supported default
     /// replacement.
+    ///
+    /// # Parameters
+    ///
+    /// - `target`: Target codec used to validate and construct the default
+    ///   replacement policy.
+    ///
+    /// # Returns
+    ///
+    /// Returns the selected encode policy and its matching policy hooks.
     fn default_encode_policy(target: &E) -> (CharsetEncodePolicy, CharsetEncodeHooks) {
         let policy = CharsetEncodePolicy::default_for(target).unwrap_or_else(|error| {
             // If default replacement selection gets here, the target cannot
@@ -597,11 +657,26 @@ where
     D: CharsetCodec,
     E: CharsetCodec,
 {
+    /// Source codec unit consumed by this converter.
     type Input = D::Unit;
+    /// Target codec unit emitted by this converter.
     type Output = E::Unit;
+    /// Framework or charset-domain failure from a conversion operation.
     type Error = TranscodeConvertErrorOf<D, E>;
 
     /// Returns the target-side upper bound for converted output units.
+    ///
+    /// # Parameters
+    ///
+    /// - `input_len`: Number of source units to include in the bound.
+    ///
+    /// # Returns
+    ///
+    /// Returns the maximum target-unit count, or a capacity arithmetic error.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CapacityError`] when the computed upper bound overflows.
     #[inline]
     fn max_transcode_output_len(&self, input_len: usize) -> Result<usize, CapacityError> {
         self.engine.max_transcode_output_len(input_len)
@@ -609,12 +684,28 @@ where
 
     /// Returns the maximum target units needed to finalize pending conversion
     /// state.
+    ///
+    /// # Returns
+    ///
+    /// Returns the maximum target-unit count, or a capacity arithmetic error.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CapacityError`] when the computed upper bound overflows.
     #[inline]
     fn max_finish_output_len(&self) -> Result<usize, CapacityError> {
         self.engine.max_finish_output_len()
     }
 
     /// Returns the maximum target units emitted when resetting stream state.
+    ///
+    /// # Returns
+    ///
+    /// Returns the maximum target-unit count, or a capacity arithmetic error.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CapacityError`] when the computed upper bound overflows.
     #[inline]
     fn max_reset_output_len(&self) -> Result<usize, CapacityError> {
         self.engine.max_reset_output_len()
@@ -622,6 +713,20 @@ where
 
     /// Clears any pending decoded character and emits stream-start encode
     /// output.
+    ///
+    /// # Parameters
+    ///
+    /// - `output`: Complete target-unit buffer available for reset output.
+    /// - `output_index`: Absolute index where reset output may begin.
+    ///
+    /// # Returns
+    ///
+    /// Returns the number of target units written.
+    ///
+    /// # Errors
+    ///
+    /// Returns the converter error when output indices or capacity are invalid,
+    /// or a decode or encode hook fails during reset.
     #[inline]
     fn reset(&mut self, output: &mut [E::Unit], output_index: usize) -> Result<usize, Self::Error> {
         self.engine.reset(output, output_index)
@@ -634,6 +739,18 @@ where
     ///
     /// Returns framework failures when indices or output capacity are invalid,
     /// and domain errors when source decoding or target encoding fails.
+    ///
+    /// # Parameters
+    ///
+    /// - `input`: Complete source-unit buffer containing the available chunk.
+    /// - `input_index`: Absolute index of the first source unit to process.
+    /// - `output`: Complete target-unit buffer available for converted output.
+    /// - `output_index`: Absolute index where converted output may begin.
+    ///
+    /// # Returns
+    ///
+    /// Returns progress describing consumed input, written output, and whether
+    /// more input or output capacity is needed.
     #[inline]
     fn transcode(
         &mut self,
@@ -652,6 +769,18 @@ where
     /// Returns framework failures when indices or output capacity are invalid,
     /// and domain errors when EOF source input violates the configured decode
     /// policy or target encoding policy.
+    ///
+    /// # Parameters
+    ///
+    /// - `input`: Complete source-unit buffer containing the final input chunk.
+    /// - `input_index`: Absolute index of the first source unit to process.
+    /// - `output`: Complete target-unit buffer available for converted output.
+    /// - `output_index`: Absolute index where converted output may begin.
+    ///
+    /// # Returns
+    ///
+    /// Returns progress describing consumed input, written output, and whether
+    /// more output capacity is needed.
     #[inline]
     fn transcode_eof(
         &mut self,
@@ -690,7 +819,10 @@ where
     D: CharsetCodec,
     E: CharsetCodec,
 {
+    /// Error type returned when decoding source units fails.
     type DecodeError = CharsetDecodeError;
+    /// Error type returned when encoding target units fails.
     type EncodeError = CharsetEncodeError;
+    /// Character value passed from the decoder to the encoder.
     type Value = char;
 }

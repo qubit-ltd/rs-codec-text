@@ -20,6 +20,19 @@ use crate::CharsetEncodeError;
 /// unmappable-character policy live in [`crate::CharsetDecoder`] and
 /// [`crate::CharsetEncoder`].
 ///
+/// # Examples
+///
+/// The public UTF-8 codec reports the charset through this trait:
+///
+/// ```
+/// use qubit_codec_text::Charset;
+/// use qubit_codec_text::CharsetCodec;
+/// use qubit_codec_text::Utf8Codec;
+///
+/// let codec = Utf8Codec;
+/// assert_eq!(Charset::UTF_8, codec.charset());
+/// ```
+///
 /// Built-in variable-width codecs report incomplete prefixes through
 /// [`CharsetDecodeError`], so buffered decoders can call
 /// [`Codec::decode`] as soon as at least

@@ -82,9 +82,14 @@ impl CharsetCodec for Utf8Codec {
 }
 
 impl Codec for Utf8Codec {
+    /// Unicode scalar value produced by decoding or accepted for encoding.
     type Value = char;
+    /// UTF-8 byte stored in the input and output buffers.
     type Unit = u8;
+    /// Charset-specific failure produced when a byte sequence is invalid or
+    /// incomplete.
     type DecodeError = CharsetDecodeError;
+    /// Charset-specific failure used when a character cannot be encoded.
     type EncodeError = CharsetEncodeError;
 
     const MIN_UNITS_PER_VALUE: usize = 1;
@@ -92,11 +97,40 @@ impl Codec for Utf8Codec {
 
     const MAX_DECODE_UNITS_PER_VALUE: usize = Utf8::MAX_UNITS_PER_CHAR;
 
+    /// Returns the number of UTF-8 bytes required to encode `ch`.
+    ///
+    /// # Parameters
+    ///
+    /// * `ch` - Unicode scalar value whose UTF-8 width is measured.
+    ///
+    /// # Returns
+    ///
+    /// The number of bytes in the character's UTF-8 encoding.
     #[inline]
     fn encode_len(&self, ch: &char) -> usize {
         Utf8::byte_len(*ch)
     }
 
+    /// Decodes one UTF-8 character from the input buffer.
+    ///
+    /// # Parameters
+    ///
+    /// * `input` - Input bytes containing the character or an incomplete
+    ///   prefix.
+    /// * `input_index` - Start offset of the character in `input`.
+    ///
+    /// # Returns
+    ///
+    /// The decoded character and its non-zero byte width.
+    ///
+    /// # Errors
+    ///
+    /// Returns a codec failure for malformed or incomplete UTF-8.
+    ///
+    /// # Safety
+    ///
+    /// At least [`Codec::MIN_UNITS_PER_VALUE`] bytes must be readable from
+    /// `input_index`.
     #[inline]
     unsafe fn decode(&mut self, input: &[u8], input_index: usize) -> CharsetCodecDecodeResult<(char, NonZeroUsize)> {
         // SAFETY: Codec::decode requires at least MIN_UNITS_PER_VALUE (one byte).
@@ -106,6 +140,27 @@ impl Codec for Utf8Codec {
         Ok((ch, consumed))
     }
 
+    /// Encodes one character into the output buffer.
+    ///
+    /// # Parameters
+    ///
+    /// * `ch` - Character to encode.
+    /// * `output` - Destination byte buffer.
+    /// * `output_index` - Start offset of the reserved output range.
+    ///
+    /// # Returns
+    ///
+    /// The number of bytes written.
+    ///
+    /// # Errors
+    ///
+    /// This UTF-8 codec can encode every Rust `char`, so it returns no encoding
+    /// error for a valid reserved range.
+    ///
+    /// # Safety
+    ///
+    /// `output` must have `self.encode_len(ch)` writable bytes from
+    /// `output_index`.
     #[inline]
     unsafe fn encode(&mut self, ch: &char, output: &mut [u8], output_index: usize) -> CharsetEncodeResult<usize> {
         // SAFETY: Codec::encode guarantees encode_len(ch) writable bytes.
@@ -368,6 +423,19 @@ unsafe fn decode_four(input: &[u8], index: usize) -> CharsetDecodeResult<u32> {
 
 /// Validates the first continuation-like byte after a UTF-8 leading byte.
 ///
+/// # Parameters
+///
+/// * `input` - Byte slice containing the sequence.
+/// * `index` - Offset of the leading byte.
+///
+/// # Returns
+///
+/// The validated second byte, or a malformed-sequence error.
+///
+/// # Errors
+///
+/// Returns an error when the second byte is not valid for the leading byte.
+///
 /// # Safety
 ///
 /// `input` must contain at least two readable bytes starting at `index`.
@@ -385,6 +453,20 @@ unsafe fn validate_second_byte(input: &[u8], index: usize) -> CharsetDecodeResul
 }
 
 /// Validates a regular UTF-8 continuation byte at `offset` from `index`.
+///
+/// # Parameters
+///
+/// * `input` - Byte slice containing the sequence.
+/// * `index` - Offset of the leading byte.
+/// * `offset` - Distance from `index` to the continuation byte.
+///
+/// # Returns
+///
+/// The validated continuation byte.
+///
+/// # Errors
+///
+/// Returns a malformed-sequence error when the byte is not a continuation byte.
 ///
 /// # Safety
 ///
@@ -407,12 +489,31 @@ unsafe fn validate_continuation_byte(input: &[u8], index: usize, offset: usize) 
 }
 
 /// Creates a malformed-byte error with consumed width metadata.
+///
+/// # Parameters
+///
+/// * `byte` - Invalid byte represented in the error kind.
+/// * `index` - Position of that byte in the input.
+/// * `consumed` - Non-zero width attributed to the malformed prefix.
+///
+/// # Returns
+///
+/// A UTF-8 decode error carrying the supplied byte position and width.
 fn malformed_byte_error(byte: u8, index: usize, consumed: NonZeroUsize) -> CharsetDecodeError {
     let kind = CharsetDecodeErrorKind::malformed(byte as u32);
     CharsetDecodeError::new(Charset::UTF_8, kind, index).with_consumed(consumed)
 }
 
 /// Reads one byte from an already checked slice.
+///
+/// # Parameters
+///
+/// * `input` - Slice from which the byte is read.
+/// * `index` - Byte position within `input`.
+///
+/// # Returns
+///
+/// The byte stored at `index`.
 ///
 /// # Safety
 ///

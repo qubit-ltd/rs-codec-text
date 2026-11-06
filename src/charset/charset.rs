@@ -128,6 +128,7 @@ impl Charset {
     /// # Returns
     ///
     /// Returns a charset descriptor carrying the supplied metadata.
+    #[must_use]
     #[inline]
     pub const fn new_static(id: &'static str, name: &'static str, aliases: &'static [&'static str]) -> Self {
         Self { id, name, aliases }
@@ -268,40 +269,6 @@ impl Charset {
         Self::from_normalized_label(&normalize_label_whatwg(label), LabelNormalization::Whatwg)
     }
 
-    /// Returns the stable normalized charset identifier.
-    ///
-    /// # Returns
-    ///
-    /// Returns the identifier used for equality, hashing, and stable
-    /// diagnostic output.
-    #[must_use]
-    #[inline]
-    pub const fn id(self) -> &'static str {
-        self.id
-    }
-
-    /// Returns a human-readable charset label.
-    ///
-    /// # Returns
-    ///
-    /// Returns the display name stored in this descriptor.
-    #[must_use]
-    #[inline]
-    pub const fn name(self) -> &'static str {
-        self.name
-    }
-
-    /// Returns accepted aliases for this charset.
-    ///
-    /// # Returns
-    ///
-    /// Returns the static alias list stored in this descriptor.
-    #[must_use]
-    #[inline]
-    pub const fn aliases(self) -> &'static [&'static str] {
-        self.aliases
-    }
-
     /// Returns the UTF-16 charset with a fixed byte order.
     ///
     /// # Parameters
@@ -342,6 +309,40 @@ impl Charset {
             ByteOrder::NativeEndian if cfg!(target_endian = "little") => Self::UTF_32LE,
             ByteOrder::NativeEndian => Self::UTF_32BE,
         }
+    }
+
+    /// Returns the stable normalized charset identifier.
+    ///
+    /// # Returns
+    ///
+    /// Returns the identifier used for equality, hashing, and stable
+    /// diagnostic output.
+    #[must_use]
+    #[inline]
+    pub const fn id(self) -> &'static str {
+        self.id
+    }
+
+    /// Returns a human-readable charset label.
+    ///
+    /// # Returns
+    ///
+    /// Returns the display name stored in this descriptor.
+    #[must_use]
+    #[inline]
+    pub const fn name(self) -> &'static str {
+        self.name
+    }
+
+    /// Returns accepted aliases for this charset.
+    ///
+    /// # Returns
+    ///
+    /// Returns the static alias list stored in this descriptor.
+    #[must_use]
+    #[inline]
+    pub const fn aliases(self) -> &'static [&'static str] {
+        self.aliases
     }
 
     /// Returns the fixed byte order represented by this charset.
@@ -446,6 +447,10 @@ impl Hash for Charset {
     /// # Parameters
     ///
     /// - `state`: The hasher receiving this encoding's identity.
+    ///
+    /// # Type Parameters
+    ///
+    /// - `H`: The hasher used to record this charset's identifier.
     #[inline]
     fn hash<H>(&self, state: &mut H)
     where
@@ -482,6 +487,10 @@ impl Serialize for Charset {
     ///
     /// - `serializer`: Serde serializer receiving the identifier string.
     ///
+    /// # Type Parameters
+    ///
+    /// - `S`: Serializer used to encode the stable identifier.
+    ///
     /// # Errors
     ///
     /// Returns any serialization error reported by `serializer`.
@@ -504,6 +513,10 @@ impl<'de> Deserialize<'de> for Charset {
     /// # Parameters
     ///
     /// - `deserializer`: Serde deserializer providing the identifier string.
+    ///
+    /// # Type Parameters
+    ///
+    /// - `D`: Deserializer that provides the stable identifier.
     ///
     /// # Errors
     ///
@@ -693,6 +706,11 @@ fn label_matches_normalized(candidate: &str, normalized: &str, normalization: La
 }
 
 /// Tests loose-normalized equality without allocating a temporary `String`.
+///
+/// # Parameters
+///
+/// - `candidate`: Charset-owned label to compare.
+/// - `normalized`: Caller-provided label after loose normalization.
 #[inline]
 fn loose_label_matches_normalized(candidate: &str, normalized: &str) -> bool {
     let mut expected = normalized.chars();
@@ -709,6 +727,11 @@ fn loose_label_matches_normalized(candidate: &str, normalized: &str) -> bool {
 }
 
 /// Tests WHATWG-preprocessed equality without allocating a temporary `String`.
+///
+/// # Parameters
+///
+/// - `candidate`: Charset-owned label to compare.
+/// - `normalized`: Caller-provided label after WHATWG-style preprocessing.
 #[inline]
 fn whatwg_label_matches_normalized(candidate: &str, normalized: &str) -> bool {
     let mut expected = normalized.chars();

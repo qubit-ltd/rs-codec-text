@@ -77,6 +77,12 @@ impl CharsetEncodePolicy {
     /// Creates an unmappable-input policy without validating its replacement
     /// against a target codec. A replacement is checked when configured on an
     /// encoder or converter with the `Replace` action.
+    ///
+    /// # Parameters
+    ///
+    /// - `unmappable_action`: Action applied when an input character cannot be
+    ///   encoded.
+    /// - `replacement`: Character used when `unmappable_action` is `Replace`.
     #[must_use]
     #[inline]
     pub const fn new(unmappable_action: UnmappableAction, replacement: char) -> Self {
@@ -88,6 +94,10 @@ impl CharsetEncodePolicy {
 
     /// Creates a replacement policy without checking whether a target codec
     /// can encode `replacement`.
+    ///
+    /// # Parameters
+    ///
+    /// - `replacement`: Character to use when unmappable input is replaced.
     #[must_use]
     #[inline]
     pub const fn replace(replacement: char) -> Self {
@@ -104,6 +114,10 @@ impl CharsetEncodePolicy {
 
     /// Creates an ignore policy with explicit replacement metadata. The
     /// replacement is not encoded while the action is `Ignore`.
+    ///
+    /// # Parameters
+    ///
+    /// - `replacement`: Character retained as metadata; it is not encoded.
     #[must_use]
     #[inline]
     pub const fn ignore_with_replacement(replacement: char) -> Self {
@@ -119,6 +133,10 @@ impl CharsetEncodePolicy {
     }
 
     /// Selects the default replacement policy supported by `codec`.
+    ///
+    /// # Type Parameters
+    ///
+    /// - `C`: Codec type used to check replacement encodability.
     ///
     /// # Parameters
     ///
@@ -167,6 +185,7 @@ impl CharsetEncodePolicy {
 }
 
 impl Default for CharsetEncodePolicy {
+    /// Returns a policy that replaces unmappable input with U+FFFD.
     #[inline]
     fn default() -> Self {
         Self::replace(Self::DEFAULT_REPLACEMENT)

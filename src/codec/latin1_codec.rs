@@ -67,9 +67,13 @@ impl CharsetCodec for Latin1Codec {
 }
 
 impl Codec for Latin1Codec {
+    /// Unicode scalar values represented by ISO-8859-1 bytes.
     type Value = char;
+    /// The single-byte storage unit used by ISO-8859-1.
     type Unit = u8;
+    /// Decode errors use the crate's shared charset error type.
     type DecodeError = CharsetDecodeError;
+    /// Encode errors use the crate's shared charset error type.
     type EncodeError = CharsetEncodeError;
 
     const MIN_UNITS_PER_VALUE: usize = 1;
@@ -77,11 +81,37 @@ impl Codec for Latin1Codec {
 
     const MAX_DECODE_UNITS_PER_VALUE: usize = 1;
 
+    /// Reports whether the scalar value is representable as one Latin-1 byte.
+    ///
+    /// # Parameters
+    ///
+    /// - `value`: Unicode scalar value to check.
+    ///
+    /// # Returns
+    ///
+    /// Returns `true` when the value is in U+0000 through U+00FF.
     #[inline]
     fn can_encode_value(&self, value: &char) -> bool {
         Latin1::is_latin1_char(*value)
     }
 
+    /// Decodes the byte at `input_index` as its corresponding Unicode scalar.
+    ///
+    /// Latin-1 maps every possible byte to a scalar, so decoding succeeds when
+    /// the requested input unit is available.
+    ///
+    /// # Parameters
+    ///
+    /// - `input`: Source bytes containing the value.
+    /// - `input_index`: Index of the byte to decode.
+    ///
+    /// # Returns
+    ///
+    /// Returns the corresponding scalar and a consumed width of one byte.
+    ///
+    /// # Safety
+    ///
+    /// `input_index` must identify a readable byte in `input`.
     #[inline]
     unsafe fn decode(&mut self, input: &[u8], input_index: usize) -> CharsetCodecDecodeResult<(char, NonZeroUsize)> {
         debug_assert!(input_index < input.len());
@@ -90,6 +120,22 @@ impl Codec for Latin1Codec {
         Ok((Latin1::byte_to_char(value), NonZeroUsize::MIN))
     }
 
+    /// Encodes a representable scalar as one Latin-1 byte at `output_index`.
+    ///
+    /// # Parameters
+    ///
+    /// - `ch`: Unicode scalar value to encode.
+    /// - `output`: Destination byte buffer.
+    /// - `output_index`: Index where the encoded byte is written.
+    ///
+    /// # Returns
+    ///
+    /// Returns the number of bytes written, which is always one.
+    ///
+    /// # Safety
+    ///
+    /// `ch` must be encodable by this codec, and `output_index` must identify
+    /// a writable byte in `output`.
     #[inline]
     unsafe fn encode(&mut self, ch: &char, output: &mut [u8], output_index: usize) -> CharsetEncodeResult<usize> {
         debug_assert!(self.can_encode_value(ch));

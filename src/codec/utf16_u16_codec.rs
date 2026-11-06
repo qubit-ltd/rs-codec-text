@@ -91,9 +91,16 @@ impl CharsetCodec for Utf16U16Codec {
 }
 
 impl Codec for Utf16U16Codec {
+    /// Unicode scalar value produced by decoding or consumed by encoding.
     type Value = char;
+
+    /// Host `u16` values containing UTF-16 code units, not serialized bytes.
     type Unit = u16;
+
+    /// Charset error used when a UTF-16 unit sequence cannot be decoded.
     type DecodeError = CharsetDecodeError;
+
+    /// Charset error used when a Unicode scalar cannot be encoded.
     type EncodeError = CharsetEncodeError;
 
     const MIN_UNITS_PER_VALUE: usize = 1;
@@ -101,11 +108,38 @@ impl Codec for Utf16U16Codec {
 
     const MAX_DECODE_UNITS_PER_VALUE: usize = Utf16::MAX_UNITS_PER_CHAR;
 
+    /// Returns the number of UTF-16 units required to encode `ch`.
+    ///
+    /// # Parameters
+    ///
+    /// * `ch` - Unicode scalar value whose encoded width is measured.
+    ///
+    /// # Returns
+    ///
+    /// The number of UTF-16 code units needed to represent `ch`.
     #[inline]
     fn encode_len(&self, ch: &char) -> usize {
         Utf16::unit_len(*ch)
     }
 
+    /// Decodes one Unicode scalar beginning at `input_index`.
+    ///
+    /// # Parameters
+    ///
+    /// * `input` - UTF-16 code-unit buffer containing the value.
+    /// * `input_index` - Boundary at which decoding starts.
+    ///
+    /// # Returns
+    ///
+    /// The decoded scalar and its non-zero width in UTF-16 code units.
+    /// # Errors
+    ///
+    /// Returns a codec failure when the input is malformed or ends within a
+    /// surrogate pair.
+    ///
+    /// # Safety
+    ///
+    /// The caller must provide at least one readable unit from `input_index`.
     #[inline]
     unsafe fn decode(
         &mut self,
@@ -119,6 +153,26 @@ impl Codec for Utf16U16Codec {
         Ok((ch, consumed))
     }
 
+    /// Encodes `ch` into the reserved UTF-16 code-unit range.
+    ///
+    /// # Parameters
+    ///
+    /// * `ch` - Unicode scalar value to encode.
+    /// * `output` - Destination buffer for UTF-16 code units.
+    /// * `output_index` - Start of the writable range reserved by the caller.
+    ///
+    /// # Returns
+    ///
+    /// The number of UTF-16 code units written.
+    ///
+    /// # Errors
+    ///
+    /// This implementation does not return an encoding error for a Rust `char`.
+    ///
+    /// # Safety
+    ///
+    /// The caller must provide at least `encode_len(ch)` writable units from
+    /// `output_index`.
     #[inline]
     unsafe fn encode(&mut self, ch: &char, output: &mut [u16], output_index: usize) -> CharsetEncodeResult<usize> {
         // SAFETY: Codec::encode guarantees encode_len(ch) writable units.
@@ -137,7 +191,7 @@ impl Codec for Utf16U16Codec {
 ///    value.
 /// 3. Isolated low-surrogates are rejected as malformed.
 ///
-/// # Arguments
+/// # Parameters
 ///
 /// * `input` - UTF-16 unit slice to decode from. At least one unit must be
 ///   readable from `index`; the helper checks that a second unit is available
@@ -202,6 +256,11 @@ unsafe fn decode_units_prefix(input: &[u16], index: usize) -> CharsetDecodeResul
 
 /// Reads one UTF-16 unit from an already checked slice.
 ///
+/// # Parameters
+///
+/// * `input` - Slice whose previously checked unit is read.
+/// * `index` - Index of the readable unit.
+///
 /// # Safety
 ///
 /// `index` must be strictly smaller than `input.len()`.
@@ -217,7 +276,7 @@ unsafe fn unit_at(input: &[u16], index: usize) -> u16 {
 /// The helper returns how many UTF-16 units are written:
 /// one for BMP scalars, two for supplementary scalars.
 ///
-/// # Arguments
+/// # Parameters
 ///
 /// * `ch` - The character to encode.
 /// * `output` - Destination unit buffer.

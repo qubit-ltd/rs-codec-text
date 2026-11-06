@@ -123,9 +123,13 @@ impl CharsetCodec for Utf16ByteCodec {
 }
 
 impl Codec for Utf16ByteCodec {
+    /// Unicode scalar value produced or consumed by this codec.
     type Value = char;
+    /// Serialized UTF-16 bytes, stored in the configured byte order.
     type Unit = u8;
+    /// Failure reported when the input does not contain valid UTF-16.
     type DecodeError = CharsetDecodeError;
+    /// Failure reported when a character cannot be encoded by this codec.
     type EncodeError = CharsetEncodeError;
 
     const MIN_UNITS_PER_VALUE: usize = 2;
@@ -133,11 +137,40 @@ impl Codec for Utf16ByteCodec {
 
     const MAX_DECODE_UNITS_PER_VALUE: usize = Utf16::MAX_BYTES_PER_CHAR;
 
+    /// Returns the byte count required to encode `ch` as UTF-16.
+    ///
+    /// # Parameters
+    ///
+    /// - `ch`: Character whose UTF-16 representation is measured.
+    ///
+    /// # Returns
+    ///
+    /// The number of bytes required to encode the character.
     #[inline]
     fn encode_len(&self, ch: &char) -> usize {
         Utf16::unit_len(*ch) * 2
     }
 
+    /// Decodes one character from the configured byte order.
+    ///
+    /// # Parameters
+    ///
+    /// - `input`: UTF-16 byte buffer.
+    /// - `input_index`: Offset of the first byte to decode.
+    ///
+    /// # Returns
+    ///
+    /// The decoded character and the non-zero number of bytes consumed.
+    ///
+    /// # Errors
+    ///
+    /// Returns a codec failure when the bytes are incomplete or malformed
+    /// UTF-16.
+    ///
+    /// # Safety
+    ///
+    /// `input` must contain at least [`Self::MIN_UNITS_PER_VALUE`] readable
+    /// bytes starting at `input_index`.
     #[inline]
     unsafe fn decode(&mut self, input: &[u8], input_index: usize) -> CharsetCodecDecodeResult<(char, NonZeroUsize)> {
         // SAFETY: Codec::decode requires the two-byte minimum readable unit.
@@ -147,6 +180,26 @@ impl Codec for Utf16ByteCodec {
         Ok((ch, consumed))
     }
 
+    /// Encodes `ch` into the configured byte order and returns bytes written.
+    ///
+    /// # Parameters
+    ///
+    /// - `ch`: Character to encode.
+    /// - `output`: Destination byte buffer.
+    /// - `output_index`: Offset of the first output byte.
+    ///
+    /// # Returns
+    ///
+    /// The number of bytes written.
+    ///
+    /// # Errors
+    ///
+    /// Returns an encoding failure if the character cannot be encoded.
+    ///
+    /// # Safety
+    ///
+    /// `output` must have `self.encode_len(ch)` writable bytes starting at
+    /// `output_index`.
     #[inline]
     unsafe fn encode(&mut self, ch: &char, output: &mut [u8], output_index: usize) -> CharsetEncodeResult<usize> {
         // SAFETY: Codec::encode guarantees encode_len(ch) writable bytes.
@@ -162,7 +215,7 @@ impl Codec for Utf16ByteCodec {
 /// The input bytes are interpreted with `byte_order`, then decoded using UTF-16
 /// surrogate rules.
 ///
-/// # Arguments
+/// # Parameters
 ///
 /// * `input` - UTF-16 encoded byte slice. At least two bytes must be readable
 ///   from `index`; the helper checks that four bytes are available before
@@ -224,7 +277,7 @@ unsafe fn decode_bytes_prefix(
 
 /// Encodes one character into byte-serialized UTF-16 at `index` in `output`.
 ///
-/// # Arguments
+/// # Parameters
 ///
 /// * `ch` - The character to encode.
 /// * `output` - Byte destination.

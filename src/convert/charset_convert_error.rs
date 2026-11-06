@@ -39,11 +39,19 @@ use crate::CharsetEncodeError;
 pub enum CharsetConvertError {
     /// Source decoding failed.
     #[error("Failed to decode source charset: {0}")]
-    Decode(#[from] CharsetDecodeError),
+    Decode(
+        /// The source-side error, including its charset and decoding details.
+        #[from]
+        CharsetDecodeError,
+    ),
 
     /// Target encoding failed.
     #[error("Failed to encode target charset: {0}")]
-    Encode(#[from] CharsetEncodeError),
+    Encode(
+        /// The target-side error, including its charset and encoding details.
+        #[from]
+        CharsetEncodeError,
+    ),
 }
 
 impl CharsetConvertError {

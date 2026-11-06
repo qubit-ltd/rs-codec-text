@@ -259,6 +259,11 @@ where
 
     /// Runs encoder reset, initializing a new logical stream.
     ///
+    /// # Parameters
+    ///
+    /// - `output`: Buffer for units emitted while resetting codec state.
+    /// - `output_index`: Starting position in `output` for reset output.
+    ///
     /// # Errors
     ///
     /// Returns a transcode encode error when `output_index` is invalid, output
@@ -274,6 +279,13 @@ where
     }
 
     /// Encodes characters into target units.
+    ///
+    /// # Parameters
+    ///
+    /// - `input`: Characters to encode.
+    /// - `input_index`: Starting position in `input`.
+    /// - `output`: Buffer receiving encoded target units.
+    /// - `output_index`: Starting position in `output`.
     ///
     /// # Returns
     ///
@@ -315,12 +327,26 @@ where
     /// input-consumption metadata. Inspect the original transcode error before
     /// mapping it if that context is needed; source-owned index and consumption
     /// values may differ from the outer values.
+    ///
+    /// # Parameters
+    ///
+    /// - `error`: Transcode error whose charset context and error kind are
+    ///   mapped.
+    ///
+    /// # Returns
+    ///
+    /// Returns the corresponding charset encode error.
     #[inline]
     pub fn map_transcode_error(&self, error: TranscodeEncodeErrorOf<C>) -> CharsetEncodeError {
         CharsetEncodeError::from_transcode_error(self.charset(), error)
     }
 
     /// Finishes encoder-owned final output after EOF.
+    ///
+    /// # Parameters
+    ///
+    /// - `output`: Buffer for final units emitted by the codec.
+    /// - `output_index`: Starting position in `output` for final output.
     ///
     /// # Errors
     ///
@@ -359,6 +385,19 @@ where
     /// the error does not provide complete progress. Reset cannot undo output
     /// already delivered to the application, so stage output when the complete
     /// result must be published atomically.
+    ///
+    /// # Parameters
+    ///
+    /// - `input`: Complete input to encode in this stream.
+    /// - `output`: Buffer receiving reset, encoded, and final units.
+    ///
+    /// # Returns
+    ///
+    /// Returns the number of target units written on complete success.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if capacity preflight or any encoding phase fails.
     #[inline]
     pub fn transcode_complete_into(
         &mut self,
@@ -370,6 +409,16 @@ where
 
     /// Creates encode hooks for `policy`, validating the selected replacement
     /// only when the action is `Replace`.
+    ///
+    /// # Parameters
+    ///
+    /// - `codec`: Codec used to validate the selected replacement.
+    /// - `policy`: Unmappable-input action and replacement configuration.
+    ///
+    /// # Returns
+    ///
+    /// Returns hooks carrying the policy, or an error if its replacement is
+    /// not encodable by the codec's current state.
     pub(crate) fn create_hooks(
         codec: &C,
         policy: CharsetEncodePolicy,
@@ -387,30 +436,65 @@ impl<C> Transcoder for CharsetEncoder<C>
 where
     C: CharsetCodec,
 {
+    /// One Unicode scalar value supplied to an encoding operation.
     type Input = char;
+    /// A storage unit emitted by the wrapped charset codec.
     type Output = C::Unit;
+    /// Failure produced while encoding input or managing stream state.
     type Error = TranscodeEncodeErrorOf<C>;
 
     /// Returns the maximum number of target units needed for `input_len`
     /// characters.
+    ///
+    /// # Parameters
+    ///
+    /// - `input_len`: Number of input characters to bound.
+    ///
+    /// # Returns
+    ///
+    /// Returns the maximum required target-unit capacity, or a capacity error
+    /// if the bound overflows.
     #[inline]
     fn max_transcode_output_len(&self, input_len: usize) -> Result<usize, CapacityError> {
         self.engine.max_transcode_output_len(input_len)
     }
 
     /// Returns the maximum target units emitted by finishing internal state.
+    ///
+    /// # Returns
+    ///
+    /// Returns the maximum required target-unit capacity, or a capacity error
+    /// if the bound overflows.
     #[inline]
     fn max_finish_output_len(&self) -> Result<usize, CapacityError> {
         self.engine.max_finish_output_len()
     }
 
     /// Returns the maximum target units emitted when resetting stream state.
+    ///
+    /// # Returns
+    ///
+    /// Returns the maximum required target-unit capacity, or a capacity error
+    /// if the bound overflows.
     #[inline]
     fn max_reset_output_len(&self) -> Result<usize, CapacityError> {
         self.engine.max_reset_output_len()
     }
 
     /// Runs encoder reset while keeping encoder policy.
+    ///
+    /// # Parameters
+    ///
+    /// - `output`: Buffer receiving units emitted during reset.
+    /// - `output_index`: Starting position in `output`.
+    ///
+    /// # Returns
+    ///
+    /// Returns the number of units written.
+    ///
+    /// # Errors
+    ///
+    /// Returns the transcode error when reset validation or codec reset fails.
     #[inline]
     fn reset(&mut self, output: &mut [C::Unit], output_index: usize) -> Result<usize, Self::Error> {
         self.engine.reset(output, output_index)
@@ -418,6 +502,21 @@ where
 
     /// Encodes characters into the target charset while applying unmappable
     /// policy.
+    ///
+    /// # Parameters
+    ///
+    /// - `input`: Characters to encode.
+    /// - `input_index`: Starting position in `input`.
+    /// - `output`: Buffer receiving target units.
+    /// - `output_index`: Starting position in `output`.
+    ///
+    /// # Returns
+    ///
+    /// Returns progress describing consumed input and produced output.
+    ///
+    /// # Errors
+    ///
+    /// Returns the transcode error if indices are invalid or encoding fails.
     #[inline]
     fn transcode(
         &mut self,
@@ -430,6 +529,19 @@ where
     }
 
     /// Finishes encoder-owned final output after EOF.
+    ///
+    /// # Parameters
+    ///
+    /// - `output`: Buffer receiving final target units.
+    /// - `output_index`: Starting position in `output`.
+    ///
+    /// # Returns
+    ///
+    /// Returns the number of units written.
+    ///
+    /// # Errors
+    ///
+    /// Returns the transcode error if finalization fails.
     #[inline]
     fn finish(&mut self, output: &mut [C::Unit], output_index: usize) -> Result<usize, Self::Error> {
         self.engine.finish(output, output_index)
@@ -440,5 +552,6 @@ impl<C> TranscodeEncoder for CharsetEncoder<C>
 where
     C: CharsetCodec,
 {
+    /// Error type returned by charset-specific encoding operations.
     type EncodeError = CharsetEncodeError;
 }

@@ -135,6 +135,10 @@ impl CharsetDecodePolicy {
 }
 
 impl Default for CharsetDecodePolicy {
+    /// Returns the default replacement policy.
+    ///
+    /// Malformed input and incomplete tails are replaced with
+    /// [`CharsetDecodePolicy::DEFAULT_REPLACEMENT`].
     #[inline]
     fn default() -> Self {
         Self::replace(Self::DEFAULT_REPLACEMENT)

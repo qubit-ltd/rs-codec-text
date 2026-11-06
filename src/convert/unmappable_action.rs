@@ -13,10 +13,12 @@
 /// # Examples
 ///
 /// ```
+/// use qubit_codec_text::CharsetEncodePolicy;
 /// use qubit_codec_text::UnmappableAction;
 ///
-/// let action = UnmappableAction::Replace;
-/// assert_eq!(UnmappableAction::Replace, action);
+/// let policy = CharsetEncodePolicy::new(UnmappableAction::Ignore, '?');
+/// assert_eq!(UnmappableAction::Ignore, policy.unmappable_action());
+/// assert_eq!('?', policy.replacement());
 /// ```
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
 pub enum UnmappableAction {

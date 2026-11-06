@@ -121,9 +121,16 @@ impl CharsetCodec for Utf32ByteCodec {
 }
 
 impl Codec for Utf32ByteCodec {
+    /// Unicode scalar values decoded from or encoded into UTF-32 byte buffers.
     type Value = char;
+
+    /// Individual bytes in the serialized UTF-32 representation.
     type Unit = u8;
+
+    /// Errors for decoded code points that are not valid Unicode scalars.
     type DecodeError = CharsetDecodeError;
+
+    /// Errors reported when a character cannot be encoded as UTF-32.
     type EncodeError = CharsetEncodeError;
 
     const MIN_UNITS_PER_VALUE: usize = 4;
@@ -131,6 +138,26 @@ impl Codec for Utf32ByteCodec {
 
     const MAX_DECODE_UNITS_PER_VALUE: usize = Utf32::MAX_BYTES_PER_CHAR;
 
+    /// Decodes one UTF-32 character from the input at `input_index`.
+    ///
+    /// # Parameters
+    ///
+    /// - `input`: Source byte buffer containing the UTF-32 representation.
+    /// - `input_index`: Start offset of the character in `input`.
+    ///
+    /// # Returns
+    ///
+    /// Returns the decoded character and the non-zero number of bytes consumed.
+    ///
+    /// # Errors
+    ///
+    /// Returns a decode failure when the four-byte unit is not a Unicode
+    /// scalar.
+    ///
+    /// # Safety
+    ///
+    /// `input` must have at least four readable bytes starting at
+    /// `input_index`.
     #[inline]
     unsafe fn decode(
         &mut self,
@@ -144,6 +171,26 @@ impl Codec for Utf32ByteCodec {
         Ok((ch, consumed))
     }
 
+    /// Encodes one Unicode character into the output as UTF-32 bytes.
+    ///
+    /// # Parameters
+    ///
+    /// - `ch`: Character to encode.
+    /// - `output`: Destination byte buffer.
+    /// - `output_index`: Start offset of the encoded character in `output`.
+    ///
+    /// # Returns
+    ///
+    /// Returns the number of bytes written, which is four for UTF-32.
+    ///
+    /// # Errors
+    ///
+    /// This codec can encode every Rust `char`, so encoding returns no error.
+    ///
+    /// # Safety
+    ///
+    /// `output` must have at least four writable bytes starting at
+    /// `output_index`.
     #[inline]
     unsafe fn encode(&mut self, ch: &char, output: &mut [u8], output_index: usize) -> CharsetEncodeResult<usize> {
         // SAFETY: Codec::encode guarantees encode_len(ch) writable bytes.
@@ -158,7 +205,7 @@ impl Codec for Utf32ByteCodec {
 ///
 /// The input bytes are interpreted according to `byte_order`.
 ///
-/// # Arguments
+/// # Parameters
 ///
 /// * `input` - UTF-32 encoded byte slice.
 /// * `index` - Start byte offset; at least four bytes must be readable.
@@ -199,7 +246,7 @@ unsafe fn decode_bytes_prefix(
 
 /// Encodes one character into byte-serialized UTF-32 at `index` in `output`.
 ///
-/// # Arguments
+/// # Parameters
 ///
 /// * `ch` - The character to encode.
 /// * `output` - Destination byte buffer.

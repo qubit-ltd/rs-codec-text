@@ -200,6 +200,10 @@ where
     /// - `output`: Buffer receiving any characters emitted during reset.
     /// - `output_index`: Starting index at which reset output is written.
     ///
+    /// # Returns
+    ///
+    /// Returns the number of characters written during reset.
+    ///
     /// # Errors
     ///
     /// Returns a transcode decode error when `output_index` is invalid, output
@@ -293,6 +297,15 @@ where
     /// the original transcode error before mapping it if that context is
     /// needed; source-owned index and consumption values may differ from the
     /// outer values.
+    ///
+    /// # Parameters
+    ///
+    /// - `error`: Transcode error whose charset context is supplied by this
+    ///   decoder.
+    ///
+    /// # Returns
+    ///
+    /// Returns the charset-domain error retaining the codec's source error.
     #[inline]
     pub fn map_transcode_error(&self, error: TranscodeDecodeErrorOf<C>) -> CharsetDecodeError {
         CharsetDecodeError::from_transcode_error(self.charset(), error)
@@ -304,6 +317,10 @@ where
     ///
     /// - `output`: Buffer receiving any characters emitted during finalization.
     /// - `output_index`: Starting index at which final output is written.
+    ///
+    /// # Returns
+    ///
+    /// Returns the number of characters written during finalization.
     ///
     /// # Errors
     ///
@@ -337,6 +354,10 @@ where
     /// - `input`: Complete source stream to decode.
     /// - `output`: Buffer receiving decoded Unicode scalar values.
     ///
+    /// # Returns
+    ///
+    /// Returns the number of decoded characters written to `output`.
+    ///
     /// # Errors
     ///
     /// Returns a transcode decode error when the conservative capacity bound
@@ -369,6 +390,10 @@ where
     /// [`Self::detect_and_strip_bom_progress`] to avoid stripping ambiguous BOM
     /// prefixes too early.
     ///
+    /// # Parameters
+    ///
+    /// - `input`: Complete byte input beginning at the start of a stream.
+    ///
     /// # Returns
     ///
     /// Returns the detected BOM, if any, plus the input slice after the BOM
@@ -395,6 +420,7 @@ where
     /// Returns the incremental BOM detection status plus the original input
     /// slice for [`BomDetectStatus::Pending`] and [`BomDetectStatus::None`],
     /// or the input slice after the BOM prefix for [`BomDetectStatus::Match`].
+    #[must_use = "inspect the BOM detection status and corresponding input slice"]
     pub fn detect_and_strip_bom_progress(input: &[u8], eof: bool) -> (BomDetectStatus, &[u8]) {
         match UnicodeBom::detect_progress(input, eof) {
             BomDetectStatus::Match(bom) => (BomDetectStatus::Match(bom), &input[bom.bytes().len()..]),
@@ -407,11 +433,26 @@ impl<C> Transcoder for CharsetDecoder<C>
 where
     C: CharsetCodec,
 {
+    /// Source storage unit accepted by this decoder's codec.
     type Input = C::Unit;
+    /// Unicode scalar value produced for each decoded character.
     type Output = char;
+    /// Transcode error carrying codec failures and stream context.
     type Error = TranscodeDecodeErrorOf<C>;
 
     /// Returns the maximum number of characters decoded from `input_len` units.
+    ///
+    /// # Parameters
+    ///
+    /// - `input_len`: Number of source units planned for decoding.
+    ///
+    /// # Returns
+    ///
+    /// Returns the maximum output capacity required for those units.
+    ///
+    /// # Errors
+    ///
+    /// Returns `CapacityError` if the required capacity overflows `usize`.
     #[inline]
     fn max_transcode_output_len(&self, input_len: usize) -> Result<usize, CapacityError> {
         self.engine.max_transcode_output_len(input_len)
@@ -419,18 +460,48 @@ where
 
     /// Returns the maximum number of characters emitted by finishing internal
     /// state.
+    ///
+    /// # Returns
+    ///
+    /// Returns the maximum required output capacity.
+    ///
+    /// # Errors
+    ///
+    /// Returns `CapacityError` if the required capacity overflows `usize`.
     #[inline]
     fn max_finish_output_len(&self) -> Result<usize, CapacityError> {
         self.engine.max_finish_output_len()
     }
 
     /// Returns the maximum characters emitted when resetting stream state.
+    ///
+    /// # Returns
+    ///
+    /// Returns the maximum required output capacity.
+    ///
+    /// # Errors
+    ///
+    /// Returns `CapacityError` if the required capacity overflows `usize`.
     #[inline]
     fn max_reset_output_len(&self) -> Result<usize, CapacityError> {
         self.engine.max_reset_output_len()
     }
 
     /// Runs decoder reset while keeping decoder policy.
+    ///
+    /// # Parameters
+    ///
+    /// - `output`: Buffer receiving characters emitted during reset.
+    /// - `output_index`: Starting output position for reset characters.
+    ///
+    /// # Returns
+    ///
+    /// Returns the number of output characters written.
+    ///
+    /// # Errors
+    ///
+    /// Returns the transcode decode error if the index, capacity, or codec
+    /// reset operation fails.
     #[inline]
     fn reset(&mut self, output: &mut [char], output_index: usize) -> Result<usize, Self::Error> {
         self.engine.reset(output, output_index)
@@ -438,6 +509,22 @@ where
 
     /// Decodes source units into Unicode scalar values while applying malformed
     /// policy.
+    ///
+    /// # Parameters
+    ///
+    /// - `input`: Source units available for decoding.
+    /// - `input_index`: Starting position in `input`.
+    /// - `output`: Buffer receiving decoded characters.
+    /// - `output_index`: Starting position in `output`.
+    ///
+    /// # Returns
+    ///
+    /// Returns progress relative to the supplied starting indices.
+    ///
+    /// # Errors
+    ///
+    /// Returns a transcode decode error for invalid indices or a decode-domain
+    /// failure.
     #[inline]
     fn transcode(
         &mut self,
@@ -449,6 +536,25 @@ where
         self.engine.transcode(input, input_index, output, output_index)
     }
 
+    /// Decodes remaining source units after end of input has been established.
+    /// Incomplete tails are handled using this decoder's malformed-input
+    /// policy.
+    ///
+    /// # Parameters
+    ///
+    /// - `input`: Source units available at EOF.
+    /// - `input_index`: Starting position in `input`.
+    /// - `output`: Buffer receiving decoded characters or replacements.
+    /// - `output_index`: Starting position in `output`.
+    ///
+    /// # Returns
+    ///
+    /// Returns progress relative to the supplied starting indices.
+    ///
+    /// # Errors
+    ///
+    /// Returns a transcode decode error for invalid indices or a decode-domain
+    /// failure.
     #[inline]
     fn transcode_eof(
         &mut self,
@@ -461,6 +567,20 @@ where
     }
 
     /// Finishes decoder-owned final output after EOF.
+    ///
+    /// # Parameters
+    ///
+    /// - `output`: Buffer receiving characters emitted during finalization.
+    /// - `output_index`: Starting position in `output`.
+    ///
+    /// # Returns
+    ///
+    /// Returns the number of characters written.
+    ///
+    /// # Errors
+    ///
+    /// Returns a transcode decode error if final output cannot be written or
+    /// the codec reports a final decode failure.
     #[inline]
     fn finish(&mut self, output: &mut [char], output_index: usize) -> Result<usize, Self::Error> {
         self.engine.finish(output, output_index)
@@ -471,5 +591,6 @@ impl<C> TranscodeDecoder for CharsetDecoder<C>
 where
     C: CharsetCodec,
 {
+    /// Charset-domain error returned after mapping transcode context.
     type DecodeError = CharsetDecodeError;
 }

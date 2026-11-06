@@ -100,6 +100,11 @@ where
     /// Returns a transcode decode error for any non-malformed charset decode
     /// error. Malformed input under `Report` is returned as a reject action
     /// and reported by the engine.
+    ///
+    /// # Panics
+    ///
+    /// Panics if a malformed charset decode error has no consumed-width
+    /// metadata, contrary to the [`CharsetCodec`] contract.
     fn handle_invalid_decode(
         &mut self,
         _codec: &mut C,

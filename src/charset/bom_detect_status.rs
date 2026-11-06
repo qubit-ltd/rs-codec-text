@@ -31,7 +31,7 @@ pub enum BomDetectStatus {
     Pending,
 
     /// A supported Unicode BOM was detected.
-    Match(UnicodeBom),
+    Match(#[doc = "The supported BOM selected from the supplied prefix."] UnicodeBom),
 
     /// No supported Unicode BOM can match the supplied bytes.
     None,

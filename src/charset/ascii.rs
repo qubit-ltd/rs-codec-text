@@ -382,8 +382,8 @@ impl Ascii {
     /// Uppercase ASCII hexadecimal digit bytes.
     pub const UPPERCASE_HEX_DIGIT_BYTES: [u8; 16] = *b"0123456789ABCDEF";
 
-    /// Code point difference between corresponding ASCII lowercase and
-    /// uppercase letters.
+    /// Fixed code point difference between corresponding ASCII lowercase and
+    /// uppercase letters (`a..=z` minus `A..=Z`), equal to `0x20`.
     const CASE_DIFFERENCE: u32 = ('a' as u32) - ('A' as u32);
 
     /// Tests whether a byte is an ASCII byte.
