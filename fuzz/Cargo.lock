@@ -80,9 +80,9 @@ dependencies = [
 
 [[package]]
 name = "qubit-codec"
-version = "0.17.3"
+version = "0.17.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "aea3191eede74dba57cbda5e626b703eed231d708094f616ee0b556458628ca0"
+checksum = "bb057bc5bba9d48f1269fe98cdabb15e5bdde89776b7c2651f2140bc6c727395"
 dependencies = [
  "qubit-utils",
  "thiserror",
@@ -108,9 +108,9 @@ dependencies = [
 
 [[package]]
 name = "qubit-utils"
-version = "0.3.2"
+version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0488fb46cb58bfc4f4237a9b15889e6cb2700ad68dc65837e82e6c3f2c5d571e"
+checksum = "584ff83ad66e30417e2b0fd251e36562971fa072236c369b0837df72dc01cce4"
 
 [[package]]
 name = "quote"
