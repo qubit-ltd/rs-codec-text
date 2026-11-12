@@ -24,3 +24,8 @@ Command:
 ```shell
 cargo bench --bench transcode -- --noplot
 ```
+
+Historical measurement: the measured source commit, dependency snapshot, and
+raw Criterion artifact location were not recorded here and cannot be established
+from this report. These medians alone do not establish a statistically
+significant change relative to current code.
