@@ -337,8 +337,7 @@ slice. For unmappable-character reports from `CharsetConverter`, it counts
 source codec units in the input that produced the value. Converting UTF-8
 `"é中"` to Latin-1 with `Report` fails at byte index 2, while encoding
 `['é', '中']` fails at char index 1. Output positions use target codec units.
-Domain errors retain their producer's position semantics; a mapped index is
-not a safe resume cursor.
+Domain errors retain their producer's position semantics.
 
 In streaming code, `TranscodeProgress` describes how many units were read and
 written and reports a status such as `NeedInput` or output backpressure. Do not
@@ -359,17 +358,9 @@ When mapping a transcode error to `CharsetDecodeError`, `CharsetEncodeError`, or
 index or consumed count is retained. The mapping discards the outer phase and
 the outer `input_index` and `input_consumed`; source-owned index or consumption
 values may differ from those outer fields. Inspect the original error before
-mapping if the outer context is needed, and do not infer a resume position from
-the mapped error. Converter lifecycle failures continue to map to
-`CharsetConvertError::Decode` for compatibility; that does not indicate
-malformed source text.
-
-For `CharsetEncoder` input errors, `index()` counts entries in the input `char`
-slice. For unmappable-character reports from `CharsetConverter`, it counts
-source codec units in the input slice. For example, converting UTF-8 "é中" to
-Latin-1 with `Report` fails at byte index 2, while encoding `['é', '中']` fails
-at char index 1. Output positions use target codec units. Domain errors retain
-their producer's index semantics; the mapped index is not a safe resume cursor.
+mapping if the outer context is needed. A mapped index is not a safe resume
+cursor. For compatibility, converter lifecycle failures map to
+`CharsetConvertError::Decode`; this does not indicate malformed source text.
 
 For an all-or-nothing message boundary, convert into a temporary buffer owned
 by that message and publish it only after the complete conversion succeeds. If

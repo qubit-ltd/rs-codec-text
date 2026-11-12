@@ -287,16 +287,14 @@ assert_eq!(b'A', staged[0]);
 种类和下标。错误种类会在适用时区分不完整序列、畸形输入、无效标量、容量和不可映射
 字符。`CharsetConverter::map_transcode_error` 可将底层 converter failure
 映射为 `CharsetConvertError`，说明失败发生在源端解码还是目标端编码。
-为保持兼容性，converter 的生命周期错误归入 `CharsetConvertError::Decode`；这不表示源文本
-畸形。目标输出错误仍归入 `Encode`。目标 codec 当前状态下无法编码所选替换字符，也属于目标
+目标输出错误仍归入 `Encode`。目标 codec 当前状态下无法编码所选替换字符，也属于目标
 编码错误；错误指出该替换字符，converter 的下标按源 codec 码元计数。构造时验证不构成永久
 可编码保证，也不会自动选择回退字符。
 
 `CharsetEncoder` 的输入错误下标按输入 `char` 切片的元素计数；`CharsetConverter`
 报告不可映射字符时，下标按产生该值的输入中的源编码码元计数。例如，使用 `Report` 将
 UTF-8 的“é中”转为 Latin-1 时，错误位于字节下标 2；对 `['é', '中']` 直接编码时，
-错误位于 `char` 下标 1。输出位置按目标码元计数。领域错误保留产生方的位置语义，
-不能把映射后的下标直接用作安全续传位置。
+错误位于 `char` 下标 1。输出位置按目标码元计数。领域错误保留产生方的位置语义。
 
 流式代码通过 `TranscodeProgress` 得到已读/已写码元数和 `NeedInput`、输出背压等状态。
 `NeedInput` 不是畸形错误：保留尾部并在后续输入到达后重试。EOF 后仍残留的不完整序列
@@ -310,15 +308,9 @@ EOF 处理和完整便捷方法也可能在写出输出前缀后失败。
 将转码错误映射为 `CharsetDecodeError`、`CharsetEncodeError` 或 `CharsetConvertError` 时，
 会保留领域错误自身的数据，例如 charset、kind、自身下标或 consumed 数；映射会丢弃外层
 phase、`input_index` 和 `input_consumed`。领域错误自带的下标或消费数可能与这些外层字段
-不同。若需要外层上下文，请在映射前检查原始错误；不要根据映射后的错误推断续传位置。
+不同。若需要外层上下文，请在映射前检查原始错误。映射后的下标不能直接用作安全续传位置。
 为兼容性，converter 生命周期错误仍映射为 `CharsetConvertError::Decode`，这不表示源文本
 畸形。
-
-`CharsetEncoder` 的输入错误下标按输入 `char` 切片的元素计数；`CharsetConverter`
-报告不可映射字符时，下标按传入源切片的编码码元计数。例如，使用 `Report` 将
-UTF-8 的“é中”转为 Latin-1 时，错误位于字节下标 2；对 `['é', '中']` 直接编码时，
-错误位于 char 下标 1。输出位置按目标码元计数。领域错误保留产生方的位置语义，
-不能把映射后的下标直接用作安全续传位置。
 
 如果业务要求整条消息要么全部发布、要么全部丢弃，应先转换到该消息专用的临时缓冲区，
 仅在完整转换成功后发布。转换失败时丢弃该消息的暂存输出；不要仅凭映射后的诊断把输入
