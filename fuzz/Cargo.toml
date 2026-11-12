@@ -13,7 +13,7 @@ cargo-fuzz = true
 [dependencies]
 libfuzzer-sys = "^0.4"
 qubit-codec = "^0.17"
-qubit-codec-text = { path = ".." }
+qubit-codec-text = { path = "../", version = "^0.9" }
 
 [[bin]]
 name = "utf8_decode"
