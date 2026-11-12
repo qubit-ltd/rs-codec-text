@@ -376,7 +376,8 @@ fn assert_chunked_matches_complete<C, F>(
     input: &[u8],
     chunks: &[usize],
     windows: &[usize],
-) where
+) -> Vec<u16>
+where
     C: CharsetCodec<Unit = u8>,
     F: Fn() -> C,
 {
@@ -468,6 +469,7 @@ fn assert_chunked_matches_complete<C, F>(
         "chunked output differs from complete output: case={context}, codec={}, input={input:02x?}, chunks={chunks:?}, windows={windows:?}",
         core::any::type_name::<C>(),
     );
+    result
 }
 
 fn run_chunked_backpressure(input: &[u8], controls: &[u8]) -> Vec<u16> {
@@ -1711,6 +1713,119 @@ fn utf32_bytes(units: &[u32], order: ByteOrder) -> Vec<u8> {
         .collect()
 }
 
+// Independent std-only expectations for the byte-oriented Unicode codecs.
+fn expected_utf16_output(input: &[u8], order: ByteOrder) -> Vec<u16> {
+    let mut units: Vec<u16> = input
+        .chunks_exact(2)
+        .map(|bytes| {
+            let pair = [bytes[0], bytes[1]];
+            match order {
+                ByteOrder::LittleEndian => u16::from_le_bytes(pair),
+                ByteOrder::BigEndian => u16::from_be_bytes(pair),
+                ByteOrder::NativeEndian => u16::from_ne_bytes(pair),
+            }
+        })
+        .collect();
+    let odd = !input.len().is_multiple_of(2);
+    if odd && units.last().is_some_and(|unit| (0xd800..=0xdbff).contains(unit)) {
+        units.pop();
+    }
+    let mut text: String = char::decode_utf16(units)
+        .map(|value| value.unwrap_or(char::REPLACEMENT_CHARACTER))
+        .collect();
+    if odd {
+        text.push(char::REPLACEMENT_CHARACTER);
+    }
+    text.encode_utf16().collect()
+}
+
+fn expected_utf32_output(input: &[u8], order: ByteOrder) -> Vec<u16> {
+    let mut text = String::new();
+    for bytes in input.chunks_exact(4) {
+        let array = [bytes[0], bytes[1], bytes[2], bytes[3]];
+        let value = match order {
+            ByteOrder::LittleEndian => u32::from_le_bytes(array),
+            ByteOrder::BigEndian => u32::from_be_bytes(array),
+            ByteOrder::NativeEndian => u32::from_ne_bytes(array),
+        };
+        text.push(char::from_u32(value).unwrap_or(char::REPLACEMENT_CHARACTER));
+    }
+    if !input.len().is_multiple_of(4) {
+        text.push(char::REPLACEMENT_CHARACTER);
+    }
+    text.encode_utf16().collect()
+}
+
+#[test]
+fn test_multibyte_independent_oracle_fixed_cases() {
+    for order in [ByteOrder::LittleEndian, ByteOrder::BigEndian, ByteOrder::NativeEndian] {
+        let utf16_cases = [
+            (vec![], vec![]),
+            (utf16_bytes(&[0x0041, 0x4e2d], order), vec![0x0041, 0x4e2d]),
+            (utf16_bytes(&[0xd83d, 0xde00], order), vec![0xd83d, 0xde00]),
+            (utf16_bytes(&[0xdc00], order), vec![0xfffd]),
+            (utf16_bytes(&[0xd800, 0x0041], order), vec![0xfffd, 0x0041]),
+            (vec![0x41], vec![0xfffd]),
+            ([utf16_bytes(&[0xd800], order), vec![0x41]].concat(), vec![0xfffd]),
+            (
+                [utf16_bytes(&[0xd800, 0xd800], order), vec![0x41]].concat(),
+                vec![0xfffd, 0xfffd],
+            ),
+        ];
+        for (input, expected) in utf16_cases {
+            assert_eq!(
+                expected,
+                expected_utf16_output(&input, order),
+                "UTF-16 oracle case: {input:02x?}"
+            );
+            let actual = assert_chunked_matches_complete(
+                || Utf16ByteCodec::new(order),
+                "fixed UTF-16 oracle",
+                &input,
+                &vec![1; input.len()],
+                &[0, 1],
+            );
+            assert_eq!(
+                expected, actual,
+                "UTF-16 fixed case: order={order:?}, input={input:02x?}"
+            );
+        }
+
+        let mut utf32_cases = vec![
+            (vec![], vec![]),
+            (utf32_bytes(&[0x0041, 0x4e2d], order), vec![0x0041, 0x4e2d]),
+            (utf32_bytes(&[0x1f600], order), vec![0xd83d, 0xde00]),
+            (utf32_bytes(&[0xd800], order), vec![0xfffd]),
+            (utf32_bytes(&[0x11_0000], order), vec![0xfffd]),
+        ];
+        for tail_len in 1..=3 {
+            let tail = vec![0x41; tail_len];
+            utf32_cases.push((tail.clone(), vec![0xfffd]));
+            let mut after_valid = utf32_bytes(&[0x41], order);
+            after_valid.extend_from_slice(&tail);
+            utf32_cases.push((after_valid, vec![0x41, 0xfffd]));
+        }
+        for (input, expected) in utf32_cases {
+            assert_eq!(
+                expected,
+                expected_utf32_output(&input, order),
+                "UTF-32 oracle case: {input:02x?}"
+            );
+            let actual = assert_chunked_matches_complete(
+                || Utf32ByteCodec::new(order),
+                "fixed UTF-32 oracle",
+                &input,
+                &vec![1; input.len()],
+                &[0, 1],
+            );
+            assert_eq!(
+                expected, actual,
+                "UTF-32 fixed case: order={order:?}, input={input:02x?}"
+            );
+        }
+    }
+}
+
 fn check_chunk_splits<C, F>(make_codec: F, context: &str, input: &[u8])
 where
     C: CharsetCodec<Unit = u8>,
@@ -1845,8 +1960,22 @@ proptest! {
         for order in [ByteOrder::LittleEndian, ByteOrder::BigEndian] {
             let utf16_context = format!("Utf16ByteCodec/{order:?}");
             let utf32_context = format!("Utf32ByteCodec/{order:?}");
-            assert_chunked_matches_complete(|| Utf16ByteCodec::new(order), &utf16_context, &input, &chunks, &windows);
-            assert_chunked_matches_complete(|| Utf32ByteCodec::new(order), &utf32_context, &input, &chunks, &windows);
+            let utf16_actual = assert_chunked_matches_complete(
+                || Utf16ByteCodec::new(order), &utf16_context, &input, &chunks, &windows,
+            );
+            assert_eq!(
+                expected_utf16_output(&input, order),
+                utf16_actual,
+                "UTF-16 oracle: order={order:?}, input={input:02x?}, chunks={chunks:?}, windows={windows:?}"
+            );
+            let utf32_actual = assert_chunked_matches_complete(
+                || Utf32ByteCodec::new(order), &utf32_context, &input, &chunks, &windows,
+            );
+            assert_eq!(
+                expected_utf32_output(&input, order),
+                utf32_actual,
+                "UTF-32 oracle: order={order:?}, input={input:02x?}, chunks={chunks:?}, windows={windows:?}"
+            );
         }
     }
 }
